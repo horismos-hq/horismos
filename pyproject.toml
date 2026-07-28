@@ -1,0 +1,47 @@
+[build-system]
+requires = ["maturin>=1.8,<2"]
+build-backend = "maturin"
+
+[project]
+name = "sigil"
+description = "Ontology-first neuro-symbolic agent framework: Rust core, Python bindings. Neural proposes; symbolic decides."
+readme = "README.md"
+requires-python = ">=3.11"
+license = "MIT OR Apache-2.0"
+dynamic = ["version"]
+keywords = ["ontology", "neuro-symbolic", "agents", "rdf", "reasoning"]
+classifiers = [
+    "Development Status :: 2 - Pre-Alpha",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Rust",
+    "Typing :: Typed",
+]
+
+[dependency-groups]
+dev = [
+    "maturin>=1.8,<2",
+    "pytest>=8",
+    "mypy>=1.14",
+    "ruff>=0.8",
+    "hypothesis>=6",
+]
+
+[tool.maturin]
+manifest-path = "crates/sigil-py/Cargo.toml"
+python-source = "python"
+module-name = "sigil._sigil"
+features = ["pyo3/extension-module"]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]
+
+[tool.mypy]
+strict = true
+files = ["python"]
+
+[tool.pytest.ini_options]
+testpaths = ["python/tests"]

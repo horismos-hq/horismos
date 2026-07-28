@@ -1,0 +1,89 @@
+# The Sigil running example: clinical triage.
+# This file tracks docs/framework/02-ontology.md through 07-tools.md and is
+# built up progressively as the docs' snippets are consolidated. It is the
+# flagship fixture: every framework feature must be exercised here.
+
+@prefix :      <https://example.org/triage#> .
+@prefix sigil: <https://sigil.dev/ns#> .
+@prefix sct:   <http://snomed.info/id/> .
+@prefix rdf:   <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs:  <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix owl:   <http://www.w3.org/2002/07/owl#> .
+@prefix xsd:   <http://www.w3.org/2001/XMLSchema#> .
+
+## Domain (doc 02)
+
+:Patient a rdfs:Class ;
+    rdfs:label "Patient" .
+
+:heartRate a rdf:Property ;
+    rdfs:domain :Patient ;
+    rdfs:range  xsd:decimal ;
+    sigil:unit  "bpm" ;
+    sigil:min   0 ;
+    sigil:max   300 ;
+    sigil:cardinality "0..1" .
+
+:Symptom a rdfs:Class .
+:ChestPain rdfs:subClassOf :Symptom ;
+    owl:sameAs sct:29857009 .          # SNOMED CT anchor
+:CrushingChestPain rdfs:subClassOf :ChestPain .
+
+:hasSymptom a rdf:Property ;
+    rdfs:domain :Patient ;
+    rdfs:range  :Symptom ;
+    sigil:cardinality "0..*" .
+
+:AcuityLevel a rdfs:Class ;
+    sigil:oneOf ( :Immediate :Urgent :Standard ) .
+:acuity a rdf:Property ;
+    rdfs:domain :Patient ; rdfs:range :AcuityLevel ;
+    sigil:cardinality "0..1" ;
+    sigil:assignedBy sigil:RulesOnly .   # perception may NEVER set this field
+
+## Rules (doc 02 / 04)
+
+:r1 a sigil:Rule ;
+    sigil:priority 10 ;
+    sigil:when [
+        sigil:all (
+            [ sigil:subject :Patient ; sigil:property :heartRate ; sigil:exceeds 120 ]
+            [ sigil:subject :Patient ; sigil:property :hasSymptom ; sigil:is :ChestPain ]
+        )
+    ] ;
+    sigil:then [ sigil:property :acuity ; sigil:value :Immediate ] ;
+    sigil:explain "Tachycardia with chest pain — immediate track" .
+
+## Workflow (doc 05)
+
+:Triage a sigil:Workflow ;
+    sigil:startsAt :Intake ;
+    sigil:version "1.2.0" .
+
+:Intake a sigil:PerceptionStep ;
+    sigil:extracts :Patient, :Symptom ;
+    sigil:model "claude:claude-fable-5" ;
+    sigil:confidence 0.85 ;
+    sigil:fallback :EscalateToNurse ;
+    sigil:next :Assess .
+
+:Assess a sigil:ReasoningStep ;
+    sigil:goal [ sigil:property :acuity ; sigil:isAssigned true ] ;
+    sigil:onUnreachable :EscalateToNurse ;
+    sigil:next :Route .
+
+:Route a sigil:ActionStep ;
+    sigil:tool :ehr.assign_queue ;
+    sigil:requires [ sigil:property :acuity ; sigil:isAssigned true ] ;
+    sigil:next :Explain .
+
+:Explain a sigil:NarrationStep ;
+    sigil:narrates [ sigil:property :acuity ] ;
+    sigil:audience "charge-nurse" ;
+    sigil:next :Done .
+
+:Done a sigil:Step ; sigil:terminal true .
+
+:EscalateToNurse a sigil:ActionStep ;
+    sigil:tool :paging.notify_nurse ;
+    sigil:terminal true .

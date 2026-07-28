@@ -1,0 +1,20 @@
+[package]
+name = "sigil-py"
+description = "PyO3 bindings for the Sigil framework — no logic, marshaling only"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[lib]
+name = "_sigil"
+crate-type = ["cdylib"]
+
+[dependencies]
+sigil-core = { workspace = true, features = ["verify", "sparql", "mock"] }
+sigil-bridges = { path = "../sigil-bridges", version = "0.1.0" }
+pyo3 = { version = "0.29", features = ["abi3-py311"] }
+
+[lints]
+workspace = true

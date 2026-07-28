@@ -1,0 +1,30 @@
+[package]
+name = "sigil-core"
+description = "Ontology-first neuro-symbolic agent engine: ontology, world, reasoner, workflows, traces, verification"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[features]
+default = ["verify", "sparql"]
+# BDD verification (will pull biodivine-lib-bdd when PRP-002/005 activate)
+verify = []
+# The SPARQL query subset (docs/framework/03-world.md)
+sparql = []
+# MockBridge + testing utilities (docs/framework/08-bridge.md)
+mock = []
+# wasm-bindgen surface; mutually exclusive with PyO3 (docs/framework/12-rust-api.md)
+wasm = []
+
+[dependencies]
+thiserror.workspace = true
+serde.workspace = true
+async-trait.workspace = true
+
+[dev-dependencies]
+proptest.workspace = true
+
+[lints]
+workspace = true
