@@ -1,6 +1,7 @@
 # PRP-001 — Ontology Core (Rust)
 
-**Status**: Draft — next to activate (see `02-tasks-and-gaps.md`)
+**Status**: **Active** (2026-07-28) — decisions D1–D6 resolved, building U1–U11
+(see `02-tasks-and-gaps.md`)
 **Depends on**: PRP-000
 
 ## Intent

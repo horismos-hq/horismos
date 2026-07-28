@@ -76,7 +76,8 @@ world.diff(s)                 # added/removed facts since s
 
 Snapshots are immutable values. Every workflow step boundary automatically snapshots
 (doc 05), which is what makes traces replayable (doc 09). Serialization: Turtle for
-interchange, a compact binary form for replay. **[DECIDE: binary format — PRP-001]**
+interchange; a compact binary form for replay (postcard-serialized, versioned
+header — decided, PRP-001).
 
 ## Subscriptions
 

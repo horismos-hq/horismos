@@ -15,7 +15,7 @@ proof → NL). Delete the LLM and the framework still runs.
 ## Sources of truth
 
 - `PRPs/BOARD.md`: at-a-glance state — current / next / end goal. Visual version:
-  the [Horismos Board artifact](https://claude.ai/code/artifact/95d5a1ed-95cf-41b2-8b38-f51404f79b0b)
+  the [Horismos Board artifact](https://claude.ai/code/artifact/dc7ee691-4c9f-40a7-b235-0760de8ff17d)
   (regenerate from `planning/board.html`, republish to the same URL on status changes).
 - `docs/framework/00-index.md` → docs 01–14: the framework definition, written in
   shipped voice. **Read the relevant doc before implementing anything.**

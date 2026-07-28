@@ -71,7 +71,7 @@ decides": the validation gate rejects any perception output that tries to set it
 | Term | Applies to | Meaning |
 |------|-----------|---------|
 | `horis:min` / `horis:max` | numeric property | Inclusive bounds; gate rejects violations |
-| `horis:unit` | numeric property | Unit label; conversions are explicit, mismatches rejected **[DECIDE: auto-convert compatible units? → PRP-001]** |
+| `horis:unit` | numeric property | Opaque unit label; exact match required between declarations and rule conditions — mismatches are load-time verification errors. No auto-conversion (decided, PRP-001) |
 | `horis:cardinality` | property | `"1"`, `"0..1"`, `"1..*"`, `"0..*"` |
 | `horis:oneOf` | class | Closed instance enumeration (enums) |
 | `horis:pattern` | string property | Regex the value must match |
@@ -122,8 +122,10 @@ Summarized here, specified in doc 05:
 ```
 
 - Imports load into named graphs; their class hierarchies participate in subsumption.
-- Large vocabularies (SNOMED CT ≈ 350k concepts) are consumed as **extracted subsets**;
-  `horismos author` assists extraction (doc 13). **[DECIDE: lazy loading — PRP-001]**
+- Large vocabularies (SNOMED CT ≈ 350k concepts) are consumed as **extracted subsets**
+  — a subset `.ttl` is an ordinary import; there is no lazy loading, and the core does
+  no I/O beyond reading declared imports (decided, PRP-001). `horismos author` assists
+  extraction (doc 13).
 - `owl:sameAs` anchors local classes to external IRIs. Anchoring buys: shared meaning
   across deployments, imported hierarchy (subsumption you didn't write), and interop
   with existing RDF datasets and editors.

@@ -10,17 +10,24 @@ becomes authoritative when the PRP activates.
       store — our interned triple store (D2) stays ours. Load-time/memory validated
       empirically in U2; if oxigraph proves heavy there, the fallback is its parser
       crates alone, not a re-litigation of this decision.
-- [ ] D2. **Triple-store representation**: interned IRIs + index layout (port
-      sigil-lang's string-interning experience from the VM chunk design).
-- [ ] D3. **Which SHACL subset exactly**; how shape violations render in domain terms.
-- [ ] D4. **Snapshot semantics**: persistent structural sharing (docs lean this way)
-      vs. copy-on-write. Includes the binary snapshot format
-      (docs/framework/03-world.md **[DECIDE]**).
-- [ ] D5. **External-vocabulary import strategy**: full load vs. lazy subset
-      extraction (SNOMED CT ≈ 350k concepts)
-      (docs/framework/02-ontology.md **[DECIDE]**).
-- [ ] D6. **Unit handling**: auto-convert compatible units vs. reject mismatches
-      (docs/framework/02-ontology.md **[DECIDE]**).
+- [x] D2. **Store representation** (decided 2026-07-28): `u32`-newtype interned IRIs
+      in an arena; instance data as adjacency maps (subject → property → values),
+      matching gate/rule access patterns. No generic SPO/POS/OSP indexes up front —
+      secondary indexes arrive benchmark-driven with PRP-002's matcher.
+- [x] D3. **Constraints** (decided 2026-07-28): the documented `horis:` vocabulary
+      exactly (doc 02) — SHACL-inspired, not SHACL-conformant. Violations render per
+      the doc-03 template + machine-readable structure. SHACL export mapping deferred
+      to PRP-006 interop.
+- [x] D4. **Snapshots** (decided 2026-07-28): persistent structural sharing
+      (HAMT-style, `im` crate or equivalent) — O(1) `snapshot()`, structural `diff()`.
+      Binary form: postcard-serialized with a versioned header.
+- [x] D5. **Imports** (decided 2026-07-28): pre-extracted subset files only in v1 —
+      a subset `.ttl` is an ordinary import into a named graph; no I/O in the core,
+      no lazy loading. Extraction tooling belongs to PRP-007. U11 ships a ~50-concept
+      chest-pain SNOMED subset fixture.
+- [x] D6. **Units** (decided 2026-07-28): strict — units are opaque labels, exact
+      match required between rule conditions and property declarations; mismatch is a
+      load-time verification error in domain terms. No auto-conversion in v1.
 
 ## Units of work
 

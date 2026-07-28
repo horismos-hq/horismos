@@ -2,7 +2,7 @@
 
 At-a-glance project state. Updated in the same commit as any PRP status change
 (`CONVENTIONS.md`). Visual version:
-[Horismos Board artifact](https://claude.ai/code/artifact/95d5a1ed-95cf-41b2-8b38-f51404f79b0b)
+[Horismos Board artifact](https://claude.ai/code/artifact/dc7ee691-4c9f-40a7-b235-0760de8ff17d)
 (source: `planning/board.html`, republished to the same URL on updates).
 
 _Last updated: 2026-07-28_
@@ -18,16 +18,17 @@ seeded.
 
 ## Next goal
 
-**Activate PRP-001** (folder ready: `PRP-001-ontology-core/02-tasks-and-gaps.md`):
-D1 is decided (oxigraph); resolve D2–D6, then units U1–U11 ending at the DoD:
-`triage.ttl` + SNOMED subset loads, schema violations rejected in domain terms,
-Turtle round-trips, snapshots, pattern queries — no LLM. Side quests: register
-`horismos.dev` + file the w3id.org/horismos PR (human), reserve crates.io/PyPI names
-(PRP-006 or early).
+**PRP-001 is Active** — all decisions D1–D6 resolved 2026-07-28 (oxigraph; interned
+IRIs + persistent adjacency store; documented `horis:` constraints; postcard
+snapshots; pre-extracted vocabulary subsets; strict units). Build units U1–U11
+test-first, ending at the DoD: `triage.ttl` + SNOMED subset loads, schema violations
+rejected in domain terms, Turtle round-trips, snapshots, pattern queries — no LLM.
 
-Decisions closed 2026-07-28 (recorded in PRP-000): rebrand **Sigil → Horismos**,
-proving ground both-track (τ-Bench number, triage narrative), license MIT OR
-Apache-2.0 dual, parser oxigraph.
+Human side quests: register `horismos.dev`; file the w3id.org/horismos PR; reserve
+crates.io/PyPI names early.
+
+Also closed 2026-07-28 (in PRP-000): rebrand **Sigil → Horismos**, proving ground
+both-track (τ-Bench number, triage narrative), license MIT OR Apache-2.0 dual.
 
 ## End goal
 
@@ -52,7 +53,7 @@ provenance semirings over the Datalog-shaped subset (Type 5), GNN guidance.
 |-------|-----|--------|-----------|
 | Standing | [foundational-skeleton](foundational-skeleton.md) | ✅ Done (standing) | Repo layout, tooling, skills — `make verify` green |
 | Standing | [PRP-000 vision](PRP-000-vision-positioning.md) | ✅ Decisions closed | Pitch, personas, honest Kautz 2–3 placement; naming/license/benchmark resolved |
-| Engine | [PRP-001 ontology core](PRP-001-ontology-core/01-objective.md) | 🔜 Next — folder ready | Load/validate ontology, typed World, validation gate |
+| Engine | [PRP-001 ontology core](PRP-001-ontology-core/01-objective.md) | 🟢 **Active** — D1–D6 done, building U1–U11 | Load/validate ontology, typed World, validation gate |
 | Engine | [PRP-002 reasoning](PRP-002-reasoning-substrate.md) | ⬜ Draft | Chaining, subsumption, proof trees, training-grade traces |
 | Engine | [PRP-005 verification](PRP-005-guarantees-verification.md) | ⬜ Draft | BDD checks + domain-term witnesses (needs only 001+002) |
 | Surface | [PRP-003 python bindings](PRP-003-python-bindings.md) | ⬜ Draft | `pip install horismos`; the Pythonic front door |
