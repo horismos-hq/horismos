@@ -22,6 +22,10 @@ pub mod world;
 #[cfg(feature = "wasm")]
 pub mod wasm;
 
+// Core types (docs/framework/12-rust-api.md § Core types): interned
+// identifiers and typed values, re-exported at the crate root.
+pub use ontology::term::{Datatype, Interner, Iri, Ref, Value, XsdDuration};
+
 /// The RDFS-plus profile version this engine targets
 /// (`horis:profileVersion`, docs/framework/02-ontology.md).
 pub const PROFILE_VERSION: &str = "0.1";

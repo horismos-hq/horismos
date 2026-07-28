@@ -4,3 +4,5 @@
 //! anchoring, IRI interning.
 //!
 //! Spec: `docs/framework/02-ontology.md` · Owner: PRP-001
+
+pub mod term;
