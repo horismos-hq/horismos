@@ -26,6 +26,10 @@ proptest = "1"
 # closure makes that a compile-time guarantee, not just a convention.
 chrono = { version = "0.4", default-features = false, features = ["std"] }
 rust_decimal = { version = "1", default-features = false, features = ["std"] }
+# Turtle parse/serialize (decision D1, PRP-001 U2): oxigraph's parser crates,
+# not the oxigraph store — horismos-core keeps its own interned triple store.
+oxttl = { version = "0.2", default-features = false }
+oxrdf = { version = "0.3", default-features = false }
 
 [workspace.lints.rust]
 unsafe_code = "deny"

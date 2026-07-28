@@ -37,6 +37,14 @@ pub enum OntologyError {
     /// A lexical form did not match the grammar of its declared datatype.
     #[error("{lexical:?} is not a valid {datatype} lexical form")]
     InvalidLexicalForm { datatype: String, lexical: String },
+
+    /// Turtle source did not conform to Turtle grammar (U2 parsing).
+    #[error("Turtle syntax error at line {line}, column {column}: {message}")]
+    TurtleSyntax {
+        line: u64,
+        column: u64,
+        message: String,
+    },
 }
 
 impl OntologyError {
@@ -45,6 +53,17 @@ impl OntologyError {
         Self::InvalidLexicalForm {
             datatype: datatype.into(),
             lexical: lexical.into(),
+        }
+    }
+
+    /// Builds an [`OntologyError::TurtleSyntax`]. `line`/`column` are
+    /// 1-based, matching how editors and `oxttl`'s own error display report
+    /// position.
+    pub fn turtle_syntax(line: u64, column: u64, message: impl Into<String>) -> Self {
+        Self::TurtleSyntax {
+            line,
+            column,
+            message: message.into(),
         }
     }
 
