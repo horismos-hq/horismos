@@ -13,13 +13,13 @@ workflows, agents — builds on these types.
 
 - **RDFS-plus profile** (the formalism decision, made concrete here):
   - Base: RDF triples, RDFS classes/subclassOf/domain/range, Turtle syntax in/out.
-  - Constraints: SHACL-inspired shapes — `sigil:min/max`, `sigil:unit`, cardinality,
-    `sigil:oneOf`, datatype enforcement.
-  - Rules vocabulary: `sigil:Rule` with `when/then/explain/priority` and the 11
+  - Constraints: SHACL-inspired shapes — `horis:min/max`, `horis:unit`, cardinality,
+    `horis:oneOf`, datatype enforcement.
+  - Rules vocabulary: `horis:Rule` with `when/then/explain/priority` and the 11
     condition operators inherited from sigil-lang (exceeds, below, between, is, isNot,
     isAssigned, contains, inList, atLeast, atMost, isEmpty) — Datalog-shaped, keeping
     the Type-5 door open.
-  - Workflow vocabulary: `sigil:Workflow`, step classes, transitions (executed in
+  - Workflow vocabulary: `horis:Workflow`, step classes, transitions (executed in
     PRP-004; *defined and validated* here).
   - `owl:sameAs`-based anchoring to external vocabularies (SNOMED, FIBO, schema.org);
     imports with prefix management.
@@ -46,6 +46,6 @@ workflows, agents — builds on these types.
 
 ## Definition of done
 
-`sigil-core` crate: loads `triage.ttl` + a SNOMED subset, rejects schema-violating
+`horismos-core` crate: loads `triage.ttl` + a SNOMED subset, rejects schema-violating
 instances with domain-term errors, round-trips Turtle, snapshots the world, answers
 pattern queries. Property-tested (proptest) against the validation gate. No LLM anywhere.

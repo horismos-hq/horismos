@@ -1,10 +1,10 @@
-# Sigil PRPs — Phase Plans
+# Horismos PRPs — Phase Plans
 
-Sigil is an **ontology-first neuro-symbolic agent framework**: Rust core, Python bindings.
+Horismos is an **ontology-first neuro-symbolic agent framework**: Rust core, Python bindings.
 The ontology (RDFS-plus) is simultaneously the typed world-state, the reasoning substrate,
 and the agent loop/workflow definition. LLMs are transducers at declared boundaries; the
 symbolic runtime decides. See `../docs/framework/` for the full framework definition and
-`../planning/sigil-plan.html` for the living plan (published as a Claude artifact).
+`../planning/horismos-plan.html` for the living plan (published as a Claude artifact).
 
 ## Reading order
 

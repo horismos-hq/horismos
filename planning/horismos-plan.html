@@ -1,4 +1,4 @@
-<title>Sigil: Ontology-First Agent Framework — High-Level Plan</title>
+<title>Horismos: Ontology-First Agent Framework — High-Level Plan</title>
 <style>
   :root {
     --paper: #f6f7f5;
@@ -278,13 +278,13 @@
 </style>
 
 <main>
-  <p class="eyebrow">Sigil · Direction Change · living document · updated 2026-07-27</p>
+  <p class="eyebrow">Horismos · Direction Change · living document · updated 2026-07-27</p>
   <h1>From Language to Framework: an Ontology-First Agent Runtime</h1>
   <p class="standfirst">
     The pivot in one line: keep <code>sigil-lang</code> as reference, start fresh in
-    <code>../sigil</code> — a neuro-symbolic framework whose center of gravity is an
+    <code>../horismos</code> — a neuro-symbolic framework whose center of gravity is an
     <strong>ontology</strong> the agent lives inside, not a language humans write.
-    Rust core, Python bindings. This file lives at <code>sigil/planning/sigil-plan.html</code>
+    Rust core, Python bindings. This file lives at <code>horismos/planning/horismos-plan.html</code>
     and is republished on demand.
   </p>
   <div class="legend">
@@ -391,14 +391,14 @@
             <td>Carries over as a first-class concept; becomes the audit log of the agent</td></tr>
         <tr><td>Neural bridge (6 backends, thresholds, fallbacks)</td>
             <td>Design carries over; re-implemented against the new typed-state API</td></tr>
-        <tr><td>Lexer, parser, VM, formatter, REPL, CLI, the .sigil language</td>
+        <tr><td>Lexer, parser, VM, formatter, REPL, CLI, the .horismos language</td>
             <td>Stays in sigil-lang as reference. Not ported in v1</td></tr>
         <tr><td>Research corpus (TIR/CIR, Kautz taxonomy, Apollo-1 analysis)</td>
             <td>Directly informs positioning and the long-term differentiable bet</td></tr>
       </table>
     </div>
 
-    <h2><span class="section-label">04 · Deliverable</span>The PRP set for ../sigil/PRPs/</h2>
+    <h2><span class="section-label">04 · Deliverable</span>The PRP set for ../horismos/PRPs/</h2>
     <p>Eight high-level PRPs, one per phase. Numbering is sequence: each builds on the previous.</p>
     <div class="prp-list">
       <div class="prp"><div class="prp-id">PRP-000</div><div class="prp-body">
@@ -431,7 +431,7 @@
       </div></div>
       <div class="prp"><div class="prp-id">PRP-007</div><div class="prp-body">
         <strong>Ontology authoring agent</strong>
-        <p>The SME experience: an agent (Claude) interviews the expert and generates Turtle; the framework's own verifier gatekeeps every draft — parse → shape validation → BDD verification → counterexamples fed back for refinement. Retargets sigil-lang's proven NL-to-Sigil generator + ReACT agent designs from .sigil to .ttl.</p>
+        <p>The SME experience: an agent (Claude) interviews the expert and generates Turtle; the framework's own verifier gatekeeps every draft — parse → shape validation → BDD verification → counterexamples fed back for refinement. Retargets sigil-lang's proven NL-to-Horismos generator + ReACT agent designs from .horismos to .ttl.</p>
       </div></div>
     </div>
 
@@ -445,16 +445,16 @@
     <h2><span class="section-label">05 · Open decisions</span>Questions the PRPs must settle</h2>
     <ul>
       <li><strong>Ontology formalism.</strong> Direction set: <strong>RDFS-plus</strong> — RDFS as the base, extended with what execution demands (constraints à la SHACL, rules à la SWRL/Datalog, workflow terms of our own). Interop with existing domain ontologies (SNOMED, FIBO, schema.org) becomes a feature, not an aspiration. The exact profile — which extensions, which we invent — is settled in PRP-001.</li>
-      <li><strong>Naming.</strong> Keep "Sigil" for the framework, or reserve it for the eventual DSL layer.</li>
-      <li><strong>Code reuse mechanics.</strong> Port sigil_core modules wholesale vs. re-implement against new data structures. The BDD verifier and solver look portable; the matcher likely needs rework around ontology instances.</li>
+      <li><strong>Naming.</strong> Keep "Horismos" for the framework, or reserve it for the eventual DSL layer.</li>
+      <li><strong>Code reuse mechanics.</strong> Port horismos_core modules wholesale vs. re-implement against new data structures. The BDD verifier and solver look portable; the matcher likely needs rework around ontology instances.</li>
       <li><strong>Agent-loop ownership.</strong> Does the framework ship its own loop (batteries included) or integrate into existing harnesses (LangGraph, Claude Agent SDK) as the state+reasoning layer? Both is a valid answer; priority is settled in PRP-004.</li>
     </ul>
 
     <h2><span class="section-label">06 · Where things stand</span>Review, then build</h2>
     <p>
-      The eight PRPs live in <code>sigil/PRPs/</code> — each one page: intent, scope, non-goals, key
+      The eight PRPs live in <code>horismos/PRPs/</code> — each one page: intent, scope, non-goals, key
       decisions, and what "done" means. The full framework definition — written as real documentation,
-      every concept and API contract spelled out — lives in <code>sigil/docs/framework/</code>.
+      every concept and API contract spelled out — lives in <code>horismos/docs/framework/</code>.
       The current phase is review: walk the docs, argue with the contracts, then PRP-001 starts the code.
     </p>
   </section>
@@ -526,14 +526,14 @@
 
     <h2><span class="section-label">As-if-shipped docs</span>The framework, outlined through clinical triage</h2>
     <p>
-      Written as if it already exists: Rust crate <code>sigil-core</code>, Python package <code>sigil</code>
+      Written as if it already exists: Rust crate <code>horismos-core</code>, Python package <code>horismos</code>
       (PyO3 wheels via maturin). The running example is UC-4, clinical triage. Everything below is API
       sketch, not commitment — it exists to make the PRPs concrete and arguable.
     </p>
 
     <h3>1 · The artifact the SME authors</h3>
     <p>
-      There is no "app code" in a Sigil deployment. A clinician (with an ontology editor or plain text)
+      There is no "app code" in a Horismos deployment. A clinician (with an ontology editor or plain text)
       authors one artifact — an RDFS-plus ontology that declares the domain <em>and</em> the workflow.
       This file <strong>is</strong> the application; the runtime executes it.
     </p>
@@ -542,39 +542,39 @@
 :Patient a rdfs:Class .
 :heartRate a rdf:Property ;
     rdfs:domain :Patient ; rdfs:range xsd:decimal ;
-    <span class="kw">sigil:unit</span> "bpm" ; <span class="kw">sigil:min</span> 0 ; <span class="kw">sigil:max</span> 300 .   <span class="cm"># invalid vitals are unrepresentable</span>
+    <span class="kw">horis:unit</span> "bpm" ; <span class="kw">horis:min</span> 0 ; <span class="kw">horis:max</span> 300 .   <span class="cm"># invalid vitals are unrepresentable</span>
 
 :ChestPain rdfs:subClassOf :Symptom ;
     owl:sameAs sct:29857009 .                    <span class="cm"># anchored to SNOMED CT — imported, not reinvented</span>
 
 <span class="cm"># -- Reasoning: rules live in the ontology --------------------------</span>
-:r1 a <span class="kw">sigil:Rule</span> ;
-    <span class="kw">sigil:when</span>  [ :heartRate <span class="kw">sigil:exceeds</span> 120 ; :hasSymptom :ChestPain ] ;
-    <span class="kw">sigil:then</span>  [ :acuity :Immediate ] ;
-    <span class="kw">sigil:explain</span> "Tachycardia with chest pain — immediate track" .
+:r1 a <span class="kw">horis:Rule</span> ;
+    <span class="kw">horis:when</span>  [ :heartRate <span class="kw">horis:exceeds</span> 120 ; :hasSymptom :ChestPain ] ;
+    <span class="kw">horis:then</span>  [ :acuity :Immediate ] ;
+    <span class="kw">horis:explain</span> "Tachycardia with chest pain — immediate track" .
 
 <span class="cm"># -- Workflow: the agent loop is ontology data, not framework code --</span>
-:Triage a <span class="kw">sigil:Workflow</span> ; <span class="kw">sigil:startsAt</span> :Intake .
+:Triage a <span class="kw">horis:Workflow</span> ; <span class="kw">horis:startsAt</span> :Intake .
 
-:Intake a <span class="nr">sigil:PerceptionStep</span> ;                <span class="cm"># the ONLY place neural exists</span>
-    <span class="nr">sigil:extracts</span> :Patient, :Symptom ;
-    <span class="nr">sigil:model</span> "claude-fable-5" ;
-    <span class="nr">sigil:confidence</span> 0.85 ;
-    <span class="nr">sigil:fallback</span> :EscalateToNurse ;           <span class="cm"># mandatory — low confidence never guesses</span>
-    <span class="kw">sigil:next</span> :Assess .
+:Intake a <span class="nr">horis:PerceptionStep</span> ;                <span class="cm"># the ONLY place neural exists</span>
+    <span class="nr">horis:extracts</span> :Patient, :Symptom ;
+    <span class="nr">horis:model</span> "claude-fable-5" ;
+    <span class="nr">horis:confidence</span> 0.85 ;
+    <span class="nr">horis:fallback</span> :EscalateToNurse ;           <span class="cm"># mandatory — low confidence never guesses</span>
+    <span class="kw">horis:next</span> :Assess .
 
-:Assess a <span class="kw">sigil:ReasoningStep</span> ;
-    <span class="kw">sigil:goal</span> [ :acuity <span class="kw">sigil:isAssigned</span> true ] ;
-    <span class="kw">sigil:next</span> :Route .
+:Assess a <span class="kw">horis:ReasoningStep</span> ;
+    <span class="kw">horis:goal</span> [ :acuity <span class="kw">horis:isAssigned</span> true ] ;
+    <span class="kw">horis:next</span> :Route .
 
-:Route a <span class="kw">sigil:ActionStep</span> ;
-    <span class="kw">sigil:tool</span> :ehr.assign_queue ;
-    <span class="kw">sigil:requires</span> [ :acuity <span class="kw">sigil:isAssigned</span> true ] .  <span class="cm"># unmet precondition = step cannot fire</span></code></pre>
+:Route a <span class="kw">horis:ActionStep</span> ;
+    <span class="kw">horis:tool</span> :ehr.assign_queue ;
+    <span class="kw">horis:requires</span> [ :acuity <span class="kw">horis:isAssigned</span> true ] .  <span class="cm"># unmet precondition = step cannot fire</span></code></pre>
 
     <h3>2 · From Python</h3>
-    <span class="filelabel">pip install sigil · the developer front door</span>
-    <pre><code><span class="kw">from</span> sigil <span class="kw">import</span> Ontology, World, Agent
-<span class="kw">from</span> sigil.bridges <span class="kw">import</span> AnthropicBridge
+    <span class="filelabel">pip install horismos · the developer front door</span>
+    <pre><code><span class="kw">from</span> horismos <span class="kw">import</span> Ontology, World, Agent
+<span class="kw">from</span> horismos.bridges <span class="kw">import</span> AnthropicBridge
 
 onto = Ontology.load(<span class="nr">"triage.ttl"</span>, imports=[<span class="nr">"snomed-ct-subset.ttl"</span>])
 
@@ -596,9 +596,9 @@ result.trace.to_json()                <span class="cm"># training-ready trajecto
 world.query(<span class="nr">"SELECT ?p WHERE { ?p :acuity :Immediate }"</span>)   <span class="cm"># the graph is queryable state</span></code></pre>
 
     <h3>3 · From Rust</h3>
-    <span class="filelabel">cargo add sigil-core · same engine, zero binding overhead</span>
-    <pre><code><span class="kw">use</span> sigil_core::{Ontology, World, Agent};
-<span class="kw">use</span> sigil_bridges::AnthropicBridge;
+    <span class="filelabel">cargo add horismos-core · same engine, zero binding overhead</span>
+    <pre><code><span class="kw">use</span> horismos_core::{Ontology, World, Agent};
+<span class="kw">use</span> horismos_bridges::AnthropicBridge;
 
 <span class="kw">let</span> onto = Ontology::load(<span class="nr">"triage.ttl"</span>)?.with_import(<span class="nr">"snomed-ct-subset.ttl"</span>)?;
 onto.verify()?.assert_complete()?;              <span class="cm">// refuse to deploy an unverified rule set</span>
@@ -632,9 +632,9 @@ println!(<span class="nr">"{}"</span>, outcome.proof);                  <span cl
     <div class="table-wrap">
       <table>
         <tr><th>Boundary</th><th>Direction</th><th>Contract</th></tr>
-        <tr><td><strong>Perception</strong> (<code>sigil:PerceptionStep</code>)</td><td>NL → ontology instances</td>
+        <tr><td><strong>Perception</strong> (<code>horis:PerceptionStep</code>)</td><td>NL → ontology instances</td>
             <td>Extraction constrained by a JSON schema <em>derived from the ontology classes</em>; confidence threshold; mandatory fallback step. Output is validated before it touches the world.</td></tr>
-        <tr><td><strong>Narration</strong> (<code>sigil:NarrationStep</code>, optional)</td><td>Proof tree → NL</td>
+        <tr><td><strong>Narration</strong> (<code>horis:NarrationStep</code>, optional)</td><td>Proof tree → NL</td>
             <td>Renders the deterministic proof for humans ("Immediate because HR 128 exceeds 120 with chest pain"). Generates prose, never conclusions.</td></tr>
         <tr><td>Everything else</td><td>—</td>
             <td><strong>No LLM.</strong> State, reasoning, workflow transitions, tool gating, verification: deterministic, traced, reproducible.</td></tr>
@@ -694,7 +694,7 @@ println!(<span class="nr">"{}"</span>, outcome.proof);                  <span cl
       <li><strong>Backward chaining.</strong> <code>world.explain(":acuity :Immediate")</code> returns the
         proof tree; <code>world.prove(goal)</code> drives goal-directed evaluation — the "why" is a query,
         not a log grep.</li>
-      <li><strong>Constraints as physics.</strong> <code>sigil:min/max</code>, cardinalities, SHACL-style
+      <li><strong>Constraints as physics.</strong> <code>horis:min/max</code>, cardinalities, SHACL-style
         shapes — a heart rate of 1280 (unit typo) is rejected at the boundary, not discovered in an incident review.</li>
       <li><strong>Verification before execution.</strong> The BDD layer (ported from sigil-lang) proves
         completeness, conflict-freedom, dead-rule absence, and termination of the rule set at load time —
@@ -714,15 +714,15 @@ println!(<span class="nr">"{}"</span>, outcome.proof);                  <span cl
     <h3>8 · Tools and the Bridge: who calls what</h3>
     <p>
       In every conventional agent stack, the LLM decides which tool to call and with what arguments —
-      tool selection is a neural act. Sigil inverts it: tools are declared in the ontology with typed
+      tool selection is a neural act. Horismos inverts it: tools are declared in the ontology with typed
       contracts, and the <strong>runtime</strong> invokes them when an ActionStep's preconditions hold
       in the graph. Arguments are read from the graph, not parsed out of model text.
     </p>
     <span class="filelabel">tool declaration — part of the same ontology</span>
-    <pre><code>:ehr.assign_queue a <span class="kw">sigil:Tool</span> ;
-    <span class="kw">sigil:takes</span>   [ :patient a :Patient ; :queue a :AcuityLevel ] ;  <span class="cm"># args come from the graph</span>
-    <span class="kw">sigil:effect</span>  [ :patient :queuedAt <span class="kw">sigil:now</span> ] ;                 <span class="cm"># declared effect on the world</span>
-    <span class="kw">sigil:binding</span> "mcp://ehr-server/assign_queue" .                  <span class="cm"># or python fn, rust fn, http</span></code></pre>
+    <pre><code>:ehr.assign_queue a <span class="kw">horis:Tool</span> ;
+    <span class="kw">horis:takes</span>   [ :patient a :Patient ; :queue a :AcuityLevel ] ;  <span class="cm"># args come from the graph</span>
+    <span class="kw">horis:effect</span>  [ :patient :queuedAt <span class="kw">horis:now</span> ] ;                 <span class="cm"># declared effect on the world</span>
+    <span class="kw">horis:binding</span> "mcp://ehr-server/assign_queue" .                  <span class="cm"># or python fn, rust fn, http</span></code></pre>
     <ul>
       <li><strong>No neural tool choice.</strong> There is no "model hallucinated a tool call with wrong
         args" failure class — no model sits in that path.</li>
@@ -730,7 +730,7 @@ println!(<span class="nr">"{}"</span>, outcome.proof);                  <span cl
         validation gate before becoming facts — an EHR API returning garbage is rejected at the boundary.</li>
       <li><strong>Bindings are pluggable:</strong> Python callables, Rust fns, HTTP, and MCP servers —
         domain tools that already speak MCP are consumed, not rebuilt.</li>
-      <li><strong>Escape hatch for open choices:</strong> a <code>sigil:ProposalStep</code> lets the LLM
+      <li><strong>Escape hatch for open choices:</strong> a <code>horis:ProposalStep</code> lets the LLM
         rank candidates — but only candidates whose preconditions already hold. Neural proposes among the
         legal; symbolic defines legal and executes.</li>
     </ul>
@@ -738,7 +738,7 @@ println!(<span class="nr">"{}"</span>, outcome.proof);                  <span cl
       Underneath sits the <strong>Bridge</strong> — a thin trait/protocol over provider SDKs directly
       (Anthropic, OpenAI, local ONNX/HF, deterministic mock for CI), inherited from sigil-lang's proven
       ModelBackend + ModelRegistry design: prefix routing, per-call timeouts, mandatory fallbacks. No
-      LangChain, no delegated agent loop — <em>Sigil's runtime is the loop</em>; it needs a model client,
+      LangChain, no delegated agent loop — <em>Horismos's runtime is the loop</em>; it needs a model client,
       not another orchestrator. And one ironic implementation detail: a PerceptionStep uses the provider's
       tool-use API <em>backwards</em> — one Messages call, a single tool named <code>assert_facts</code>
       whose schema is derived from the ontology, <code>tool_choice</code> forced. Machinery built to let
@@ -765,8 +765,8 @@ println!(<span class="nr">"{}"</span>, outcome.proof);                  <span cl
       Generated Turtle is never trusted, because it never needs to be — every draft passes the same
       symbolic gate the runtime enforces. This makes the authoring agent the framework's first consumer
       of its own verification API, and it's proven ground: sigil-lang built exactly this loop twice
-      (the NL-to-Sigil generator with parse → check → auto-retry refinement, and the <code>sigil code</code>
-      ReACT agent). Retargeting the output from .sigil to .ttl is the delta. Bonus, per the Vision tab:
+      (the NL-to-Horismos generator with parse → check → auto-retry refinement, and the <code>horismos code</code>
+      ReACT agent). Retargeting the output from .horismos to .ttl is the delta. Bonus, per the Vision tab:
       every authoring session yields NL→Turtle pairs — a second training corpus, for the authoring model
       rather than the runtime one. Owns its own phase: PRP-007.
     </p>
@@ -774,7 +774,7 @@ println!(<span class="nr">"{}"</span>, outcome.proof);                  <span cl
     <div class="callout">
       <strong>Full detail lives in the repo:</strong> the complete framework definition — every concept,
       API, vocabulary term, and contract above, at real-documentation depth — is in
-      <code>sigil/docs/framework/</code>, and the eight phase plans are in <code>sigil/PRPs/</code>.
+      <code>horismos/docs/framework/</code>, and the eight phase plans are in <code>horismos/PRPs/</code>.
       This tab is the executive summary; those are the review surface.
     </div>
   </section>
@@ -894,7 +894,7 @@ println!(<span class="nr">"{}"</span>, outcome.proof);                  <span cl
           <span class="cp-num">Checkpoint 02<span class="cp-tag decision">finding</span></span>
           <h3>Repo audit: further along than its own docs</h3>
           <p class="cp-effect">The CLAUDE.md said "665 tests, Phase 1-2." Reality: Phase 5 complete — full Rust lexer/parser/compiler/VM, BDD formal verifier, WASM target, neural bridge with six backends, 1,200+ tests. The untracked research doc's Apollo-1 case study ("a well-engineered Type 2 system is a credible enterprise positioning — AUI raised $60M on it") supplied the market logic.</p>
-          <p class="cp-effect"><strong>Shaped the plan →</strong> The pivot became an <em>inversion of what's primary</em>, not a rewrite: "Rust core with Python bindings" already exists structurally in sigil_core.</p>
+          <p class="cp-effect"><strong>Shaped the plan →</strong> The pivot became an <em>inversion of what's primary</em>, not a rewrite: "Rust core with Python bindings" already exists structurally in horismos_core.</p>
         </div>
       </div>
 
@@ -911,8 +911,8 @@ println!(<span class="nr">"{}"</span>, outcome.proof);                  <span cl
         <div class="cp-card">
           <span class="cp-num">Checkpoint 04<span class="cp-tag redirect-tag">redirect</span></span>
           <h3>Clean break: fresh repo</h3>
-          <p class="cp-quote">"Keep this repo as is, I just gave it as context. Let's start fresh in sibling dir ../sigil."</p>
-          <p class="cp-effect"><strong>Shaped the plan →</strong> sigil-lang becomes an untouched proving ground to port <em>designs</em> from, not a codebase to refactor. Greenfield in <code>../sigil</code>.</p>
+          <p class="cp-quote">"Keep this repo as is, I just gave it as context. Let's start fresh in sibling dir ../horismos."</p>
+          <p class="cp-effect"><strong>Shaped the plan →</strong> sigil-lang becomes an untouched proving ground to port <em>designs</em> from, not a codebase to refactor. Greenfield in <code>../horismos</code>.</p>
         </div>
       </div>
 
@@ -920,7 +920,7 @@ println!(<span class="nr">"{}"</span>, outcome.proof);                  <span cl
         <div class="cp-card">
           <span class="cp-num">Checkpoint 05<span class="cp-tag redirect-tag">redirect</span></span>
           <h3>Deliverable defined: PRPs, not code</h3>
-          <p class="cp-quote">"As output artefact from you I am expecting a new dir with very high-level PRPs in ../sigil/PRPs/."</p>
+          <p class="cp-quote">"As output artefact from you I am expecting a new dir with very high-level PRPs in ../horismos/PRPs/."</p>
           <p class="cp-effect"><strong>Shaped the plan →</strong> This phase produces planning documents only. It also dissolved the "which primitives make v1?" question — with phased PRPs, nothing gets cut, everything gets sequenced.</p>
         </div>
       </div>
@@ -956,8 +956,8 @@ println!(<span class="nr">"{}"</span>, outcome.proof);                  <span cl
         <div class="cp-card">
           <span class="cp-num">Checkpoint 09<span class="cp-tag redirect-tag">this update</span></span>
           <h3>The plan becomes a living document</h3>
-          <p class="cp-quote">"Create that artefact html in ../sigil/planning/ and update on demand… one tab is the plan, second tab is our conversation with summary cards at checkpoints."</p>
-          <p class="cp-effect"><strong>Shaped the plan →</strong> This file now lives at <code>sigil/planning/sigil-plan.html</code> — inside the new project, versionable with it, republished to the same artifact URL whenever the plan evolves.</p>
+          <p class="cp-quote">"Create that artefact html in ../horismos/planning/ and update on demand… one tab is the plan, second tab is our conversation with summary cards at checkpoints."</p>
+          <p class="cp-effect"><strong>Shaped the plan →</strong> This file now lives at <code>horismos/planning/horismos-plan.html</code> — inside the new project, versionable with it, republished to the same artifact URL whenever the plan evolves.</p>
         </div>
       </div>
 
@@ -993,7 +993,7 @@ println!(<span class="nr">"{}"</span>, outcome.proof);                  <span cl
           <span class="cp-num">Checkpoint 13<span class="cp-tag redirect-tag">authoring</span></span>
           <h3>Agents write the Turtle</h3>
           <p class="cp-quote">"We want to address this by eventually having agents like Claude generate Turtle."</p>
-          <p class="cp-effect"><strong>Shaped the plan →</strong> The SME-experience caveat became a feature with its own phase: PRP-007, the ontology authoring agent. The flow applies the framework's own principle at design time — Claude drafts Turtle, the verifier gatekeeps (parse → shape validation → BDD verification → domain-term counterexamples → refine), and the SME reviews rendered rules, never syntax. Proven ground: sigil-lang built this loop twice (NL-to-Sigil generator, <code>sigil code</code> agent); the delta is retargeting output to .ttl. Side effect: authoring sessions produce NL→Turtle training pairs, a second corpus for the Vision flywheel.</p>
+          <p class="cp-effect"><strong>Shaped the plan →</strong> The SME-experience caveat became a feature with its own phase: PRP-007, the ontology authoring agent. The flow applies the framework's own principle at design time — Claude drafts Turtle, the verifier gatekeeps (parse → shape validation → BDD verification → domain-term counterexamples → refine), and the SME reviews rendered rules, never syntax. Proven ground: sigil-lang built this loop twice (NL-to-Horismos generator, <code>horismos code</code> agent); the delta is retargeting output to .ttl. Side effect: authoring sessions produce NL→Turtle training pairs, a second corpus for the Vision flywheel.</p>
         </div>
       </div>
 
@@ -1001,8 +1001,8 @@ println!(<span class="nr">"{}"</span>, outcome.proof);                  <span cl
         <div class="cp-card">
           <span class="cp-num">Checkpoint 14<span class="cp-tag decision">materialized</span></span>
           <h3>From plan to repository: docs and PRPs land on disk</h3>
-          <p class="cp-quote">"Create docs/framework/ — detailed framework definition like a real framework documentation, like PyTorch and FastAPI. I want to go through each and every detail before starting… PRPs go into ../sigil/PRPs/."</p>
-          <p class="cp-effect"><strong>Shaped the plan →</strong> Two explainers folded into the Technical Outline (the dissected <code>agent.run()</code> walkthrough; tools-and-Bridge with the inverted tool-call model), and the plan left the browser: <code>sigil/docs/framework/</code> now holds the full as-if-shipped framework definition — concepts, ontology vocabulary, world, reasoning, workflows, LLM boundaries, tools, Bridge, traces, verification, Python and Rust APIs, authoring, architecture — and <code>sigil/PRPs/</code> holds the eight phase plans. The review loop moves from tabs to files.</p>
+          <p class="cp-quote">"Create docs/framework/ — detailed framework definition like a real framework documentation, like PyTorch and FastAPI. I want to go through each and every detail before starting… PRPs go into ../horismos/PRPs/."</p>
+          <p class="cp-effect"><strong>Shaped the plan →</strong> Two explainers folded into the Technical Outline (the dissected <code>agent.run()</code> walkthrough; tools-and-Bridge with the inverted tool-call model), and the plan left the browser: <code>horismos/docs/framework/</code> now holds the full as-if-shipped framework definition — concepts, ontology vocabulary, world, reasoning, workflows, LLM boundaries, tools, Bridge, traces, verification, Python and Rust APIs, authoring, architecture — and <code>horismos/PRPs/</code> holds the eight phase plans. The review loop moves from tabs to files.</p>
         </div>
       </div>
 

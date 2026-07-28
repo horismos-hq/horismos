@@ -18,9 +18,9 @@ time: neural proposes, symbolic decides.
   signed-off `.ttl`.
 - **Agent implementation**: ReACT loop over the Anthropic API with tools
   (`validate_ttl`, `verify_ontology`, `render_summary`, `write_file`, `diff_ontology`) —
-  a direct retarget of sigil-lang's `sigil code` agent (7 tools, 58 tests) and
-  NL-to-Sigil generator (validate → auto-retry refinement), emitting `.ttl` instead
-  of `.sigil`.
+  a direct retarget of sigil-lang's `horismos code` agent (7 tools, 58 tests) and
+  NL-to-Horismos generator (validate → auto-retry refinement), emitting `.ttl` instead
+  of `.horismos`.
 - **Rendered review surface**: rules and workflows displayed in domain language
   ("Immediate when heart rate exceeds 120 with chest pain — because…"), diffs between
   ontology versions in the same terms.
@@ -37,7 +37,7 @@ time: neural proposes, symbolic decides.
 
 ## Key decisions to make
 
-1. Delivery form: CLI (`sigil author`) vs. library API vs. both (sigil-lang precedent:
+1. Delivery form: CLI (`horismos author`) vs. library API vs. both (sigil-lang precedent:
    CLI-first worked).
 2. Refinement budget and convergence policy when verification keeps failing (surface
    partial ontology + witnesses rather than loop forever).

@@ -1,35 +1,35 @@
 # 07 · Tools
 
-Tools are how a Sigil agent affects the outside world — and the sharpest place where
-Sigil inverts the conventional agent stack. **The LLM never chooses a tool, never
+Tools are how a Horismos agent affects the outside world — and the sharpest place where
+Horismos inverts the conventional agent stack. **The LLM never chooses a tool, never
 constructs arguments, never interprets results.** Tools are declared contracts,
 fired by the runtime when workflow preconditions hold.
 
 ## Declaring a tool
 
 ```turtle
-:ehr.assign_queue a sigil:Tool ;
-    sigil:takes [
-        sigil:arg [ sigil:name "patient" ; sigil:type :Patient ] ;
-        sigil:arg [ sigil:name "queue"   ; sigil:type :AcuityLevel ]
+:ehr.assign_queue a horis:Tool ;
+    horis:takes [
+        horis:arg [ horis:name "patient" ; horis:type :Patient ] ;
+        horis:arg [ horis:name "queue"   ; horis:type :AcuityLevel ]
     ] ;
-    sigil:effect [
-        sigil:asserts [ sigil:property :queuedAt ; sigil:value sigil:now ] ;
-        sigil:asserts [ sigil:property :queueRef ; sigil:type xsd:string ]
+    horis:effect [
+        horis:asserts [ horis:property :queuedAt ; horis:value horis:now ] ;
+        horis:asserts [ horis:property :queueRef ; horis:type xsd:string ]
     ] ;
-    sigil:binding "python:ehr_client.assign_queue" ;
-    sigil:timeout "5s" ;
-    sigil:idempotent false .
+    horis:binding "python:ehr_client.assign_queue" ;
+    horis:timeout "5s" ;
+    horis:idempotent false .
 ```
 
-- **`sigil:takes`** — argument names and ontology types. At invocation, the runtime
+- **`horis:takes`** — argument names and ontology types. At invocation, the runtime
   *reads argument values from the graph* (the ActionStep names the bindings). No text
   parsing is involved anywhere.
-- **`sigil:effect`** — the declared shape of what the tool may write back. This is a
+- **`horis:effect`** — the declared shape of what the tool may write back. This is a
   *contract*, not documentation: the return value is validated against it, through
   the World gate (provenance: `tool`), before any fact lands. An EHR API returning
-  garbage is a rejected transaction and the ActionStep's `sigil:onError` edge fires.
-- **`sigil:idempotent`** — drives replay semantics (doc 09): non-idempotent tools are
+  garbage is a rejected transaction and the ActionStep's `horis:onError` edge fires.
+- **`horis:idempotent`** — drives replay semantics (doc 09): non-idempotent tools are
   never re-executed on replay; their recorded effects are substituted.
 
 ## Bindings
@@ -38,12 +38,12 @@ fired by the runtime when workflow preconditions hold.
 |----------------|---------|-------|
 | `python:` | `python:ehr_client.assign_queue` | Dotted path or registered callable (`tools={...}` at Agent construction) |
 | `rust:` | `rust:assign_queue` | Registered `Tool` trait impl |
-| `mcp://` | `mcp://ehr-server/assign_queue` | MCP server tool; Sigil consumes the MCP schema and *narrows* it to the declared contract |
+| `mcp://` | `mcp://ehr-server/assign_queue` | MCP server tool; Horismos consumes the MCP schema and *narrows* it to the declared contract |
 | `http:` / `https:` | `https://api…/assign` | JSON POST; response validated like any effect |
 
-MCP deserves emphasis: the ecosystem already exposes domain tools over MCP. Sigil
+MCP deserves emphasis: the ecosystem already exposes domain tools over MCP. Horismos
 does not rebuild them — it wraps them in a typed contract. Where the MCP tool's own
-schema is looser than the `sigil:takes`/`sigil:effect` declaration, the declaration
+schema is looser than the `horis:takes`/`horis:effect` declaration, the declaration
 wins: out-of-contract calls can't be made, out-of-contract results can't land.
 
 ## Invocation semantics
@@ -51,12 +51,12 @@ wins: out-of-contract calls can't be made, out-of-contract results can't land.
 An `ActionStep` fires its tool when:
 
 1. The step is current, and
-2. every `sigil:requires` pattern holds in the graph.
+2. every `horis:requires` pattern holds in the graph.
 
-Then: arguments resolved from the graph → binding invoked with `sigil:timeout` →
-result validated against `sigil:effect` → effects asserted in the step's transaction →
-`sigil:next`. On timeout or validation failure: `sigil:onError`. Retries are explicit
-(`sigil:retries`, default 0 for non-idempotent tools).
+Then: arguments resolved from the graph → binding invoked with `horis:timeout` →
+result validated against `horis:effect` → effects asserted in the step's transaction →
+`horis:next`. On timeout or validation failure: `horis:onError`. Retries are explicit
+(`horis:retries`, default 0 for non-idempotent tools).
 
 ## ProposalStep: the constrained escape hatch
 
@@ -65,13 +65,13 @@ customer prefer articulated in prose? That is a perception-like judgment, and it
 a perception-like contract:
 
 ```turtle
-:PickOption a sigil:ProposalStep ;
-    sigil:candidates [ sigil:query "…legal options pattern…" ] ;   # graph-derived
-    sigil:rankBy "customer preference expressed in the request" ;
-    sigil:model "claude:claude-fable-5" ;
-    sigil:confidence 0.8 ;
-    sigil:fallback :AskHuman ;
-    sigil:next :ExecuteOption .
+:PickOption a horis:ProposalStep ;
+    horis:candidates [ horis:query "…legal options pattern…" ] ;   # graph-derived
+    horis:rankBy "customer preference expressed in the request" ;
+    horis:model "claude:claude-fable-5" ;
+    horis:confidence 0.8 ;
+    horis:fallback :AskHuman ;
+    horis:next :ExecuteOption .
 ```
 
 Hard properties:
@@ -87,13 +87,13 @@ stop: that is a rule, and it belongs in the ontology.
 
 ## Failure classes, compared
 
-| Failure | Conventional stack | Sigil |
+| Failure | Conventional stack | Horismos |
 |---------|-------------------|-------|
 | Wrong tool called | LLM misjudged | Impossible — no neural tool choice |
 | Malformed/hallucinated args | Parse-and-pray | Impossible — args read from typed graph |
 | Tool called before its preconditions | Prompted convention | Impossible — precondition gate |
 | Bad data returned by tool | Enters context silently | Rejected at effect validation, `onError` |
-| Tool has side effects on retry/replay | Unmodeled | `sigil:idempotent` drives policy |
+| Tool has side effects on retry/replay | Unmodeled | `horis:idempotent` drives policy |
 
 The remaining honest failure class — the tool itself misbehaves in the real world in
 ways its contract can't see — is logged with full trace context, which is exactly the

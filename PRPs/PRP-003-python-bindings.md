@@ -5,21 +5,21 @@
 
 ## Intent
 
-The developer front door: `pip install sigil`, a Pythonic API over the Rust core via
+The developer front door: `pip install horismos`, a Pythonic API over the Rust core via
 PyO3/maturin — the packaging pattern already proven in sigil-lang.
 
 ## Scope
 
-- **Package** `sigil`: `Ontology`, `World`, `Rule` handles, query results as Python
+- **Package** `horismos`: `Ontology`, `World`, `Rule` handles, query results as Python
   objects; zero-copy where PyO3 allows, marshal at the boundary otherwise (sigil-lang's
-  `SigilValue::from_python/to_python` experience applies directly).
+  `HorismosValue::from_python/to_python` experience applies directly).
 - **API design** (per `docs/framework/11-python-api.md`):
   - `Ontology.load(path, imports=[...])`, `.verify()` (stub until PRP-005), `.namespaces`
   - `World(onto)`: `.assert_()`, `.retract()`, `.query(sparql)`, `.explain(pattern)`,
     `.prove(goal)`, `.snapshot()`, `.subscribe(pattern, callback)`
   - Typed instance construction: `Patient(heart_rate=128, symptoms=[ChestPain])` —
     generated proxy classes from the loaded ontology (the "feels native in Python" bet).
-  - Errors as a `SigilError` hierarchy with domain-term messages and fix suggestions
+  - Errors as a `HorismosError` hierarchy with domain-term messages and fix suggestions
     (sigil-lang's error-experience conventions carry over).
 - **Wheels**: maturin, abi3, CI matrix (Linux/macOS/Windows × 3.11–3.14).
 - Type stubs (`.pyi`) and mypy-clean surface.
@@ -39,6 +39,6 @@ PyO3/maturin — the packaging pattern already proven in sigil-lang.
 
 ## Definition of done
 
-`pip install sigil` (local wheel) → the docs' Python quickstart for triage runs verbatim
+`pip install horismos` (local wheel) → the docs' Python quickstart for triage runs verbatim
 with structured input (no LLM); pytest suite exercises every public symbol; stubs pass
 mypy; wheels build in CI for the full matrix.

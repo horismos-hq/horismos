@@ -20,7 +20,7 @@ counterexamples — the feature that separates "framework with guarantees" from
   class hierarchy (subsumption widens rule applicability) and constraint shapes
   (min/max bound the variable domains — tighter BDDs than sigil-lang had).
 - **Workflow checks** (new): every step reachable; every path reaches a terminal step;
-  every `sigil:requires` satisfiable given the rules; every PerceptionStep has a
+  every `horis:requires` satisfiable given the rules; every PerceptionStep has a
   fallback edge.
 - **Witnesses**: BDD valuations decoded into domain terms — "no acuity assigned when
   heartRate ∈ (100, 120] and no Symptom present" — rendered for SMEs, machine-readable
@@ -41,7 +41,7 @@ counterexamples — the feature that separates "framework with guarantees" from
    Lean: always run, fail deploys by default, explicit `allow_incomplete` escape.
 2. Incremental re-verification on ontology edit (authoring loop performance target:
    interactive, <1s for triage-sized ontologies).
-3. Scope of numeric discretization with units (`sigil:unit` interplay).
+3. Scope of numeric discretization with units (`horis:unit` interplay).
 
 ## Definition of done
 

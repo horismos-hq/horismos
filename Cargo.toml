@@ -1,9 +1,9 @@
 [workspace]
 resolver = "3"
 members = [
-    "crates/sigil-core",
-    "crates/sigil-bridges",
-    "crates/sigil-py",
+    "crates/horismos-core",
+    "crates/horismos-bridges",
+    "crates/horismos-py",
 ]
 
 [workspace.package]
@@ -12,10 +12,10 @@ edition = "2024"
 # MSRV policy: latest stable minus 2 (docs/framework/12-rust-api.md)
 rust-version = "1.93"
 license = "MIT OR Apache-2.0"
-repository = "https://github.com/billaram/sigil"
+repository = "https://github.com/billaram/horismos"
 
 [workspace.dependencies]
-sigil-core = { path = "crates/sigil-core", version = "0.1.0", default-features = false }
+horismos-core = { path = "crates/horismos-core", version = "0.1.0", default-features = false }
 thiserror = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"

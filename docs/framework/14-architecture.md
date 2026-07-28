@@ -5,19 +5,19 @@ Internals, invariants, and the mapping from this definition to build phases.
 ## Crate & package layout
 
 ```
-sigil/                          (workspace)
+horismos/                          (workspace)
 ├── crates/
-│   ├── sigil-core/             # THE product: ontology, world, reasoner, agent, traces, verify
+│   ├── horismos-core/             # THE product: ontology, world, reasoner, agent, traces, verify
 │   │   ├── ontology/           #   turtle parse, profile, imports, interning
 │   │   ├── world/              #   store, gate, snapshots, transactions, queries
 │   │   ├── reason/             #   subsumption, forward (rete-lite), backward, proofs
 │   │   ├── workflow/           #   step interpreter, edges, outcomes
 │   │   ├── verify/             #   BDD checks + witnesses (port of sigil-lang verifier)
-│   │   ├── trace/              #   sigil.trace/1 emit + replay
-│   │   └── wasm.rs             #   [wasm] SigilRuntime
-│   ├── sigil-bridges/          # provider clients ([bridges-*] features), mock
-│   └── sigil-py/               # PyO3 bindings only — no logic
-├── python/sigil/               # pure-Python surface: proxies, testing utils, export
+│   │   ├── trace/              #   horismos.trace/1 emit + replay
+│   │   └── wasm.rs             #   [wasm] HorismosRuntime
+│   ├── horismos-bridges/          # provider clients ([bridges-*] features), mock
+│   └── horismos-py/               # PyO3 bindings only — no logic
+├── python/horismos/               # pure-Python surface: proxies, testing utils, export
 ├── docs/framework/             # ← you are here (becomes the docs site)
 ├── PRPs/                       # phase plans
 ├── examples/
@@ -31,16 +31,16 @@ sigil/                          (workspace)
 ## The dependency invariant (anti-wrapper, enforced)
 
 ```
-sigil-core        →  (nothing model-related)          # compiles & tests with zero LLM deps
-sigil-bridges     →  provider SDKs
-sigil-py          →  sigil-core (+ optional bridges)
+horismos-core        →  (nothing model-related)          # compiles & tests with zero LLM deps
+horismos-bridges     →  provider SDKs
+horismos-py          →  horismos-core (+ optional bridges)
 ```
 
 Mechanical enforcement, not convention:
 
-1. `sigil-core` has **no dependency** on `sigil-bridges` — the `Bridge` trait lives in
-   `sigil-core::bridge` as a pure interface; implementations live outside.
-2. CI job `no-model-gate`: builds `sigil-core --no-default-features --features verify`,
+1. `horismos-core` has **no dependency** on `horismos-bridges` — the `Bridge` trait lives in
+   `horismos-core::bridge` as a pure interface; implementations live outside.
+2. CI job `no-model-gate`: builds `horismos-core --no-default-features --features verify`,
    runs the full symbolic test suite **with no network and no keys**. Red = the
    anti-wrapper claim broke.
 3. CI job `wasm-gate`: `wasm32-unknown-unknown` build of the same.
@@ -89,7 +89,7 @@ concern, outside the runtime.
 - **Trusted after sign-off**: the ontology (it *is* the program — its supply chain is
   git + SME sign-off + verification, doc 13).
 - **Sandboxing tools** is the deployer's concern (bindings run with process
-  privileges); MCP bindings inherit MCP's isolation. `sigil:redactInput` for
+  privileges); MCP bindings inherit MCP's isolation. `horis:redactInput` for
   sensitive NL (doc 09).
 
 ## Definition → build mapping

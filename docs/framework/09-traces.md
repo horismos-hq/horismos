@@ -2,14 +2,14 @@
 
 A trace is the typed trajectory of a run. It serves three consumers with one object:
 **auditors** (why did the agent do that?), **operators** (replay and debug), and —
-deliberately, from day one — **training pipelines** (the Vision flywheel: Sigil
+deliberately, from day one — **training pipelines** (the Vision flywheel: Horismos
 trajectories are TIR/CIR-grade data).
 
 ## The trajectory schema (v1)
 
 ```jsonc
 {
-  "schema": "sigil.trace/1",                 // versioned FOREVER — traces outlive releases
+  "schema": "horismos.trace/1",                 // versioned FOREVER — traces outlive releases
   "run_id": "run_01J…",
   "ontology": { "iri": "…/triage", "version": "1.2.0", "hash": "sha256:…" },
   "workflow": "triage:Triage",
@@ -62,11 +62,11 @@ trajectories are TIR/CIR-grade data).
 
 ## Design rules
 
-1. **Schema versioning is sacred.** `sigil.trace/1` never changes meaning; evolution
-   adds `sigil.trace/2` with a converter. Traces used as training data outlive every
+1. **Schema versioning is sacred.** `horismos.trace/1` never changes meaning; evolution
+   adds `horismos.trace/2` with a converter. Traces used as training data outlive every
    framework release.
 2. **`loss_mask` is precomputed.** The TIR/CIR literature is unanimous: train on
-   model-generated tokens, mask executor observations. Sigil traces mark this per
+   model-generated tokens, mask executor observations. Horismos traces mark this per
    step at emission — the training exporter doesn't guess.
 3. **Outcome labels are deterministic.** `goal_reached`, `fallback_taken`,
    verification-passing effects — computed by the runtime, not judged by a model.
@@ -78,7 +78,7 @@ trajectories are TIR/CIR-grade data).
 ## Replay
 
 ```python
-from sigil import replay
+from horismos import replay
 run2 = replay(trace, ontology_dir="…")
 ```
 
@@ -92,7 +92,7 @@ run2 = replay(trace, ontology_dir="…")
 ## Training export
 
 ```python
-from sigil.export import to_training_jsonl
+from horismos.export import to_training_jsonl
 to_training_jsonl(traces, out="corpus.jsonl",
                   format="tagged",          # <perceive>/<observe>-style tags [DECIDE: exact tag set — PRP-002]
                   min_outcome={"workflow_completed": True})
@@ -107,6 +107,6 @@ the same exporter with a different template.
 
 Traces are JSONL on disk by default; a store interface (append, query by run/outcome/
 time) supports production backends. Perception steps can be marked
-`sigil:redactInput true` for domains where the raw NL must not persist (the typed
+`horis:redactInput true` for domains where the raw NL must not persist (the typed
 facts and hashes remain — auditability without payload retention).
 **[DECIDE: redaction defaults per domain pack — PRP-006]**

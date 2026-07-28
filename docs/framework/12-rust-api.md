@@ -1,14 +1,14 @@
 # 12 · Rust API Reference
 
-Crates: `sigil-core` (the symbolic engine — **zero LLM dependencies**),
-`sigil-bridges` (provider clients, feature-gated), `sigil-py` (PyO3 layer, not for
+Crates: `horismos-core` (the symbolic engine — **zero LLM dependencies**),
+`horismos-bridges` (provider clients, feature-gated), `horismos-py` (PyO3 layer, not for
 direct use). MSRV: latest stable minus 2.
 
 ## Quickstart
 
 ```rust
-use sigil_core::{Ontology, World, Agent, RunInput};
-use sigil_bridges::AnthropicBridge;
+use horismos_core::{Ontology, World, Agent, RunInput};
+use horismos_bridges::AnthropicBridge;
 
 let onto = Ontology::load("triage.ttl")?
     .with_import("snomed-ct-subset.ttl")?;
@@ -33,7 +33,7 @@ println!("{}", outcome.proof().render());
 | `World` | Mutable instance store | `&mut` for transactions; `Snapshot` is an immutable value |
 | `Reasoner` | Usually internal; public for direct symbolic use | `reasoner.prove(&world, goal)` |
 | `Agent` | Workflow interpreter | Built per-(ontology, bindings); `run` borrows a `World` |
-| `Trace` | The trajectory | `serde` to/from `sigil.trace/1` |
+| `Trace` | The trajectory | `serde` to/from `horismos.trace/1` |
 | `Iri`, `Ref`, `Value` | Interned identifiers and typed values | `Value` mirrors the XSD subset + IRIs |
 
 ## Key traits
@@ -49,7 +49,7 @@ pub trait Bridge: Send + Sync { /* perceive / narrate / rank — doc 08 */ }
 ```
 
 Tool arguments arrive typed (`ToolArgs::get::<f64>("queue")` resolves from graph
-values); outputs are validated against the declared `sigil:effect` before assertion —
+values); outputs are validated against the declared `horis:effect` before assertion —
 implementors cannot bypass the gate.
 
 ## Feature flags
@@ -58,10 +58,10 @@ implementors cannot bypass the gate.
 |---------|---------|----------|
 | `verify` | on | BDD verification (biodivine-lib-bdd) |
 | `sparql` | on | The query subset |
-| `bridges-anthropic` / `-openai` / `-onnx` | off | Provider clients (in `sigil-bridges`) |
+| `bridges-anthropic` / `-openai` / `-onnx` | off | Provider clients (in `horismos-bridges`) |
 | `mock` | on (dev) | MockBridge + testing utilities |
 | `wasm` | off | wasm-bindgen surface; mutually exclusive with `pyo3` |
-| `pyo3` | off | Only `sigil-py` enables this |
+| `pyo3` | off | Only `horismos-py` enables this |
 
 The flag discipline is inherited directly from sigil-lang's proven `pyo3-ext`/`wasm`
 isolation: PyO3-touching code is gated at module level; the symbolic core compiles
@@ -70,8 +70,8 @@ for `wasm32-unknown-unknown` with `--no-default-features --features verify`.
 ## WASM
 
 ```rust
-// sigil_core::wasm — behind `wasm`
-let rt = SigilRuntime::new(ttl_source)?;     // load + verify
+// horismos_core::wasm — behind `wasm`
+let rt = HorismosRuntime::new(ttl_source)?;     // load + verify
 let out = rt.run_json(input_json)?;          // structured input → outcome + trace (JSON)
 ```
 
@@ -91,6 +91,6 @@ perception (the structured-input pattern, doc 06).
 
 ## Errors
 
-`SigilError` enum mirroring the Python hierarchy (`OntologyError`,
+`HorismosError` enum mirroring the Python hierarchy (`OntologyError`,
 `VerificationFailed { report }`, `ValidationRejected { witness }`, `WorkflowError`,
 `BridgeError`, `ToolError`), all `thiserror`-derived, all carrying `domain_text()`.

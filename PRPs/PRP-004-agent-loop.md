@@ -11,16 +11,16 @@ by the model). This is the phase where "the loop is ontology data" becomes real.
 
 ## Scope
 
-- **Workflow engine**: interpret `sigil:Workflow` — step transitions, `sigil:goal`
-  satisfaction checks, `sigil:requires` precondition gating, fallback edges, terminal
+- **Workflow engine**: interpret `horis:Workflow` — step transitions, `horis:goal`
+  satisfaction checks, `horis:requires` precondition gating, fallback edges, terminal
   states. The engine is generic; all domain behavior comes from the ontology.
-- **PerceptionStep**: derive a JSON schema from the ontology classes in `sigil:extracts`;
+- **PerceptionStep**: derive a JSON schema from the ontology classes in `horis:extracts`;
   one Bridge call with forced tool_choice (`assert_facts`); confidence threshold;
   mandatory fallback step; validation gate before assertion.
 - **NarrationStep**: proof tree → NL rendering contract (generates prose, never
   conclusions).
 - **ProposalStep**: LLM ranks only precondition-satisfied candidates; runtime executes.
-- **Tools**: `sigil:Tool` contracts (`takes`/`effect`/`binding`); bindings for Python
+- **Tools**: `horis:Tool` contracts (`takes`/`effect`/`binding`); bindings for Python
   callables, Rust fns, HTTP, MCP; declared-effect validation of tool outputs.
 - **Bridge**: thin trait/protocol over provider SDKs — Anthropic, OpenAI, local
   ONNX/HF, deterministic mock. Prefix routing, per-call timeouts, fallbacks — a direct

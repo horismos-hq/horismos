@@ -1,20 +1,20 @@
 ---
 name: ontology-modeling-conventions
-description: Use before writing or editing any Turtle (.ttl) file, ontology fixture, or code that emits/consumes the sigil vocabulary — covers the RDFS-plus profile, the sigil: namespace terms, the 11 condition operators, constraint and workflow vocabulary, IRI and prefix conventions, and what is permanently excluded (OWL DL, SWRL, SPARQL Update).
+description: Use before writing or editing any Turtle (.ttl) file, ontology fixture, or code that emits/consumes the horismos vocabulary — covers the RDFS-plus profile, the horis: namespace terms, the 11 condition operators, constraint and workflow vocabulary, IRI and prefix conventions, and what is permanently excluded (OWL DL, SWRL, SPARQL Update).
 ---
 
 # Ontology modeling conventions
 
 Vocabulary authority: `docs/framework/02-ontology.md` (constraints, rules, imports),
 `04-reasoning.md` (operator semantics), `05-workflows.md` (workflow vocabulary).
-Never invent a `sigil:` term — if a needed term doesn't exist, that's a **[DECIDE]**
+Never invent a `horis:` term — if a needed term doesn't exist, that's a **[DECIDE]**
 for the owning PRP, not an ad-hoc addition.
 
 ## Namespaces & prefixes (canonical order, always these names)
 
 ```turtle
 @prefix :      <https://example.org/DOMAIN#> .   # the domain being modeled
-@prefix sigil: <https://sigil.dev/ns#> .
+@prefix horis: <https://w3id.org/horismos#> .
 @prefix sct:   <http://snomed.info/id/> .        # only when anchoring to SNOMED
 @prefix rdf:   <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
 @prefix rdfs:  <http://www.w3.org/2000/01/rdf-schema#> .
@@ -26,26 +26,26 @@ for the owning PRP, not an ad-hoc addition.
 
 RDF triples + RDFS (Class, subClassOf, domain, range, label, comment) + XSD
 datatypes (decimal, integer, string, boolean, dateTime, duration) + `owl:sameAs`
-(the ONLY OWL term, for external anchoring) + the `sigil:` vocabulary.
+(the ONLY OWL term, for external anchoring) + the `horis:` vocabulary.
 **Permanently excluded**: OWL DL/Full, SWRL, SPARQL Update, property paths.
 
 ## Cheat sheets
 
-- Constraints: `sigil:min/max` (inclusive), `sigil:unit`, `sigil:cardinality`
-  ("1" | "0..1" | "1..*" | "0..*"), `sigil:oneOf` (closed enum), `sigil:pattern`,
-  `sigil:immutable`, `sigil:assignedBy` (`sigil:RulesOnly` | `sigil:PerceptionAllowed`
-  | `sigil:ToolsOnly`). Decision properties an LLM must never set get
-  `sigil:assignedBy sigil:RulesOnly`.
+- Constraints: `horis:min/max` (inclusive), `horis:unit`, `horis:cardinality`
+  ("1" | "0..1" | "1..*" | "0..*"), `horis:oneOf` (closed enum), `horis:pattern`,
+  `horis:immutable`, `horis:assignedBy` (`horis:RulesOnly` | `horis:PerceptionAllowed`
+  | `horis:ToolsOnly`). Decision properties an LLM must never set get
+  `horis:assignedBy horis:RulesOnly`.
 - Operators (exactly these 11): `exceeds, below, atLeast, atMost, between, is,
   isNot, isAssigned, isEmpty, contains, inList`. Combinators: `all` (∧), `any` (∨),
-  `none` (¬∨). `sigil:is X` matches subclasses via subsumption. Unassigned property
+  `none` (¬∨). `horis:is X` matches subclasses via subsumption. Unassigned property
   ⇒ comparisons false, `isNot` true (pragmatic closed world).
-- Rules: `a sigil:Rule` with `sigil:priority`, `sigil:when`, `sigil:then`, and a
-  human `sigil:explain` — the explain string is **mandatory**; it surfaces in proof
+- Rules: `a horis:Rule` with `horis:priority`, `horis:when`, `horis:then`, and a
+  human `horis:explain` — the explain string is **mandatory**; it surfaces in proof
   trees and narration.
-- Workflows: every `PerceptionStep` requires `sigil:fallback`; every `ReasoningStep`
-  requires `sigil:onUnreachable`; every `ActionStep` requires `sigil:onError`.
-  Every run must reach a `sigil:terminal true` step.
+- Workflows: every `PerceptionStep` requires `horis:fallback`; every `ReasoningStep`
+  requires `horis:onUnreachable`; every `ActionStep` requires `horis:onError`.
+  Every run must reach a `horis:terminal true` step.
 
 ## Fixture style
 

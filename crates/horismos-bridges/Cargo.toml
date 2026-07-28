@@ -1,6 +1,6 @@
 [package]
-name = "sigil-bridges"
-description = "Bridge implementations for the Sigil framework: provider clients (feature-gated) and the mock backend"
+name = "horismos-bridges"
+description = "Bridge implementations for the Horismos framework: provider clients (feature-gated) and the mock backend"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -14,7 +14,7 @@ bridges-openai = []
 bridges-onnx = []
 
 [dependencies]
-sigil-core.workspace = true
+horismos-core.workspace = true
 thiserror.workspace = true
 serde.workspace = true
 serde_json.workspace = true

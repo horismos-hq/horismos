@@ -1,4 +1,4 @@
-//! The Ontology: the single authored artifact of a Sigil deployment.
+//! The Ontology: the single authored artifact of a Horismos deployment.
 //!
 //! Turtle parse/serialize, the RDFS-plus profile, imports and external-vocabulary
 //! anchoring, IRI interning.

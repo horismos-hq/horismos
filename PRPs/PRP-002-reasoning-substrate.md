@@ -38,7 +38,7 @@ designed as a training corpus from day one.
 2. Proof-tree granularity: per-condition (sigil-lang precedent) vs. per-rule.
 3. Trace schema versioning policy (traces outlive framework versions once used as
    training data).
-4. Negation semantics: `isNot`/absence under open-world RDF vs. Sigil's pragmatic
+4. Negation semantics: `isNot`/absence under open-world RDF vs. Horismos's pragmatic
    closed-world `_UNBOUND` precedent — pick, document, test (sigil-lang's answer:
    comparisons with unbound are false, `is not` true; re-validate for the graph world).
 

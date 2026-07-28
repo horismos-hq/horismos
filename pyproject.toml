@@ -3,7 +3,7 @@ requires = ["maturin>=1.8,<2"]
 build-backend = "maturin"
 
 [project]
-name = "sigil"
+name = "horismos"
 description = "Ontology-first neuro-symbolic agent framework: Rust core, Python bindings. Neural proposes; symbolic decides."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -27,9 +27,9 @@ dev = [
 ]
 
 [tool.maturin]
-manifest-path = "crates/sigil-py/Cargo.toml"
+manifest-path = "crates/horismos-py/Cargo.toml"
 python-source = "python"
-module-name = "sigil._sigil"
+module-name = "horismos._horismos"
 features = ["pyo3/extension-module"]
 
 [tool.ruff]

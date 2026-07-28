@@ -5,7 +5,7 @@ same conclusions, always, with the derivation recorded.
 
 ## Subsumption
 
-Class-hierarchy reasoning is always on. `sigil:is :ChestPain` matches instances of
+Class-hierarchy reasoning is always on. `horis:is :ChestPain` matches instances of
 `:ChestPain` **and every subclass**, including subclasses that arrived via imports:
 
 ```
@@ -49,13 +49,13 @@ The 11 operators evaluate over the graph with these edge semantics:
 | Situation | Result |
 |-----------|--------|
 | Property unassigned, any comparison (`exceeds`, `is`, …) | `false` |
-| Property unassigned, `sigil:isNot` | `true` |
-| Property unassigned, `sigil:isAssigned` | `false` |
-| Multi-valued property (`hasSymptom`), `sigil:is X` | `true` if **any** value matches (∃) |
+| Property unassigned, `horis:isNot` | `true` |
+| Property unassigned, `horis:isAssigned` | `false` |
+| Multi-valued property (`hasSymptom`), `horis:is X` | `true` if **any** value matches (∃) |
 | Unit mismatch in comparison | Load-time verification error, not a runtime surprise |
 
 This is a pragmatic closed-world reading of an open-world data model. It is a
-deliberate, documented divergence from RDF semantics — Sigil worlds are operational
+deliberate, documented divergence from RDF semantics — Horismos worlds are operational
 state, not the open web. **[DECIDE: confirm ∃ vs. ∀ for multi-valued `isNot` — PRP-002]**
 
 ## Backward chaining
@@ -107,7 +107,7 @@ seam, made visible.
 ## Determinism guarantees
 
 - No wall-clock, no randomness, no iteration-order dependence anywhere in inference.
-- `sigil:now` (used by tool effects) is transaction-stamped: injected by the runtime
+- `horis:now` (used by tool effects) is transaction-stamped: injected by the runtime
   at transaction open, constant within it, recorded in the trace — replay reproduces it.
 - The same (ontology, world snapshot, input transaction) triple always yields the
   same (derived facts, proof trees, trace) — this is tested property-style in CI.

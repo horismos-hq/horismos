@@ -1,6 +1,6 @@
-# Sigil Framework Documentation
+# Horismos Framework Documentation
 
-> **Sigil** is an ontology-first neuro-symbolic agent framework. Rust core, Python
+> **Horismos** is an ontology-first neuro-symbolic agent framework. Rust core, Python
 > bindings. The ontology is simultaneously the typed world-state, the reasoning
 > substrate, and the agent workflow. Neural proposes; symbolic decides.
 
@@ -21,8 +21,8 @@ is deterministic, traced, and replayable. Delete the LLM and the framework still
 
 | # | Doc | What it covers |
 |---|-----|----------------|
-| 01 | [Concepts](01-concepts.md) | The seven nouns, the two principles, how Sigil differs from agent frameworks |
-| 02 | [The Ontology](02-ontology.md) | RDFS-plus profile: classes, constraints, the full `sigil:` vocabulary, imports |
+| 01 | [Concepts](01-concepts.md) | The seven nouns, the two principles, how Horismos differs from agent frameworks |
+| 02 | [The Ontology](02-ontology.md) | RDFS-plus profile: classes, constraints, the full `horis:` vocabulary, imports |
 | 03 | [The World](03-world.md) | Instance store: assertion, validation gate, queries, snapshots, subscriptions |
 | 04 | [Reasoning](04-reasoning.md) | Rules, forward/backward chaining, subsumption, proof trees |
 | 05 | [Workflows](05-workflows.md) | Step types, transitions, preconditions, fallbacks, termination |
@@ -31,8 +31,8 @@ is deterministic, traced, and replayable. Delete the LLM and the framework still
 | 08 | [The Bridge](08-bridge.md) | Model backends, registry, timeouts, the mock backend, provider mechanics |
 | 09 | [Traces](09-traces.md) | The trajectory schema, replay, audit, training-corpus export |
 | 10 | [Verification](10-verification.md) | BDD checks, witnesses, workflow verification, CI usage |
-| 11 | [Python API](11-python-api.md) | The `sigil` package reference |
-| 12 | [Rust API](12-rust-api.md) | The `sigil-core` crate reference, feature flags, WASM |
+| 11 | [Python API](11-python-api.md) | The `horismos` package reference |
+| 12 | [Rust API](12-rust-api.md) | The `horismos-core` crate reference, feature flags, WASM |
 | 13 | [Authoring](13-authoring.md) | The authoring agent: SMEs converse, Claude drafts, the verifier gatekeeps |
 | 14 | [Architecture](14-architecture.md) | Internals: crate layout, PyO3 boundary, performance, PRP mapping |
 
@@ -53,9 +53,9 @@ up progressively in docs 02–07.
 
 ## Prior art
 
-Sigil inherits designs proven in the `sigil-lang` project (same authors): Rete-lite
+Horismos inherits designs proven in the `sigil-lang` project (same authors): Rete-lite
 matching, BDD verification, constraint solving, trace semantics, the pluggable neural
 bridge, and the validate-and-refine authoring loop — collectively ~1,270 tests of
-prior art. Sigil is not a rewrite of sigil-lang; it inverts it: the engine is the
+prior art. Horismos is not a rewrite of sigil-lang; it inverts it: the engine is the
 product, and the language surface is gone (an authoring agent writes standard Turtle
 instead).

@@ -1,7 +1,7 @@
 # 10 · Verification
 
 Verification is what separates "framework with tests" from "framework with
-guarantees": before an ontology runs, Sigil proves properties of its rule set and
+guarantees": before an ontology runs, Horismos proves properties of its rule set and
 workflows, and renders violations as counterexamples an SME can read. The engine is
 a port-and-adapt of sigil-lang's BDD verifier (`biodivine-lib-bdd`; pure Rust,
 WASM-safe, 50 tests of prior art; the Z3 rejection stands — no 200MB C++ dependency).
@@ -13,13 +13,13 @@ WASM-safe, 50 tests of prior art; the Z3 rejection stands — no 200MB C++ depen
   every subsequent trace). **[DECIDE: confirm default-hard policy — PRP-005]**
 - **Authoring time**: every draft the authoring agent produces (doc 13) — target
   <1s interactive on triage-sized ontologies.
-- **CI**: `sigil verify path/` exit codes; JSON output for tooling.
+- **CI**: `horismos verify path/` exit codes; JSON output for tooling.
 
 ## Rule-set checks
 
 For each rules-assigned property (e.g. `:acuity`), conditions are discretized into
 threshold predicates and encoded as BDDs. The ontology makes the encoding *tighter*
-than sigil-lang's: `sigil:min/max` bound variable domains, `sigil:oneOf` closes value
+than sigil-lang's: `horis:min/max` bound variable domains, `horis:oneOf` closes value
 sets, and the class hierarchy widens rule applicability through subsumption
 (a rule on `:ChestPain` covers the `:CrushingChestPain` region).
 
@@ -27,20 +27,20 @@ sets, and the class hierarchy widens rule applicability through subsumption
 |-------|----------|--------------------------|
 | **Completeness** | Does some rule assign the property for every reachable input region? | "No acuity assigned when heartRate ∈ (100, 120] and no Symptom present" |
 | **Conflict-freedom** | Can two rules derive different values for a single-cardinality property on an overlapping region? | "r1 → :Immediate but r4 → :Urgent when heartRate ∈ (120, 140] ∧ ChestPain — r1 wins by priority; confirm intended" |
-| **Dead rules** | Is any rule's condition unsatisfiable given constraints and higher-priority shadowing? | "r7 can never fire: requires heartRate > 350, but sigil:max is 300" |
+| **Dead rules** | Is any rule's condition unsatisfiable given constraints and higher-priority shadowing? | "r7 can never fire: requires heartRate > 350, but horis:max is 300" |
 | **Termination** | Can chaining cycle (rule A derives what re-enables rule B and vice versa)? | The cycle, listed rule by rule |
 
 Completeness is relative to declared reachability: constraints define the input space,
-`sigil:assignedBy` defines which properties are inputs vs. derived.
+`horis:assignedBy` defines which properties are inputs vs. derived.
 
-## Workflow checks (new in Sigil, beyond the sigil-lang port)
+## Workflow checks (new in Horismos, beyond the sigil-lang port)
 
 | Check | Question |
 |-------|----------|
-| **Reachability** | Is every step reachable from `sigil:startsAt`? |
-| **Termination** | Does every path reach a `sigil:terminal` step? (No implicit dead-ends.) |
+| **Reachability** | Is every step reachable from `horis:startsAt`? |
+| **Termination** | Does every path reach a `horis:terminal` step? (No implicit dead-ends.) |
 | **Fallback totality** | Does every fallible step declare its failure edge? (Perception: `fallback`; Reasoning: `onUnreachable`; Action: `onError`.) |
-| **Precondition satisfiability** | Can each `sigil:requires` ever hold, given the rules that could establish it? (An ActionStep requiring `acuity isAssigned` is checked against the rule set's completeness for `:acuity`.) |
+| **Precondition satisfiability** | Can each `horis:requires` ever hold, given the rules that could establish it? (An ActionStep requiring `acuity isAssigned` is checked against the rule set's completeness for `:acuity`.) |
 | **Choice totality** | Do ChoiceStep branches + `otherwise` cover all cases? |
 
 The precondition check is the composition point: workflow verification *uses* the

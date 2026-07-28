@@ -1,4 +1,4 @@
-<title>Sigil Board</title>
+<title>Horismos Board</title>
 <style>
   :root {
     --ground: #F6F7F9; --panel: #FFFFFF; --ink: #1B2130; --muted: #5A6072;
@@ -110,12 +110,12 @@
 
 <div class="wrap">
   <header>
-    <p class="eyebrow">Sigil · Project Board</p>
+    <p class="eyebrow">Horismos · Project Board</p>
     <h1>Neural proposes. Symbolic decides.</h1>
     <p class="tagline">Ontology-first neuro-symbolic agent framework — Rust core, Python
     bindings. One authored RDFS-plus ontology is the domain, the rules, and the agent
     loop; LLMs live only at declared perception/narration boundaries.</p>
-    <p class="stamp">Updated 2026-07-28 · mirrors <code>PRPs/BOARD.md</code> · repo <code>~/code/billaram/sigil</code></p>
+    <p class="stamp">Updated 2026-07-28 · mirrors <code>PRPs/BOARD.md</code> · repo <code>~/code/billaram/horismos</code></p>
   </header>
 
   <section class="highlights" aria-label="Highlights">
@@ -130,17 +130,17 @@
     </div>
     <div class="hl hl-next">
       <p class="hl-label">Next · The immediate goal</p>
-      <h3>Close PRP-000's decisions, then activate PRP-001</h3>
+      <h3>Activate PRP-001 — the ontology core</h3>
       <ul>
-        <li><strong>Human calls (3)</strong>: proving ground (τ-Bench vs. triage), naming, license.</li>
-        <li><strong>Parser spike</strong>: oxigraph / sophia vs. in-house — benchmarked, not debated.</li>
-        <li><strong>Then build</strong>: ontology load + typed World + validation gate → <code>triage.ttl</code> loads, violations rejected in domain terms, no LLM anywhere.</li>
+        <li><strong>Decisions closed 2026-07-28</strong>: rebrand Sigil → Horismos, both-track proving ground (τ-Bench number, triage narrative), MIT OR Apache-2.0 dual, parser = oxigraph.</li>
+        <li><strong>Resolve D2–D6, build U1–U11</strong>: ontology load + typed World + validation gate → <code>triage.ttl</code> loads, violations rejected in domain terms, no LLM anywhere.</li>
+        <li><strong>Human side quests</strong>: register <code>horismos.dev</code>; file the <code>w3id.org/horismos</code> PR.</li>
       </ul>
     </div>
     <div class="hl hl-end">
       <p class="hl-label">End · What done looks like</p>
       <h3>A clinician ships a verified agent through conversation alone</h3>
-      <p><strong>v1 =</strong> <code>pip install sigil</code> from public registries. The
+      <p><strong>v1 =</strong> <code>pip install horismos</code> from public registries. The
       authoring agent drafts Turtle, the BDD verifier gatekeeps with domain-term
       witnesses, the SME signs off on rendered rules — never syntax. Then
       <code>agent.run("58M, crushing chest pain…")</code> runs the workflow with proof
@@ -154,7 +154,7 @@
     <div class="re"><h4>The spec (docs 00–14)</h4>
       <p>Concepts, RDFS-plus profile, World + gate, reasoning, workflows, LLM boundaries, tools, Bridge, traces, verification, both APIs, authoring, architecture.</p></div>
     <div class="re"><h4>Skeleton crates</h4>
-      <p><code>sigil-core</code> (seven-noun module tree, docs-only stubs), <code>sigil-bridges</code> (mock + gated providers), <code>sigil-py</code> (version roundtrip works).</p></div>
+      <p><code>horismos-core</code> (seven-noun module tree, docs-only stubs), <code>horismos-bridges</code> (mock + gated providers), <code>horismos-py</code> (version roundtrip works).</p></div>
     <div class="re"><h4>Tooling</h4>
       <p>Cargo workspace (edition 2024, clippy -D warnings), uv + maturin abi3 wheel, ruff + mypy strict, Makefile as single entry point.</p></div>
     <div class="re"><h4>Conventions</h4>
@@ -174,8 +174,8 @@
             <td>foundational-skeleton<span class="why">Layout, tooling, skills — the substrate every phase assumes</span></td>
             <td><span class="chip chip-done">Done · standing</span></td></tr>
         <tr><td class="track-cell">Standing</td>
-            <td>PRP-000 · Vision &amp; positioning<span class="why">Pitch, personas, honest Kautz 2–3 placement</span></td>
-            <td><span class="chip chip-open">3 open decisions</span></td></tr>
+            <td>PRP-000 · Vision &amp; positioning<span class="why">Pitch, personas, Kautz 2–3 placement; naming, license, proving ground resolved</span></td>
+            <td><span class="chip chip-done">Decisions closed</span></td></tr>
         <tr><td class="track-cell">Engine</td>
             <td>PRP-001 · Ontology core<span class="why">Load/validate ontology, typed World, validation gate — folder ready with D1–D6, U1–U11</span></td>
             <td><span class="chip chip-next">Next — activate</span></td></tr>
@@ -186,7 +186,7 @@
             <td>PRP-005 · Guarantees &amp; verification<span class="why">BDD checks + domain-term witnesses — needs only 001+002</span></td>
             <td><span class="chip chip-draft">Draft</span></td></tr>
         <tr><td class="track-cell">Surface</td>
-            <td>PRP-003 · Python bindings<span class="why"><code>pip install sigil</code> — the Pythonic front door</span></td>
+            <td>PRP-003 · Python bindings<span class="why"><code>pip install horismos</code> — the Pythonic front door</span></td>
             <td><span class="chip chip-draft">Draft</span></td></tr>
         <tr><td class="track-cell">Runtime</td>
             <td>PRP-004 · Agent loop<span class="why">Workflow engine, perception/narration boundaries, tools, Bridge</span></td>

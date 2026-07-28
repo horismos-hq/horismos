@@ -17,17 +17,17 @@ enforced from commit one rather than retrofitted.
 ## Layout (as built — authority: docs/framework/14-architecture.md)
 
 ```
-sigil/
+horismos/
 ├── Cargo.toml                 # [workspace] resolver 3, edition 2024, shared lints
 ├── rust-toolchain.toml        # stable + rustfmt/clippy + wasm32 target
 ├── Makefile                   # THE dev entry point (make ships with macOS; just isn't installed)
 ├── pyproject.toml             # maturin backend, uv dep groups, ruff/mypy/pytest config
 ├── CLAUDE.md                  # session conventions; points here and at docs/
 ├── crates/
-│   ├── sigil-core/            # ontology/ world/ reason/ workflow/ verify/ trace/ bridge/ error wasm
-│   ├── sigil-bridges/         # mock + feature-gated anthropic/openai/onnx stubs
-│   └── sigil-py/              # PyO3 cdylib `_sigil` — marshaling only
-├── python/sigil/              # pure-Python surface, py.typed, _sigil.pyi
+│   ├── horismos-core/            # ontology/ world/ reason/ workflow/ verify/ trace/ bridge/ error wasm
+│   ├── horismos-bridges/         # mock + feature-gated anthropic/openai/onnx stubs
+│   └── horismos-py/              # PyO3 cdylib `_horismos` — marshaling only
+├── python/horismos/              # pure-Python surface, py.typed, _horismos.pyi
 ├── python/tests/              # pytest (smoke: native roundtrip)
 ├── examples/triage/           # triage.ttl seeded from docs 02–05; grows with every PRP
 ├── docs/framework/  PRPs/  planning/
@@ -36,7 +36,7 @@ sigil/
 
 Crate stubs are **docs-only** (module trees + ownership doc-comments, no premature
 API): each module states its spec doc and owning PRP. The only real code is the
-version roundtrip (`sigil_core::VERSION` → `sigil.__version__`) proving the
+version roundtrip (`horismos_core::VERSION` → `horismos.__version__`) proving the
 PyO3/maturin pipeline works.
 
 ## Tooling decisions
@@ -47,12 +47,12 @@ PyO3/maturin pipeline works.
 | Rust | stable (pinned via rust-toolchain.toml), edition 2024, MSRV stable−2 | docs/framework/12 policy |
 | Lints | `unsafe_code = deny`, clippy `-D warnings`, `unwrap_used = warn` | workspace-level, inherited by all crates |
 | Python env | uv (`uv sync`, dep group `dev`) | fast, lockfile, builds the wheel via maturin backend |
-| Wheel | maturin, abi3-py311, `python-source = python`, module `sigil._sigil` | PRP-003 pattern proven in sigil-lang |
+| Wheel | maturin, abi3-py311, `python-source = python`, module `horismos._horismos` | PRP-003 pattern proven in sigil-lang |
 | Py QA | ruff (lint+format), mypy `--strict`, pytest, hypothesis | property-test parity with proptest |
 | Boundary enforcement | `make check-boundary` (grep gate) + `make no-model-gate` (build/test core with no default features) | doc 14's CI jobs, runnable locally from day one |
 | CI | **deferred to PRP-006** | skeleton stays local-tooling only |
 
-Open items recorded here, decided elsewhere: PyPI name `sigil` availability
+Open items recorded here, decided elsewhere: PyPI name `horismos` availability
 (PRP-006), license files MIT+Apache-2.0 dual (PRP-000 confirm), `biodivine-lib-bdd`
 dependency lands when `verify` grows real code (PRP-002/005).
 
@@ -80,9 +80,9 @@ scripts for fragile sequences):
 | Skill | Purpose | When |
 |-------|---------|------|
 | `cargo-workspace-map` | crate/module ownership + dependency rules; prevents code landing in the wrong crate | now |
-| `ontology-modeling-conventions` | `sigil:` vocabulary, IRI scheme, 11 operators, fixture style | now |
+| `ontology-modeling-conventions` | `horis:` vocabulary, IRI scheme, 11 operators, fixture style | now |
 | `pyo3-boundary` | error mapping, GIL rules, stub regeneration, marshal-at-boundary conventions | now |
-| `learn-codebase` | generates the "Learning Sigil" onboarding artifact: unit-curriculum HTML with diagrams + code walkthroughs | now |
+| `learn-codebase` | generates the "Learning Horismos" onboarding artifact: unit-curriculum HTML with diagrams + code walkthroughs | now |
 | `rdf-turtle-fixtures` | fixture authoring + validator script loop | PRP-001 (needs the parser) |
 | `proptest-strategies` | shared strategies, proptest↔Hypothesis parity rules | PRP-001 |
 | `release-and-stubs` | scripted version-bump → wheel → stub-check sequence | PRP-006 |

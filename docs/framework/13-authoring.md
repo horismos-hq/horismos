@@ -1,7 +1,7 @@
 # 13 · Authoring
 
 SMEs do not write Turtle. They describe their domain in conversation with the
-authoring agent (`sigil author`), which drafts the ontology and negotiates with the
+authoring agent (`horismos author`), which drafts the ontology and negotiates with the
 verifier until the result is provably well-formed — then the SME signs off on a
 rendered summary, never syntax. The runtime's principle applied at design time:
 **neural proposes, symbolic decides.**
@@ -37,7 +37,7 @@ the **SME sign-off** (no autonomous deployment, ever).
 ## The agent
 
 A ReACT loop (Anthropic tool-use API) — a direct retarget of sigil-lang's proven
-`sigil code` agent and NL-to-Sigil generator (validate → auto-retry refinement),
+`horismos code` agent and NL-to-Horismos generator (validate → auto-retry refinement),
 emitting standard Turtle instead of a bespoke DSL. Its tools:
 
 | Tool | Purpose |
@@ -86,7 +86,7 @@ runtime trajectory corpus. Both flywheels start turning on day one of real use.
 ## CLI
 
 ```
-sigil author triage.ttl                 # start/continue a session
-sigil author --review triage.ttl       # render summary + outstanding witnesses
-sigil author --diff v1.1.0 v1.2.0      # domain-term changelog
+horismos author triage.ttl                 # start/continue a session
+horismos author --review triage.ttl       # render summary + outstanding witnesses
+horismos author --diff v1.1.0 v1.2.0      # domain-term changelog
 ```

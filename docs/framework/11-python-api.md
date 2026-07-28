@@ -1,13 +1,13 @@
 # 11 · Python API Reference
 
-Package: `sigil` (wheels via maturin/PyO3 over `sigil-core`). Python ≥ 3.11.
+Package: `horismos` (wheels via maturin/PyO3 over `horismos-core`). Python ≥ 3.11.
 Everything here is importable from the top level unless noted.
 
 ## Quickstart (the canonical triage run)
 
 ```python
-from sigil import Ontology, World, Agent
-from sigil.bridges import AnthropicBridge
+from horismos import Ontology, World, Agent
+from horismos.bridges import AnthropicBridge
 
 onto = Ontology.load("triage.ttl", imports=["snomed-ct-subset.ttl"])
 assert onto.verify().ok
@@ -40,7 +40,7 @@ print(result.proof.render())
 Loading an ontology generates proxy classes (also available dynamically):
 
 ```python
-from sigil import proxies
+from horismos import proxies
 T = proxies(onto)                       # namespace object
 p = T.Patient(heart_rate=128, systolic=92, diastolic=60,
               symptoms=[T.CrushingChestPain, T.Diaphoresis])
@@ -48,7 +48,7 @@ p = T.Patient(heart_rate=128, systolic=92, diastolic=60,
 
 Property names snake_case ↔ ontology camelCase mapping is automatic and stable.
 Proxies are *builders*: nothing exists until `world.assert_(p)` passes the gate.
-**[DECIDE: codegen for IDE/mypy support (`sigil stubgen triage.ttl`) — PRP-003]**
+**[DECIDE: codegen for IDE/mypy support (`horismos stubgen triage.ttl`) — PRP-003]**
 
 ## `World`
 
@@ -78,7 +78,7 @@ Proxies are *builders*: nothing exists until `world.assert_(p)` passes the gate.
 `decision`, `terminal`, `goal_reached`, `proof`, `trace` (see docs 05, 09),
 `world` (the post-run world), `steps` (list of `StepResult`).
 
-## `sigil.bridges`
+## `horismos.bridges`
 
 `AnthropicBridge`, `OpenAIBridge`, `HFBridge`, `ONNXBridge`, `CallableBridge`,
 `MockBridge` — all implement the `Bridge` protocol (doc 08). `MockBridge(script=…)`
@@ -87,13 +87,13 @@ is the CI workhorse.
 ## Errors
 
 ```
-SigilError
-├── SigilOntologyError        # parse/profile/import problems
-├── SigilVerificationError    # .report attached, witnesses inside
-├── SigilValidationError      # gate rejection; .constraint, .domain_text
-├── SigilWorkflowError        # missing edges, unbound tools/bridges
-├── SigilBridgeError          # provider failures (usually handled via fallback)
-└── SigilToolError            # binding invocation/effect validation
+HorismosError
+├── HorismosOntologyError        # parse/profile/import problems
+├── HorismosVerificationError    # .report attached, witnesses inside
+├── HorismosValidationError      # gate rejection; .constraint, .domain_text
+├── HorismosWorkflowError        # missing edges, unbound tools/bridges
+├── HorismosBridgeError          # provider failures (usually handled via fallback)
+└── HorismosToolError            # binding invocation/effect validation
 ```
 
 Every error carries `domain_text` (human), `data` (machine), and where applicable
@@ -101,7 +101,7 @@ Every error carries `domain_text` (human), `data` (machine), and where applicabl
 
 ## Module utilities
 
-- `sigil.replay(trace, …)` — doc 09.
-- `sigil.export.to_training_jsonl(...)` — doc 09.
-- `sigil.testing` — `MockBridge`, world fixtures, trace assertions
+- `horismos.replay(trace, …)` — doc 09.
+- `horismos.export.to_training_jsonl(...)` — doc 09.
+- `horismos.testing` — `MockBridge`, world fixtures, trace assertions
   (`assert_fired(trace, "r1")`, `assert_no_bridge_calls(trace)`).

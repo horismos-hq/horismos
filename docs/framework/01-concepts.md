@@ -17,10 +17,10 @@
 |------|-----------|----------|
 | **Ontology** | The authored artifact: classes, properties, constraints, rules, workflows, tool contracts — one RDFS-plus graph | `.ttl` files, versioned like code |
 | **World** | The typed instance store: facts as instances of ontology classes; all mutation passes the validation gate | Memory (snapshots serializable) |
-| **Reasoner** | Deterministic inference over World: subsumption, forward/backward chaining, constraint checking | `sigil-core` |
+| **Reasoner** | Deterministic inference over World: subsumption, forward/backward chaining, constraint checking | `horismos-core` |
 | **Workflow** | The agent loop, declared as ontology data: steps, transitions, goals, preconditions, fallbacks | The same `.ttl` |
-| **Agent** | The runtime that executes a Workflow against a World, calling Bridges and Tools where the ontology says to | `sigil-core` |
-| **Bridge** | A model client behind a uniform contract (Anthropic, OpenAI, local, mock) with confidence and timeout semantics | `sigil-bridges` |
+| **Agent** | The runtime that executes a Workflow against a World, calling Bridges and Tools where the ontology says to | `horismos-core` |
+| **Bridge** | A model client behind a uniform contract (Anthropic, OpenAI, local, mock) with confidence and timeout semantics | `horismos-bridges` |
 | **Trace** | The trajectory of a run: every step, typed | Emitted by every run |
 
 Dependency direction is strict: `Trace ← Agent ← (Workflow, Bridge, Tools)`,
@@ -30,7 +30,7 @@ anti-wrapper boundary (see [Architecture](14-architecture.md)).
 
 ## How this differs from an agent framework
 
-| | Conventional agent stack (LangGraph, agent SDKs) | Sigil |
+| | Conventional agent stack (LangGraph, agent SDKs) | Horismos |
 |---|---|---|
 | State | Prompt context + ad-hoc scratch | Typed instance graph, schema-validated |
 | Control flow | LLM decides next action each turn | Ontology-declared workflow; deterministic transitions |
@@ -40,13 +40,13 @@ anti-wrapper boundary (see [Architecture](14-architecture.md)).
 | Behavior change | Edit prompts, redeploy, pray | Edit ontology; re-verify; diffs in domain terms |
 | Remove the LLM | Nothing works | Everything but NL input works |
 
-## What Sigil is not
+## What Horismos is not
 
 - **Not a rules engine with an LLM feature.** The workflow/agent model and the
   perception contract are first-class, not bolted on.
 - **Not an LLM orchestrator.** There is exactly one Bridge call per PerceptionStep —
   no chains, no self-reflection loops, no model-to-model negotiation.
-- **Not OWL-DL reasoning.** Sigil takes RDFS plus named, tractable extensions
+- **Not OWL-DL reasoning.** Horismos takes RDFS plus named, tractable extensions
   ([02](02-ontology.md)); full description-logic inference is out of scope forever.
 - **Not (yet) differentiable.** Honest Kautz placement is Type 2–3. The trace format
   is deliberately training-grade to fund the future bets (see PRP-000's research

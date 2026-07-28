@@ -1,5 +1,5 @@
 [package]
-name = "sigil-core"
+name = "horismos-core"
 description = "Ontology-first neuro-symbolic agent engine: ontology, world, reasoner, workflows, traces, verification"
 version.workspace = true
 edition.workspace = true

@@ -1,6 +1,6 @@
-//! # sigil-core
+//! # horismos-core
 //!
-//! The symbolic engine of the Sigil framework: ontology, world, reasoner,
+//! The symbolic engine of the Horismos framework: ontology, world, reasoner,
 //! workflows, traces, verification. **Zero LLM dependencies** — this crate
 //! must always compile and pass its full test suite with no network, no keys,
 //! and `--no-default-features --features verify` (the anti-wrapper gate,
@@ -23,8 +23,8 @@ pub mod world;
 pub mod wasm;
 
 /// The RDFS-plus profile version this engine targets
-/// (`sigil:profileVersion`, docs/framework/02-ontology.md).
+/// (`horis:profileVersion`, docs/framework/02-ontology.md).
 pub const PROFILE_VERSION: &str = "0.1";
 
-/// Engine version, mirrored into `sigil.__version__` on the Python side.
+/// Engine version, mirrored into `horismos.__version__` on the Python side.
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");

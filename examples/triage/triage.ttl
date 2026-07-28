@@ -1,10 +1,10 @@
-# The Sigil running example: clinical triage.
+# The Horismos running example: clinical triage.
 # This file tracks docs/framework/02-ontology.md through 07-tools.md and is
 # built up progressively as the docs' snippets are consolidated. It is the
 # flagship fixture: every framework feature must be exercised here.
 
 @prefix :      <https://example.org/triage#> .
-@prefix sigil: <https://sigil.dev/ns#> .
+@prefix horis: <https://w3id.org/horismos#> .
 @prefix sct:   <http://snomed.info/id/> .
 @prefix rdf:   <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
 @prefix rdfs:  <http://www.w3.org/2000/01/rdf-schema#> .
@@ -19,10 +19,10 @@
 :heartRate a rdf:Property ;
     rdfs:domain :Patient ;
     rdfs:range  xsd:decimal ;
-    sigil:unit  "bpm" ;
-    sigil:min   0 ;
-    sigil:max   300 ;
-    sigil:cardinality "0..1" .
+    horis:unit  "bpm" ;
+    horis:min   0 ;
+    horis:max   300 ;
+    horis:cardinality "0..1" .
 
 :Symptom a rdfs:Class .
 :ChestPain rdfs:subClassOf :Symptom ;
@@ -32,58 +32,58 @@
 :hasSymptom a rdf:Property ;
     rdfs:domain :Patient ;
     rdfs:range  :Symptom ;
-    sigil:cardinality "0..*" .
+    horis:cardinality "0..*" .
 
 :AcuityLevel a rdfs:Class ;
-    sigil:oneOf ( :Immediate :Urgent :Standard ) .
+    horis:oneOf ( :Immediate :Urgent :Standard ) .
 :acuity a rdf:Property ;
     rdfs:domain :Patient ; rdfs:range :AcuityLevel ;
-    sigil:cardinality "0..1" ;
-    sigil:assignedBy sigil:RulesOnly .   # perception may NEVER set this field
+    horis:cardinality "0..1" ;
+    horis:assignedBy horis:RulesOnly .   # perception may NEVER set this field
 
 ## Rules (doc 02 / 04)
 
-:r1 a sigil:Rule ;
-    sigil:priority 10 ;
-    sigil:when [
-        sigil:all (
-            [ sigil:subject :Patient ; sigil:property :heartRate ; sigil:exceeds 120 ]
-            [ sigil:subject :Patient ; sigil:property :hasSymptom ; sigil:is :ChestPain ]
+:r1 a horis:Rule ;
+    horis:priority 10 ;
+    horis:when [
+        horis:all (
+            [ horis:subject :Patient ; horis:property :heartRate ; horis:exceeds 120 ]
+            [ horis:subject :Patient ; horis:property :hasSymptom ; horis:is :ChestPain ]
         )
     ] ;
-    sigil:then [ sigil:property :acuity ; sigil:value :Immediate ] ;
-    sigil:explain "Tachycardia with chest pain — immediate track" .
+    horis:then [ horis:property :acuity ; horis:value :Immediate ] ;
+    horis:explain "Tachycardia with chest pain — immediate track" .
 
 ## Workflow (doc 05)
 
-:Triage a sigil:Workflow ;
-    sigil:startsAt :Intake ;
-    sigil:version "1.2.0" .
+:Triage a horis:Workflow ;
+    horis:startsAt :Intake ;
+    horis:version "1.2.0" .
 
-:Intake a sigil:PerceptionStep ;
-    sigil:extracts :Patient, :Symptom ;
-    sigil:model "claude:claude-fable-5" ;
-    sigil:confidence 0.85 ;
-    sigil:fallback :EscalateToNurse ;
-    sigil:next :Assess .
+:Intake a horis:PerceptionStep ;
+    horis:extracts :Patient, :Symptom ;
+    horis:model "claude:claude-fable-5" ;
+    horis:confidence 0.85 ;
+    horis:fallback :EscalateToNurse ;
+    horis:next :Assess .
 
-:Assess a sigil:ReasoningStep ;
-    sigil:goal [ sigil:property :acuity ; sigil:isAssigned true ] ;
-    sigil:onUnreachable :EscalateToNurse ;
-    sigil:next :Route .
+:Assess a horis:ReasoningStep ;
+    horis:goal [ horis:property :acuity ; horis:isAssigned true ] ;
+    horis:onUnreachable :EscalateToNurse ;
+    horis:next :Route .
 
-:Route a sigil:ActionStep ;
-    sigil:tool :ehr.assign_queue ;
-    sigil:requires [ sigil:property :acuity ; sigil:isAssigned true ] ;
-    sigil:next :Explain .
+:Route a horis:ActionStep ;
+    horis:tool :ehr.assign_queue ;
+    horis:requires [ horis:property :acuity ; horis:isAssigned true ] ;
+    horis:next :Explain .
 
-:Explain a sigil:NarrationStep ;
-    sigil:narrates [ sigil:property :acuity ] ;
-    sigil:audience "charge-nurse" ;
-    sigil:next :Done .
+:Explain a horis:NarrationStep ;
+    horis:narrates [ horis:property :acuity ] ;
+    horis:audience "charge-nurse" ;
+    horis:next :Done .
 
-:Done a sigil:Step ; sigil:terminal true .
+:Done a horis:Step ; horis:terminal true .
 
-:EscalateToNurse a sigil:ActionStep ;
-    sigil:tool :paging.notify_nurse ;
-    sigil:terminal true .
+:EscalateToNurse a horis:ActionStep ;
+    horis:tool :paging.notify_nurse ;
+    horis:terminal true .

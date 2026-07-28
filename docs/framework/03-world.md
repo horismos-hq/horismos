@@ -7,7 +7,7 @@ There is no back door.
 ## Creating a world
 
 ```python
-from sigil import Ontology, World
+from horismos import Ontology, World
 
 onto  = Ontology.load("triage.ttl", imports=["snomed-ct-subset.ttl"])
 world = World(onto)
@@ -29,15 +29,15 @@ failure:
 
 1. **Class exists** in the ontology (or an imported graph).
 2. **Property domains/ranges**: `heartRate` on a `Patient`, value is `xsd:decimal`.
-3. **Constraints**: `128 ∈ [0, 300]` ✓; unit consistency; `sigil:pattern`.
+3. **Constraints**: `128 ∈ [0, 300]` ✓; unit consistency; `horis:pattern`.
 4. **Cardinality**: a second `heartRate` on the same patient replaces only if the
-   property isn't `sigil:immutable`; violations reject.
-5. **Provenance policy**: `sigil:assignedBy` — an assertion arriving from a
-   PerceptionStep may not set `sigil:RulesOnly` properties (the gate knows each
+   property isn't `horis:immutable`; violations reject.
+5. **Provenance policy**: `horis:assignedBy` — an assertion arriving from a
+   PerceptionStep may not set `horis:RulesOnly` properties (the gate knows each
    assertion's provenance: `perception | rule | tool | api`).
 
-Rejections raise `SigilValidationError` with the failing constraint **in domain terms**
-("heartRate 1280 exceeds sigil:max 300 (bpm) on :Patient") and a machine-readable
+Rejections raise `HorismosValidationError` with the failing constraint **in domain terms**
+("heartRate 1280 exceeds horis:max 300 (bpm) on :Patient") and a machine-readable
 structure (used by the perception retry loop, doc 06).
 
 `world.retract(fact)` exists and passes the same policy checks. **[DECIDE: retraction

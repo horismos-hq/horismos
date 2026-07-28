@@ -1,9 +1,9 @@
 ---
 name: learn-codebase
-description: Use when someone new to the sigil codebase wants a guided tour, onboarding walkthrough, code walkthrough, or visual learning material — "walk me through the code", "onboard a new engineer", "explain the codebase", "learning curriculum". Produces a published HTML artifact.
+description: Use when someone new to the horismos codebase wants a guided tour, onboarding walkthrough, code walkthrough, or visual learning material — "walk me through the code", "onboard a new engineer", "explain the codebase", "learning curriculum". Produces a published HTML artifact.
 ---
 
-# Learn-codebase: the Sigil curriculum artifact
+# Learn-codebase: the Horismos curriculum artifact
 
 Produces ONE self-contained HTML artifact: a ByteByteGo-style, diagram-led,
 unit-by-unit curriculum teaching this codebase to a newcomer. Diagrams carry the
@@ -19,7 +19,7 @@ teaching; prose supports them.
 3. **Write the HTML to the scratchpad in sections** — Write the shell + Unit 0, then
    append units with Edit. Never emit the whole page in one Write (it will be
    thousands of lines; single-shot writes truncate or degrade).
-4. **Publish with the Artifact tool**: favicon `🎓`, title `Learning Sigil` — both
+4. **Publish with the Artifact tool**: favicon `🎓`, title `Learning Horismos` — both
    stable across every redeploy. Updates re-publish the same file path so the URL
    survives. `<title>` in the HTML itself.
 5. Default scope: full curriculum (units follow the docs 00–14 reading order, roughly

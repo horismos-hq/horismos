@@ -365,7 +365,7 @@ wheels = [
 ]
 
 [[package]]
-name = "sigil"
+name = "horismos"
 source = { editable = "." }
 
 [package.dev-dependencies]

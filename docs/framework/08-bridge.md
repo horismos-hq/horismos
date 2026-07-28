@@ -1,9 +1,9 @@
 # 08 · The Bridge
 
-The Bridge is Sigil's only connection to model providers: a deliberately thin client
+The Bridge is Horismos's only connection to model providers: a deliberately thin client
 layer beneath the LLM boundary steps (doc 06). It is a port of the neural-bridge
 design proven in sigil-lang (`ModelBackend` protocol + `ModelRegistry`, 76 tests),
-with the same philosophy: **Sigil's runtime is the loop; the Bridge is a model
+with the same philosophy: **Horismos's runtime is the loop; the Bridge is a model
 client, not another orchestrator.** No LangChain, no delegated agent SDKs.
 
 ## The contract
@@ -50,7 +50,7 @@ agent = Agent(world, workflow="triage:Triage",
               bridges={"claude:claude-fable-5": AnthropicBridge.from_env()})
 ```
 
-The ontology names a model (`sigil:model "claude:claude-fable-5"`); deployment maps
+The ontology names a model (`horis:model "claude:claude-fable-5"`); deployment maps
 names to configured Bridge instances. Swapping providers is a config change; the
 ontology is provider-agnostic. **[DECIDE: allow deployment-level model override of
 ontology-declared models (lean yes, with trace annotation) — PRP-004]**
@@ -76,13 +76,13 @@ PRP-004; the mock backend makes tests independent of this decision]**
 
 ## Operational semantics
 
-- **Timeouts**: per-call, from the ontology (`sigil:timeout` on the step) or Bridge
+- **Timeouts**: per-call, from the ontology (`horis:timeout` on the step) or Bridge
   default; enforced by the runtime (sigil-lang precedent: thread/task-based, portable).
 - **Fallback on any Bridge error** (timeout, rate limit, refusal, malformed output):
-  identical to low confidence — the step's `sigil:fallback` edge. There is no
+  identical to low confidence — the step's `horis:fallback` edge. There is no
   "retry until it works" mode.
 - **Accounting**: every call records model, latency, token counts, cost estimate in
-  the trace. Per-run and per-deployment budgets are queryable; a `sigil:budget` on
+  the trace. Per-run and per-deployment budgets are queryable; a `horis:budget` on
   the workflow makes exceeding it a fallback-triggering condition.
   **[DECIDE: budget semantics v1 or defer — PRP-004]**
 - **No streaming** in v1: perception outputs are atomic typed payloads; narration is

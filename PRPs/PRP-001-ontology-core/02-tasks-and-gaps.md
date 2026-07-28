@@ -5,10 +5,11 @@ becomes authoritative when the PRP activates.
 
 ## Decisions to resolve (before implementation)
 
-- [ ] D1. **Turtle parser: `oxigraph` / `sophia` vs. minimal in-house.** Spike:
-      benchmark loading `examples/triage/triage.ttl` + a synthetic ~350k-triple file
-      through both crates; measure load time, memory, and how much of each crate we'd
-      actually use. Record in `03-parser-spike.md`.
+- [x] D1. **Turtle parser: `oxigraph`.** Decided 2026-07-28 (human call, spike
+      waived). We consume oxigraph's parsing/serialization (`oxttl`/`oxrdf`), not its
+      store — our interned triple store (D2) stays ours. Load-time/memory validated
+      empirically in U2; if oxigraph proves heavy there, the fallback is its parser
+      crates alone, not a re-litigation of this decision.
 - [ ] D2. **Triple-store representation**: interned IRIs + index layout (port
       sigil-lang's string-interning experience from the VM chunk design).
 - [ ] D3. **Which SHACL subset exactly**; how shape violations render in domain terms.
@@ -34,7 +35,7 @@ becomes authoritative when the PRP activates.
 - [ ] U5. Imports into named graphs + `owl:sameAs` anchoring + prefix management.
 - [ ] U6. Instance store (`World`): assert/retract through the validation gate;
       the five gate checks in documented order; atomic rejection.
-- [ ] U7. `sigil:assignedBy` provenance policy enforced at the gate
+- [ ] U7. `horis:assignedBy` provenance policy enforced at the gate
       (perception | rule | tool | api).
 - [ ] U8. Snapshots + diff (per D4); `World::from_snapshot`.
 - [ ] U9. Pattern queries (tier 1: `instances`, `value`); SPARQL subset deferred

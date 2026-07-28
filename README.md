@@ -1,4 +1,4 @@
-# Sigil
+# Horismos
 
 **Ontology-first neuro-symbolic agent framework. Rust core, Python bindings.**
 
@@ -22,10 +22,10 @@ Pre-alpha: framework definition and skeleton. Nothing is implemented yet.
 
 | Path | What |
 |------|------|
-| `crates/sigil-core` | The symbolic engine: ontology, world, reasoner, workflows, traces, verification — zero LLM deps |
-| `crates/sigil-bridges` | Bridge implementations: provider clients (feature-gated), mock |
-| `crates/sigil-py` | PyO3 extension module — marshaling only, no logic |
-| `python/sigil` | The `sigil` Python package: pure-Python surface over the native module |
+| `crates/horismos-core` | The symbolic engine: ontology, world, reasoner, workflows, traces, verification — zero LLM deps |
+| `crates/horismos-bridges` | Bridge implementations: provider clients (feature-gated), mock |
+| `crates/horismos-py` | PyO3 extension module — marshaling only, no logic |
+| `python/horismos` | The `horismos` Python package: pure-Python surface over the native module |
 | `examples/triage` | The running example: clinical triage (`triage.ttl`) |
 
 ## Development

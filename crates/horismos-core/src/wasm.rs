@@ -1,4 +1,4 @@
-//! The WASM surface: `SigilRuntime` for browser/edge deployments.
+//! The WASM surface: `HorismosRuntime` for browser/edge deployments.
 //!
 //! Full symbolic stack (gate, chaining, verification, workflows) with
 //! structured input and local tools; `wasm32-unknown-unknown`, mutually
