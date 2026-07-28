@@ -82,6 +82,7 @@ scripts for fragile sequences):
 | `cargo-workspace-map` | crate/module ownership + dependency rules; prevents code landing in the wrong crate | now |
 | `ontology-modeling-conventions` | `sigil:` vocabulary, IRI scheme, 11 operators, fixture style | now |
 | `pyo3-boundary` | error mapping, GIL rules, stub regeneration, marshal-at-boundary conventions | now |
+| `learn-codebase` | generates the "Learning Sigil" onboarding artifact: unit-curriculum HTML with diagrams + code walkthroughs | now |
 | `rdf-turtle-fixtures` | fixture authoring + validator script loop | PRP-001 (needs the parser) |
 | `proptest-strategies` | shared strategies, proptest↔Hypothesis parity rules | PRP-001 |
 | `release-and-stubs` | scripted version-bump → wheel → stub-check sequence | PRP-006 |
