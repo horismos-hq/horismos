@@ -1,0 +1,227 @@
+<title>Sigil Board</title>
+<style>
+  :root {
+    --ground: #F6F7F9; --panel: #FFFFFF; --ink: #1B2130; --muted: #5A6072;
+    --line: #DFE2EA; --symbolic: #3B5BDB; --symbolic-soft: #E3E9FB;
+    --neural: #C87B1B; --neural-soft: #F8ECD9; --gate: #17877B; --gate-soft: #DCEEEB;
+    --forbidden: #B4382E; --chip-draft: #EDEEF3; --chip-draft-ink: #5A6072;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --ground: #14161D; --panel: #1C1F29; --ink: #E6E9F2; --muted: #9AA1B5;
+      --line: #2C3040; --symbolic: #7D93E8; --symbolic-soft: #232A44;
+      --neural: #D99A4E; --neural-soft: #33291A; --gate: #4BB3A6; --gate-soft: #1A2F2C;
+      --forbidden: #D66A60; --chip-draft: #262A38; --chip-draft-ink: #9AA1B5;
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground: #14161D; --panel: #1C1F29; --ink: #E6E9F2; --muted: #9AA1B5;
+    --line: #2C3040; --symbolic: #7D93E8; --symbolic-soft: #232A44;
+    --neural: #D99A4E; --neural-soft: #33291A; --gate: #4BB3A6; --gate-soft: #1A2F2C;
+    --forbidden: #D66A60; --chip-draft: #262A38; --chip-draft-ink: #9AA1B5;
+  }
+  :root[data-theme="light"] {
+    --ground: #F6F7F9; --panel: #FFFFFF; --ink: #1B2130; --muted: #5A6072;
+    --line: #DFE2EA; --symbolic: #3B5BDB; --symbolic-soft: #E3E9FB;
+    --neural: #C87B1B; --neural-soft: #F8ECD9; --gate: #17877B; --gate-soft: #DCEEEB;
+    --forbidden: #B4382E; --chip-draft: #EDEEF3; --chip-draft-ink: #5A6072;
+  }
+  html { background: var(--ground); }
+  body {
+    background: var(--ground); color: var(--ink);
+    font: 16px/1.6 system-ui, -apple-system, "Segoe UI", sans-serif;
+    margin: 0; padding: 2.5rem 1.25rem 4rem;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; }
+  .eyebrow {
+    font-size: .72rem; letter-spacing: .14em; text-transform: uppercase;
+    color: var(--symbolic); font-weight: 600; margin: 0 0 .4rem;
+  }
+  h1 {
+    font-family: "Iowan Old Style", "Palatino Nova", Palatino, Georgia, serif;
+    font-size: clamp(1.9rem, 4vw, 2.6rem); line-height: 1.15; margin: 0 0 .35rem;
+    text-wrap: balance;
+  }
+  .tagline { color: var(--muted); margin: 0; max-width: 62ch; }
+  .stamp { color: var(--muted); font-size: .8rem; margin-top: .6rem; }
+  h2 {
+    font-family: "Iowan Old Style", "Palatino Nova", Palatino, Georgia, serif;
+    font-size: 1.35rem; margin: 2.8rem 0 1rem; text-wrap: balance;
+  }
+  code, .mono {
+    font-family: ui-monospace, "SF Mono", "Cascadia Code", Menlo, monospace;
+    font-size: .86em; background: var(--chip-draft); padding: .1em .35em;
+    border-radius: 4px;
+  }
+  /* Highlights */
+  .highlights { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem; margin-top: 2rem; }
+  .hl {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 10px;
+    padding: 1.25rem 1.4rem;
+  }
+  .hl-label {
+    display: inline-block; font-size: .7rem; font-weight: 700; letter-spacing: .12em;
+    text-transform: uppercase; padding: .2rem .6rem; border-radius: 999px; margin: 0 0 .7rem;
+  }
+  .hl-now  .hl-label { background: var(--gate-soft); color: var(--gate); }
+  .hl-next .hl-label { background: var(--neural-soft); color: var(--neural); }
+  .hl-end  .hl-label { background: var(--symbolic-soft); color: var(--symbolic); }
+  .hl-end { border-color: var(--symbolic); }
+  .hl h3 { margin: 0 0 .5rem; font-size: 1.02rem; line-height: 1.35; }
+  .hl p, .hl li { font-size: .92rem; color: var(--muted); margin: 0; }
+  .hl ul { margin: .3rem 0 0; padding-left: 1.1rem; }
+  .hl li { margin-bottom: .35rem; }
+  .hl strong { color: var(--ink); }
+  /* Recap grid */
+  .recap { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: .8rem; }
+  .re {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 8px;
+    padding: .9rem 1rem;
+  }
+  .re h4 { margin: 0 0 .3rem; font-size: .92rem; }
+  .re p { margin: 0; font-size: .84rem; color: var(--muted); }
+  /* Board table */
+  .board-scroll { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); }
+  table { border-collapse: collapse; width: 100%; min-width: 640px; font-size: .92rem; }
+  th {
+    text-align: left; font-size: .7rem; letter-spacing: .1em; text-transform: uppercase;
+    color: var(--muted); padding: .8rem 1rem .5rem; border-bottom: 1px solid var(--line);
+  }
+  td { padding: .65rem 1rem; border-bottom: 1px solid var(--line); vertical-align: top; }
+  tr:last-child td { border-bottom: none; }
+  .track-cell {
+    font-size: .72rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
+    color: var(--muted); white-space: nowrap;
+  }
+  .chip {
+    display: inline-block; font-size: .74rem; font-weight: 600; white-space: nowrap;
+    padding: .18rem .6rem; border-radius: 999px;
+  }
+  .chip-done  { background: var(--gate-soft); color: var(--gate); }
+  .chip-open  { background: var(--neural-soft); color: var(--neural); }
+  .chip-next  { background: var(--symbolic-soft); color: var(--symbolic); }
+  .chip-draft { background: var(--chip-draft); color: var(--chip-draft-ink); }
+  td .why { color: var(--muted); font-size: .86rem; display: block; margin-top: .15rem; }
+  /* Mermaid + footer */
+  .diagram { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 1rem; overflow-x: auto; }
+  .foot { color: var(--muted); font-size: .84rem; margin-top: 2.5rem; }
+  .foot code { font-size: .82em; }
+</style>
+
+<div class="wrap">
+  <header>
+    <p class="eyebrow">Sigil · Project Board</p>
+    <h1>Neural proposes. Symbolic decides.</h1>
+    <p class="tagline">Ontology-first neuro-symbolic agent framework — Rust core, Python
+    bindings. One authored RDFS-plus ontology is the domain, the rules, and the agent
+    loop; LLMs live only at declared perception/narration boundaries.</p>
+    <p class="stamp">Updated 2026-07-28 · mirrors <code>PRPs/BOARD.md</code> · repo <code>~/code/billaram/sigil</code></p>
+  </header>
+
+  <section class="highlights" aria-label="Highlights">
+    <div class="hl hl-now">
+      <p class="hl-label">Now · Where we are</p>
+      <h3>Definition complete, skeleton green, zero engine code</h3>
+      <ul>
+        <li><strong>Spec shipped</strong>: docs/framework 00–14 in shipped voice; every open question a <strong>[DECIDE]</strong> owned by one PRP.</li>
+        <li><strong>Workspace green</strong>: 3 crates + Python package, PyO3 roundtrip proven, <code>make verify</code> passes.</li>
+        <li><strong>Boundary enforced from commit one</strong>: <code>no-model-gate</code> + <code>check-boundary</code>.</li>
+      </ul>
+    </div>
+    <div class="hl hl-next">
+      <p class="hl-label">Next · The immediate goal</p>
+      <h3>Close PRP-000's decisions, then activate PRP-001</h3>
+      <ul>
+        <li><strong>Human calls (3)</strong>: proving ground (τ-Bench vs. triage), naming, license.</li>
+        <li><strong>Parser spike</strong>: oxigraph / sophia vs. in-house — benchmarked, not debated.</li>
+        <li><strong>Then build</strong>: ontology load + typed World + validation gate → <code>triage.ttl</code> loads, violations rejected in domain terms, no LLM anywhere.</li>
+      </ul>
+    </div>
+    <div class="hl hl-end">
+      <p class="hl-label">End · What done looks like</p>
+      <h3>A clinician ships a verified agent through conversation alone</h3>
+      <p><strong>v1 =</strong> <code>pip install sigil</code> from public registries. The
+      authoring agent drafts Turtle, the BDD verifier gatekeeps with domain-term
+      witnesses, the SME signs off on rendered rules — never syntax. Then
+      <code>agent.run("58M, crushing chest pain…")</code> runs the workflow with proof
+      trees and replayable training-grade traces — and still runs with the LLM deleted.
+      Docs site live, zero-key CI, public benchmark number.</p>
+    </div>
+  </section>
+
+  <h2>Quick recap — what exists today</h2>
+  <section class="recap">
+    <div class="re"><h4>The spec (docs 00–14)</h4>
+      <p>Concepts, RDFS-plus profile, World + gate, reasoning, workflows, LLM boundaries, tools, Bridge, traces, verification, both APIs, authoring, architecture.</p></div>
+    <div class="re"><h4>Skeleton crates</h4>
+      <p><code>sigil-core</code> (seven-noun module tree, docs-only stubs), <code>sigil-bridges</code> (mock + gated providers), <code>sigil-py</code> (version roundtrip works).</p></div>
+    <div class="re"><h4>Tooling</h4>
+      <p>Cargo workspace (edition 2024, clippy -D warnings), uv + maturin abi3 wheel, ruff + mypy strict, Makefile as single entry point.</p></div>
+    <div class="re"><h4>Conventions</h4>
+      <p>CLAUDE.md hard rules; PRP lifecycle + folder form + tracks in <code>PRPs/CONVENTIONS.md</code>; this board in <code>PRPs/BOARD.md</code>.</p></div>
+    <div class="re"><h4>Claude skills</h4>
+      <p>cargo-workspace-map, ontology-modeling-conventions, pyo3-boundary, learn-codebase — all TDD-tested where behavioral.</p></div>
+    <div class="re"><h4>Prior art to port</h4>
+      <p><code>../sigil-lang</code>: Rete-lite matcher, BDD verifier, constraint solver, trace design, neural bridge, authoring loop — ~1,270 tests.</p></div>
+  </section>
+
+  <h2>The board</h2>
+  <div class="board-scroll">
+    <table>
+      <thead><tr><th>Track</th><th>PRP</th><th>Status</th></tr></thead>
+      <tbody>
+        <tr><td class="track-cell">Standing</td>
+            <td>foundational-skeleton<span class="why">Layout, tooling, skills — the substrate every phase assumes</span></td>
+            <td><span class="chip chip-done">Done · standing</span></td></tr>
+        <tr><td class="track-cell">Standing</td>
+            <td>PRP-000 · Vision &amp; positioning<span class="why">Pitch, personas, honest Kautz 2–3 placement</span></td>
+            <td><span class="chip chip-open">3 open decisions</span></td></tr>
+        <tr><td class="track-cell">Engine</td>
+            <td>PRP-001 · Ontology core<span class="why">Load/validate ontology, typed World, validation gate — folder ready with D1–D6, U1–U11</span></td>
+            <td><span class="chip chip-next">Next — activate</span></td></tr>
+        <tr><td class="track-cell">Engine</td>
+            <td>PRP-002 · Reasoning substrate<span class="why">Chaining, subsumption, proof trees, training-grade traces</span></td>
+            <td><span class="chip chip-draft">Draft</span></td></tr>
+        <tr><td class="track-cell">Engine</td>
+            <td>PRP-005 · Guarantees &amp; verification<span class="why">BDD checks + domain-term witnesses — needs only 001+002</span></td>
+            <td><span class="chip chip-draft">Draft</span></td></tr>
+        <tr><td class="track-cell">Surface</td>
+            <td>PRP-003 · Python bindings<span class="why"><code>pip install sigil</code> — the Pythonic front door</span></td>
+            <td><span class="chip chip-draft">Draft</span></td></tr>
+        <tr><td class="track-cell">Runtime</td>
+            <td>PRP-004 · Agent loop<span class="why">Workflow engine, perception/narration boundaries, tools, Bridge</span></td>
+            <td><span class="chip chip-draft">Draft</span></td></tr>
+        <tr><td class="track-cell">Ship &amp; Author</td>
+            <td>PRP-006 · Packaging &amp; docs<span class="why">crates.io + PyPI + docs site + zero-key CI gates</span></td>
+            <td><span class="chip chip-draft">Draft</span></td></tr>
+        <tr><td class="track-cell">Ship &amp; Author</td>
+            <td>PRP-007 · Authoring agent<span class="why">SMEs converse; Claude drafts Turtle; the verifier gatekeeps</span></td>
+            <td><span class="chip chip-draft">Draft</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2>Build order</h2>
+  <div class="diagram">
+    <pre class="mermaid">
+%%{init: {"theme": "neutral", "flowchart": {"curve": "linear"}}}%%
+flowchart LR
+    P0["000<br/>vision"] --> P1["001<br/>ontology core"] --> P2["002<br/>reasoning"] --> P3["003<br/>python api"] --> P4["004<br/>agent loop"] --> P6["006<br/>ship"] --> P7["007<br/>authoring agent"]
+    P2 --> P5["005<br/>verification"] --> P6
+    P5 -. "witnesses feed the<br/>authoring loop" .-> P7
+    classDef engine fill:#DCE4FB,stroke:#3B5BDB,color:#1B2130;
+    classDef surface fill:#CFE8E4,stroke:#17877B,color:#1B2130;
+    classDef runtime fill:#F5E3C4,stroke:#C87B1B,color:#1B2130;
+    classDef ship fill:#E9EAEE,stroke:#8A8FA3,color:#1B2130;
+    class P1,P2,P5 engine;
+    class P3 surface;
+    class P4 runtime;
+    class P0,P6,P7 ship;
+    </pre>
+  </div>
+
+  <p class="foot">Source of truth: <code>PRPs/BOARD.md</code> (updated in the same commit
+  as any PRP status change), <code>PRPs/CONVENTIONS.md</code> (lifecycle &amp; folder
+  form), <code>docs/framework/</code> (the spec). This page is regenerated from those —
+  if they disagree, the repo wins.</p>
+</div>

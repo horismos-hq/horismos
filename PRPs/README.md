@@ -12,7 +12,7 @@ symbolic runtime decides. See `../docs/framework/` for the full framework defini
 |-----|-------|-----------|
 | [PRP-000](PRP-000-vision-positioning.md) | Vision & positioning | What we claim, to whom, and what we deliberately do not claim |
 | [Foundational skeleton](foundational-skeleton.md) | Infrastructure (standing) | Repo layout, build tooling, CLAUDE.md, Claude skills — the substrate every phase assumes |
-| [PRP-001](PRP-001-ontology-core.md) | Ontology core | RDFS-plus schema model, typed instance store, validated mutations (Rust) |
+| [PRP-001](PRP-001-ontology-core/01-objective.md) | Ontology core | RDFS-plus schema model, typed instance store, validated mutations (Rust) |
 | [PRP-002](PRP-002-reasoning-substrate.md) | Reasoning substrate | Chaining, subsumption, constraints, proof trees, training-ready traces |
 | [PRP-003](PRP-003-python-bindings.md) | Python bindings & API | PyO3 wheels; the Pythonic front door |
 | [PRP-004](PRP-004-agent-loop.md) | Ontology-first agent loop | Workflow execution, perception/narration boundaries, tools, Bridge |
@@ -22,8 +22,12 @@ symbolic runtime decides. See `../docs/framework/` for the full framework defini
 
 ## Conventions
 
+Full rules in [CONVENTIONS.md](CONVENTIONS.md) (lifecycle, folder form for active
+PRPs, tracks). At-a-glance state: [BOARD.md](BOARD.md).
+
 - PRPs are **very high level** — one page each: intent, scope, non-goals, key decisions,
-  definition of done. Sprint-level detail is produced when a PRP is activated.
+  definition of done. Sprint-level detail is produced when a PRP is activated (the PRP
+  converts to a folder: `01-objective.md` + `02-tasks-and-gaps.md`).
 - Numbering is sequence. Each PRP assumes the previous ones are done (PRP-000 is a
   standing document, revised as positioning sharpens).
 - The running example across all PRPs is **clinical triage** (`docs/framework/` uses it
