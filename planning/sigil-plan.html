@@ -1,0 +1,1023 @@
+<title>Sigil: Ontology-First Agent Framework — High-Level Plan</title>
+<style>
+  :root {
+    --paper: #f6f7f5;
+    --ink: #1d2430;
+    --ink-soft: #4b5568;
+    --line: #d8dcd6;
+    --card: #ffffff;
+    --symbolic: #35569e;      /* lapis — the deterministic half */
+    --symbolic-soft: #e3e9f6;
+    --neural: #a06b25;        /* bronze — the probabilistic half */
+    --neural-soft: #f3e9d8;
+    --code-bg: #eceee9;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --paper: #161a21;
+      --ink: #e4e7ec;
+      --ink-soft: #9aa3b2;
+      --line: #2c3340;
+      --card: #1d222c;
+      --symbolic: #7d9be0;
+      --symbolic-soft: #232c42;
+      --neural: #d09c55;
+      --neural-soft: #362b1a;
+      --code-bg: #10131a;
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper: #161a21; --ink: #e4e7ec; --ink-soft: #9aa3b2; --line: #2c3340;
+    --card: #1d222c; --symbolic: #7d9be0; --symbolic-soft: #232c42;
+    --neural: #d09c55; --neural-soft: #362b1a; --code-bg: #10131a;
+  }
+  :root[data-theme="light"] {
+    --paper: #f6f7f5; --ink: #1d2430; --ink-soft: #4b5568; --line: #d8dcd6;
+    --card: #ffffff; --symbolic: #35569e; --symbolic-soft: #e3e9f6;
+    --neural: #a06b25; --neural-soft: #f3e9d8; --code-bg: #eceee9;
+  }
+
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: "Charter", "Iowan Old Style", Georgia, "Times New Roman", serif;
+    font-size: 1.05rem;
+    line-height: 1.62;
+    margin: 0;
+    padding: 0 1.25rem;
+  }
+  main { max-width: 46rem; margin: 0 auto; padding: 3.5rem 0 5rem; }
+
+  h1, h2, h3 {
+    font-family: "Seravek", "Avenir Next", "Segoe UI", system-ui, sans-serif;
+    line-height: 1.2;
+    text-wrap: balance;
+  }
+  h1 { font-size: 2.1rem; font-weight: 600; margin: 0.4rem 0 0.6rem; }
+  h2 { font-size: 1.35rem; font-weight: 600; margin: 3rem 0 0.8rem; }
+  h3 { font-size: 1.05rem; font-weight: 600; margin: 1.6rem 0 0.4rem; }
+  p { margin: 0.7rem 0; }
+
+  .eyebrow {
+    font-family: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, monospace;
+    font-size: 0.72rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--symbolic);
+    margin: 0;
+  }
+  .standfirst { font-size: 1.15rem; color: var(--ink-soft); margin-top: 0; }
+
+  .section-label {
+    font-family: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, monospace;
+    font-size: 0.7rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    display: block;
+    margin-bottom: 0.2rem;
+  }
+
+  code, .mono {
+    font-family: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, monospace;
+    font-size: 0.88em;
+    background: var(--code-bg);
+    padding: 0.1em 0.35em;
+    border-radius: 3px;
+  }
+
+  /* Tabs */
+  .tabbar {
+    display: flex;
+    gap: 0.4rem;
+    margin: 2rem 0 0;
+    border-bottom: 1px solid var(--line);
+  }
+  .tabbar button {
+    font-family: "Seravek", "Avenir Next", system-ui, sans-serif;
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--ink-soft);
+    background: none;
+    border: none;
+    border-bottom: 3px solid transparent;
+    padding: 0.55rem 0.9rem;
+    cursor: pointer;
+    margin-bottom: -1px;
+  }
+  .tabbar button:hover { color: var(--ink); }
+  .tabbar button:focus-visible { outline: 2px solid var(--symbolic); outline-offset: 2px; }
+  .tabbar button[aria-selected="true"] {
+    color: var(--symbolic);
+    border-bottom-color: var(--symbolic);
+  }
+  [role="tabpanel"][hidden] { display: none; }
+
+  /* Two-hue legend */
+  .legend { display: flex; gap: 1.5rem; margin: 1rem 0 0; flex-wrap: wrap; }
+  .legend span {
+    font-family: "Seravek", "Avenir Next", system-ui, sans-serif;
+    font-size: 0.85rem;
+  }
+  .swatch {
+    display: inline-block; width: 0.7em; height: 0.7em; border-radius: 2px;
+    margin-right: 0.4em;
+  }
+
+  /* Layer diagram */
+  .stack { display: flex; flex-direction: column; gap: 0.5rem; margin: 1.4rem 0; }
+  .layer {
+    border: 1px solid var(--line);
+    background: var(--card);
+    border-left: 4px solid var(--symbolic);
+    border-radius: 4px;
+    padding: 0.7rem 1rem;
+  }
+  .layer.neural-side { border-left-color: var(--neural); }
+  .layer strong {
+    font-family: "Seravek", "Avenir Next", system-ui, sans-serif;
+    font-weight: 600; font-size: 0.95rem;
+  }
+  .layer em { color: var(--ink-soft); font-size: 0.9rem; }
+
+  /* PRP table */
+  .prp-list { display: flex; flex-direction: column; gap: 0.6rem; margin: 1.2rem 0; }
+  .prp {
+    display: grid;
+    grid-template-columns: 5.2rem 1fr;
+    gap: 0.9rem;
+    border: 1px solid var(--line);
+    background: var(--card);
+    border-radius: 4px;
+    padding: 0.75rem 1rem;
+  }
+  .prp-id {
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: 0.8rem;
+    color: var(--symbolic);
+    padding-top: 0.15rem;
+    font-variant-numeric: tabular-nums;
+  }
+  .prp-body strong {
+    font-family: "Seravek", "Avenir Next", system-ui, sans-serif;
+    font-weight: 600; font-size: 0.98rem;
+  }
+  .prp-body p { margin: 0.25rem 0 0; font-size: 0.94rem; color: var(--ink-soft); }
+
+  ul { padding-left: 1.2rem; }
+  li { margin: 0.35rem 0; }
+
+  .callout {
+    border: 1px solid var(--line);
+    border-left: 4px solid var(--neural);
+    background: var(--card);
+    border-radius: 4px;
+    padding: 0.8rem 1.1rem;
+    margin: 1.4rem 0;
+    font-size: 0.97rem;
+  }
+
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; font-size: 0.92rem; }
+  .table-wrap { overflow-x: auto; }
+  th, td { text-align: left; padding: 0.5rem 0.8rem; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th {
+    font-family: "Seravek", "Avenir Next", system-ui, sans-serif;
+    font-weight: 600; font-size: 0.82rem;
+    color: var(--ink-soft);
+  }
+
+  hr { border: none; border-top: 1px solid var(--line); margin: 2.6rem 0; }
+
+  pre {
+    background: var(--code-bg);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 0.9rem 1.1rem;
+    overflow-x: auto;
+    font-family: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, monospace;
+    font-size: 0.8rem;
+    line-height: 1.55;
+    margin: 0.9rem 0;
+  }
+  pre code { background: none; padding: 0; font-size: inherit; }
+  pre .cm { color: var(--ink-soft); font-style: italic; }
+  pre .kw { color: var(--symbolic); }
+  pre .nr { color: var(--neural); }
+  .filelabel {
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: 0.7rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    display: block;
+    margin: 1.2rem 0 -0.5rem;
+  }
+
+  /* Journey timeline */
+  .journey { position: relative; margin: 1.8rem 0 0 0.55rem; padding-left: 1.6rem; border-left: 2px solid var(--line); display: flex; flex-direction: column; gap: 1.1rem; }
+  .checkpoint { position: relative; }
+  .checkpoint::before {
+    content: "";
+    position: absolute;
+    left: calc(-1.6rem - 7px);
+    top: 0.9rem;
+    width: 12px; height: 12px;
+    border-radius: 50%;
+    background: var(--symbolic);
+    border: 2px solid var(--paper);
+  }
+  .checkpoint.redirect::before { background: var(--neural); }
+  .cp-card {
+    border: 1px solid var(--line);
+    background: var(--card);
+    border-radius: 4px;
+    padding: 0.85rem 1.1rem;
+  }
+  .cp-num {
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: 0.68rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    font-variant-numeric: tabular-nums;
+  }
+  .cp-card h3 { margin: 0.15rem 0 0.35rem; }
+  .cp-quote {
+    font-style: italic;
+    color: var(--ink-soft);
+    margin: 0.3rem 0;
+    padding-left: 0.8rem;
+    border-left: 3px solid var(--neural-soft);
+    font-size: 0.97rem;
+  }
+  .cp-effect {
+    font-size: 0.93rem;
+    margin: 0.45rem 0 0;
+  }
+  .cp-effect strong {
+    font-family: "Seravek", "Avenir Next", system-ui, sans-serif;
+    font-size: 0.8rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--symbolic);
+    font-weight: 600;
+  }
+  .cp-tag {
+    display: inline-block;
+    font-family: "Seravek", "Avenir Next", system-ui, sans-serif;
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    padding: 0.1rem 0.5rem;
+    border-radius: 999px;
+    margin-left: 0.5rem;
+    vertical-align: 1px;
+  }
+  .cp-tag.decision { background: var(--symbolic-soft); color: var(--symbolic); }
+  .cp-tag.redirect-tag { background: var(--neural-soft); color: var(--neural); }
+</style>
+
+<main>
+  <p class="eyebrow">Sigil · Direction Change · living document · updated 2026-07-27</p>
+  <h1>From Language to Framework: an Ontology-First Agent Runtime</h1>
+  <p class="standfirst">
+    The pivot in one line: keep <code>sigil-lang</code> as reference, start fresh in
+    <code>../sigil</code> — a neuro-symbolic framework whose center of gravity is an
+    <strong>ontology</strong> the agent lives inside, not a language humans write.
+    Rust core, Python bindings. This file lives at <code>sigil/planning/sigil-plan.html</code>
+    and is republished on demand.
+  </p>
+  <div class="legend">
+    <span><i class="swatch" style="background:var(--symbolic)"></i>Symbolic — deterministic, traceable, decides</span>
+    <span><i class="swatch" style="background:var(--neural)"></i>Neural — perceives and proposes, never decides</span>
+  </div>
+
+  <div class="tabbar" role="tablist">
+    <button role="tab" id="tab-plan" aria-selected="true" aria-controls="panel-plan">The Plan</button>
+    <button role="tab" id="tab-usecases" aria-selected="false" aria-controls="panel-usecases">Use Cases</button>
+    <button role="tab" id="tab-tech" aria-selected="false" aria-controls="panel-tech">Technical Outline</button>
+    <button role="tab" id="tab-vision" aria-selected="false" aria-controls="panel-vision">The Vision</button>
+    <button role="tab" id="tab-journey" aria-selected="false" aria-controls="panel-journey">How We Got Here</button>
+  </div>
+
+  <!-- ============================ TAB 1: PLAN ============================ -->
+  <section role="tabpanel" id="panel-plan" aria-labelledby="tab-plan">
+
+    <h2><span class="section-label">01 · Why pivot</span>The thesis</h2>
+    <p>
+      <code>sigil-lang</code> proved the machinery works: a full Rust implementation (lexer → parser →
+      bytecode VM), Rete-lite forward chaining, backward chaining with proof trees, a constraint solver,
+      BDD-based formal verification with counterexamples, auditable traces, and a neural bridge with six
+      pluggable model backends — 1,200+ tests passing. What it didn't prove is that anyone wants to
+      <em>learn a new language</em> to get those guarantees.
+    </p>
+    <p>
+      The market signal points the other way. Apollo-1 raised $60M on what is architecturally a typed-state
+      machine plus rules engine wrapped around an LLM — no user-facing language at all. Scallop, the strongest
+      academic neuro-symbolic system, ships as a Rust library with Python bindings. The value is the
+      <strong>runtime with guarantees</strong>, not the surface syntax.
+    </p>
+    <p>
+      So the pivot: the product is a framework where an LLM agent's world-state is typed instances of an
+      ontology, and everything the agent "knows" or concludes flows through a deterministic reasoning
+      substrate. The LLM perceives and proposes; the ontology and its reasoner hold the truth.
+    </p>
+
+    <h2><span class="section-label">02 · What it is</span>Ontology-first agent framework</h2>
+    <p>
+      The sharpest way to see it: Claude Code is "just" a loop with tool uses — the loop is trivial;
+      what makes it work is everything grounding it. We are <em>not</em> building another agent framework
+      that lets you talk to an LLM and reason about tool calls. We're building the thing that grounds the
+      loop: <strong>the ontology is the world-state, the reasoning, and the agent loop itself — one
+      artifact</strong>, expressed in RDFS-plus (RDFS with the constraint and rule extensions we need),
+      authored by subject-matter experts per domain. LLMs and tools already exist for every domain;
+      the missing, novel piece is the executable ontology and the runtime that runs it.
+    </p>
+    <p>The ontology plays three runtime roles:</p>
+    <ul>
+      <li><strong>Typed world-state the agent lives in.</strong> Every entity, relation, and state change is
+        an instance of ontology classes. The LLM never holds raw state — it reads and writes a validated,
+        typed world model. Invalid states are unrepresentable, not merely flagged.</li>
+      <li><strong>Reasoning substrate.</strong> The ontology carries inference: class hierarchy and subsumption,
+        rules, forward and backward chaining over instances. The agent asks "what follows from what I know"
+        and gets a deterministic, fully traced answer with a proof tree.</li>
+      <li><strong>The loop and workflows themselves.</strong> Agent loop and workflow are not different things —
+        they are one. Steps, transitions, tool invocations, and completion conditions are ontology terms the
+        runtime executes, not host-language orchestration code. Changing the workflow means editing the
+        ontology, not the framework.</li>
+    </ul>
+
+    <div class="stack">
+      <div class="layer neural-side">
+        <strong>Agent loop (ontology-declared, runtime-executed)</strong> —
+        <em>perceive NL → extraction into ontology terms → reason → act. The loop's steps and workflows are ontology data, not framework code. Neural proposes.</em>
+      </div>
+      <div class="layer">
+        <strong>Ontology schema (Rust)</strong> —
+        <em>classes, properties, relations, constraints, cardinalities. The contract everything else type-checks against.</em>
+      </div>
+      <div class="layer">
+        <strong>World-state store (Rust)</strong> —
+        <em>typed instances, validated mutations, versioned snapshots. The agent's memory of record.</em>
+      </div>
+      <div class="layer">
+        <strong>Reasoning engine (Rust)</strong> —
+        <em>forward/backward chaining, subsumption, constraint checking — every conclusion carries a trace.</em>
+      </div>
+      <div class="layer">
+        <strong>Guarantees (Rust)</strong> —
+        <em>BDD verification of rule sets: completeness, conflicts, dead rules, termination — with witnesses.</em>
+      </div>
+      <div class="layer neural-side">
+        <strong>Neural bridge</strong> —
+        <em>pluggable model backends, confidence thresholds, mandatory fallbacks — the only door for non-determinism.</em>
+      </div>
+    </div>
+
+    <p>
+      The core philosophy survives the pivot intact: <em>neural for perception, symbolic for reasoning;
+      deterministic by default; traces as fundamental output.</em> What changes is the interface —
+      a Python/Rust API instead of a surface language. A DSL can return later as an optional
+      authoring format; it is no longer the front door.
+    </p>
+
+    <h2><span class="section-label">03 · Inheritance</span>What carries over from sigil-lang</h2>
+    <div class="table-wrap">
+      <table>
+        <tr><th>Asset in sigil-lang</th><th>Fate in the framework</th></tr>
+        <tr><td>Rete-lite matcher, constraint solver, BDD verifier (Rust)</td>
+            <td>Port as the reasoning + guarantees layers — proven designs, adapted to ontology instances instead of ad-hoc facts</td></tr>
+        <tr><td>Trace system (rule traces, proof trees, neural traces)</td>
+            <td>Carries over as a first-class concept; becomes the audit log of the agent</td></tr>
+        <tr><td>Neural bridge (6 backends, thresholds, fallbacks)</td>
+            <td>Design carries over; re-implemented against the new typed-state API</td></tr>
+        <tr><td>Lexer, parser, VM, formatter, REPL, CLI, the .sigil language</td>
+            <td>Stays in sigil-lang as reference. Not ported in v1</td></tr>
+        <tr><td>Research corpus (TIR/CIR, Kautz taxonomy, Apollo-1 analysis)</td>
+            <td>Directly informs positioning and the long-term differentiable bet</td></tr>
+      </table>
+    </div>
+
+    <h2><span class="section-label">04 · Deliverable</span>The PRP set for ../sigil/PRPs/</h2>
+    <p>Eight high-level PRPs, one per phase. Numbering is sequence: each builds on the previous.</p>
+    <div class="prp-list">
+      <div class="prp"><div class="prp-id">PRP-000</div><div class="prp-body">
+        <strong>Vision &amp; positioning</strong>
+        <p>The pitch, target personas (researchers and agent builders), naming, honest Kautz Type 2–3 placement, comparison to Scallop / GoRules / Apollo-1 / LangGraph. What we are and are not claiming.</p>
+      </div></div>
+      <div class="prp"><div class="prp-id">PRP-001</div><div class="prp-body">
+        <strong>Ontology core</strong>
+        <p>Rust crate: RDFS-plus schema model (classes, properties, relations, constraints), typed instance store, validated mutations, snapshots. The exact RDFS-plus profile — which SHACL/SWRL-style extensions, which workflow vocabulary we define — is settled here.</p>
+      </div></div>
+      <div class="prp"><div class="prp-id">PRP-002</div><div class="prp-body">
+        <strong>Reasoning substrate</strong>
+        <p>Forward/backward chaining over instances, subsumption queries, constraint checking, proof trees and traces as structured output.</p>
+      </div></div>
+      <div class="prp"><div class="prp-id">PRP-003</div><div class="prp-body">
+        <strong>Python bindings &amp; API</strong>
+        <p>PyO3/maturin packaging; a Pythonic API for defining ontologies, asserting facts, querying, and subscribing to state changes. This is the developer front door.</p>
+      </div></div>
+      <div class="prp"><div class="prp-id">PRP-004</div><div class="prp-body">
+        <strong>Ontology-first agent loop</strong>
+        <p>The LLM integration: structured extraction of NL into ontology instances, action proposals validated against the schema, confidence thresholds and fallbacks. The loop and workflows are themselves ontology-declared — the runtime executes them; no orchestration code per domain.</p>
+      </div></div>
+      <div class="prp"><div class="prp-id">PRP-005</div><div class="prp-body">
+        <strong>Guarantees &amp; verification</strong>
+        <p>BDD-based rule-set verification (completeness, conflicts, dead rules, termination) with human-readable witnesses, surfaced through the Python API.</p>
+      </div></div>
+      <div class="prp"><div class="prp-id">PRP-006</div><div class="prp-body">
+        <strong>Packaging, distribution &amp; docs</strong>
+        <p>crates.io + PyPI wheels, CI, versioning, docs site, worked examples — the framework-as-product plumbing.</p>
+      </div></div>
+      <div class="prp"><div class="prp-id">PRP-007</div><div class="prp-body">
+        <strong>Ontology authoring agent</strong>
+        <p>The SME experience: an agent (Claude) interviews the expert and generates Turtle; the framework's own verifier gatekeeps every draft — parse → shape validation → BDD verification → counterexamples fed back for refinement. Retargets sigil-lang's proven NL-to-Sigil generator + ReACT agent designs from .sigil to .ttl.</p>
+      </div></div>
+    </div>
+
+    <div class="callout">
+      <strong>Held for later, deliberately:</strong> the differentiable / Type-5+ bet is not a numbered
+      phase — it now has its own tab (<em>The Vision</em>) and lands as a research appendix inside PRP-000.
+      One concrete obligation it places on v1: traces must be designed as training data from day one
+      (PRP-002), because the data flywheel starts with the first agent run.
+    </div>
+
+    <h2><span class="section-label">05 · Open decisions</span>Questions the PRPs must settle</h2>
+    <ul>
+      <li><strong>Ontology formalism.</strong> Direction set: <strong>RDFS-plus</strong> — RDFS as the base, extended with what execution demands (constraints à la SHACL, rules à la SWRL/Datalog, workflow terms of our own). Interop with existing domain ontologies (SNOMED, FIBO, schema.org) becomes a feature, not an aspiration. The exact profile — which extensions, which we invent — is settled in PRP-001.</li>
+      <li><strong>Naming.</strong> Keep "Sigil" for the framework, or reserve it for the eventual DSL layer.</li>
+      <li><strong>Code reuse mechanics.</strong> Port sigil_core modules wholesale vs. re-implement against new data structures. The BDD verifier and solver look portable; the matcher likely needs rework around ontology instances.</li>
+      <li><strong>Agent-loop ownership.</strong> Does the framework ship its own loop (batteries included) or integrate into existing harnesses (LangGraph, Claude Agent SDK) as the state+reasoning layer? Both is a valid answer; priority is settled in PRP-004.</li>
+    </ul>
+
+    <h2><span class="section-label">06 · Where things stand</span>Review, then build</h2>
+    <p>
+      The eight PRPs live in <code>sigil/PRPs/</code> — each one page: intent, scope, non-goals, key
+      decisions, and what "done" means. The full framework definition — written as real documentation,
+      every concept and API contract spelled out — lives in <code>sigil/docs/framework/</code>.
+      The current phase is review: walk the docs, argue with the contracts, then PRP-001 starts the code.
+    </p>
+  </section>
+
+  <!-- ========================= TAB 2: USE CASES ========================= -->
+  <section role="tabpanel" id="panel-usecases" aria-labelledby="tab-usecases" hidden>
+
+    <h2><span class="section-label">Candidate domains</span>Where SME-built ontologies win</h2>
+    <p>
+      The framework's bet: LLMs and tools already exist for every domain — the missing piece is the
+      executable ontology, and the people who can author it are subject-matter experts, not ML engineers.
+      So the right first use case is a domain where (a) the knowledge genuinely lives in experts' heads or
+      policy documents, (b) decisions must be explainable, and (c) a vanilla LLM agent demonstrably fails.
+      Six candidates, then a recommendation.
+    </p>
+
+    <div class="prp-list">
+      <div class="prp"><div class="prp-id">UC-1</div><div class="prp-body">
+        <strong>Airline &amp; travel customer service (the τ-Bench arena)</strong>
+        <p><em>SME:</em> operations &amp; fare-policy teams. <em>Ontology:</em> tickets, fare classes, change/cancel/refund policies, loyalty tiers; workflows: rebooking, refunds, disruption handling. <em>Tools:</em> booking APIs (τ-Bench mocks them). <em>Why ontology-first wins:</em> policy compliance is exactly what unscaffolded LLMs fail — Claude 4 Sonnet scores ~60% on τ-Bench-Airline; Apollo-1 self-reports 90.8–92.5% with a typed-state architecture. <em>The kicker:</em> a public benchmark with published baselines means the thesis is provable with a number, in the same arena our closest competitor chose.</p>
+      </div></div>
+      <div class="prp"><div class="prp-id">UC-2</div><div class="prp-body">
+        <strong>Insurance claims processing</strong>
+        <p><em>SME:</em> claims adjusters, underwriters. <em>Ontology:</em> policies, coverage, exclusions, claim lifecycle states; workflows: FNOL → triage → adjudication → payout. <em>Tools:</em> policy systems, document extraction (LLM), payment rails. <em>Why ontology-first wins:</em> every denial needs a defensible explanation — proof trees are the product, not a feature. Strong commercial pull; no public benchmark, so proof comes from a design partner.</p>
+      </div></div>
+      <div class="prp"><div class="prp-id">UC-3</div><div class="prp-body">
+        <strong>Regulatory compliance (KYC/AML onboarding &amp; monitoring)</strong>
+        <p><em>SME:</em> compliance officers. <em>Ontology:</em> entity types, jurisdictions, thresholds, obligations, escalation paths; workflows: onboarding checks, transaction monitoring, SAR filing. <em>Why ontology-first wins:</em> regulators require deterministic, auditable decisions — "the model felt suspicious" is not a filing. Traces map directly to audit evidence. Rules change constantly; SMEs editing the ontology beats redeploying prompt chains.</p>
+      </div></div>
+      <div class="prp"><div class="prp-id">UC-4</div><div class="prp-body">
+        <strong>Clinical triage &amp; care pathways</strong>
+        <p><em>SME:</em> clinicians. <em>Ontology:</em> symptoms, vitals, contraindications, protocol steps — and here RDFS-plus pays off immediately: SNOMED CT and FHIR already exist as importable vocabularies. <em>Why ontology-first wins:</em> safety-critical, trace-mandatory. <em>Caveat:</em> heaviest regulatory lift; best as a flagship later, not the proving ground.</p>
+      </div></div>
+      <div class="prp"><div class="prp-id">UC-5</div><div class="prp-body">
+        <strong>SRE &amp; incident response runbooks</strong>
+        <p><em>SME:</em> senior SREs. <em>Ontology:</em> services, dependencies, alert semantics, runbook procedures with preconditions/effects; workflows: diagnose → mitigate → verify → postmortem. <em>Tools:</em> kubectl, dashboards, pagers — all reachable via MCP today. <em>Why ontology-first wins:</em> the sharpest contrast with "Claude Code for infra": same loop, but a 3 a.m. remediation only executes if its ontology preconditions hold. Great dogfooding domain; developer-audience demo, weaker enterprise pull than UC-2/3.</p>
+      </div></div>
+      <div class="prp"><div class="prp-id">UC-6</div><div class="prp-body">
+        <strong>Contract obligations management</strong>
+        <p><em>SME:</em> legal ops. <em>Ontology:</em> parties, clauses, obligations, deadlines, renewal/termination conditions; workflow: LLM extracts clauses → deterministic obligation tracking, deadline inference, conflict detection. <em>Why ontology-first wins:</em> clean neural/symbolic split — extraction is perception (neural), obligation logic is reasoning (symbolic). Narrow enough for a small ontology; less "agentic" than the others.</p>
+      </div></div>
+    </div>
+
+    <h3>Picking the proving ground</h3>
+    <div class="table-wrap">
+      <table>
+        <tr><th>Use case</th><th>Public benchmark</th><th>Existing ontologies to import</th><th>Ontology size (v1)</th><th>Commercial pull</th></tr>
+        <tr><td>UC-1 Airline service</td><td><strong>Yes — τ-Bench</strong></td><td>Partial (schema.org travel)</td><td>Medium</td><td>Medium</td></tr>
+        <tr><td>UC-2 Insurance claims</td><td>No</td><td>Partial (FIBO-adjacent)</td><td>Large</td><td><strong>High</strong></td></tr>
+        <tr><td>UC-3 KYC/AML</td><td>No</td><td>Partial (FIBO)</td><td>Large</td><td><strong>High</strong></td></tr>
+        <tr><td>UC-4 Clinical pathways</td><td>Some (MedQA-adjacent, weak fit)</td><td><strong>Strong (SNOMED, FHIR)</strong></td><td>Large</td><td>High, slow</td></tr>
+        <tr><td>UC-5 SRE runbooks</td><td>No</td><td>Weak</td><td>Small–medium</td><td>Medium</td></tr>
+        <tr><td>UC-6 Contract obligations</td><td>No</td><td>Partial (LKIF and kin)</td><td><strong>Small</strong></td><td>Medium</td></tr>
+      </table>
+    </div>
+
+    <div class="callout">
+      <strong>Recommendation:</strong> prove the thesis on <strong>UC-1 (τ-Bench airline)</strong> — it's the
+      only candidate with an objective, published scoreboard, and it's the exact arena where Apollo-1 staked
+      its claim, so a strong score is a direct, credible comparison. The airline policy ontology is
+      SME-authorable in weeks, the tools are mocked by the benchmark itself, and every failure case is a
+      concrete workflow to encode. Then take the proven runtime to UC-2 or UC-3 as the first commercial
+      vertical. The picked use case becomes a running example through every PRP.
+    </div>
+  </section>
+
+  <!-- ======================= TAB 3: TECHNICAL OUTLINE ==================== -->
+  <section role="tabpanel" id="panel-tech" aria-labelledby="tab-tech" hidden>
+
+    <h2><span class="section-label">As-if-shipped docs</span>The framework, outlined through clinical triage</h2>
+    <p>
+      Written as if it already exists: Rust crate <code>sigil-core</code>, Python package <code>sigil</code>
+      (PyO3 wheels via maturin). The running example is UC-4, clinical triage. Everything below is API
+      sketch, not commitment — it exists to make the PRPs concrete and arguable.
+    </p>
+
+    <h3>1 · The artifact the SME authors</h3>
+    <p>
+      There is no "app code" in a Sigil deployment. A clinician (with an ontology editor or plain text)
+      authors one artifact — an RDFS-plus ontology that declares the domain <em>and</em> the workflow.
+      This file <strong>is</strong> the application; the runtime executes it.
+    </p>
+    <span class="filelabel">triage.ttl — authored by the SME, versioned like code</span>
+    <pre><code><span class="cm"># -- Domain: classes, properties, constraints ----------------------</span>
+:Patient a rdfs:Class .
+:heartRate a rdf:Property ;
+    rdfs:domain :Patient ; rdfs:range xsd:decimal ;
+    <span class="kw">sigil:unit</span> "bpm" ; <span class="kw">sigil:min</span> 0 ; <span class="kw">sigil:max</span> 300 .   <span class="cm"># invalid vitals are unrepresentable</span>
+
+:ChestPain rdfs:subClassOf :Symptom ;
+    owl:sameAs sct:29857009 .                    <span class="cm"># anchored to SNOMED CT — imported, not reinvented</span>
+
+<span class="cm"># -- Reasoning: rules live in the ontology --------------------------</span>
+:r1 a <span class="kw">sigil:Rule</span> ;
+    <span class="kw">sigil:when</span>  [ :heartRate <span class="kw">sigil:exceeds</span> 120 ; :hasSymptom :ChestPain ] ;
+    <span class="kw">sigil:then</span>  [ :acuity :Immediate ] ;
+    <span class="kw">sigil:explain</span> "Tachycardia with chest pain — immediate track" .
+
+<span class="cm"># -- Workflow: the agent loop is ontology data, not framework code --</span>
+:Triage a <span class="kw">sigil:Workflow</span> ; <span class="kw">sigil:startsAt</span> :Intake .
+
+:Intake a <span class="nr">sigil:PerceptionStep</span> ;                <span class="cm"># the ONLY place neural exists</span>
+    <span class="nr">sigil:extracts</span> :Patient, :Symptom ;
+    <span class="nr">sigil:model</span> "claude-fable-5" ;
+    <span class="nr">sigil:confidence</span> 0.85 ;
+    <span class="nr">sigil:fallback</span> :EscalateToNurse ;           <span class="cm"># mandatory — low confidence never guesses</span>
+    <span class="kw">sigil:next</span> :Assess .
+
+:Assess a <span class="kw">sigil:ReasoningStep</span> ;
+    <span class="kw">sigil:goal</span> [ :acuity <span class="kw">sigil:isAssigned</span> true ] ;
+    <span class="kw">sigil:next</span> :Route .
+
+:Route a <span class="kw">sigil:ActionStep</span> ;
+    <span class="kw">sigil:tool</span> :ehr.assign_queue ;
+    <span class="kw">sigil:requires</span> [ :acuity <span class="kw">sigil:isAssigned</span> true ] .  <span class="cm"># unmet precondition = step cannot fire</span></code></pre>
+
+    <h3>2 · From Python</h3>
+    <span class="filelabel">pip install sigil · the developer front door</span>
+    <pre><code><span class="kw">from</span> sigil <span class="kw">import</span> Ontology, World, Agent
+<span class="kw">from</span> sigil.bridges <span class="kw">import</span> AnthropicBridge
+
+onto = Ontology.load(<span class="nr">"triage.ttl"</span>, imports=[<span class="nr">"snomed-ct-subset.ttl"</span>])
+
+report = onto.verify()                <span class="cm"># BDD checks BEFORE any run:</span>
+<span class="kw">assert</span> report.complete                <span class="cm"># "no acuity assigned when HR 100–120 and no symptom" → caught here</span>
+
+world = World(onto)                   <span class="cm"># typed instance graph — the agent's memory of record</span>
+agent = Agent(world,
+    workflow=<span class="nr">"triage:Triage"</span>,
+    bridges={<span class="nr">"claude-fable-5"</span>: AnthropicBridge.from_env()},
+    tools={<span class="nr">"ehr.assign_queue"</span>: ehr_client.assign_queue})
+
+result = agent.run(<span class="nr">"58M, crushing chest pain 20 min, HR 128, BP 92/60, diaphoretic"</span>)
+
+result.decision                       <span class="cm"># triage:Immediate</span>
+print(result.proof.render())          <span class="cm"># r1 fired: heartRate 128 exceeds 120 ∧ ChestPain ⊑ Symptom …</span>
+result.trace.to_json()                <span class="cm"># training-ready trajectory (see Vision tab)</span>
+
+world.query(<span class="nr">"SELECT ?p WHERE { ?p :acuity :Immediate }"</span>)   <span class="cm"># the graph is queryable state</span></code></pre>
+
+    <h3>3 · From Rust</h3>
+    <span class="filelabel">cargo add sigil-core · same engine, zero binding overhead</span>
+    <pre><code><span class="kw">use</span> sigil_core::{Ontology, World, Agent};
+<span class="kw">use</span> sigil_bridges::AnthropicBridge;
+
+<span class="kw">let</span> onto = Ontology::load(<span class="nr">"triage.ttl"</span>)?.with_import(<span class="nr">"snomed-ct-subset.ttl"</span>)?;
+onto.verify()?.assert_complete()?;              <span class="cm">// refuse to deploy an unverified rule set</span>
+
+<span class="kw">let mut</span> world = World::new(&amp;onto);
+<span class="kw">let</span> agent = Agent::builder(&amp;onto)
+    .workflow(<span class="nr">"triage:Triage"</span>)
+    .bridge(<span class="nr">"claude-fable-5"</span>, AnthropicBridge::from_env()?)
+    .tool(<span class="nr">"ehr.assign_queue"</span>, assign_queue)
+    .build()?;
+
+<span class="kw">let</span> outcome = agent.run(&amp;<span class="kw">mut</span> world, <span class="nr">"58M, crushing chest pain 20 min, HR 128…"</span>).<span class="kw">await</span>?;
+println!(<span class="nr">"{}"</span>, outcome.proof);                  <span class="cm">// same proof tree, same trace format</span></code></pre>
+    <p>
+      Python is the front door for builders and researchers; Rust is the deployment surface — embedded,
+      server-side, or (inherited from sigil-lang's proven dual build) compiled to WASM for edge and
+      browser. One engine, two idioms, identical semantics.
+    </p>
+
+    <h3>4 · What goes in</h3>
+    <p>Two input paths, and the difference between them is the whole architecture:</p>
+    <ul>
+      <li><strong>Natural language</strong> — <code>agent.run("58M, crushing chest pain…")</code>. The
+        perception step extracts typed instances, validated against the schema before they enter the world.</li>
+      <li><strong>Structured facts</strong> — <code>world.assert_(Patient(heart_rate=128, symptoms=[ChestPain]))</code>
+        or a FHIR/JSON payload mapped through the ontology. <strong>No LLM in the path at all.</strong>
+        Monitors, EHR feeds, and sensors write directly; reasoning and workflow behave identically.</li>
+    </ul>
+
+    <h3>5 · Where the LLM is allowed to exist</h3>
+    <div class="table-wrap">
+      <table>
+        <tr><th>Boundary</th><th>Direction</th><th>Contract</th></tr>
+        <tr><td><strong>Perception</strong> (<code>sigil:PerceptionStep</code>)</td><td>NL → ontology instances</td>
+            <td>Extraction constrained by a JSON schema <em>derived from the ontology classes</em>; confidence threshold; mandatory fallback step. Output is validated before it touches the world.</td></tr>
+        <tr><td><strong>Narration</strong> (<code>sigil:NarrationStep</code>, optional)</td><td>Proof tree → NL</td>
+            <td>Renders the deterministic proof for humans ("Immediate because HR 128 exceeds 120 with chest pain"). Generates prose, never conclusions.</td></tr>
+        <tr><td>Everything else</td><td>—</td>
+            <td><strong>No LLM.</strong> State, reasoning, workflow transitions, tool gating, verification: deterministic, traced, reproducible.</td></tr>
+      </table>
+    </div>
+    <p>
+      That's the entire neural surface: two declared transducer boundaries, both with typed contracts,
+      both recorded in the trace with model, confidence, and fallback status. The LLM proposes; it never decides.
+    </p>
+
+    <h3>6 · One run, dissected</h3>
+    <p>What actually happens inside <code>agent.run("58M, crushing chest pain 20 min, HR 128, BP 92/60, diaphoretic")</code> — the string is the only unstructured thing in the entire run:</p>
+    <pre><code>agent.run("58M, crushing chest pain 20 min, HR 128, BP 92/60, diaphoretic")
+│
+│   runtime looks up triage:Triage → startsAt :Intake        <span class="cm">[symbolic: graph lookup]</span>
+│
+├── STEP 1  :Intake — PerceptionStep      <span class="nr">★ THE ONLY LLM MOMENT ★</span>
+│     a. JSON schema derived FROM ontology classes            <span class="cm">[symbolic]</span>
+│     b. NL string + schema → claude-fable-5                  <span class="nr">[NEURAL]</span>
+│          returns { heartRate: 128, systolic: 92, diastolic: 60,
+│                    symptoms: [CrushingChestPain, Diaphoresis], onset: 20min }
+│          confidence: 0.94
+│     c. 0.94 ≥ 0.85 threshold → accept                       <span class="cm">[symbolic]</span>
+│          (below → :EscalateToNurse; the LLM never guesses)
+│     d. validation gate: 128 ∈ [0,300] ✓ classes exist ✓     <span class="cm">[symbolic]</span>
+│          only NOW asserted into the World graph
+│     └─ the LLM's job is over — it never sees the rules
+│
+├── STEP 2  :Assess — ReasoningStep                           <span class="cm">[symbolic]</span>
+│     forward chaining:  r1: 128 exceeds 120 ✓
+│                        hasSymptom :ChestPain? → CrushingChestPain ⊑ ChestPain
+│                                                 (SNOMED subsumption) ✓
+│     r1 FIRES → asserts :acuity :Immediate  (proof tree recorded)
+│
+├── STEP 3  :Route — ActionStep                               <span class="cm">[symbolic]</span>
+│     precondition acuity isAssigned ✓ → ehr.assign_queue(patient, :Immediate)
+│     <span class="cm">(ordinary Python/Rust code — no LLM here either)</span>
+│
+└── result:  .decision = triage:Immediate
+             .proof    = r1: 128 &gt; 120 ∧ CrushingChestPain ⊑ ChestPain
+             .trace    = every step above, typed and replayable</code></pre>
+    <p>
+      Notice the two facts that made the decision come from different symbolic sources: <code>128 &gt; 120</code>
+      from the rule condition, <code>CrushingChestPain ⊑ ChestPain</code> from the imported SNOMED hierarchy.
+      Nobody wrote a rule about <em>crushing</em> chest pain — subsumption inferred it. And if the vitals
+      arrive as structured JSON from an EHR monitor, step 1 is skipped entirely; steps 2–3 behave identically.
+    </p>
+
+    <h3>7 · The symbolic core — why this isn't an LLM wrapper</h3>
+    <p>The world-state is a typed graph, and the graph does real inferential work:</p>
+    <ul>
+      <li><strong>Subsumption.</strong> <code>:CrushingChestPain ⊑ :ChestPain ⊑ :Symptom</code> — rule
+        <code>r1</code> fires on the subclass without anyone writing that case, because the hierarchy
+        (including imported SNOMED axioms) is part of inference.</li>
+      <li><strong>Forward chaining.</strong> New facts propagate to a fixed point through ontology rules —
+        assert HR 128 and acuity follows, with the derivation recorded.</li>
+      <li><strong>Backward chaining.</strong> <code>world.explain(":acuity :Immediate")</code> returns the
+        proof tree; <code>world.prove(goal)</code> drives goal-directed evaluation — the "why" is a query,
+        not a log grep.</li>
+      <li><strong>Constraints as physics.</strong> <code>sigil:min/max</code>, cardinalities, SHACL-style
+        shapes — a heart rate of 1280 (unit typo) is rejected at the boundary, not discovered in an incident review.</li>
+      <li><strong>Verification before execution.</strong> The BDD layer (ported from sigil-lang) proves
+        completeness, conflict-freedom, dead-rule absence, and termination of the rule set at load time —
+        with counterexample witnesses in domain terms the SME can read.</li>
+      <li><strong>Traces as first-class output.</strong> Every run is a typed trajectory: perception steps
+        (model, confidence), fired rules, proof trees, tool calls with satisfied preconditions. Audit log
+        and training corpus are the same object.</li>
+    </ul>
+    <div class="callout">
+      <strong>The falsifiable claim:</strong> delete the LLM and the framework still runs — structured
+      facts in, verified reasoning and workflows out. A wrapper dies without its model; here the model is
+      a replaceable transducer at two declared boundaries of a symbolic machine. That's what "neuro-symbolic
+      framework from day one" means, and it's testable: the entire test suite of the symbolic core runs
+      with no model configured.
+    </div>
+
+    <h3>8 · Tools and the Bridge: who calls what</h3>
+    <p>
+      In every conventional agent stack, the LLM decides which tool to call and with what arguments —
+      tool selection is a neural act. Sigil inverts it: tools are declared in the ontology with typed
+      contracts, and the <strong>runtime</strong> invokes them when an ActionStep's preconditions hold
+      in the graph. Arguments are read from the graph, not parsed out of model text.
+    </p>
+    <span class="filelabel">tool declaration — part of the same ontology</span>
+    <pre><code>:ehr.assign_queue a <span class="kw">sigil:Tool</span> ;
+    <span class="kw">sigil:takes</span>   [ :patient a :Patient ; :queue a :AcuityLevel ] ;  <span class="cm"># args come from the graph</span>
+    <span class="kw">sigil:effect</span>  [ :patient :queuedAt <span class="kw">sigil:now</span> ] ;                 <span class="cm"># declared effect on the world</span>
+    <span class="kw">sigil:binding</span> "mcp://ehr-server/assign_queue" .                  <span class="cm"># or python fn, rust fn, http</span></code></pre>
+    <ul>
+      <li><strong>No neural tool choice.</strong> There is no "model hallucinated a tool call with wrong
+        args" failure class — no model sits in that path.</li>
+      <li><strong>Tool outputs are untrusted, like LLM outputs.</strong> Return values pass the declared-effect
+        validation gate before becoming facts — an EHR API returning garbage is rejected at the boundary.</li>
+      <li><strong>Bindings are pluggable:</strong> Python callables, Rust fns, HTTP, and MCP servers —
+        domain tools that already speak MCP are consumed, not rebuilt.</li>
+      <li><strong>Escape hatch for open choices:</strong> a <code>sigil:ProposalStep</code> lets the LLM
+        rank candidates — but only candidates whose preconditions already hold. Neural proposes among the
+        legal; symbolic defines legal and executes.</li>
+    </ul>
+    <p>
+      Underneath sits the <strong>Bridge</strong> — a thin trait/protocol over provider SDKs directly
+      (Anthropic, OpenAI, local ONNX/HF, deterministic mock for CI), inherited from sigil-lang's proven
+      ModelBackend + ModelRegistry design: prefix routing, per-call timeouts, mandatory fallbacks. No
+      LangChain, no delegated agent loop — <em>Sigil's runtime is the loop</em>; it needs a model client,
+      not another orchestrator. And one ironic implementation detail: a PerceptionStep uses the provider's
+      tool-use API <em>backwards</em> — one Messages call, a single tool named <code>assert_facts</code>
+      whose schema is derived from the ontology, <code>tool_choice</code> forced. Machinery built to let
+      models choose actions is used purely as a typed output channel. Tool <em>choice</em> stays symbolic;
+      tool-use <em>plumbing</em> becomes typed I/O.
+    </p>
+
+    <h3>9 · How the Turtle gets written: agents author, the verifier gatekeeps</h3>
+    <p>
+      Raw Turtle is the storage format, not the SME experience — no clinician hand-writes triples, the
+      same way no accountant hand-writes CSV. The authoring flow is a conversation with an agent
+      (Claude), and it is itself neuro-symbolic, applying the runtime's own principle at design time:
+      <em>neural proposes, symbolic decides.</em>
+    </p>
+    <pre><code>SME describes protocol in plain language
+   → agent generates Turtle draft
+   → <span class="kw">parse</span> → <span class="kw">shape validation</span> (SHACL-style) → <span class="kw">BDD verification</span>
+        <span class="cm"># completeness gaps, conflicts, dead rules — found before the SME ever sees a triple</span>
+   → counterexamples, in domain terms, fed back to the agent
+   → agent refines; loop until the ontology verifies
+   → SME reviews a <span class="nr">rendered summary</span> of rules &amp; workflows — never syntax
+   → versioned, signed-off <span class="kw">triage.ttl</span></code></pre>
+    <p>
+      Generated Turtle is never trusted, because it never needs to be — every draft passes the same
+      symbolic gate the runtime enforces. This makes the authoring agent the framework's first consumer
+      of its own verification API, and it's proven ground: sigil-lang built exactly this loop twice
+      (the NL-to-Sigil generator with parse → check → auto-retry refinement, and the <code>sigil code</code>
+      ReACT agent). Retargeting the output from .sigil to .ttl is the delta. Bonus, per the Vision tab:
+      every authoring session yields NL→Turtle pairs — a second training corpus, for the authoring model
+      rather than the runtime one. Owns its own phase: PRP-007.
+    </p>
+
+    <div class="callout">
+      <strong>Full detail lives in the repo:</strong> the complete framework definition — every concept,
+      API, vocabulary term, and contract above, at real-documentation depth — is in
+      <code>sigil/docs/framework/</code>, and the eight phase plans are in <code>sigil/PRPs/</code>.
+      This tab is the executive summary; those are the review surface.
+    </div>
+  </section>
+
+  <!-- ========================== TAB 4: VISION =========================== -->
+  <section role="tabpanel" id="panel-vision" aria-labelledby="tab-vision" hidden>
+
+    <h2><span class="section-label">The long bet</span>From Type 2/3 to a differentiable future</h2>
+    <p>
+      Everything in the Plan tab is, honestly placed, Kautz Type 2–3: a deterministic symbolic
+      orchestrator with neural components for perception. The runtime itself has no weights — the only
+      weights in the system are the LLM's. That constraint is not a dead end; it points at exactly one
+      place where gradients can live, and it turns out to be the place we control the best data for.
+    </p>
+
+    <h3>The observation: our traces are better training data</h3>
+    <p>
+      A conventional agent framework produces trajectories of free-form text and ad-hoc tool calls —
+      long, noisy, unverifiable. An ontology-grounded run produces something categorically better:
+      a <strong>methodical trajectory</strong> of typed steps — perceive → ground into ontology terms →
+      reason (with a proof tree) → act — where every symbolic step is deterministic and every outcome
+      is checkable against the ontology. In training terms: clean loss-masking boundaries (the runtime's
+      outputs are observations, never targets), and <em>deterministic reward signals for free</em> —
+      did the extraction validate, did the proof hold, did the workflow reach its goal state.
+    </p>
+    <p>
+      This is precisely the TIR/CIR recipe from our research corpus (ToRA → DeepSeekMath → ReTool →
+      NuminaMath), with one substitution: the executor is not a Python sandbox — it's the ontology runtime.
+      The literature's convergent recipe applies almost verbatim: cold-start SFT on ~10–80k trajectories,
+      then outcome-rewarded RL (GRPO), loss-mask executor output, mix non-domain data to avoid
+      catastrophic forgetting.
+    </p>
+
+    <div class="stack">
+      <div class="layer">
+        <strong>1 · Run</strong> —
+        <em>agents execute domain workflows in production; every run emits a typed trajectory with proof trees.</em>
+      </div>
+      <div class="layer">
+        <strong>2 · Filter</strong> —
+        <em>the runtime scores each trajectory deterministically: validated groundings, held proofs, reached goals. No human labeling, no LLM judge.</em>
+      </div>
+      <div class="layer neural-side">
+        <strong>3 · Train</strong> —
+        <em>SFT + agentic RL on the filtered trajectories. The LLM is the differentiable layer; the harness gets compressed into its weights.</em>
+      </div>
+      <div class="layer neural-side">
+        <strong>4 · Redeploy</strong> —
+        <em>the tuned model natively speaks ontology terms — fewer grounding failures, fewer retries, richer trajectories. The flywheel turns.</em>
+      </div>
+    </div>
+
+    <h3>The honest taxonomy check</h3>
+    <p>
+      Fine-tuning on these traces is — by our own research doc's framing — <em>behavioural cloning of a
+      Type 2 harness into Type 3 weights</em>. It makes the model natively fluent in the ontology; it does
+      not make the symbolic step differentiable. The runtime still decides, deterministically, which is
+      the product's guarantee and must never be traded away. Two paths lead beyond that ceiling:
+    </p>
+    <ul>
+      <li><strong>Path A — differentiable rule subset (Scallop precedent).</strong> Because we chose
+        RDFS-plus with Datalog-shaped rules, a provenance semiring can in principle be defined over a
+        tractable subset, letting gradients flow through symbolic inference itself. Genuine Type 5;
+        unproven at LLM scale; the strongest published template exists (Scallop, 45k lines of Rust).</li>
+      <li><strong>Path B — a graph neural network over the ontology instance graph.</strong>
+        <em>Explicitly a thinking-out-loud item, not a commitment.</em> The world-state is already a typed
+        graph; a GNN (R-GCN-style) could learn soft inference or ranking over it — e.g., proposing which
+        rules or groundings to try first, with gradients flowing through graph reasoning. Where it sits
+        between Type 3 and Type 5 depends on whether it augments the reasoner (heuristic guidance —
+        safe, keeps determinism) or replaces parts of it (soft inference — trades away the guarantee).
+        Scoping this is an open research question, parked until the flywheel produces data.</li>
+    </ul>
+
+    <div class="callout">
+      <strong>What this asks of v1 — and it's cheap:</strong> design the trace schema as a training
+      corpus from day one. Every trajectory serialized in a stable tagged format (the research doc's
+      format survey applies: <code>&lt;llm-code&gt;</code>-family tags or special tokens), with explicit
+      loss-mask boundaries and machine-readable outcome labels. That lands in PRP-002 (traces) and
+      PRP-004 (agent loop) as requirements now, so the option stays open later at zero retrofit cost.
+      Everything else in this tab spends nothing until the flywheel has data.
+    </div>
+
+    <h3>Staging</h3>
+    <div class="table-wrap">
+      <table>
+        <tr><th>Stage</th><th>What happens</th><th>Kautz claim we can honestly make</th></tr>
+        <tr><td>V0 — now</td><td>Runtime ships; traces designed as training data from the first run</td><td>Type 2–3</td></tr>
+        <tr><td>V1 — data</td><td>Flywheel accumulates filtered trajectories from the proving-ground domain</td><td>Type 2–3, with a corpus nobody else has</td></tr>
+        <tr><td>V2 — tuned model</td><td>SFT + RL fine-tune; model natively emits ontology terms and workflow steps</td><td>Type 3 done well (harness compressed into weights)</td></tr>
+        <tr><td>V3 — research</td><td>Path A (semiring over rule subset) and/or Path B (GNN guidance) explored on real data</td><td>Type 5 for the subset where it works — claimed only if gradients truly flow through the symbolic step</td></tr>
+      </table>
+    </div>
+  </section>
+
+  <!-- ========================== TAB 5: JOURNEY ========================== -->
+  <section role="tabpanel" id="panel-journey" aria-labelledby="tab-journey" hidden>
+
+    <h2><span class="section-label">Session log · 2026-07-27</span>How the conversation shaped the plan</h2>
+    <p>
+      Fourteen checkpoints from the opening brief to this document. Bronze dots mark moments where you
+      redirected the direction; lapis dots mark findings and decisions that got locked in.
+    </p>
+
+    <div class="journey">
+
+      <div class="checkpoint redirect">
+        <div class="cp-card">
+          <span class="cp-num">Checkpoint 01<span class="cp-tag redirect-tag">brief</span></span>
+          <h3>The opening brief</h3>
+          <p class="cp-quote">"We wanted to divert away from the programming language and go towards more of a framework pitch — a framework written in Rust with Python bindings."</p>
+          <p class="cp-effect"><strong>Shaped the plan →</strong> Set the frame from the start: this is a repositioning of proven machinery, not a rescue of a failed project. The engine becomes the product; the language steps back.</p>
+        </div>
+      </div>
+
+      <div class="checkpoint">
+        <div class="cp-card">
+          <span class="cp-num">Checkpoint 02<span class="cp-tag decision">finding</span></span>
+          <h3>Repo audit: further along than its own docs</h3>
+          <p class="cp-effect">The CLAUDE.md said "665 tests, Phase 1-2." Reality: Phase 5 complete — full Rust lexer/parser/compiler/VM, BDD formal verifier, WASM target, neural bridge with six backends, 1,200+ tests. The untracked research doc's Apollo-1 case study ("a well-engineered Type 2 system is a credible enterprise positioning — AUI raised $60M on it") supplied the market logic.</p>
+          <p class="cp-effect"><strong>Shaped the plan →</strong> The pivot became an <em>inversion of what's primary</em>, not a rewrite: "Rust core with Python bindings" already exists structurally in sigil_core.</p>
+        </div>
+      </div>
+
+      <div class="checkpoint">
+        <div class="cp-card">
+          <span class="cp-num">Checkpoint 03<span class="cp-tag decision">decision</span></span>
+          <h3>Product shape: toolkit for researchers &amp; builders</h3>
+          <p class="cp-effect">Offered four shapes: LLM-agent guardrails layer, embeddable business-rules engine, neuro-symbolic toolkit, or pure repositioning. You chose the <strong>neuro-symbolic toolkit for researchers/builders</strong> — Scallop-adjacent, primitives exposed as composable APIs.</p>
+          <p class="cp-effect"><strong>Shaped the plan →</strong> Fixed the audience and an API-first posture; ruled out "just rewrite the README."</p>
+        </div>
+      </div>
+
+      <div class="checkpoint redirect">
+        <div class="cp-card">
+          <span class="cp-num">Checkpoint 04<span class="cp-tag redirect-tag">redirect</span></span>
+          <h3>Clean break: fresh repo</h3>
+          <p class="cp-quote">"Keep this repo as is, I just gave it as context. Let's start fresh in sibling dir ../sigil."</p>
+          <p class="cp-effect"><strong>Shaped the plan →</strong> sigil-lang becomes an untouched proving ground to port <em>designs</em> from, not a codebase to refactor. Greenfield in <code>../sigil</code>.</p>
+        </div>
+      </div>
+
+      <div class="checkpoint redirect">
+        <div class="cp-card">
+          <span class="cp-num">Checkpoint 05<span class="cp-tag redirect-tag">redirect</span></span>
+          <h3>Deliverable defined: PRPs, not code</h3>
+          <p class="cp-quote">"As output artefact from you I am expecting a new dir with very high-level PRPs in ../sigil/PRPs/."</p>
+          <p class="cp-effect"><strong>Shaped the plan →</strong> This phase produces planning documents only. It also dissolved the "which primitives make v1?" question — with phased PRPs, nothing gets cut, everything gets sequenced.</p>
+        </div>
+      </div>
+
+      <div class="checkpoint redirect">
+        <div class="cp-card">
+          <span class="cp-num">Checkpoint 06<span class="cp-tag redirect-tag">the big redirect</span></span>
+          <h3>Ontology-first, not library-as-verifier</h3>
+          <p class="cp-quote">"First of all I want an ontology layer, or an ontology-first LLM agent — not just a separate library as verifier."</p>
+          <p class="cp-effect"><strong>Shaped the plan →</strong> The largest course correction of the session. The center of gravity moved from "rules library you call for checking" to "ontology as the spine the agent lives inside" — architecturally kin to Apollo-1's typed-state machine, which the research corpus had already analyzed in depth.</p>
+        </div>
+      </div>
+
+      <div class="checkpoint">
+        <div class="cp-card">
+          <span class="cp-num">Checkpoint 07<span class="cp-tag decision">decision</span></span>
+          <h3>The ontology's two runtime jobs</h3>
+          <p class="cp-effect">Offered four roles: typed world-state, action/tool gating, reasoning substrate, NL grounding. You picked two: <strong>typed world-state the agent lives in</strong> + <strong>reasoning substrate</strong>.</p>
+          <p class="cp-effect"><strong>Shaped the plan →</strong> Fixed the two core layers of the architecture (schema + state store, and the reasoning engine). Action gating and NL grounding remain natural extensions inside PRP-004 rather than core commitments.</p>
+        </div>
+      </div>
+
+      <div class="checkpoint">
+        <div class="cp-card">
+          <span class="cp-num">Checkpoint 08<span class="cp-tag decision">artifact</span></span>
+          <h3>Plan v1 published</h3>
+          <p class="cp-effect">The high-level plan went out as an artifact: thesis, six-layer architecture, inheritance table from sigil-lang, seven-PRP roadmap, the Type-5/differentiable bet deliberately held as a research appendix, four open decisions flagged.</p>
+          <p class="cp-effect"><strong>Shaped the plan →</strong> First complete synthesis of everything above; the version this document now carries in its Plan tab.</p>
+        </div>
+      </div>
+
+      <div class="checkpoint redirect">
+        <div class="cp-card">
+          <span class="cp-num">Checkpoint 09<span class="cp-tag redirect-tag">this update</span></span>
+          <h3>The plan becomes a living document</h3>
+          <p class="cp-quote">"Create that artefact html in ../sigil/planning/ and update on demand… one tab is the plan, second tab is our conversation with summary cards at checkpoints."</p>
+          <p class="cp-effect"><strong>Shaped the plan →</strong> This file now lives at <code>sigil/planning/sigil-plan.html</code> — inside the new project, versionable with it, republished to the same artifact URL whenever the plan evolves.</p>
+        </div>
+      </div>
+
+      <div class="checkpoint redirect">
+        <div class="cp-card">
+          <span class="cp-num">Checkpoint 10<span class="cp-tag redirect-tag">thesis sharpened</span></span>
+          <h3>The loop, the workflow, and the ontology are one</h3>
+          <p class="cp-quote">"The agent loop in the ontology and the workflows are not different — they are all one… Claude Code is just a loop with tool uses. What we're building is an ontology-first approach: ontologies built for different domains, by us as subject-matter experts. That's what this framework is all about."</p>
+          <p class="cp-effect"><strong>Shaped the plan →</strong> Three consequences locked in: (1) the ontology's roles grew from two to three — it now declares the agent loop and workflows themselves, so there is no per-domain orchestration code; (2) the formalism question resolved its direction: RDFS-plus, opening interop with existing domain ontologies like SNOMED and FIBO; (3) a Use Cases tab was added — the framework is proven domain-by-domain, and the next decision is which domain goes first.</p>
+        </div>
+      </div>
+
+      <div class="checkpoint redirect">
+        <div class="cp-card">
+          <span class="cp-num">Checkpoint 11<span class="cp-tag redirect-tag">vision</span></span>
+          <h3>The differentiable extension: the LLM is the trainable layer</h3>
+          <p class="cp-quote">"There are no weights here — the only weights are the LLM. The ontology-based output is methodical, where a normal agent loop would produce a long output… agentic RL fine-tuning would take that and learn from it. Probably we can think of a scope to bring in a graph neural network — I'm just thinking out loud."</p>
+          <p class="cp-effect"><strong>Shaped the plan →</strong> A Vision tab was added: the data-flywheel thesis (run → filter deterministically → SFT+RL → redeploy), grounded in the TIR/CIR research corpus already in sigil-lang; the honest taxonomy (trace fine-tuning is Type-2-cloned-into-Type-3, with Scallop-style semirings and GNN guidance as the two paths beyond); and one cheap v1 obligation — design the trace schema as a training corpus from day one, now a requirement in PRP-002 and PRP-004. The GNN angle is parked as an explicit open question, per your framing.</p>
+        </div>
+      </div>
+
+      <div class="checkpoint">
+        <div class="cp-card">
+          <span class="cp-num">Checkpoint 12<span class="cp-tag decision">as-if-shipped</span></span>
+          <h3>The framework outlined as if it already exists</h3>
+          <p class="cp-quote">"Imagine this framework is already built and you are writing a doc for it. Take the clinical triage use case… so that it evolves as a neuro-symbolic framework from day one rather than just another LLM wrapper."</p>
+          <p class="cp-effect"><strong>Shaped the plan →</strong> A Technical Outline tab was added, using clinical triage end-to-end: the SME's single-artifact <code>triage.ttl</code> (domain + rules + workflow in one ontology), Python and Rust quickstarts against the same engine, the two input paths (NL via perception, structured facts with no LLM at all), the LLM confined to two declared transducer boundaries, and the symbolic graph core — subsumption, chaining, constraints, load-time BDD verification. It also set the anti-wrapper acceptance test: the symbolic core's entire test suite must pass with no model configured. These API shapes become the arguable starting point for PRP-001 through PRP-004.</p>
+        </div>
+      </div>
+
+      <div class="checkpoint redirect">
+        <div class="cp-card">
+          <span class="cp-num">Checkpoint 13<span class="cp-tag redirect-tag">authoring</span></span>
+          <h3>Agents write the Turtle</h3>
+          <p class="cp-quote">"We want to address this by eventually having agents like Claude generate Turtle."</p>
+          <p class="cp-effect"><strong>Shaped the plan →</strong> The SME-experience caveat became a feature with its own phase: PRP-007, the ontology authoring agent. The flow applies the framework's own principle at design time — Claude drafts Turtle, the verifier gatekeeps (parse → shape validation → BDD verification → domain-term counterexamples → refine), and the SME reviews rendered rules, never syntax. Proven ground: sigil-lang built this loop twice (NL-to-Sigil generator, <code>sigil code</code> agent); the delta is retargeting output to .ttl. Side effect: authoring sessions produce NL→Turtle training pairs, a second corpus for the Vision flywheel.</p>
+        </div>
+      </div>
+
+      <div class="checkpoint">
+        <div class="cp-card">
+          <span class="cp-num">Checkpoint 14<span class="cp-tag decision">materialized</span></span>
+          <h3>From plan to repository: docs and PRPs land on disk</h3>
+          <p class="cp-quote">"Create docs/framework/ — detailed framework definition like a real framework documentation, like PyTorch and FastAPI. I want to go through each and every detail before starting… PRPs go into ../sigil/PRPs/."</p>
+          <p class="cp-effect"><strong>Shaped the plan →</strong> Two explainers folded into the Technical Outline (the dissected <code>agent.run()</code> walkthrough; tools-and-Bridge with the inverted tool-call model), and the plan left the browser: <code>sigil/docs/framework/</code> now holds the full as-if-shipped framework definition — concepts, ontology vocabulary, world, reasoning, workflows, LLM boundaries, tools, Bridge, traces, verification, Python and Rust APIs, authoring, architecture — and <code>sigil/PRPs/</code> holds the eight phase plans. The review loop moves from tabs to files.</p>
+        </div>
+      </div>
+
+    </div>
+  </section>
+</main>
+
+<script>
+  const tabs = document.querySelectorAll('[role="tab"]');
+  tabs.forEach(tab => {
+    tab.addEventListener('click', () => {
+      tabs.forEach(t => {
+        t.setAttribute('aria-selected', String(t === tab));
+        document.getElementById(t.getAttribute('aria-controls')).hidden = (t !== tab);
+      });
+    });
+  });
+</script>
