@@ -56,3 +56,28 @@ becomes authoritative when the PRP activates.
 ## Gaps discovered during implementation
 
 (append dated notes here; scope changes go back into `01-objective.md` by explicit edit)
+
+- 2026-07-29 — **wasm32 build of core is broken by transitive `getrandom`**
+  (oxrdf's blank-node ids, imbl's RandomState). `make verify` does not gate
+  wasm today; the wasm-gate CI job is PRP-006's, and the candidate fix there is
+  getrandom's `wasm_js` backend. Parked, not load-bearing for PRP-001/002.
+- 2026-07-29 — **retract-then-assert defeats `horis:immutable`.** Deliberately
+  not decided in code; marked `[DECIDE: retraction vs horis:immutable —
+  PRP-002]` in `world/gate.rs` and doc 02, alongside PRP-002's existing
+  retraction-semantics decision.
+- 2026-07-29 — **`owl:sameAs`-anchored IRIs are second-class as values**:
+  `Schema::class()` is exact-IRI while subsumption is sameAs-canonical, so an
+  anchored external IRI is accepted as a *class* but its sameAs twin is the
+  one the gate's `oneOf`/range logic sees. Spurious rejects only (never
+  accepts); needs a conscious ruling when queries start crossing anchors —
+  owned by PRP-002 alongside the reasoner's subsumption work.
+- 2026-07-29 — **xsd:dateTime requires an explicit timezone offset** (the
+  `chrono::DateTime<FixedOffset>` pin). Determinism-friendly; revisit only if
+  a fixture needs offset-less local times.
+- 2026-07-29 — **instances are single-typed** (`ClassConflict` on a second
+  `rdf:type`): a modeling ruling made at the gate, to be recorded in doc 03's
+  next edit pass (PRP-002 touches doc 03/04 anyway).
+- 2026-07-29 — **fact provenance is not stored** (only checked at the gate),
+  so `from_bytes` re-validates everything as `Provenance::Api` — a snapshot
+  holding a `RulesOnly` fact will not restore until fact provenance travels
+  with the wire form. Owned by PRP-002 (traces record provenance anyway).

@@ -115,26 +115,26 @@
     <p class="tagline">Ontology-first neuro-symbolic agent framework — Rust core, Python
     bindings. One authored RDFS-plus ontology is the domain, the rules, and the agent
     loop; LLMs live only at declared perception/narration boundaries.</p>
-    <p class="stamp">Updated 2026-07-28 · mirrors <code>PRPs/BOARD.md</code> · repo <code>~/code/billaram/horismos</code></p>
+    <p class="stamp">Updated 2026-07-29 · mirrors <code>PRPs/BOARD.md</code> · repo <code>~/code/billaram/horismos</code></p>
   </header>
 
   <section class="highlights" aria-label="Highlights">
     <div class="hl hl-now">
       <p class="hl-label">Now · Where we are</p>
-      <h3>Definition complete, skeleton green, zero engine code</h3>
+      <h3>PRP-001 Done — the ontology core is real</h3>
       <ul>
-        <li><strong>Spec shipped</strong>: docs/framework 00–14 in shipped voice; every open question a <strong>[DECIDE]</strong> owned by one PRP.</li>
-        <li><strong>Workspace green</strong>: 3 crates + Python package, PyO3 roundtrip proven, <code>make verify</code> passes.</li>
-        <li><strong>Boundary enforced from commit one</strong>: <code>no-model-gate</code> + <code>check-boundary</code>.</li>
+        <li><strong>Load → validate → hold</strong>: Turtle in/out, RDFS-plus profile enforcement, queryable schema with <code>owl:sameAs</code>-anchored subsumption over a shipped ~50-concept SNOMED subset.</li>
+        <li><strong>The gate has no back door</strong>: five checks, atomic rejection, domain-term witnesses ("heartRate 1280 exceeds horis:max 300 (bpm) on :Patient"), <code>horis:assignedBy</code> provenance policy.</li>
+        <li><strong>O(1) snapshots + gate-revalidated binary form</strong>, tier-1 queries, proptest-pinned invariants — ~160 tests, <code>make verify</code> green, zero LLM (PR #1).</li>
       </ul>
     </div>
     <div class="hl hl-next">
       <p class="hl-label">Next · The immediate goal</p>
-      <h3>PRP-001 is Active — build the ontology core, U1–U11</h3>
+      <h3>PRP-002 — the reasoning substrate</h3>
       <ul>
-        <li><strong>All decisions resolved (D1–D6)</strong>: oxigraph parsing; interned IRIs + persistent adjacency store (O(1) snapshots, postcard binary); documented <code>horis:</code> constraints; pre-extracted vocabulary subsets; strict units.</li>
-        <li><strong>Build test-first</strong>: interning → Turtle round-trip → schema model → validation gate → snapshots → queries. DoD: <code>triage.ttl</code> + SNOMED subset loads, violations rejected in domain terms, no LLM anywhere.</li>
-        <li><strong>Human side quests</strong>: register <code>horismos.dev</code>; file the <code>w3id.org/horismos</code> PR; reserve registry names.</li>
+        <li><strong>Port the proven designs</strong>: forward chaining (Rete-lite), backward <code>prove</code>/<code>explain</code>, proof trees, training-grade traces.</li>
+        <li><strong>Inherited [DECIDE]s from PRP-001</strong>: retraction vs <code>horis:immutable</code>, sameAs-canonical class lookup, stored fact provenance, rule-side unit checks.</li>
+        <li><strong>Human side quests</strong>: register <code>horismos.dev</code>; file the <code>w3id.org/horismos</code> PR; reserve registry names; merge PR #1.</li>
       </ul>
     </div>
     <div class="hl hl-end">
@@ -153,14 +153,14 @@
   <section class="recap">
     <div class="re"><h4>The spec (docs 00–14)</h4>
       <p>Concepts, RDFS-plus profile, World + gate, reasoning, workflows, LLM boundaries, tools, Bridge, traces, verification, both APIs, authoring, architecture.</p></div>
-    <div class="re"><h4>Skeleton crates</h4>
-      <p><code>horismos-core</code> (seven-noun module tree, docs-only stubs), <code>horismos-bridges</code> (mock + gated providers), <code>horismos-py</code> (version roundtrip works).</p></div>
+    <div class="re"><h4>Engine (PRP-001)</h4>
+      <p><code>horismos-core::ontology</code> (terms, Turtle, profile, schema, imports/anchoring) + <code>horismos-core::world</code> (store, five-check gate, provenance, snapshots, queries); <code>horismos-bridges</code> (mock + gated providers), <code>horismos-py</code> (version roundtrip works).</p></div>
     <div class="re"><h4>Tooling</h4>
       <p>Cargo workspace (edition 2024, clippy -D warnings), uv + maturin abi3 wheel, ruff + mypy strict, Makefile as single entry point.</p></div>
     <div class="re"><h4>Conventions</h4>
       <p>CLAUDE.md hard rules; PRP lifecycle + folder form + tracks in <code>PRPs/CONVENTIONS.md</code>; this board in <code>PRPs/BOARD.md</code>.</p></div>
-    <div class="re"><h4>Claude skills</h4>
-      <p>cargo-workspace-map, ontology-modeling-conventions, pyo3-boundary, learn-codebase — all TDD-tested where behavioral.</p></div>
+    <div class="re"><h4>Claude skills &amp; agents</h4>
+      <p>cargo-workspace-map, ontology-modeling-conventions, pyo3-boundary, learn-codebase + generate-prp, impl-prp, git-workflow, self-review, brainstorming, and the senior-reviewer agent.</p></div>
     <div class="re"><h4>Prior art to port</h4>
       <p><code>../sigil-lang</code>: Rete-lite matcher, BDD verifier, constraint solver, trace design, neural bridge, authoring loop — ~1,270 tests.</p></div>
   </section>
@@ -177,11 +177,11 @@
             <td>PRP-000 · Vision &amp; positioning<span class="why">Pitch, personas, Kautz 2–3 placement; naming, license, proving ground resolved</span></td>
             <td><span class="chip chip-done">Decisions closed</span></td></tr>
         <tr><td class="track-cell">Engine</td>
-            <td>PRP-001 · Ontology core<span class="why">Load/validate ontology, typed World, validation gate — D1–D6 resolved, building U1–U11</span></td>
-            <td><span class="chip chip-next">Active</span></td></tr>
+            <td>PRP-001 · Ontology core<span class="why">Load/validate ontology, typed World, five-check gate, snapshots, queries — U1–U11 shipped</span></td>
+            <td><span class="chip chip-done">Done · 2026-07-29</span></td></tr>
         <tr><td class="track-cell">Engine</td>
             <td>PRP-002 · Reasoning substrate<span class="why">Chaining, subsumption, proof trees, training-grade traces</span></td>
-            <td><span class="chip chip-draft">Draft</span></td></tr>
+            <td><span class="chip chip-next">Next up</span></td></tr>
         <tr><td class="track-cell">Engine</td>
             <td>PRP-005 · Guarantees &amp; verification<span class="why">BDD checks + domain-term witnesses — needs only 001+002</span></td>
             <td><span class="chip chip-draft">Draft</span></td></tr>
