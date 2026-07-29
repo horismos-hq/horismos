@@ -2,11 +2,13 @@
 //!
 //! Consumes `oxttl`/`oxrdf` for grammar-level parsing and serialization;
 //! horismos keeps its own interned triple representation (`Document`,
-//! `Triple`) rather than depending on the `oxigraph` store.
+//! `Triple`) rather than depending on the `oxigraph` store. [`parse_with_base`]
+//! (U5) exists solely for `ontology::imports`'s filesystem loader.
 //!
 //! Spec: `docs/framework/02-ontology.md` · Owner: PRP-001
 
 use oxrdf::{BlankNode, NamedNode, NamedOrBlankNode, Term as OxTerm, Triple as OxTriple};
+use oxttl::turtle::SliceTurtleParser;
 use oxttl::{TurtleParser, TurtleSerializer, TurtleSyntaxError};
 
 use crate::error::OntologyError;
@@ -86,7 +88,37 @@ pub struct Document {
 /// over synthesized blank nodes before we ever see them, so no special
 /// handling is needed here.
 pub fn parse(source: &str, interner: &mut Interner) -> Result<Document, OntologyError> {
-    let mut parser = TurtleParser::new().for_slice(source);
+    collect_document(TurtleParser::new().for_slice(source), interner)
+}
+
+/// Like [`parse`], but resolves relative IRIs (`<>`, `<./x.ttl>`, …) against
+/// `base` first. Plain Turtle has no default base — RFC 3986 leaves a
+/// relative-only reference unresolvable without one — so a document written
+/// as `<> horis:imports <./snomed-ct-subset.ttl> .` (doc 02) only parses if
+/// the source declares its own `@base` (then [`parse`] alone is enough) or a
+/// base is supplied here. U5's filesystem import loader
+/// (`ontology::imports`) is the one caller that needs this: it supplies the
+/// file's own location as `base`, so `<>` denotes the file itself and its
+/// relative imports resolve against its directory.
+pub fn parse_with_base(
+    source: &str,
+    base: &str,
+    interner: &mut Interner,
+) -> Result<Document, OntologyError> {
+    let parser = TurtleParser::new()
+        .with_base_iri(base)
+        .map_err(|e| OntologyError::turtle_syntax(1, 1, format!("invalid base IRI {base:?}: {e}")))?
+        .for_slice(source);
+    collect_document(parser, interner)
+}
+
+/// The parse loop shared by [`parse`] and [`parse_with_base`] — the two
+/// differ only in how the [`TurtleParser`] builder is configured before
+/// `for_slice`.
+fn collect_document(
+    mut parser: SliceTurtleParser<'_>,
+    interner: &mut Interner,
+) -> Result<Document, OntologyError> {
     let mut triples = Vec::new();
     for result in parser.by_ref() {
         let triple = result.map_err(|e| convert_syntax_error(&e))?;
@@ -392,6 +424,44 @@ mod tests {
         let mut interner = Interner::new();
         let doc = triple_body(&mut interner, ":s :p :o .");
         assert_eq!(doc.base, None);
+    }
+
+    // -- parse_with_base (U5) -----------------------------------------------
+
+    #[test]
+    fn plain_parse_rejects_relative_iri_with_no_base() {
+        let mut interner = Interner::new();
+        let source = "@prefix horis: <https://w3id.org/horismos#> .\n\
+                       <> horis:imports <./snomed-ct-subset.ttl> .\n";
+        let err = parse(source, &mut interner)
+            .expect_err("a relative IRI with no base anywhere must fail to parse");
+        assert!(matches!(err, OntologyError::TurtleSyntax { .. }));
+    }
+
+    #[test]
+    fn parse_with_base_resolves_relative_imports() {
+        let mut interner = Interner::new();
+        let source = "@prefix horis: <https://w3id.org/horismos#> .\n\
+                       <> horis:imports <./snomed-ct-subset.ttl> .\n";
+        let doc = parse_with_base(source, "https://example.org/onto/root.ttl", &mut interner)
+            .expect("a base IRI supplied by the caller must let relative refs resolve");
+        assert_eq!(doc.triples.len(), 1);
+        let Object::Node(Node::Named(import)) = doc.triples[0].object else {
+            panic!("expected a named import object")
+        };
+        assert_eq!(
+            interner.resolve(import),
+            "https://example.org/onto/snomed-ct-subset.ttl",
+            "./snomed-ct-subset.ttl must resolve as a sibling of root.ttl"
+        );
+    }
+
+    #[test]
+    fn parse_with_base_rejects_an_invalid_base() {
+        let mut interner = Interner::new();
+        let err = parse_with_base(":s :p :o .", "not an iri", &mut interner)
+            .expect_err("a malformed base IRI must be rejected, not panic");
+        assert!(matches!(err, OntologyError::TurtleSyntax { .. }));
     }
 
     #[test]

@@ -4,11 +4,13 @@
 //! else with a domain-term [`OntologyError`].
 //!
 //! `validate` runs over one parsed [`Document`] (U2); `validate_documents`
-//! runs the same pass over several (U5 will hand it one document per named
-//! graph). Every violation in the document is collected — the first failing
-//! term does not short-circuit the pass, so an authoring loop sees the full
-//! list in one round trip (CLAUDE.md: errors speak domain terms; nothing
-//! here is fail-fast).
+//! runs the same pass over several, unnamed; `validate_named` (U5) does the
+//! same over several *named* graphs, attributing each violation to the graph
+//! it came from — what `ontology::imports::OntologySet::validate` calls.
+//! Every violation in the document is collected — the first failing term
+//! does not short-circuit the pass, so an authoring loop sees the full list
+//! in one round trip (CLAUDE.md: errors speak domain terms; nothing here is
+//! fail-fast).
 //!
 //! Spec: `docs/framework/02-ontology.md`, `docs/framework/05-workflows.md` ·
 //! Owner: PRP-001
@@ -299,6 +301,35 @@ pub fn validate_documents<'a>(
     }
 }
 
+/// Validates several *named* graphs as one pass (U5): each violation is
+/// wrapped in [`OntologyError::ProfileViolationInGraph`] naming the graph it
+/// came from, so a caller sees exactly which import — or the root — failed.
+/// This is what [`crate::ontology::imports::OntologySet::validate`] calls;
+/// [`validate_documents`] stays as-is (unnamed) for callers that don't need
+/// per-graph attribution.
+pub fn validate_named<'a>(
+    documents: impl IntoIterator<Item = (&'a str, &'a Document)>,
+    interner: &Interner,
+) -> Result<(), OntologyError> {
+    let mut violations = Vec::new();
+    for (graph, document) in documents {
+        if let Err(OntologyError::ProfileViolations(v)) = validate(document, interner) {
+            violations.extend(
+                v.into_iter()
+                    .map(|inner| OntologyError::ProfileViolationInGraph {
+                        graph: graph.to_owned(),
+                        inner: Box::new(inner),
+                    }),
+            );
+        }
+    }
+    if violations.is_empty() {
+        Ok(())
+    } else {
+        Err(OntologyError::ProfileViolations(violations))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -458,5 +489,46 @@ mod tests {
             Err(OntologyError::ProfileViolations(v)) => assert_eq!(v.len(), 2, "{v:?}"),
             other => panic!("expected ProfileViolations with 2 entries, got {other:?}"),
         }
+    }
+
+    #[test]
+    fn validate_named_attributes_each_violation_to_its_graph() {
+        let (doc_import, mut interner) = parse_snippet(":Bar horis:frobnicate 1 .");
+        let doc_root = parse(
+            "@prefix : <https://example.org/t#> .\n\
+             @prefix owl: <http://www.w3.org/2002/07/owl#> .\n\
+             :Foo a owl:Restriction .\n",
+            &mut interner,
+        )
+        .expect("valid Turtle");
+
+        let result = validate_named(
+            [("root", &doc_root), ("urn:test:import", &doc_import)],
+            &interner,
+        );
+        let violations = match result {
+            Err(OntologyError::ProfileViolations(v)) => v,
+            other => panic!("expected ProfileViolations, got {other:?}"),
+        };
+        assert_eq!(violations.len(), 2, "{violations:?}");
+        for v in &violations {
+            assert!(
+                matches!(v, OntologyError::ProfileViolationInGraph { .. }),
+                "{v:?}"
+            );
+        }
+        let texts: Vec<String> = violations.iter().map(OntologyError::domain_text).collect();
+        assert!(
+            texts
+                .iter()
+                .any(|t| t.starts_with("root: ") && t.contains("owl:Restriction")),
+            "{texts:?}"
+        );
+        assert!(
+            texts
+                .iter()
+                .any(|t| t.starts_with("urn:test:import: ") && t.contains("horis:frobnicate")),
+            "{texts:?}"
+        );
     }
 }

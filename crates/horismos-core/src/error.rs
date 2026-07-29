@@ -6,8 +6,10 @@
 //!
 //! U1/U2 ship only term/value/Turtle-syntax variants. U3 adds RDFS-plus
 //! profile violations; U4 adds schema-build errors (subclass cycles,
-//! min>max, oneOf/domain/range misuse). The remaining variants
-//! (`VerificationFailed`, `ValidationRejected`, `WorkflowError`,
+//! min>max, oneOf/domain/range misuse); U5 adds named-graph import errors
+//! (missing/cyclic imports, duplicate graph names, prefix conflicts) and
+//! attributes a profile violation to the graph it came from. The remaining
+//! variants (`VerificationFailed`, `ValidationRejected`, `WorkflowError`,
 //! `BridgeError`, `ToolError`) are added by their owning units/PRPs as those
 //! pieces land — see `.claude/skills/pyo3-boundary`.
 //!
@@ -113,6 +115,44 @@ pub enum OntologyError {
         position: String,
         class: String,
     },
+
+    // -- U5: imports across named graphs -----------------------------------
+    /// A U3 profile violation attributed to a specific named graph in a
+    /// multi-graph load (U5) — the root document or one of its imports.
+    /// `ontology::imports::OntologySet::validate` wraps every violation it
+    /// finds this way before collecting them into `ProfileViolations`, so
+    /// `domain_text()` on the aggregate names the graph each violation came
+    /// from.
+    #[error("{graph}: {inner}")]
+    ProfileViolationInGraph {
+        graph: String,
+        inner: Box<OntologyError>,
+    },
+
+    /// A declared `horis:imports` target — or an explicit `with_import` —
+    /// could not be resolved: the file doesn't exist (fs convenience), or
+    /// the pure API's import-source map/closure had nothing for this IRI.
+    #[error("horis:imports {import}: {reason}")]
+    ImportNotFound { import: String, reason: String },
+
+    /// The import graph reachable from the root contains a cycle (A imports
+    /// B, B imports A, …).
+    #[error("import cycle: {cycle}")]
+    ImportCycle { cycle: String },
+
+    /// An explicit `with_import` named a graph that is already loaded —
+    /// either the root itself or an already-resolved import.
+    #[error("duplicate import graph: {name}")]
+    DuplicateGraphName { name: String },
+
+    /// Two imports at equal standing (neither is the root) bound the same
+    /// Turtle prefix to different IRIs.
+    #[error("prefix {prefix}: conflicting bindings ({a} vs {b})")]
+    PrefixConflict {
+        prefix: String,
+        a: String,
+        b: String,
+    },
 }
 
 impl OntologyError {
@@ -146,6 +186,9 @@ impl OntologyError {
                 .map(OntologyError::domain_text)
                 .collect::<Vec<_>>()
                 .join("; "),
+            Self::ProfileViolationInGraph { graph, inner } => {
+                format!("{graph}: {}", inner.domain_text())
+            }
             other => other.to_string(),
         }
     }

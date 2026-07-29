@@ -23,7 +23,7 @@ use rust_decimal::Decimal;
 use crate::error::OntologyError;
 use crate::ontology::profile::{HORIS_ASSIGNED_BY, HORIS_CARDINALITY};
 use crate::ontology::term::{Datatype, Interner, Iri, Value};
-use crate::ontology::turtle::{Document, Literal, Node, Object, xsd_datatype_from_iri};
+use crate::ontology::turtle::{Document, Literal, Node, Object, Triple, xsd_datatype_from_iri};
 
 // -- Vocabulary this module reads directly -------------------------------
 
@@ -47,6 +47,9 @@ const HORIS_IMMUTABLE: &str = "https://w3id.org/horismos#immutable";
 const HORIS_RULES_ONLY: &str = "https://w3id.org/horismos#RulesOnly";
 const HORIS_PERCEPTION_ALLOWED: &str = "https://w3id.org/horismos#PerceptionAllowed";
 const HORIS_TOOLS_ONLY: &str = "https://w3id.org/horismos#ToolsOnly";
+/// The one OWL term the RDFS-plus profile admits (`docs/framework/02-ontology.md`):
+/// anchoring a local class to an external vocabulary's IRI.
+const OWL_SAME_AS: &str = "http://www.w3.org/2002/07/owl#sameAs";
 
 // -- Public model ----------------------------------------------------------
 
@@ -132,18 +135,31 @@ pub struct PropertyDecl {
 }
 
 /// The queryable schema: classes, properties, and the `subClassOf` closure.
-/// Built once by [`Schema::build`] from a profile-valid [`Document`] — U6's
-/// gate consults it on every World mutation.
+/// Built once by [`Schema::build`] (or, over a named-graph set, U5's
+/// [`Schema::build_all`]) from profile-valid [`Document`]s — U6's gate
+/// consults it on every World mutation.
 #[derive(Debug, Clone, Default)]
 pub struct Schema {
     classes: BTreeMap<Iri, ClassDecl>,
     properties: BTreeMap<Iri, PropertyDecl>,
-    /// Reflexive-transitive closure: `superclasses[c]` contains `c` itself
-    /// plus every ancestor.
+    /// Reflexive-transitive closure, keyed by *canonical* IRI (see
+    /// `same_as` below): `superclasses[canonical(c)]` contains
+    /// `canonical(c)` itself plus every ancestor's canonical IRI.
     superclasses: BTreeMap<Iri, BTreeSet<Iri>>,
-    /// The reverse of `superclasses`: `subclasses[c]` contains `c` itself
-    /// plus every descendant.
+    /// The reverse of `superclasses`, canonical-keyed the same way.
     subclasses: BTreeMap<Iri, BTreeSet<Iri>>,
+    /// `owl:sameAs` anchoring (U5, `docs/framework/02-ontology.md` §Imports
+    /// and anchoring): every IRI that appeared on either side of a
+    /// `sameAs` triple, in any graph, maps to its equivalence class's
+    /// canonical representative. `sameAs` is symmetric and transitive
+    /// (union-find over the raw pairs); the canonical representative is the
+    /// *lowest* interned [`Iri`] token in the class — since `Interner`
+    /// assigns tokens in first-seen order (`term.rs`), that's the
+    /// first-declared member, and the choice is deterministic regardless of
+    /// how many `sameAs` triples exist or what order they're read in. An
+    /// IRI absent from this map was never named in a `sameAs` triple and is
+    /// its own canonical representative.
+    same_as: BTreeMap<Iri, Iri>,
 }
 
 impl Schema {
@@ -168,22 +184,44 @@ impl Schema {
     }
 
     /// True iff `a` is `b`, or a transitive `rdfs:subClassOf` descendant of
-    /// `b`. Reflexive: `is_subclass_of(a, a)` is always true for a declared
-    /// class `a`.
+    /// `b` — `owl:sameAs`-bridged: if `a` (or an IRI `a` is `sameAs`) has an
+    /// imported-graph ancestor that `b` (or an IRI `b` is `sameAs`) is
+    /// anchored to, this holds too (U5). Reflexive: `is_subclass_of(a, a)`
+    /// is always true for a declared class `a`.
     pub fn is_subclass_of(&self, a: Iri, b: Iri) -> bool {
-        self.superclasses.get(&a).is_some_and(|s| s.contains(&b))
+        self.superclasses
+            .get(&self.canonical(a))
+            .is_some_and(|s| s.contains(&self.canonical(b)))
     }
 
-    /// `c` and every transitive `rdfs:subClassOf` ancestor of `c`, in
-    /// `Iri`-token order. Empty if `c` is not a declared class.
+    /// `c` and every transitive `rdfs:subClassOf` ancestor of `c` —
+    /// `sameAs`-bridged (U5) — in `Iri`-token order. Ancestors are returned
+    /// as their *canonical* IRI (see `Schema`'s `same_as` field); empty if
+    /// `c` is not a declared class.
     pub fn superclasses(&self, c: Iri) -> impl Iterator<Item = Iri> + '_ {
-        self.superclasses.get(&c).into_iter().flatten().copied()
+        self.superclasses
+            .get(&self.canonical(c))
+            .into_iter()
+            .flatten()
+            .copied()
     }
 
-    /// `c` and every transitive `rdfs:subClassOf` descendant of `c`, in
-    /// `Iri`-token order. Empty if `c` is not a declared class.
+    /// `c` and every transitive `rdfs:subClassOf` descendant of `c` —
+    /// `sameAs`-bridged (U5) — in `Iri`-token order. Descendants are
+    /// returned as their *canonical* IRI; empty if `c` is not a declared
+    /// class.
     pub fn subclasses(&self, c: Iri) -> impl Iterator<Item = Iri> + '_ {
-        self.subclasses.get(&c).into_iter().flatten().copied()
+        self.subclasses
+            .get(&self.canonical(c))
+            .into_iter()
+            .flatten()
+            .copied()
+    }
+
+    /// `iri`'s `owl:sameAs` canonical representative, or `iri` itself if it
+    /// never appeared in a `sameAs` triple.
+    fn canonical(&self, iri: Iri) -> Iri {
+        self.same_as.get(&iri).copied().unwrap_or(iri)
     }
 
     /// Builds a [`Schema`] from `document`. Callers are expected to have
@@ -193,10 +231,35 @@ impl Schema {
     /// rather than a distinct check, since U3 already owns rejecting
     /// out-of-profile vocabulary.
     pub fn build(document: &Document, interner: &Interner) -> Result<Schema, OntologyError> {
-        let raw = RawTriples::collect(document, interner);
+        Self::build_all([document], interner)
+    }
+
+    /// Builds a [`Schema`] from the root document plus every imported graph
+    /// (U5, `ontology::imports::OntologySet::documents`) as one merged
+    /// schema: classes/properties from every graph become queryable
+    /// alongside the root's own, and `owl:sameAs` anchors between them
+    /// (`docs/framework/02-ontology.md` §Imports and anchoring) bridge the
+    /// `subClassOf` closure across graphs — see `Schema`'s `same_as` field.
+    /// `Schema::build` is the single-document case of this.
+    pub fn build_all<'a>(
+        documents: impl IntoIterator<Item = &'a Document>,
+        interner: &Interner,
+    ) -> Result<Schema, OntologyError> {
+        let raw = RawTriples::collect_all(documents, interner);
+        let same_as = canonicalize_same_as(&raw.same_as_pairs);
+        let canonical = |iri: Iri| same_as.get(&iri).copied().unwrap_or(iri);
+
+        let canon_class_ids: BTreeSet<Iri> = raw.class_ids.iter().map(|&c| canonical(c)).collect();
+        let mut canon_parents: BTreeMap<Iri, Vec<Iri>> = BTreeMap::new();
+        for (&child, parents) in &raw.subclass_parents {
+            canon_parents
+                .entry(canonical(child))
+                .or_default()
+                .extend(parents.iter().map(|&p| canonical(p)));
+        }
 
         let (superclasses, subclasses) =
-            close_subclasses(&raw.class_ids, &raw.subclass_parents, interner)?;
+            close_subclasses(&canon_class_ids, &canon_parents, interner)?;
 
         let mut classes = BTreeMap::new();
         for &iri in &raw.class_ids {
@@ -322,8 +385,58 @@ impl Schema {
             properties,
             superclasses,
             subclasses,
+            same_as,
         })
     }
+}
+
+/// Builds the `owl:sameAs` equivalence map from every raw `sameAs` pair
+/// collected across every graph: symmetric + transitive closure via
+/// union-find, canonical representative = the *lowest* interned [`Iri`]
+/// token in each equivalence class (see `Schema`'s `same_as` field doc for
+/// why that's deterministic).
+fn canonicalize_same_as(pairs: &[(Iri, Iri)]) -> BTreeMap<Iri, Iri> {
+    let mut parent: BTreeMap<Iri, Iri> = BTreeMap::new();
+    for &(a, b) in pairs {
+        parent.entry(a).or_insert(a);
+        parent.entry(b).or_insert(b);
+        let ra = find_root(&mut parent, a);
+        let rb = find_root(&mut parent, b);
+        if ra != rb {
+            let (lo, hi) = if ra < rb { (ra, rb) } else { (rb, ra) };
+            parent.insert(hi, lo);
+        }
+    }
+    // A second pass so every key maps directly to its final root — `find_root`
+    // path-compresses as it goes, but only along the path taken during
+    // union(); this guarantees a flat map regardless of union order.
+    let keys: Vec<Iri> = parent.keys().copied().collect();
+    let mut canon = BTreeMap::new();
+    for k in keys {
+        canon.insert(k, find_root(&mut parent, k));
+    }
+    canon
+}
+
+/// Union-find `find`, with path compression, over a plain `BTreeMap` parent
+/// pointer table (no separate rank — [`canonicalize_same_as`] always
+/// attaches the larger token under the smaller one, so the tree never grows
+/// pathologically deep for the ontology sizes this profile targets).
+fn find_root(parent: &mut BTreeMap<Iri, Iri>, x: Iri) -> Iri {
+    let mut root = x;
+    while let Some(&p) = parent.get(&root) {
+        if p == root {
+            break;
+        }
+        root = p;
+    }
+    let mut cur = x;
+    while cur != root {
+        let next = parent[&cur];
+        parent.insert(cur, root);
+        cur = next;
+    }
+    root
 }
 
 fn numeric_as_decimal(value: &Value) -> Option<Decimal> {
@@ -396,106 +509,131 @@ struct RawTriples {
     one_of_heads: BTreeMap<Iri, Node>,
     list_first: BTreeMap<Iri, Object>,
     list_rest: BTreeMap<Iri, Node>,
+    /// Every `owl:sameAs` triple seen, as `(subject, object)` — U5 anchoring
+    /// (`docs/framework/02-ontology.md` §Imports and anchoring). Raw pairs
+    /// only; [`canonicalize_same_as`] turns them into an equivalence map.
+    same_as_pairs: Vec<(Iri, Iri)>,
 }
 
 impl RawTriples {
-    fn collect(document: &Document, interner: &Interner) -> Self {
+    /// Gathers `RawTriples` across several [`Document`]s (U5: one per named
+    /// graph) as if they were one — the merged view `Schema::build_all`
+    /// needs. Cross-graph structural checks (subclass cycles, undeclared
+    /// domain/range classes, …) run downstream in `Schema::build_all`
+    /// itself, over this merged data, exactly as they do for a single
+    /// document.
+    fn collect_all<'a>(
+        documents: impl IntoIterator<Item = &'a Document>,
+        interner: &Interner,
+    ) -> Self {
         let mut raw = RawTriples::default();
-        for triple in &document.triples {
-            let subject = node_iri(triple.subject);
-            let predicate = interner.resolve(triple.predicate);
-
-            match predicate {
-                RDF_TYPE => match object_node_iri(&triple.object).map(|i| interner.resolve(i)) {
-                    Some(RDFS_CLASS) => {
-                        raw.class_ids.insert(subject);
-                    }
-                    Some(RDF_PROPERTY) => {
-                        raw.property_ids.insert(subject);
-                    }
-                    _ => {}
-                },
-                RDFS_SUBCLASS_OF => {
-                    if let Some(parent) = object_node_iri(&triple.object) {
-                        raw.class_ids.insert(subject);
-                        raw.class_ids.insert(parent);
-                        raw.subclass_parents
-                            .entry(subject)
-                            .or_default()
-                            .push(parent);
-                    }
-                }
-                RDFS_DOMAIN => {
-                    if let Some(d) = object_node_iri(&triple.object) {
-                        raw.domains.insert(subject, d);
-                    }
-                }
-                RDFS_RANGE => {
-                    if let Some(r) = object_node_iri(&triple.object) {
-                        raw.ranges.insert(subject, r);
-                    }
-                }
-                RDFS_LABEL => {
-                    if let Some(s) = object_as_string(&triple.object) {
-                        raw.labels.insert(subject, s);
-                    }
-                }
-                RDFS_COMMENT => {
-                    if let Some(s) = object_as_string(&triple.object) {
-                        raw.comments.insert(subject, s);
-                    }
-                }
-                HORIS_UNIT => {
-                    if let Some(s) = object_as_string(&triple.object) {
-                        raw.units.insert(subject, s);
-                    }
-                }
-                HORIS_MIN => {
-                    if let Some(v) = object_as_value(&triple.object) {
-                        raw.mins.insert(subject, v);
-                    }
-                }
-                HORIS_MAX => {
-                    if let Some(v) = object_as_value(&triple.object) {
-                        raw.maxs.insert(subject, v);
-                    }
-                }
-                HORIS_CARDINALITY => {
-                    let text = object_as_string(&triple.object)
-                        .unwrap_or_else(|| object_display(interner, &triple.object));
-                    raw.cardinalities.insert(subject, text);
-                }
-                HORIS_PATTERN => {
-                    if let Some(s) = object_as_string(&triple.object) {
-                        raw.patterns.insert(subject, s);
-                    }
-                }
-                HORIS_IMMUTABLE => {
-                    if let Some(b) = object_as_bool(&triple.object) {
-                        raw.immutables.insert(subject, b);
-                    }
-                }
-                HORIS_ASSIGNED_BY => {
-                    let text = object_display(interner, &triple.object);
-                    raw.assigned_bys.insert(subject, text);
-                }
-                HORIS_ONE_OF => {
-                    if let Object::Node(node) = &triple.object {
-                        raw.one_of_heads.insert(subject, *node);
-                    }
-                }
-                RDF_FIRST => {
-                    raw.list_first.insert(subject, triple.object.clone());
-                }
-                RDF_REST => {
-                    if let Object::Node(node) = &triple.object {
-                        raw.list_rest.insert(subject, *node);
-                    }
-                }
-                _ => {}
+        for document in documents {
+            for triple in &document.triples {
+                raw.ingest(triple, interner);
             }
         }
         raw
+    }
+
+    fn ingest(&mut self, triple: &Triple, interner: &Interner) {
+        let raw = self;
+        let subject = node_iri(triple.subject);
+        let predicate = interner.resolve(triple.predicate);
+
+        match predicate {
+            RDF_TYPE => match object_node_iri(&triple.object).map(|i| interner.resolve(i)) {
+                Some(RDFS_CLASS) => {
+                    raw.class_ids.insert(subject);
+                }
+                Some(RDF_PROPERTY) => {
+                    raw.property_ids.insert(subject);
+                }
+                _ => {}
+            },
+            RDFS_SUBCLASS_OF => {
+                if let Some(parent) = object_node_iri(&triple.object) {
+                    raw.class_ids.insert(subject);
+                    raw.class_ids.insert(parent);
+                    raw.subclass_parents
+                        .entry(subject)
+                        .or_default()
+                        .push(parent);
+                }
+            }
+            RDFS_DOMAIN => {
+                if let Some(d) = object_node_iri(&triple.object) {
+                    raw.domains.insert(subject, d);
+                }
+            }
+            RDFS_RANGE => {
+                if let Some(r) = object_node_iri(&triple.object) {
+                    raw.ranges.insert(subject, r);
+                }
+            }
+            RDFS_LABEL => {
+                if let Some(s) = object_as_string(&triple.object) {
+                    raw.labels.insert(subject, s);
+                }
+            }
+            RDFS_COMMENT => {
+                if let Some(s) = object_as_string(&triple.object) {
+                    raw.comments.insert(subject, s);
+                }
+            }
+            HORIS_UNIT => {
+                if let Some(s) = object_as_string(&triple.object) {
+                    raw.units.insert(subject, s);
+                }
+            }
+            HORIS_MIN => {
+                if let Some(v) = object_as_value(&triple.object) {
+                    raw.mins.insert(subject, v);
+                }
+            }
+            HORIS_MAX => {
+                if let Some(v) = object_as_value(&triple.object) {
+                    raw.maxs.insert(subject, v);
+                }
+            }
+            HORIS_CARDINALITY => {
+                let text = object_as_string(&triple.object)
+                    .unwrap_or_else(|| object_display(interner, &triple.object));
+                raw.cardinalities.insert(subject, text);
+            }
+            HORIS_PATTERN => {
+                if let Some(s) = object_as_string(&triple.object) {
+                    raw.patterns.insert(subject, s);
+                }
+            }
+            HORIS_IMMUTABLE => {
+                if let Some(b) = object_as_bool(&triple.object) {
+                    raw.immutables.insert(subject, b);
+                }
+            }
+            HORIS_ASSIGNED_BY => {
+                let text = object_display(interner, &triple.object);
+                raw.assigned_bys.insert(subject, text);
+            }
+            HORIS_ONE_OF => {
+                if let Object::Node(node) = &triple.object {
+                    raw.one_of_heads.insert(subject, *node);
+                }
+            }
+            RDF_FIRST => {
+                raw.list_first.insert(subject, triple.object.clone());
+            }
+            RDF_REST => {
+                if let Object::Node(node) = &triple.object {
+                    raw.list_rest.insert(subject, *node);
+                }
+            }
+            OWL_SAME_AS => {
+                if let Some(o) = object_node_iri(&triple.object) {
+                    raw.same_as_pairs.push((subject, o));
+                }
+            }
+            _ => {}
+        }
     }
 }
 
@@ -915,5 +1053,118 @@ mod tests {
             acuity_level_decl.one_of.as_deref(),
             Some([immediate, urgent, standard].as_slice())
         );
+    }
+
+    // -- U5: build_all + owl:sameAs anchoring --------------------------------
+
+    /// Parses `source` as a standalone graph sharing `interner` with whatever
+    /// else the caller already parsed — the shape `Schema::build_all`'s real
+    /// callers (U5's `OntologySet`) use: one `Interner` threaded across every
+    /// graph so IRIs mean the same thing everywhere.
+    fn parse_graph(interner: &mut Interner, prelude: &str, source: &str) -> Document {
+        let full = format!("{prelude}\n{source}\n");
+        parse(&full, interner).expect("valid Turtle snippet must parse")
+    }
+
+    const DOMAIN_PRELUDE: &str = "@prefix : <https://example.org/t#> .\n\
+         @prefix horis: <https://w3id.org/horismos#> .\n\
+         @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .\n\
+         @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .\n\
+         @prefix owl: <http://www.w3.org/2002/07/owl#> .\n\
+         @prefix sct: <http://snomed.info/id/> .\n\
+         @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .";
+
+    #[test]
+    fn build_all_over_one_document_matches_build() {
+        // Regression guard for the U5 refactor: `Schema::build` now delegates
+        // to `Schema::build_all([document], ..)` — this pins that the
+        // single-document behavior every U1-U4 test already covers didn't
+        // change.
+        let mut interner = Interner::new();
+        let doc = parse_graph(
+            &mut interner,
+            DOMAIN_PRELUDE,
+            ":Symptom a rdfs:Class .\n:ChestPain rdfs:subClassOf :Symptom .",
+        );
+        let via_build = Schema::build(&doc, &interner).expect("build must succeed");
+        let via_build_all = Schema::build_all([&doc], &interner).expect("build_all must succeed");
+        let symptom = interner.intern("https://example.org/t#Symptom");
+        let chest_pain = interner.intern("https://example.org/t#ChestPain");
+        assert_eq!(
+            via_build.is_subclass_of(chest_pain, symptom),
+            via_build_all.is_subclass_of(chest_pain, symptom)
+        );
+    }
+
+    #[test]
+    fn same_as_bridges_subsumption_across_an_imported_graph() {
+        // The exact example from docs/framework/02-ontology.md and the U5
+        // brief: :A sameAs sct:X, :B sameAs sct:Y, and the imported graph
+        // says sct:X subClassOf sct:Y — is_subclass_of(:A, :B) must hold
+        // even though :A and :B share no direct rdfs:subClassOf triple.
+        let mut interner = Interner::new();
+        let root = parse_graph(
+            &mut interner,
+            DOMAIN_PRELUDE,
+            ":A a rdfs:Class ; owl:sameAs sct:X .\n\
+             :B a rdfs:Class ; owl:sameAs sct:Y .",
+        );
+        let imported = parse_graph(
+            &mut interner,
+            "@prefix sct: <http://snomed.info/id/> .\n\
+             @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .",
+            "sct:X a rdfs:Class ; rdfs:subClassOf sct:Y .\nsct:Y a rdfs:Class .",
+        );
+
+        let schema =
+            Schema::build_all([&root, &imported], &interner).expect("build_all must succeed");
+
+        let a = interner.intern("https://example.org/t#A");
+        let b = interner.intern("https://example.org/t#B");
+        assert!(
+            schema.is_subclass_of(a, b),
+            "sameAs anchoring must bridge subsumption through the imported hierarchy"
+        );
+        assert!(!schema.is_subclass_of(b, a), "must not hold in reverse");
+    }
+
+    #[test]
+    fn same_as_is_symmetric_and_transitive() {
+        let mut interner = Interner::new();
+        let root = parse_graph(
+            &mut interner,
+            DOMAIN_PRELUDE,
+            ":A owl:sameAs sct:X .\n\
+             sct:X owl:sameAs sct:Y .\n\
+             :C a rdfs:Class .\n\
+             sct:Y rdfs:subClassOf :C .",
+        );
+        let schema = Schema::build_all([&root], &interner).expect("build_all must succeed");
+
+        let a = interner.intern("https://example.org/t#A");
+        let c = interner.intern("https://example.org/t#C");
+        // Transitive: A sameAs X sameAs Y, Y subClassOf C => A subclass of C.
+        assert!(schema.is_subclass_of(a, c));
+    }
+
+    #[test]
+    fn without_same_as_triples_no_spurious_subsumption_is_introduced() {
+        let mut interner = Interner::new();
+        let root = parse_graph(
+            &mut interner,
+            DOMAIN_PRELUDE,
+            ":A a rdfs:Class .\n:B a rdfs:Class .",
+        );
+        let imported = parse_graph(
+            &mut interner,
+            "@prefix sct: <http://snomed.info/id/> .\n\
+             @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .",
+            "sct:X a rdfs:Class ; rdfs:subClassOf sct:Y .\nsct:Y a rdfs:Class .",
+        );
+        let schema =
+            Schema::build_all([&root, &imported], &interner).expect("build_all must succeed");
+        let a = interner.intern("https://example.org/t#A");
+        let b = interner.intern("https://example.org/t#B");
+        assert!(!schema.is_subclass_of(a, b));
     }
 }

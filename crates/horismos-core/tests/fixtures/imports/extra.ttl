@@ -1,0 +1,9 @@
+## U5 test fixture: an undeclared extra import, added via
+## `OntologySet::with_import` (doc 12 shape) rather than a `horis:imports`
+## triple in root.ttl.
+
+@prefix :     <https://example.org/imports-fixture#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+
+:ExtraClass a rdfs:Class ;
+    rdfs:label "Extra" .

@@ -1,0 +1,8 @@
+## U5 test fixture: a tiny SNOMED-flavored import graph — root.ttl's
+## declared import. The real ~50-concept chest-pain subset is U11's.
+
+@prefix sct:  <http://snomed.info/id/> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+
+sct:29857009 a rdfs:Class ;
+    rdfs:label "Chest pain" .
