@@ -194,7 +194,7 @@ fn convert_literal(lit: &oxrdf::Literal, interner: &mut Interner) -> Literal {
 /// directions: full datatype IRI text <-> U1's [`Datatype`]. The single
 /// source of truth both `parse` and `serialize` read from, so the two can
 /// never drift apart.
-fn xsd_datatype_from_iri(iri: &str) -> Option<Datatype> {
+pub(crate) fn xsd_datatype_from_iri(iri: &str) -> Option<Datatype> {
     Some(match iri {
         "http://www.w3.org/2001/XMLSchema#decimal" => Datatype::Decimal,
         "http://www.w3.org/2001/XMLSchema#integer" => Datatype::Integer,
