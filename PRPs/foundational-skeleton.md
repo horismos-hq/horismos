@@ -79,13 +79,24 @@ scripts for fragile sequences):
 
 | Skill | Purpose | When |
 |-------|---------|------|
-| `cargo-workspace-map` | crate/module ownership + dependency rules; prevents code landing in the wrong crate | now |
-| `ontology-modeling-conventions` | `horis:` vocabulary, IRI scheme, 11 operators, fixture style | now |
-| `pyo3-boundary` | error mapping, GIL rules, stub regeneration, marshal-at-boundary conventions | now |
-| `learn-codebase` | generates the "Learning Horismos" onboarding artifact: unit-curriculum HTML with diagrams + code walkthroughs | now |
-| `rdf-turtle-fixtures` | fixture authoring + validator script loop | PRP-001 (needs the parser) |
-| `proptest-strategies` | shared strategies, proptest↔Hypothesis parity rules | PRP-001 |
+| `cargo-workspace-map` | crate/module ownership + dependency rules; prevents code landing in the wrong crate | ✅ shipped |
+| `ontology-modeling-conventions` | `horis:` vocabulary, IRI scheme, 11 operators, fixture style | ✅ shipped |
+| `pyo3-boundary` | error mapping, GIL rules, stub regeneration, marshal-at-boundary conventions | ✅ shipped |
+| `learn-codebase` | generates the "Learning Horismos" onboarding artifact: unit-curriculum HTML with diagrams + code walkthroughs | ✅ shipped |
+| `generate-prp` | drafting a new PRP: lifecycle, D/U-item template, [DECIDE] two-way links, board discipline | ✅ shipped (2026-07-29) |
+| `impl-prp` | executing an Active PRP: worktree, ledger, unit batching, briefs, reviews, finish sequence | ✅ shipped (2026-07-29) |
+| `git-workflow` | branch naming, worktrees, stash hazard, commit granularity, gate rules, PR flow | ✅ shipped (2026-07-29) |
+| `self-review` | pre-report audits: determinism, boundary, errors, gate, tests, Rust/Python specifics | ✅ shipped (2026-07-29) |
+| `brainstorming` | research-aware decision protocol for [DECIDE] questions: evidence sweep → options → adversarial pass → D-item record | ✅ shipped (2026-07-29) |
+| `rdf-turtle-fixtures` | fixture authoring + validator script loop | superseded — `ontology-modeling-conventions` + the U2 parser tests cover it; revive only if fixture authoring gets scripted |
+| `proptest-strategies` | shared strategies, proptest↔Hypothesis parity rules | PRP-003 (parity needs the Python surface; Rust-side strategies live in `tests/gate_properties.rs`) |
 | `release-and-stubs` | scripted version-bump → wheel → stub-check sequence | PRP-006 |
+
+**Project-local agents** (`.claude/agents/`):
+
+| Agent | Purpose | When |
+|-------|---------|------|
+| `senior-reviewer` | batch/branch diff review: spec compliance, named risks, repo-calibrated severity (gate bypass / boundary / nondeterminism = Critical) | ✅ shipped (2026-07-29) |
 
 ## Definition of done
 

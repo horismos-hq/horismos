@@ -73,10 +73,28 @@ make verify        # all of the above — run before claiming work done
 - The `horis:` vocabulary, the 11 condition operators, and the RDFS-plus profile are
   defined in `docs/framework/02-ontology.md` — never invent vocabulary terms ad hoc.
 
-## Project skills (.claude/skills/)
+## Project skills (.claude/skills/) and agents (.claude/agents/)
+
+Domain skills — consult before touching the matching surface:
 
 - `cargo-workspace-map` — which crate/module owns what; consult before placing code.
 - `ontology-modeling-conventions` — the `horis:` vocabulary, IRI scheme, operators;
   consult before writing or editing any `.ttl`.
 - `pyo3-boundary` — Rust↔Python boundary conventions; consult before touching
   `horismos-py` or `python/horismos`.
+- `learn-codebase` — guided-tour/onboarding artifact for newcomers.
+
+Process skills — the PRP workflow itself:
+
+- `generate-prp` — drafting a new PRP (lifecycle, D/U-items, [DECIDE] links, board).
+- `impl-prp` — executing an Active PRP (worktree, ledger, batching, briefs,
+  reviews, finish sequence). Use this to start or resume any PRP build.
+- `git-workflow` — branches, worktrees, commit rules, PR flow for this repo.
+- `self-review` — pre-report audit checklist (determinism, boundary, errors, gate).
+- `brainstorming` — research-aware protocol for resolving [DECIDE] questions;
+  never decide them ad hoc.
+
+Agents:
+
+- `senior-reviewer` — diff/batch reviewer with this repo's severity calibration;
+  used per batch and for final whole-branch reviews in `impl-prp`.
