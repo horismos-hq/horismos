@@ -16,16 +16,30 @@
 //! swapped only once every check has passed, so a rejected mutation cannot
 //! leave a partial fact behind.
 //!
-//! Snapshots/diff (U8), pattern and SPARQL queries (U9), forward chaining and
-//! subscriptions (PRP-002/004) are not here yet;
+//! ## What U8 adds
+//!
+//! [`snapshot::Snapshot`]: O(1) point-in-time views (`World::snapshot`),
+//! reconstruction (`World::from_snapshot`), structural [`snapshot::Diff`]
+//! (`World::diff`), and a postcard binary form with a versioned header. See
+//! that module for why the world's [`Interner`] is behind an `Arc` — the
+//! design constraint that makes O(1) snapshots possible without deep-copying
+//! the arena on every call.
+//!
+//! Tier-1 pattern queries (U9), forward chaining and subscriptions
+//! (PRP-002/004) are not here yet;
 //! [`World::assert_instance_as`] marks where the post-gate transaction stages
 //! slot in.
 //!
 //! Spec: `docs/framework/03-world.md` · Owner: PRP-001
 
 pub mod gate;
+pub mod snapshot;
+
+use std::sync::Arc;
 
 use imbl::{OrdMap, Vector};
+
+pub use snapshot::{Diff, Fact, Snapshot};
 
 use crate::error::HorismosError;
 use crate::ontology::Ontology;
@@ -121,13 +135,23 @@ impl Instance {
 #[derive(Debug, Clone)]
 pub struct World {
     ontology: Ontology,
-    interner: Interner,
+    /// Behind an `Arc`, not held by value — the U8 design constraint.
+    /// `Interner::clone` deep-copies its arena (see that type's docs), which
+    /// would make [`World::snapshot`] an O(n) copy instead of the O(1)
+    /// structural share decision D4 requires. `Arc` makes cloning the
+    /// interner (what `snapshot()` and `World::clone` both do) a refcount
+    /// bump; [`World::intern`] uses [`Arc::make_mut`] — clone-on-write — so a
+    /// world that has *not* been snapshotted mutates its interner in place
+    /// (the common case, no copy at all), and one that has, copies exactly
+    /// once, on the first intern after the share, leaving every outstanding
+    /// [`Snapshot`] untouched.
+    interner: Arc<Interner>,
     /// subject → instance (decision D2's adjacency map, one level up).
     /// `OrdMap` keyed by the `Iri` token: point lookup is the gate's hot
     /// path, iteration order is token order — first-intern order, hence
     /// deterministic (CLAUDE.md) — and cloning is O(1) structural sharing,
-    /// which is both what makes rejection atomic here and what U8's
-    /// `snapshot()` will be built on.
+    /// which is both what makes rejection atomic here and what
+    /// [`World::snapshot`] (U8) is built on.
     instances: OrdMap<Iri, Instance>,
     /// The next skolem id. Advances only on a committed anonymous assertion.
     next_skolem: u64,
@@ -138,7 +162,7 @@ impl World {
     pub fn new(ontology: &Ontology) -> World {
         World {
             ontology: ontology.clone(),
-            interner: ontology.interner().clone(),
+            interner: Arc::new(ontology.interner().clone()),
             instances: OrdMap::new(),
             next_skolem: 0,
         }
@@ -159,7 +183,7 @@ impl World {
     /// classes, properties, and instances. Interning an IRI the ontology
     /// already knows returns the ontology's own token.
     pub fn intern(&mut self, iri: &str) -> Iri {
-        self.interner.intern(iri)
+        Arc::make_mut(&mut self.interner).intern(iri)
     }
 
     /// Resolves a token minted by this world (or by its ontology).
@@ -246,7 +270,7 @@ impl World {
             // holding is always free.
             None => {
                 let text = format!("{SKOLEM_NAMESPACE}{}", self.next_skolem);
-                gate::Subject::Skolem(self.interner.intern(&text))
+                gate::Subject::Skolem(self.intern(&text))
             }
         };
         let subject_iri = subject.iri();

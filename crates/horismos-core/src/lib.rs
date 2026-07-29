@@ -27,7 +27,7 @@ pub mod wasm;
 // re-exported at the crate root.
 pub use ontology::Ontology;
 pub use ontology::term::{Datatype, Interner, Iri, Ref, Value, XsdDuration};
-pub use world::{Provenance, World};
+pub use world::{Diff, Fact, Provenance, Snapshot, World};
 
 /// The RDFS-plus profile version this engine targets
 /// (`horis:profileVersion`, docs/framework/02-ontology.md).

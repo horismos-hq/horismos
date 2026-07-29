@@ -28,6 +28,7 @@ oxttl.workspace = true
 oxrdf.workspace = true
 imbl.workspace = true
 regex.workspace = true
+postcard.workspace = true
 
 [dev-dependencies]
 proptest.workspace = true

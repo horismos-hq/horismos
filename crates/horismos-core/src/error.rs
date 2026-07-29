@@ -36,6 +36,17 @@ pub enum HorismosError {
     /// `HorismosError` small.
     #[error("{}", .witness.text)]
     ValidationRejected { witness: Box<Witness> },
+
+    /// A [`crate::world::Snapshot`]'s binary form (U8,
+    /// `docs/framework/03-world.md` § Snapshots) failed to decode: an
+    /// unrecognized magic header, an unsupported format version, or a
+    /// corrupt postcard payload. Distinct from `ValidationRejected` — this is
+    /// a *format* failure, before any fact was well-typed enough to reach the
+    /// gate at all; a value that decodes cleanly but fails a gate check
+    /// (`horis:min`/`max`/…) surfaces as `ValidationRejected` instead, exactly
+    /// as it would from a live assertion.
+    #[error("{reason}")]
+    SnapshotFormat { reason: String },
 }
 
 impl HorismosError {
@@ -44,6 +55,7 @@ impl HorismosError {
         match self {
             Self::Ontology(e) => e.domain_text(),
             Self::ValidationRejected { witness } => witness.text.clone(),
+            Self::SnapshotFormat { reason } => reason.clone(),
         }
     }
 

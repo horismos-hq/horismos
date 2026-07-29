@@ -38,6 +38,11 @@ imbl = "7"
 # wasm-safe; no unicode-table features are dropped, since patterns come from
 # authored ontologies and may match any XSD string.
 regex = "1"
+# Snapshot binary form (decision D4, PRP-001 U8): compact, deterministic,
+# no_std+alloc — safe for the wasm/no-model gate. Only the `alloc` feature is
+# enabled (Vec<u8> output via `to_allocvec`); the default `heapless-cas`
+# feature is unneeded since horismos never targets a heapless target.
+postcard = { version = "1", default-features = false, features = ["alloc"] }
 
 [workspace.lints.rust]
 unsafe_code = "deny"
