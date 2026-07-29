@@ -1,0 +1,226 @@
+# A pre-extracted SNOMED CT subset for the triage example (decision D5,
+# PRP-001): ~50 chest-pain-centered concepts, consumed as an ordinary import
+# into a named graph. Its hierarchy connects to triage.ttl's owl:sameAs
+# anchors (sct:29857009 = :ChestPain), so sameAs-bridged subsumption over
+# imported concepts is real, not decorative. Concept IDs follow SNOMED CT
+# where known; the fixture's point is the structure, not registry fidelity.
+# Extraction tooling that produces files like this one belongs to PRP-007.
+
+@prefix sct:  <http://snomed.info/id/> .
+@prefix rdf:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+
+## Root
+
+sct:404684003 a rdfs:Class ;
+    rdfs:label "Clinical finding" .
+
+## Cardiovascular findings
+
+sct:106063007 a rdfs:Class ;
+    rdfs:subClassOf sct:404684003 ;
+    rdfs:label      "Cardiovascular finding" .
+
+sct:29857009 a rdfs:Class ;
+    rdfs:subClassOf sct:106063007 ;
+    rdfs:label      "Chest pain" .          # anchored: triage:ChestPain owl:sameAs
+
+sct:71884009 a rdfs:Class ;
+    rdfs:subClassOf sct:29857009 ;
+    rdfs:label      "Crushing chest pain" .
+
+sct:2237002 a rdfs:Class ;
+    rdfs:subClassOf sct:29857009 ;
+    rdfs:label      "Pleuritic chest pain" .
+
+sct:102589003 a rdfs:Class ;
+    rdfs:subClassOf sct:29857009 ;
+    rdfs:label      "Atypical chest pain" .
+
+sct:136443001 a rdfs:Class ;
+    rdfs:subClassOf sct:29857009 ;
+    rdfs:label      "Retrosternal pain" .
+
+sct:102556003 a rdfs:Class ;
+    rdfs:subClassOf sct:29857009 ;
+    rdfs:label      "Chest wall pain" .
+
+sct:194828000 a rdfs:Class ;
+    rdfs:subClassOf sct:29857009 ;
+    rdfs:label      "Angina" .
+
+sct:4557003 a rdfs:Class ;
+    rdfs:subClassOf sct:194828000 ;
+    rdfs:label      "Unstable angina" .
+
+sct:233819005 a rdfs:Class ;
+    rdfs:subClassOf sct:194828000 ;
+    rdfs:label      "Stable angina" .
+
+sct:80313002 a rdfs:Class ;
+    rdfs:subClassOf sct:106063007 ;
+    rdfs:label      "Palpitations" .
+
+sct:3424008 a rdfs:Class ;
+    rdfs:subClassOf sct:106063007 ;
+    rdfs:label      "Tachycardia" .
+
+sct:11092001 a rdfs:Class ;
+    rdfs:subClassOf sct:3424008 ;
+    rdfs:label      "Sinus tachycardia" .
+
+sct:25569003 a rdfs:Class ;
+    rdfs:subClassOf sct:3424008 ;
+    rdfs:label      "Ventricular tachycardia" .
+
+sct:48867003 a rdfs:Class ;
+    rdfs:subClassOf sct:106063007 ;
+    rdfs:label      "Bradycardia" .
+
+sct:45007003 a rdfs:Class ;
+    rdfs:subClassOf sct:106063007 ;
+    rdfs:label      "Hypotension" .
+
+sct:38341003 a rdfs:Class ;
+    rdfs:subClassOf sct:106063007 ;
+    rdfs:label      "Hypertension" .
+
+sct:22298006 a rdfs:Class ;
+    rdfs:subClassOf sct:106063007 ;
+    rdfs:label      "Myocardial infarction" .
+
+sct:57054005 a rdfs:Class ;
+    rdfs:subClassOf sct:22298006 ;
+    rdfs:label      "Acute myocardial infarction" .
+
+sct:410429000 a rdfs:Class ;
+    rdfs:subClassOf sct:106063007 ;
+    rdfs:label      "Cardiac arrest" .
+
+sct:308546005 a rdfs:Class ;
+    rdfs:subClassOf sct:106063007 ;
+    rdfs:label      "Dissection of aorta" .
+
+## Respiratory findings
+
+sct:106048009 a rdfs:Class ;
+    rdfs:subClassOf sct:404684003 ;
+    rdfs:label      "Respiratory finding" .
+
+sct:267036007 a rdfs:Class ;
+    rdfs:subClassOf sct:106048009 ;
+    rdfs:label      "Dyspnea" .
+
+sct:161941007 a rdfs:Class ;
+    rdfs:subClassOf sct:267036007 ;
+    rdfs:label      "Dyspnea at rest" .
+
+sct:60845006 a rdfs:Class ;
+    rdfs:subClassOf sct:267036007 ;
+    rdfs:label      "Exertional dyspnea" .
+
+sct:271823003 a rdfs:Class ;
+    rdfs:subClassOf sct:106048009 ;
+    rdfs:label      "Tachypnea" .
+
+sct:49727002 a rdfs:Class ;
+    rdfs:subClassOf sct:106048009 ;
+    rdfs:label      "Cough" .
+
+sct:66857006 a rdfs:Class ;
+    rdfs:subClassOf sct:106048009 ;
+    rdfs:label      "Hemoptysis" .
+
+sct:59282003 a rdfs:Class ;
+    rdfs:subClassOf sct:106048009 ;
+    rdfs:label      "Pulmonary embolism" .
+
+## Neurological findings
+
+sct:102957003 a rdfs:Class ;
+    rdfs:subClassOf sct:404684003 ;
+    rdfs:label      "Neurological finding" .
+
+sct:271594007 a rdfs:Class ;
+    rdfs:subClassOf sct:102957003 ;
+    rdfs:label      "Syncope" .
+
+sct:404640003 a rdfs:Class ;
+    rdfs:subClassOf sct:102957003 ;
+    rdfs:label      "Dizziness" .
+
+sct:3006004 a rdfs:Class ;
+    rdfs:subClassOf sct:102957003 ;
+    rdfs:label      "Altered consciousness" .
+
+## General findings
+
+sct:118222006 a rdfs:Class ;
+    rdfs:subClassOf sct:404684003 ;
+    rdfs:label      "General finding" .
+
+sct:415690000 a rdfs:Class ;
+    rdfs:subClassOf sct:118222006 ;
+    rdfs:label      "Sweating" .
+
+sct:52613005 a rdfs:Class ;
+    rdfs:subClassOf sct:415690000 ;
+    rdfs:label      "Diaphoresis" .
+
+sct:84229001 a rdfs:Class ;
+    rdfs:subClassOf sct:118222006 ;
+    rdfs:label      "Fatigue" .
+
+sct:386661006 a rdfs:Class ;
+    rdfs:subClassOf sct:118222006 ;
+    rdfs:label      "Fever" .
+
+sct:422587007 a rdfs:Class ;
+    rdfs:subClassOf sct:118222006 ;
+    rdfs:label      "Nausea" .
+
+sct:16932000 a rdfs:Class ;
+    rdfs:subClassOf sct:422587007 ;
+    rdfs:label      "Nausea and vomiting" .
+
+sct:422400008 a rdfs:Class ;
+    rdfs:subClassOf sct:118222006 ;
+    rdfs:label      "Vomiting" .
+
+sct:274643008 a rdfs:Class ;
+    rdfs:subClassOf sct:118222006 ;
+    rdfs:label      "Pallor" .
+
+sct:48694002 a rdfs:Class ;
+    rdfs:subClassOf sct:118222006 ;
+    rdfs:label      "Anxiety" .
+
+## Pain findings
+
+sct:22253000 a rdfs:Class ;
+    rdfs:subClassOf sct:404684003 ;
+    rdfs:label      "Pain" .
+
+sct:25322007 a rdfs:Class ;
+    rdfs:subClassOf sct:22253000 ;
+    rdfs:label      "Pain radiating to left arm" .
+
+sct:53057004 a rdfs:Class ;
+    rdfs:subClassOf sct:22253000 ;
+    rdfs:label      "Arm pain" .
+
+sct:65956009 a rdfs:Class ;
+    rdfs:subClassOf sct:22253000 ;
+    rdfs:label      "Jaw pain" .
+
+sct:45326000 a rdfs:Class ;
+    rdfs:subClassOf sct:22253000 ;
+    rdfs:label      "Shoulder pain" .
+
+sct:79922009 a rdfs:Class ;
+    rdfs:subClassOf sct:22253000 ;
+    rdfs:label      "Epigastric pain" .
+
+sct:161891005 a rdfs:Class ;
+    rdfs:subClassOf sct:22253000 ;
+    rdfs:label      "Back pain" .

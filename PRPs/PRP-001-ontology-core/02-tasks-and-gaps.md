@@ -31,25 +31,25 @@ becomes authoritative when the PRP activates.
 
 ## Units of work
 
-- [ ] U1. IRI interning + term/value model (`Iri`, `Ref`, `Value` mirroring the XSD
+- [x] U1. IRI interning + term/value model (`Iri`, `Ref`, `Value` mirroring the XSD
       subset) — property-tested round-trips.
-- [ ] U2. Turtle parse/serialize (per D1) — round-trips `triage.ttl` byte-stably
+- [x] U2. Turtle parse/serialize (per D1) — round-trips `triage.ttl` byte-stably
       modulo formatting.
-- [ ] U3. RDFS-plus profile validation at load: reject out-of-profile constructs
+- [x] U3. RDFS-plus profile validation at load: reject out-of-profile constructs
       with domain-term errors.
-- [ ] U4. Schema model: classes, subclassOf closure, property domain/range,
+- [x] U4. Schema model: classes, subclassOf closure, property domain/range,
       constraint vocabulary — queryable.
-- [ ] U5. Imports into named graphs + `owl:sameAs` anchoring + prefix management.
-- [ ] U6. Instance store (`World`): assert/retract through the validation gate;
+- [x] U5. Imports into named graphs + `owl:sameAs` anchoring + prefix management.
+- [x] U6. Instance store (`World`): assert/retract through the validation gate;
       the five gate checks in documented order; atomic rejection.
-- [ ] U7. `horis:assignedBy` provenance policy enforced at the gate
+- [x] U7. `horis:assignedBy` provenance policy enforced at the gate
       (perception | rule | tool | api).
-- [ ] U8. Snapshots + diff (per D4); `World::from_snapshot`.
-- [ ] U9. Pattern queries (tier 1: `instances`, `value`); SPARQL subset deferred
+- [x] U8. Snapshots + diff (per D4); `World::from_snapshot`.
+- [x] U9. Pattern queries (tier 1: `instances`, `value`); SPARQL subset deferred
       to its own unit behind the `sparql` feature.
-- [ ] U10. Property-test suite against the gate (proptest): no sequence of valid
+- [x] U10. Property-test suite against the gate (proptest): no sequence of valid
       operations produces an invalid world; every rejection names its constraint.
-- [ ] U11. DoD run: load `triage.ttl` + a SNOMED subset fixture, reject
+- [x] U11. DoD run: load `triage.ttl` + a SNOMED subset fixture, reject
       schema-violating instances with domain-term errors, round-trip Turtle,
       snapshot, answer pattern queries. Zero LLM anywhere.
 
