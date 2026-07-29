@@ -25,8 +25,14 @@
 //! design constraint that makes O(1) snapshots possible without deep-copying
 //! the arena on every call.
 //!
-//! Tier-1 pattern queries (U9), forward chaining and subscriptions
-//! (PRP-002/004) are not here yet;
+//! ## What U9 adds
+//!
+//! Tier-1 pattern queries: [`World::instances`] (subsumption-aware) and
+//! [`World::value`] (the single-valued sibling of [`World::values`]). The
+//! SPARQL subset (behind the `sparql` feature) stays an empty stub —
+//! PRP-003's job.
+//!
+//! Forward chaining and subscriptions (PRP-002/004) are not here yet;
 //! [`World::assert_instance_as`] marks where the post-gate transaction stages
 //! slot in.
 //!
@@ -199,9 +205,8 @@ impl World {
         self.instances.len()
     }
 
-    /// The instance `subject` names, if the world holds one. Tier-1 pattern
-    /// queries (`instances(Class)`, `value(p, "heartRate")`, doc 03) are U9;
-    /// this is the raw store accessor they will be built on.
+    /// The instance `subject` names, if the world holds one. The raw store
+    /// accessor the tier-1 pattern queries below (U9) are built on.
     pub fn instance(&self, subject: Ref) -> Option<&Instance> {
         self.instances.get(&subject.iri())
     }
@@ -212,6 +217,40 @@ impl World {
         self.instance(subject)
             .into_iter()
             .flat_map(move |i| i.values(property))
+    }
+
+    // -- Tier-1 pattern queries (U9) ----------------------------------------
+
+    /// Every instance whose class is `class`, or a transitive
+    /// `rdfs:subClassOf` descendant of it (doc 03: `world.instances(Patient)`).
+    /// Subsumption-aware exactly as the gate's own domain/range checks are —
+    /// [`crate::ontology::schema::Schema::is_subclass_of`] is `owl:sameAs`-bridged,
+    /// so a class reached only through a `sameAs` anchor (U5) matches too.
+    /// "is matches any subclass" (doc 04) applies to queries the same way it
+    /// applies to assertion.
+    ///
+    /// Deterministic order: `Iri`-token order, the same first-intern order
+    /// every other store iteration in this module commits to.
+    ///
+    /// No separate "direct instances only" query exists — `world.instance(r)
+    /// .map(Instance::class) == Some(class)` is one comparison for a caller
+    /// who wants that instead.
+    pub fn instances(&self, class: Iri) -> impl Iterator<Item = Ref> + '_ {
+        let schema = self.ontology.schema();
+        self.instances
+            .iter()
+            .filter(move |(_, instance)| schema.is_subclass_of(instance.class(), class))
+            .map(|(&subject, _)| Ref::new(subject))
+    }
+
+    /// `subject`'s first value for `property`, in assertion order (doc 03:
+    /// `world.value(p, "heartRate")`) — `None` if the world holds no such
+    /// instance or the property is unset. The single-valued sibling of
+    /// [`World::values`]: for a property whose `horis:cardinality` admits at
+    /// most one value this is *the* value; for a multi-valued property it is
+    /// the one asserted first, not necessarily the only one.
+    pub fn value(&self, subject: Ref, property: Iri) -> Option<&Value> {
+        self.values(subject, property).next()
     }
 
     // -- Assertion ---------------------------------------------------------
@@ -1341,5 +1380,146 @@ mod tests {
             .retract_as(Provenance::Rule, p, acuity, &immediate)
             .expect("a rule may retract what a rule asserted");
         assert_eq!(world.values(p, acuity).count(), 0);
+    }
+
+    // -- tier-1 pattern queries (U9) -----------------------------------------
+
+    #[test]
+    fn instances_is_subsumption_aware() {
+        // triage.ttl: Symptom <- ChestPain <- CrushingChestPain. An instance
+        // asserted as the leaf class must come back from a query for any
+        // ancestor, doc 04's "is matches any subclass" applied to queries.
+        let mut world = triage_world();
+        let crushing = tri(&mut world, "CrushingChestPain");
+        let chest_pain = tri(&mut world, "ChestPain");
+        let symptom = tri(&mut world, "Symptom");
+        let cp1 = tri(&mut world, "cp1");
+
+        let instance = world
+            .assert_named_instance(cp1, crushing, [])
+            .expect("CrushingChestPain is a declared class (implicit via subClassOf)");
+
+        assert_eq!(
+            world.instances(crushing).collect::<Vec<_>>(),
+            vec![instance]
+        );
+        assert_eq!(
+            world.instances(chest_pain).collect::<Vec<_>>(),
+            vec![instance],
+            "a direct parent must match too"
+        );
+        assert_eq!(
+            world.instances(symptom).collect::<Vec<_>>(),
+            vec![instance],
+            "a transitive ancestor must match"
+        );
+    }
+
+    #[test]
+    fn instances_excludes_a_sibling_class() {
+        let mut world = triage_world();
+        let patient = tri(&mut world, "Patient");
+        let crushing = tri(&mut world, "CrushingChestPain");
+        world
+            .assert_instance(patient, [])
+            .expect("a Patient instance");
+
+        assert_eq!(
+            world.instances(crushing).collect::<Vec<_>>(),
+            Vec::<Ref>::new(),
+            "a Patient instance must not satisfy an unrelated class query"
+        );
+    }
+
+    #[test]
+    fn instances_returns_every_matching_instance_in_iri_token_order() {
+        let mut world = triage_world();
+        let patient = tri(&mut world, "Patient");
+        let p1 = tri(&mut world, "p1");
+        let p2 = tri(&mut world, "p2");
+
+        let first = world
+            .assert_named_instance(p1, patient, [])
+            .expect("accepted");
+        let second = world
+            .assert_named_instance(p2, patient, [])
+            .expect("accepted");
+
+        assert_eq!(
+            world.instances(patient).collect::<Vec<_>>(),
+            vec![first, second]
+        );
+    }
+
+    #[test]
+    fn instances_query_order_is_deterministic_across_two_identically_built_worlds() {
+        let onto = Ontology::load(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../examples/triage/triage.ttl"
+        ))
+        .expect("triage.ttl must load");
+
+        let run = |world: &mut World| -> Vec<String> {
+            let patient = tri(world, "Patient");
+            let heart_rate = tri(world, "heartRate");
+            world
+                .assert_instance(patient, [(heart_rate, Value::Integer(70))])
+                .expect("accepted");
+            world
+                .assert_instance(patient, [(heart_rate, Value::Integer(90))])
+                .expect("accepted");
+            world
+                .instances(patient)
+                .map(|r| world.resolve(r.iri()).to_owned())
+                .collect()
+        };
+
+        let mut first = World::new(&onto);
+        let mut second = World::new(&onto);
+        assert_eq!(run(&mut first), run(&mut second));
+    }
+
+    #[test]
+    fn value_returns_the_single_value_of_a_single_valued_property() {
+        let mut world = triage_world();
+        let patient = tri(&mut world, "Patient");
+        let heart_rate = tri(&mut world, "heartRate");
+        let p = world
+            .assert_instance(patient, [(heart_rate, Value::Integer(128))])
+            .expect("accepted");
+        assert_eq!(world.value(p, heart_rate), Some(&Value::Integer(128)));
+    }
+
+    #[test]
+    fn value_is_none_for_an_unset_property() {
+        let mut world = triage_world();
+        let patient = tri(&mut world, "Patient");
+        let heart_rate = tri(&mut world, "heartRate");
+        let p = world.assert_instance(patient, []).expect("accepted");
+        assert_eq!(world.value(p, heart_rate), None);
+    }
+
+    #[test]
+    fn value_is_none_for_an_unknown_subject() {
+        let mut world = triage_world();
+        let heart_rate = tri(&mut world, "heartRate");
+        let ghost = tri(&mut world, "p404");
+        assert_eq!(world.value(Ref::new(ghost), heart_rate), None);
+    }
+
+    #[test]
+    fn value_is_the_first_asserted_value_of_a_multi_valued_property() {
+        let mut world = triage_world();
+        let patient = tri(&mut world, "Patient");
+        let has_symptom = tri(&mut world, "hasSymptom");
+        let crushing = Value::Ref(Ref::new(tri(&mut world, "CrushingChestPain")));
+        let chest_pain = Value::Ref(Ref::new(tri(&mut world, "ChestPain")));
+        let p = world
+            .assert_instance(
+                patient,
+                [(has_symptom, crushing.clone()), (has_symptom, chest_pain)],
+            )
+            .expect("accepted");
+        assert_eq!(world.value(p, has_symptom), Some(&crushing));
     }
 }
