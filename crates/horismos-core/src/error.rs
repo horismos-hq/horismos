@@ -47,6 +47,14 @@ pub enum HorismosError {
     /// as it would from a live assertion.
     #[error("{reason}")]
     SnapshotFormat { reason: String },
+
+    /// A well-formed [`crate::world::Snapshot`] was offered to
+    /// [`crate::World::from_snapshot`] with an [`crate::Ontology`] other
+    /// than the one its world was validated under. Installing it would put
+    /// never-gated state behind this ontology's gate and silently re-map
+    /// every interned token — so it is refused outright.
+    #[error("{reason}")]
+    SnapshotMismatch { reason: String },
 }
 
 impl HorismosError {
@@ -56,6 +64,7 @@ impl HorismosError {
             Self::Ontology(e) => e.domain_text(),
             Self::ValidationRejected { witness } => witness.text.clone(),
             Self::SnapshotFormat { reason } => reason.clone(),
+            Self::SnapshotMismatch { reason } => reason.clone(),
         }
     }
 

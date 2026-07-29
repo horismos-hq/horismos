@@ -111,6 +111,16 @@ impl Snapshot {
     /// reaches the gate — bad magic, an unsupported version, a corrupt
     /// postcard payload, or a literal whose lexical form doesn't parse —
     /// surfaces as [`HorismosError::SnapshotFormat`] instead.
+    ///
+    /// **Known limitation (PRP-001):** the wire form does not record each
+    /// fact's provenance, so restoration re-gates everything as
+    /// [`Provenance::Api`] — a world holding a `horis:assignedBy
+    /// horis:RulesOnly`/`ToolsOnly` fact (legitimately assigned by a rule or
+    /// tool) will NOT restore from its own bytes; check 5 refuses it. Fact
+    /// provenance travels with the wire form when PRP-002 lands traces (see
+    /// the dated gap note in `PRPs/PRP-001-ontology-core/02-tasks-and-gaps.md`);
+    /// until then, use in-memory [`World::from_snapshot`] for such worlds.
+    /// Pinned by `a_rules_only_fact_does_not_survive_the_wire_form_yet`.
     pub fn from_bytes(ontology: &Ontology, bytes: &[u8]) -> Result<Snapshot, HorismosError> {
         if bytes.len() < HEADER_LEN || bytes[..SNAPSHOT_MAGIC.len()] != SNAPSHOT_MAGIC {
             return Err(HorismosError::SnapshotFormat {
@@ -363,17 +373,33 @@ impl World {
     /// [`World::intern`]) each copy exactly the piece that changed, leaving
     /// `snapshot` and any other world sharing it untouched either way.
     ///
-    /// Trusts `snapshot` — no re-validation. A `Snapshot` value only ever
-    /// comes from this same process's own [`World::snapshot`] or from
-    /// [`Snapshot::from_bytes`], and `from_bytes` already ran every fact
-    /// through the gate; re-checking here would just repeat that work.
-    pub fn from_snapshot(ontology: &Ontology, snapshot: Snapshot) -> World {
-        World {
+    /// Trusts `snapshot`'s *facts* — no per-fact re-validation. A `Snapshot`
+    /// value only ever comes from this same process's own [`World::snapshot`]
+    /// or from [`Snapshot::from_bytes`], and `from_bytes` already ran every
+    /// fact through the gate; re-checking here would just repeat that work.
+    ///
+    /// What it does NOT trust is the pairing: the snapshot must have been
+    /// taken over `ontology` (or an identically-loaded one). Installing a
+    /// snapshot behind a *different* ontology's gate would both admit
+    /// never-gated state and silently re-map every interned token, so a
+    /// mismatch is refused with [`HorismosError::SnapshotMismatch`]. The
+    /// check is the interner-prefix relation — sound because an interner is
+    /// append-only, and deliberately content-based so two `Ontology` values
+    /// loaded from the same file are interchangeable.
+    pub fn from_snapshot(ontology: &Ontology, snapshot: Snapshot) -> Result<World, HorismosError> {
+        if !ontology.interner().is_prefix_of(&snapshot.interner) {
+            return Err(HorismosError::SnapshotMismatch {
+                reason: "this snapshot was taken over a different ontology; \
+                         restoring it here would bypass the validation gate"
+                    .to_owned(),
+            });
+        }
+        Ok(World {
             ontology: ontology.clone(),
             interner: snapshot.interner,
             instances: snapshot.instances,
             next_skolem: snapshot.next_skolem,
-        }
+        })
     }
 
     /// The added/removed facts between this world and an earlier `snapshot`
@@ -613,7 +639,8 @@ mod tests {
             .expect("a second, unrelated instance");
 
         let onto = world.ontology().clone();
-        let restored = World::from_snapshot(&onto, snapshot);
+        let restored = World::from_snapshot(&onto, snapshot)
+            .expect("a snapshot restores under its own ontology");
         assert_eq!(
             restored.instance_count(),
             1,
@@ -639,7 +666,8 @@ mod tests {
             .expect("accepted");
 
         let onto = world.ontology().clone();
-        let mut copy = World::from_snapshot(&onto, world.snapshot());
+        let mut copy = World::from_snapshot(&onto, world.snapshot())
+            .expect("a snapshot restores under its own ontology");
         let p_text = copy.resolve(p.iri()).to_owned();
         let p_in_copy = Ref::new(copy.intern(&p_text));
         copy.assert_named_instance(
@@ -671,7 +699,8 @@ mod tests {
             .expect("accepted");
 
         let onto = world.ontology().clone();
-        let copy = World::from_snapshot(&onto, world.snapshot());
+        let copy = World::from_snapshot(&onto, world.snapshot())
+            .expect("a snapshot restores under its own ontology");
 
         world
             .assert_named_instance(p.iri(), patient, [(heart_rate, Value::Integer(200))])
@@ -845,7 +874,8 @@ mod tests {
         let onto = world.ontology().clone();
         let restored_snapshot =
             Snapshot::from_bytes(&onto, &bytes).expect("a legitimate snapshot's bytes must decode");
-        let restored = World::from_snapshot(&onto, restored_snapshot);
+        let restored = World::from_snapshot(&onto, restored_snapshot)
+            .expect("a snapshot restores under its own ontology");
 
         assert_eq!(restored.instance_count(), world.instance_count());
 
@@ -921,7 +951,8 @@ mod tests {
         let restored = World::from_snapshot(
             &onto,
             Snapshot::from_bytes(&onto, &bytes).expect("must decode"),
-        );
+        )
+        .expect("a snapshot restores under its own ontology");
         let empty_restored = World::new(&onto).snapshot();
         let restored_diff = restored.diff(&empty_restored);
 
@@ -1119,7 +1150,8 @@ mod tests {
         let bytes = encode(&wire);
         let snapshot = Snapshot::from_bytes(&onto, &bytes)
             .expect("a forward reference within the same snapshot is legitimate");
-        let mut world = World::from_snapshot(&onto, snapshot);
+        let mut world = World::from_snapshot(&onto, snapshot)
+            .expect("a snapshot restores under its own ontology");
         let p1 = t(&mut world, "p1");
         let seen_in = t(&mut world, "seenIn");
         let e1 = t(&mut world, "e1");
@@ -1152,6 +1184,72 @@ mod tests {
         match err {
             HorismosError::ValidationRejected { witness } => {
                 assert_eq!(witness.kind, ConstraintKind::UnknownReference);
+            }
+            other => panic!("expected ValidationRejected, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn a_snapshot_does_not_restore_under_a_different_ontology() {
+        // Installing a snapshot behind another ontology's gate would admit
+        // never-gated state and silently re-map every interned token
+        // (queries answering for the wrong classes) — from_snapshot refuses
+        // the pairing outright.
+        let mut world = spread_world();
+        let patient = t(&mut world, "Patient");
+        world
+            .assert_instance(patient, [])
+            .expect("a bare patient is valid");
+        let snapshot = world.snapshot();
+
+        let other = Ontology::load_from_str(&format!("{PRELUDE}:Zebra a rdfs:Class .\n"), |_| None)
+            .expect("the other ontology must load");
+        let err = World::from_snapshot(&other, snapshot.clone())
+            .expect_err("a foreign ontology must be refused");
+        match err {
+            HorismosError::SnapshotMismatch { reason } => {
+                assert!(reason.contains("different ontology"), "{reason}");
+            }
+            other => panic!("expected SnapshotMismatch, got {other:?}"),
+        }
+
+        // Content-based, not pointer-based: an identically-loaded ontology
+        // is interchangeable with the one the snapshot was taken under.
+        let same = spread_world().ontology().clone();
+        World::from_snapshot(&same, snapshot)
+            .expect("an identically-loaded ontology is the same ontology");
+    }
+
+    #[test]
+    fn a_rules_only_fact_does_not_survive_the_wire_form_yet() {
+        // Pins the documented PRP-001 limitation (see from_bytes's rustdoc
+        // and the dated gap note in the PRP): the wire form carries no fact
+        // provenance, restoration re-gates as Api, and check 5 refuses the
+        // rule-assigned acuity. When PRP-002 puts provenance on the wire,
+        // this test should flip to a round-trip success.
+        let mut world = triage_world();
+        let patient = world.intern("https://example.org/triage#Patient");
+        let acuity = world.intern("https://example.org/triage#acuity");
+        let immediate = world.intern("https://example.org/triage#Immediate");
+        world
+            .assert_instance_as(
+                Provenance::Rule,
+                None,
+                patient,
+                [(acuity, Value::Ref(Ref::new(immediate)))],
+            )
+            .expect("a rule may assign acuity");
+
+        let bytes = world.snapshot().to_bytes();
+        let err = Snapshot::from_bytes(world.ontology(), &bytes)
+            .expect_err("PRP-001 wire form cannot restore a RulesOnly fact");
+        match err {
+            HorismosError::ValidationRejected { witness } => {
+                assert!(
+                    matches!(witness.kind, ConstraintKind::ProvenanceRefused { .. }),
+                    "unexpected kind: {:?}",
+                    witness.kind
+                );
             }
             other => panic!("expected ValidationRejected, got {other:?}"),
         }

@@ -81,3 +81,12 @@ becomes authoritative when the PRP activates.
   so `from_bytes` re-validates everything as `Provenance::Api` — a snapshot
   holding a `RulesOnly` fact will not restore until fact provenance travels
   with the wire form. Owned by PRP-002 (traces record provenance anyway).
+  Pinned by `a_rules_only_fact_does_not_survive_the_wire_form_yet` and
+  documented on `Snapshot::from_bytes`.
+- 2026-07-29 (final review) — **`Iri` tokens carry no world provenance**: a
+  token minted by one world, used against another, resolves to a silently
+  wrong IRI whenever the index is in range (documented on
+  `Interner::resolve`). Mitigated for snapshots by `from_snapshot`'s
+  interner-prefix check; the general question is
+  **[DECIDE: `Iri` world-provenance tagging — PRP-003]** (the PyO3 surface
+  makes cross-world tokens easy to produce from Python).

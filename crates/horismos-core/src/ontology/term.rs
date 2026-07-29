@@ -71,9 +71,48 @@ impl Interner {
     /// Resolves a token back to its interned string.
     ///
     /// # Panics
-    /// Panics if `iri` was not produced by this `Interner`.
+    /// Panics if `iri`'s index is beyond this arena. A token minted by a
+    /// *different* interner whose index happens to be in range resolves to
+    /// whatever string this arena holds at that index — a silently wrong
+    /// answer, not a panic. Tokens are only meaningful relative to the
+    /// interner that minted them; carrying one across worlds is a caller
+    /// bug (**[DECIDE: `Iri` world-provenance tagging — PRP-003]**).
     pub fn resolve(&self, iri: Iri) -> &str {
         &self.strings[iri.0 as usize]
+    }
+
+    /// The number of interned strings — paired with [`Interner::truncate_to`]
+    /// for the one rollback the world performs (see there).
+    pub(crate) fn len(&self) -> usize {
+        self.strings.len()
+    }
+
+    /// Drops every entry from index `len` up — the rollback half of the
+    /// world's rejected-anonymous-assertion path, which interns a skolem
+    /// string *before* the gate runs and must un-intern it on rejection so
+    /// a rejected transaction leaves no observable state, token order
+    /// included ("trace equality is a valid test assertion", CLAUDE.md).
+    /// Only ever called with a `len` captured from this same arena moments
+    /// earlier; anything beyond simple truncation would be a misuse.
+    pub(crate) fn truncate_to(&mut self, len: usize) {
+        while self.strings.len() > len {
+            let s = self.strings.pop().expect("guarded by the loop condition");
+            self.ids.remove(&s);
+        }
+    }
+
+    /// True when every entry of `self` appears in `other` at the same index
+    /// — i.e. `other` was grown from `self` by appends only. Because an
+    /// interner is append-only, this is exactly "a world over this ontology
+    /// could have produced `other`": [`crate::World::from_snapshot`] uses it
+    /// to refuse a snapshot taken under a different ontology.
+    pub(crate) fn is_prefix_of(&self, other: &Interner) -> bool {
+        self.strings.len() <= other.strings.len()
+            && self
+                .strings
+                .iter()
+                .zip(other.strings.iter())
+                .all(|(a, b)| a == b)
     }
 }
 

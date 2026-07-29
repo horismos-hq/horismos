@@ -163,7 +163,8 @@ fn the_definition_of_done_run() {
     let restored = World::from_snapshot(
         &onto,
         Snapshot::from_bytes(&onto, &bytes).expect("own bytes restore"),
-    );
+    )
+    .expect("a snapshot restores under its own ontology");
     assert_eq!(restored.instance_count(), world.instance_count());
 
     let mut tampered = bytes.clone();
@@ -175,7 +176,8 @@ fn the_definition_of_done_run() {
     if let Ok(snapshot) = Snapshot::from_bytes(&onto, &tampered) {
         // If the flip happened to keep the payload decodable and valid, the
         // restored world must still gate exactly like the original.
-        let w = World::from_snapshot(&onto, snapshot);
+        let w = World::from_snapshot(&onto, snapshot)
+            .expect("a snapshot restores under its own ontology");
         assert!(w.instance_count() <= world.instance_count() + 1);
     }
 

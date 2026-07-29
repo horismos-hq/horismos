@@ -299,14 +299,18 @@ impl World {
         properties: impl IntoIterator<Item = (Iri, Value)>,
     ) -> Result<Ref, HorismosError> {
         let properties: Vec<(Iri, Value)> = properties.into_iter().collect();
+        // The gate needs a token for the candidate subject, so an anonymous
+        // assertion interns its skolem IRI *before* the checks run — and
+        // must un-intern it on rejection: token order is observable through
+        // `to_bytes` and `instances()` iteration, so a leftover slot would
+        // make a rejected transaction distinguishable from one that never
+        // happened. `next_skolem` — observable through the next assertion's
+        // IRI — likewise advances only on commit below. Check 1 keeps
+        // callers out of this namespace, so the id the counter is holding
+        // is always free.
+        let interner_len_before = self.interner.len();
         let subject = match subject {
             Some(iri) => gate::Subject::Named(iri),
-            // Interning the skolem IRI is not observable world state (the
-            // arena is a pure name table), so it is safe to do before the
-            // gate runs; `next_skolem` — which *is* observable, through the
-            // next assertion's IRI — advances only on commit below. Check 1
-            // keeps callers out of this namespace, so the id the counter is
-            // holding is always free.
             None => {
                 let text = format!("{SKOLEM_NAMESPACE}{}", self.next_skolem);
                 gate::Subject::Skolem(self.intern(&text))
@@ -314,8 +318,15 @@ impl World {
         };
         let subject_iri = subject.iri();
 
-        let instance = gate::check_assertion(self, provenance, subject, class, &properties)
-            .map_err(|witness| HorismosError::ValidationRejected { witness })?;
+        let instance = match gate::check_assertion(self, provenance, subject, class, &properties) {
+            Ok(instance) => instance,
+            Err(witness) => {
+                if self.interner.len() > interner_len_before {
+                    Arc::make_mut(&mut self.interner).truncate_to(interner_len_before);
+                }
+                return Err(HorismosError::ValidationRejected { witness });
+            }
+        };
 
         // Commit. Forward chaining to a fixed point, constraint re-check on
         // derived facts, subscriber notification, and the trace append (doc
