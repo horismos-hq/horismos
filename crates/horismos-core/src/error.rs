@@ -4,10 +4,12 @@
 //! domain terms ("heartRate 1280 exceeds horis:max 300 (bpm) on :Patient"),
 //! plus a machine-readable structure used by the perception retry loop.
 //!
-//! U1 ships only the `Ontology` variant (term/value parse failures). The
-//! remaining variants (`VerificationFailed`, `ValidationRejected`,
-//! `WorkflowError`, `BridgeError`, `ToolError`) are added by their owning
-//! units/PRPs as those pieces land — see `.claude/skills/pyo3-boundary`.
+//! U1/U2 ship only term/value/Turtle-syntax variants. U3 adds RDFS-plus
+//! profile violations; U4 adds schema-build errors (subclass cycles,
+//! min>max, oneOf/domain/range misuse). The remaining variants
+//! (`VerificationFailed`, `ValidationRejected`, `WorkflowError`,
+//! `BridgeError`, `ToolError`) are added by their owning units/PRPs as those
+//! pieces land — see `.claude/skills/pyo3-boundary`.
 //!
 //! Spec: `docs/framework/12-rust-api.md` (§ Errors) · Owner: PRP-001
 
@@ -45,6 +47,72 @@ pub enum OntologyError {
         column: u64,
         message: String,
     },
+
+    // -- U3: RDFS-plus profile validation --------------------------------
+    /// An `rdf:`/`rdfs:`/`owl:`/`xsd:` term outside the RDFS-plus profile
+    /// (e.g. `owl:Restriction`, `xsd:anyURI`, `rdf:Bag`).
+    #[error("{term} is outside the RDFS-plus profile")]
+    OutOfProfileTerm { term: String },
+
+    /// A `horis:` term that is not part of the documented vocabulary
+    /// (`docs/framework/02-ontology.md`).
+    #[error("no such term in the horis: vocabulary: {term}")]
+    UnknownHorisTerm { term: String },
+
+    /// A literal whose datatype is not one of the six XSD types the profile
+    /// supports, or a language-tagged string (the profile has no vocabulary
+    /// for `rdf:langString`).
+    #[error(
+        "{datatype} is not part of the RDFS-plus XSD datatype subset (xsd:decimal, xsd:integer, xsd:string, xsd:boolean, xsd:dateTime, xsd:duration)"
+    )]
+    DatatypeNotInProfile { datatype: String },
+
+    /// A `horis:cardinality` object other than `"1"`, `"0..1"`, `"1..*"`, or
+    /// `"0..*"`.
+    #[error(
+        "{value:?} is not a valid horis:cardinality value (expected \"1\", \"0..1\", \"1..*\", or \"0..*\")"
+    )]
+    InvalidCardinality { value: String },
+
+    /// A `horis:assignedBy` object other than `horis:RulesOnly`,
+    /// `horis:PerceptionAllowed`, or `horis:ToolsOnly`.
+    #[error(
+        "{value} is not a valid horis:assignedBy object (expected horis:RulesOnly, horis:PerceptionAllowed, or horis:ToolsOnly)"
+    )]
+    InvalidAssignedBy { value: String },
+
+    /// One or more profile violations found in a single validation pass
+    /// (`ontology::profile::validate` reports all of them, not just the
+    /// first). `domain_text()` joins each violation's own `domain_text()`.
+    #[error("ontology has {} RDFS-plus profile violation(s)", .0.len())]
+    ProfileViolations(Vec<OntologyError>),
+
+    // -- U4: schema build -------------------------------------------------
+    /// `rdfs:subClassOf` edges form a cycle.
+    #[error("subClassOf cycle: {cycle}")]
+    SubclassCycle { cycle: String },
+
+    /// A property's `horis:min` is greater than its `horis:max`.
+    #[error("{property} horis:min {min} exceeds horis:max {max}")]
+    MinExceedsMax {
+        property: String,
+        min: String,
+        max: String,
+    },
+
+    /// `horis:oneOf` was declared on a subject that is not a declared
+    /// `rdfs:Class`.
+    #[error("{subject} horis:oneOf is declared but {subject} is not a declared rdfs:Class")]
+    OneOfOnNonClass { subject: String },
+
+    /// A property's `rdfs:domain`/`rdfs:range` names a class that is not
+    /// declared anywhere in the schema.
+    #[error("{property} rdfs:{position} names {class}, which is not a declared rdfs:Class")]
+    UndeclaredClass {
+        property: String,
+        position: String,
+        class: String,
+    },
 }
 
 impl OntologyError {
@@ -67,8 +135,18 @@ impl OntologyError {
         }
     }
 
-    /// The failing constraint, stated in domain vocabulary.
+    /// The failing constraint, stated in domain vocabulary. For
+    /// [`OntologyError::ProfileViolations`] this joins every violation's own
+    /// `domain_text()` rather than the aggregate `Display` summary, so a
+    /// caller sees the full list without unwrapping the variant itself.
     pub fn domain_text(&self) -> String {
-        self.to_string()
+        match self {
+            Self::ProfileViolations(violations) => violations
+                .iter()
+                .map(OntologyError::domain_text)
+                .collect::<Vec<_>>()
+                .join("; "),
+            other => other.to_string(),
+        }
     }
 }
