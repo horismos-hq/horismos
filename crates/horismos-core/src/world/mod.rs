@@ -36,7 +36,12 @@ use crate::ontology::term::{Interner, Iri, Ref, Value};
 /// per-world counter that only advances when an assertion *commits*, so the
 /// same sequence of operations against two fresh worlds mints exactly the
 /// same IRIs — no randomness, no wall-clock (CLAUDE.md determinism rule).
-const SKOLEM_NAMESPACE: &str = "https://w3id.org/horismos/.well-known/genid/";
+///
+/// The space is **reserved**: the gate refuses a caller-supplied subject IRI
+/// under it ([`gate::ConstraintKind::ReservedSubject`]), because the
+/// commit-only counter makes a squatter there wedge anonymous assertion
+/// outright — see [`gate`]'s check 1.
+pub(crate) const SKOLEM_NAMESPACE: &str = "https://w3id.org/horismos/.well-known/genid/";
 
 /// Where a mutation came from. The validation gate matches it against each
 /// property's `horis:assignedBy` policy — the property-level enforcement of
@@ -204,7 +209,8 @@ impl World {
     /// it under the gate's cardinality rules (single-valued properties are
     /// replaced, multi-valued ones extended, `horis:immutable` ones
     /// rejected); re-asserting an existing subject as a *different* class is
-    /// rejected. Provenance defaults to [`Provenance::Api`].
+    /// rejected. `subject` may not lie in the reserved [`SKOLEM_NAMESPACE`].
+    /// Provenance defaults to [`Provenance::Api`].
     pub fn assert_named_instance(
         &mut self,
         subject: Iri,
@@ -230,19 +236,22 @@ impl World {
         properties: impl IntoIterator<Item = (Iri, Value)>,
     ) -> Result<Ref, HorismosError> {
         let properties: Vec<(Iri, Value)> = properties.into_iter().collect();
-        let (subject_iri, minted) = match subject {
-            Some(iri) => (iri, false),
+        let subject = match subject {
+            Some(iri) => gate::Subject::Named(iri),
             // Interning the skolem IRI is not observable world state (the
             // arena is a pure name table), so it is safe to do before the
             // gate runs; `next_skolem` — which *is* observable, through the
-            // next assertion's IRI — advances only on commit below.
+            // next assertion's IRI — advances only on commit below. Check 1
+            // keeps callers out of this namespace, so the id the counter is
+            // holding is always free.
             None => {
                 let text = format!("{SKOLEM_NAMESPACE}{}", self.next_skolem);
-                (self.interner.intern(&text), true)
+                gate::Subject::Skolem(self.interner.intern(&text))
             }
         };
+        let subject_iri = subject.iri();
 
-        let instance = gate::check_assertion(self, provenance, subject_iri, class, &properties)
+        let instance = gate::check_assertion(self, provenance, subject, class, &properties)
             .map_err(|witness| HorismosError::ValidationRejected { witness })?;
 
         // Commit. Forward chaining to a fixed point, constraint re-check on
@@ -250,7 +259,7 @@ impl World {
         // 03 § Transactions) slot in here, between the gate and the return —
         // PRP-002/004.
         self.instances.insert(subject_iri, instance);
-        if minted {
+        if matches!(subject, gate::Subject::Skolem(_)) {
             self.next_skolem += 1;
         }
         Ok(Ref::new(subject_iri))
@@ -269,10 +278,25 @@ impl World {
         self.retract_as(Provenance::Api, subject, property, value)
     }
 
-    /// Retracts one fact, stating where the retraction came from. Passes the
-    /// same policy checks as an assertion (doc 03), and is rejected if
-    /// removing the value would leave an instance that remains present
-    /// violating a `horis:cardinality` minimum.
+    /// Retracts one fact, stating where the retraction came from.
+    ///
+    /// The gate checks, in order — a rejection leaves the world untouched,
+    /// exactly as on the assertion path:
+    ///
+    /// 1. the world holds `subject`;
+    /// 2. `property` is declared by the ontology;
+    /// 3. `subject` actually holds `value` for `property`;
+    /// 4. removing it would not leave `subject` below `property`'s
+    ///    `horis:cardinality` minimum;
+    /// 5. `property`'s `horis:assignedBy` policy admits `provenance` — the
+    ///    same check 5, and the same errors, as an assertion.
+    ///
+    /// It is **not** the full assertion gate. `rdfs:domain`/`rdfs:range`,
+    /// `horis:min`/`max`/`pattern`/`oneOf`, and cardinality *maxima* all
+    /// constrain what may enter the world and cannot be violated by removal,
+    /// so they do not run. `horis:immutable` does not run either, which means
+    /// retract-then-assert can today replace an immutable value — see
+    /// [`gate::check_retraction`] for that **[DECIDE: PRP-002]**.
     ///
     /// The unit of retraction is one *fact*, deliberately: whole-instance
     /// retraction would have to answer what happens to facts referencing the
@@ -904,6 +928,92 @@ mod tests {
             run(&mut second).0,
             "https://w3id.org/horismos/.well-known/genid/2",
             "ids keep advancing within one world"
+        );
+    }
+
+    #[test]
+    fn a_caller_may_not_name_an_instance_in_the_skolem_namespace() {
+        let mut world = triage_world();
+        let patient = tri(&mut world, "Patient");
+        let squat = world.intern("https://w3id.org/horismos/.well-known/genid/0");
+
+        let err = world
+            .assert_named_instance(squat, patient, [])
+            .expect_err("the skolem namespace is the world's to mint into");
+
+        let w = witness_of(&err);
+        assert_eq!(
+            w.kind,
+            ConstraintKind::ReservedSubject {
+                namespace: "https://w3id.org/horismos/.well-known/genid/".to_owned()
+            }
+        );
+        assert_eq!(w.operation, Operation::Assert);
+        assert_eq!(
+            err.domain_text(),
+            "<https://w3id.org/horismos/.well-known/genid/0> is in \
+             https://w3id.org/horismos/.well-known/genid/, the namespace reserved for \
+             anonymous instances; only the world may name instances there"
+        );
+        assert_eq!(world.instance_count(), 0);
+    }
+
+    #[test]
+    fn a_squatted_skolem_iri_cannot_wedge_anonymous_assertion() {
+        // The counter advances only on commit, so an occupied next-id would
+        // make *every* later anonymous assertion re-mint the same taken IRI
+        // and fail identically — forever. Check 1 refuses the squat instead.
+        let mut world = triage_world();
+        let patient = tri(&mut world, "Patient");
+        let encounter = tri(&mut world, "Symptom");
+        let heart_rate = tri(&mut world, "heartRate");
+        let squat = world.intern("https://w3id.org/horismos/.well-known/genid/0");
+
+        world
+            .assert_named_instance(squat, encounter, [])
+            .expect_err("refused, so genid/0 stays free");
+
+        let first = world
+            .assert_instance(patient, [(heart_rate, Value::Integer(128))])
+            .expect("anonymous assertion must still work");
+        let second = world
+            .assert_instance(patient, [(heart_rate, Value::Integer(96))])
+            .expect("and keep working");
+
+        assert_eq!(
+            world.resolve(first.iri()),
+            "https://w3id.org/horismos/.well-known/genid/0"
+        );
+        assert_eq!(
+            world.resolve(second.iri()),
+            "https://w3id.org/horismos/.well-known/genid/1"
+        );
+    }
+
+    #[test]
+    fn a_squatted_skolem_iri_cannot_silently_absorb_an_anonymous_instance() {
+        // The same-class variant of the wedge: without the check, the caller's
+        // instance is already at genid/0, so the anonymous assertion merges
+        // into it and *replaces* its single-valued heartRate.
+        let mut world = triage_world();
+        let patient = tri(&mut world, "Patient");
+        let heart_rate = tri(&mut world, "heartRate");
+        let squat = world.intern("https://w3id.org/horismos/.well-known/genid/0");
+
+        world
+            .assert_named_instance(squat, patient, [(heart_rate, Value::Integer(200))])
+            .expect_err("refused even when the class matches");
+
+        let p = world
+            .assert_instance(patient, [(heart_rate, Value::Integer(128))])
+            .expect("accepted");
+
+        assert_eq!(world.instance_count(), 1, "the squat stored nothing");
+        assert_eq!(world.resolve(p.iri()), world.resolve(squat));
+        assert_eq!(
+            world.values(p, heart_rate).cloned().collect::<Vec<_>>(),
+            vec![Value::Integer(128)],
+            "the anonymous instance is its own, not a merge into a caller's"
         );
     }
 

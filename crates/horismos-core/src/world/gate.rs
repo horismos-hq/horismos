@@ -45,9 +45,34 @@ use rust_decimal::Decimal;
 
 use crate::ontology::schema::{AssignedBy, Cardinality, PropertyDecl, PropertyRange, Schema};
 use crate::ontology::term::{Datatype, Iri, Ref, Value};
-use crate::world::{Instance, Provenance, World};
+use crate::world::{Instance, Provenance, SKOLEM_NAMESPACE, World};
 
 // -- The witness -----------------------------------------------------------
+
+/// Where an assertion's subject IRI came from — which decides whether it may
+/// live in the reserved skolem namespace.
+///
+/// The distinction is load-bearing, not cosmetic: the skolem counter advances
+/// only on commit, so a caller-supplied IRI squatting on the *next* id would
+/// wedge anonymous assertion permanently (every subsequent
+/// `assert_instance` would mint the same taken IRI, be refused, and leave the
+/// counter where it was). Check 1 refuses the squat instead.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Subject {
+    /// The caller named the instance (`World::assert_named_instance`).
+    Named(Iri),
+    /// The world skolemized an anonymous instance (`World::assert_instance`).
+    Skolem(Iri),
+}
+
+impl Subject {
+    /// The IRI either way.
+    pub fn iri(self) -> Iri {
+        match self {
+            Self::Named(iri) | Self::Skolem(iri) => iri,
+        }
+    }
+}
 
 /// Which kind of mutation the gate was asked to admit. Rejection texts
 /// differ between the two (a min-cardinality bound is broken by *omission*
@@ -85,6 +110,12 @@ pub enum ConstraintKind {
     ClassConflict {
         /// The class the subject was originally asserted as, prefixed.
         existing: String,
+    },
+    /// A caller named an instance inside the namespace the world reserves for
+    /// skolemizing anonymous ones.
+    ReservedSubject {
+        /// The reserved namespace, as a full IRI prefix.
+        namespace: String,
     },
 
     // -- check 2 -----------------------------------------------------------
@@ -213,7 +244,7 @@ pub struct Witness {
 pub fn check_assertion(
     world: &World,
     provenance: Provenance,
-    subject: Iri,
+    subject: Subject,
     class: Iri,
     properties: &[(Iri, Value)],
 ) -> Result<Instance, Box<Witness>> {
@@ -221,11 +252,11 @@ pub fn check_assertion(
         world,
         provenance,
         operation: Operation::Assert,
-        subject,
+        subject: subject.iri(),
         class,
     };
 
-    gate.check_class()?;
+    gate.check_class(subject)?;
     gate.check_domain_and_range(properties)?;
     gate.check_constraints(properties)?;
     let candidate = gate.check_cardinality(properties)?;
@@ -236,8 +267,26 @@ pub fn check_assertion(
 /// Runs the retraction checks over the removal of one fact, returning the
 /// [`Instance`] the caller should store in the subject's place.
 ///
+/// The checks, in order: the subject is in the world; the property is
+/// declared; the fact is actually held; removing it would not break the
+/// property's `horis:cardinality` minimum; and the `horis:assignedBy` policy
+/// admits this provenance (check 5, shared with assertion).
+///
+/// The assertion-only checks do *not* re-run, and cannot: `rdfs:range`,
+/// `horis:min`/`max`/`pattern`/`oneOf`, and cardinality *maxima* all constrain
+/// what may enter the world, and removal cannot violate them.
+///
+/// `horis:immutable` is the one that is arguably not in that category.
+/// Retraction does not consult it today, so a caller with adequate provenance
+/// can retract an immutable fact and assert a different value in its place —
+/// defeating "once set, cannot be re-asserted with a different value"
+/// (`docs/framework/02-ontology.md`) in two steps. Whether retraction should
+/// refuse immutable facts is **[DECIDE: retraction vs `horis:immutable` —
+/// PRP-002]**, which already owns retraction semantics per doc 03; it is not
+/// settled here.
+///
 /// Retraction is per *fact*, and every fact a U6 world holds is a base fact:
-/// retraction of rule-derived facts is **[DECIDE: PRP-002]**.
+/// retraction of rule-derived facts is likewise **[DECIDE: PRP-002]**.
 pub fn check_retraction(
     world: &World,
     provenance: Provenance,
@@ -381,14 +430,35 @@ impl Gate<'_> {
 
     // -- check 1 -----------------------------------------------------------
 
-    /// **Check 1.** The asserted class is declared — by the root graph or by
-    /// an import (U5 merges both into one [`Schema`]) — and the subject, if
-    /// the world already holds it, was asserted as that same class.
+    /// **Check 1.** The subject may be named by whoever named it, the
+    /// asserted class is declared — by the root graph or by an import (U5
+    /// merges both into one [`Schema`]) — and the subject, if the world
+    /// already holds it, was asserted as that same class.
+    ///
+    /// A caller may not name an instance inside [`SKOLEM_NAMESPACE`]: that
+    /// space belongs to the world's own counter, and a squatter there is not
+    /// merely untidy but *wedging*. Because the counter advances only on
+    /// commit, an occupied next-id makes every subsequent anonymous assertion
+    /// re-mint the same taken IRI and fail identically, forever; and where the
+    /// squatter happens to share the asserted class, the anonymous assertion
+    /// would silently merge into the caller's instance instead, replacing its
+    /// single-valued properties. Refusing the name closes both.
     ///
     /// The class must be declared under the exact IRI asserted: an
     /// `owl:sameAs` anchor makes two IRIs interchangeable for *subsumption*
     /// (check 2), not for declaration.
-    fn check_class(&self) -> Result<(), Box<Witness>> {
+    fn check_class(&self, subject: Subject) -> Result<(), Box<Witness>> {
+        if let Subject::Named(iri) = subject
+            && self.world.resolve(iri).starts_with(SKOLEM_NAMESPACE)
+        {
+            return Err(self.reject(
+                None,
+                None,
+                ConstraintKind::ReservedSubject {
+                    namespace: SKOLEM_NAMESPACE.to_owned(),
+                },
+            ));
+        }
         if self.schema().class(self.class).is_none() {
             return Err(self.reject(None, None, ConstraintKind::ClassNotDeclared));
         }
@@ -765,6 +835,9 @@ impl Gate<'_> {
             }
             ConstraintKind::ClassConflict { existing } => format!(
                 "{subject} is already an instance of {existing}; it cannot be re-asserted as {class}"
+            ),
+            ConstraintKind::ReservedSubject { namespace } => format!(
+                "{subject} is in {namespace}, the namespace reserved for anonymous instances; only the world may name instances there"
             ),
             ConstraintKind::PropertyNotDeclared => {
                 format!("{name} is not a declared property in the ontology")

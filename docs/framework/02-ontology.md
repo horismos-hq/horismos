@@ -78,6 +78,11 @@ decides": the validation gate rejects any perception output that tries to set it
 | `horis:assignedBy` | property | `horis:RulesOnly` \| `horis:PerceptionAllowed` (default) \| `horis:ToolsOnly` |
 | `horis:immutable` | property | Once set, cannot be re-asserted with a different value |
 
+`horis:immutable` binds assertion. Whether it also binds **retraction** — today
+`world.retract` does not consult it, so retract-then-assert replaces an immutable
+value in two steps — is open: **[DECIDE: retraction vs `horis:immutable` — PRP-002]**,
+which owns retraction semantics (doc 03).
+
 Constraints are enforced at two moments: at the **gate** (every assertion, doc 03) and
 at **verification** (they bound the BDD variable domains, doc 10).
 
