@@ -32,7 +32,12 @@ pub struct Iri(u32);
 /// randomized hasher or its iteration order — so behavior is deterministic
 /// across runs, satisfying the no-iteration-order-dependence rule
 /// (CLAUDE.md).
-#[derive(Debug, Default)]
+/// Cloning is a deep copy of the arena. That is exactly what
+/// [`crate::world::World::new`] does: a world starts from its ontology's
+/// interner — so every schema `Iri` keeps its token — and interns instance
+/// IRIs into its own copy from there, leaving the (immutable, shareable)
+/// ontology untouched.
+#[derive(Debug, Default, Clone)]
 pub struct Interner {
     strings: Vec<String>,
     ids: HashMap<String, Iri>,
@@ -54,6 +59,13 @@ impl Interner {
         self.strings.push(iri.to_owned());
         self.ids.insert(iri.to_owned(), id);
         id
+    }
+
+    /// The token for `iri` if it has already been interned — the lookup-only
+    /// counterpart of [`Interner::intern`], for callers that must not mutate
+    /// the arena (an immutable [`crate::Ontology`], say).
+    pub fn get(&self, iri: &str) -> Option<Iri> {
+        self.ids.get(iri).copied()
     }
 
     /// Resolves a token back to its interned string.

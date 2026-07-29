@@ -9,13 +9,17 @@
 //! min>max, oneOf/domain/range misuse); U5 adds named-graph import errors
 //! (missing/cyclic imports, duplicate graph names, prefix conflicts) and
 //! attributes a profile violation to the graph it came from. The remaining
-//! variants (`VerificationFailed`, `ValidationRejected`, `WorkflowError`,
-//! `BridgeError`, `ToolError`) are added by their owning units/PRPs as those
-//! pieces land — see `.claude/skills/pyo3-boundary`.
+//! variants (`VerificationFailed`, `WorkflowError`, `BridgeError`,
+//! `ToolError`) are added by their owning units/PRPs as those pieces land —
+//! see `.claude/skills/pyo3-boundary`. U6 adds `ValidationRejected`, whose
+//! witness type lives with the gate that produces it
+//! (`crate::world::gate`).
 //!
 //! Spec: `docs/framework/12-rust-api.md` (§ Errors) · Owner: PRP-001
 
 use thiserror::Error;
+
+use crate::world::gate::Witness;
 
 /// The top-level Horismos error type; mirrors the Python `HorismosError`
 /// exception hierarchy 1:1.
@@ -24,6 +28,14 @@ pub enum HorismosError {
     /// An error raised while parsing or interpreting ontology-level terms.
     #[error(transparent)]
     Ontology(#[from] OntologyError),
+
+    /// The validation gate rejected a World mutation
+    /// (`docs/framework/03-world.md`). `witness` carries both the rendered
+    /// domain-term sentence and the machine-readable structure the
+    /// perception retry loop (doc 06) consumes. Boxed to keep
+    /// `HorismosError` small.
+    #[error("{}", .witness.text)]
+    ValidationRejected { witness: Box<Witness> },
 }
 
 impl HorismosError {
@@ -31,6 +43,15 @@ impl HorismosError {
     pub fn domain_text(&self) -> String {
         match self {
             Self::Ontology(e) => e.domain_text(),
+            Self::ValidationRejected { witness } => witness.text.clone(),
+        }
+    }
+
+    /// The rejection witness, if this error is a gate rejection.
+    pub fn witness(&self) -> Option<&Witness> {
+        match self {
+            Self::ValidationRejected { witness } => Some(witness),
+            _ => None,
         }
     }
 }
@@ -152,6 +173,18 @@ pub enum OntologyError {
         prefix: String,
         a: String,
         b: String,
+    },
+
+    // -- U6: the Ontology facade ------------------------------------------
+    /// A property's `horis:pattern` is not a valid regular expression.
+    /// Patterns are compiled once when the [`crate::Ontology`] is assembled,
+    /// so this is a *load* error — the validation gate never has to fail on
+    /// a malformed pattern.
+    #[error("{property} horis:pattern {pattern:?} is not a valid regular expression: {reason}")]
+    InvalidPattern {
+        property: String,
+        pattern: String,
+        reason: String,
     },
 }
 

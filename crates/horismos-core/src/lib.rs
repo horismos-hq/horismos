@@ -23,8 +23,11 @@ pub mod world;
 pub mod wasm;
 
 // Core types (docs/framework/12-rust-api.md § Core types): interned
-// identifiers and typed values, re-exported at the crate root.
+// identifiers and typed values, the loaded ontology, and the instance store,
+// re-exported at the crate root.
+pub use ontology::Ontology;
 pub use ontology::term::{Datatype, Interner, Iri, Ref, Value, XsdDuration};
+pub use world::{Provenance, World};
 
 /// The RDFS-plus profile version this engine targets
 /// (`horis:profileVersion`, docs/framework/02-ontology.md).

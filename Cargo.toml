@@ -30,6 +30,14 @@ rust_decimal = { version = "1", default-features = false, features = ["std"] }
 # not the oxigraph store — horismos-core keeps its own interned triple store.
 oxttl = { version = "0.2", default-features = false }
 oxrdf = { version = "0.3", default-features = false }
+# Persistent (HAMT/RRB) collections for the World's instance store (decision
+# D4, PRP-001 U6/U8): O(1) snapshots by structural sharing. `imbl` is the
+# maintained fork of `im`. Pure, no I/O — safe for the wasm/no-model gate.
+imbl = "7"
+# horis:pattern evaluation at the validation gate (PRP-001 U6). Pure and
+# wasm-safe; no unicode-table features are dropped, since patterns come from
+# authored ontologies and may match any XSD string.
+regex = "1"
 
 [workspace.lints.rust]
 unsafe_code = "deny"

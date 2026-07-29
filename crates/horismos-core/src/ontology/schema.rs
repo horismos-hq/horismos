@@ -63,6 +63,27 @@ pub enum Cardinality {
 }
 
 impl Cardinality {
+    /// The declared lexical form, for domain-term errors ("… but
+    /// horis:cardinality \"0..1\" allows at most one value …").
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::One => "1",
+            Self::ZeroOrOne => "0..1",
+            Self::OneOrMany => "1..*",
+            Self::ZeroOrMany => "0..*",
+        }
+    }
+
+    /// True for `"1"` and `"0..1"` — the bounds that admit at most one value.
+    pub fn is_single_valued(self) -> bool {
+        matches!(self, Self::One | Self::ZeroOrOne)
+    }
+
+    /// True for `"1"` and `"1..*"` — the bounds that require a value.
+    pub fn requires_a_value(self) -> bool {
+        matches!(self, Self::One | Self::OneOrMany)
+    }
+
     fn parse(raw: &str) -> Option<Self> {
         match raw {
             "1" => Some(Self::One),
