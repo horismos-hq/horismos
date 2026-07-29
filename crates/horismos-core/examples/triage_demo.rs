@@ -31,7 +31,7 @@ fn main() {
     println!("== 2 · The gate rejects, in domain terms ==");
     let err = world
         .assert_instance(patient, [(heart_rate, Value::Decimal(Decimal::from(1280)))])
-        .unwrap_err();
+        .expect_err("the gate must refuse 1280 bpm");
     println!("heartRate 1280   → {}", err.domain_text());
 
     let err = world
@@ -41,12 +41,12 @@ fn main() {
             patient,
             [(acuity, Value::Ref(Ref::new(immediate)))],
         )
-        .unwrap_err();
+        .expect_err("the gate must refuse perception writing acuity");
     println!("LLM sets acuity  → {}", err.domain_text());
 
     let err = world
         .assert_instance(patient, [(has_symptom, Value::Ref(Ref::new(diaphoresis)))])
-        .unwrap_err();
+        .expect_err("the gate must refuse an out-of-range symptom");
     println!("diaphoresis as a :Symptom (not under the ChestPain anchor)");
     println!("                 → {}\n", err.domain_text());
 
