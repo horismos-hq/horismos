@@ -254,6 +254,7 @@ pub fn check_assertion(
         operation: Operation::Assert,
         subject: subject.iri(),
         class,
+        deferred: None,
     };
 
     gate.check_class(subject)?;
@@ -262,6 +263,74 @@ pub fn check_assertion(
     let candidate = gate.check_cardinality(properties)?;
     gate.check_assertion_provenance(properties)?;
     Ok(candidate)
+}
+
+/// An object reference check 2 could not settle during snapshot restoration
+/// because the referent had not been restored yet ([`Snapshot::from_bytes`]
+/// restores instances in wire order, and a legitimate world may hold
+/// reference cycles, so no restoration order settles every reference
+/// up front). [`check_restored_reference`] settles it once the store is
+/// complete.
+///
+/// [`Snapshot::from_bytes`]: crate::world::snapshot::Snapshot::from_bytes
+#[derive(Debug)]
+pub(crate) struct DeferredRef {
+    pub(crate) property: Iri,
+    pub(crate) value: Value,
+    pub(crate) range: Iri,
+}
+
+/// [`check_assertion`], in restoration mode: identical checks, except that an
+/// object reference whose referent is not (yet) in the store is *deferred*
+/// rather than refused. The caller must settle every returned [`DeferredRef`]
+/// with [`check_restored_reference`] once all instances are restored — until
+/// then the gate's guarantee is not yet re-established.
+pub(crate) fn check_assertion_restoring(
+    world: &World,
+    provenance: Provenance,
+    subject: Subject,
+    class: Iri,
+    properties: &[(Iri, Value)],
+) -> Result<(Instance, Vec<DeferredRef>), Box<Witness>> {
+    let deferred = std::cell::RefCell::new(Vec::new());
+    let gate = Gate {
+        world,
+        provenance,
+        operation: Operation::Assert,
+        subject: subject.iri(),
+        class,
+        deferred: Some(&deferred),
+    };
+
+    gate.check_class(subject)?;
+    gate.check_domain_and_range(properties)?;
+    gate.check_constraints(properties)?;
+    let candidate = gate.check_cardinality(properties)?;
+    gate.check_assertion_provenance(properties)?;
+    Ok((candidate, deferred.into_inner()))
+}
+
+/// Settles one [`DeferredRef`] against the now-complete restored store: the
+/// same referent-existence and range-subsumption rules as check 2's
+/// [`Gate::check_object_range`], producing the same witnesses. Runs with
+/// `deferred: None`, so an unresolved referent is refused here, not deferred
+/// again.
+pub(crate) fn check_restored_reference(
+    world: &World,
+    provenance: Provenance,
+    subject: Iri,
+    class: Iri,
+    deferred: &DeferredRef,
+) -> Result<(), Box<Witness>> {
+    let gate = Gate {
+        world,
+        provenance,
+        operation: Operation::Assert,
+        subject,
+        class,
+        deferred: None,
+    };
+    gate.check_object_range(deferred.property, &deferred.value, deferred.range)
 }
 
 /// Runs the retraction checks over the removal of one fact, returning the
@@ -303,6 +372,7 @@ pub fn check_retraction(
             operation: Operation::Retract,
             subject: subject.iri(),
             class: subject.iri(),
+            deferred: None,
         };
         return Err(gate.reject(
             Some(property),
@@ -317,6 +387,7 @@ pub fn check_retraction(
         operation: Operation::Retract,
         subject: subject.iri(),
         class: instance.class,
+        deferred: None,
     };
 
     let Some(decl) = gate.schema().property(property) else {
@@ -421,6 +492,10 @@ struct Gate<'a> {
     operation: Operation,
     subject: Iri,
     class: Iri,
+    /// `Some` only in restoration mode ([`check_assertion_restoring`]):
+    /// check 2 pushes an unresolvable object reference here instead of
+    /// refusing it. `None` on every live path.
+    deferred: Option<&'a std::cell::RefCell<Vec<DeferredRef>>>,
 }
 
 impl Gate<'_> {
@@ -576,6 +651,20 @@ impl Gate<'_> {
         };
 
         match referent_class {
+            // Restoration mode: the referent may simply not have been
+            // restored yet — defer the question to the post-restore pass
+            // instead of refusing ([`check_assertion_restoring`]).
+            None if self.deferred.is_some() => {
+                self.deferred
+                    .expect("guarded by the match arm")
+                    .borrow_mut()
+                    .push(DeferredRef {
+                        property,
+                        value: value.clone(),
+                        range,
+                    });
+                Ok(())
+            }
             None => Err(self.reject(
                 Some(property),
                 Some(value),

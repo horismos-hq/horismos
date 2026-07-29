@@ -133,6 +133,15 @@ impl Snapshot {
         })?;
 
         let mut world = World::new(ontology);
+        // Restoration is two-phase because wire order is interning order,
+        // not dependency order, and a legitimate world may hold reference
+        // cycles: phase 1 runs every gate check except unresolvable object
+        // references (deferred), phase 2 settles those against the complete
+        // store. The gate's guarantee holds at `Ok`: nothing is returned
+        // until every deferred reference has passed the same checks a live
+        // assertion would have run.
+        let mut deferred_by_subject = Vec::new();
+        let mut max_restored_skolem: Option<u64> = None;
         for wi in wire.instances {
             let subject = world.intern(&wi.subject);
             let class = world.intern(&wi.class);
@@ -143,7 +152,42 @@ impl Snapshot {
                     properties.push((property, value.into_value(&mut world)?));
                 }
             }
-            world.restore_instance(subject, class, properties)?;
+            if let Some(index) = wi
+                .subject
+                .strip_prefix(SKOLEM_NAMESPACE)
+                .and_then(|suffix| suffix.parse::<u64>().ok())
+            {
+                max_restored_skolem = Some(max_restored_skolem.map_or(index, |m| m.max(index)));
+            }
+            let deferred = world.restore_instance(subject, class, properties)?;
+            if !deferred.is_empty() {
+                deferred_by_subject.push((subject, class, deferred));
+            }
+        }
+        for (subject, class, deferred) in deferred_by_subject {
+            for d in deferred {
+                gate::check_restored_reference(&world, Provenance::Api, subject, class, &d)
+                    .map_err(|witness| HorismosError::ValidationRejected { witness })?;
+            }
+        }
+
+        // The counter is world state like any other: a wire counter at or
+        // below a restored skolem subject would let a later, legitimate
+        // anonymous assertion re-mint that subject's IRI and silently merge
+        // into it — the exact corruption check 1's reserved-namespace rule
+        // exists to prevent. Refuse the snapshot rather than repair it:
+        // bytes that inconsistent were tampered with or corrupted.
+        if let Some(max) = max_restored_skolem
+            && wire.next_skolem <= max
+        {
+            return Err(HorismosError::SnapshotFormat {
+                reason: format!(
+                    "snapshot skolem counter {} is not beyond its own restored \
+                     instance {SKOLEM_NAMESPACE}{max} — the snapshot is corrupt \
+                     or tampered with",
+                    wire.next_skolem
+                ),
+            });
         }
         world.next_skolem = wire.next_skolem;
         Ok(world.snapshot())
@@ -357,7 +401,11 @@ impl World {
     /// Restores one instance from a snapshot's wire form: runs the *same*
     /// gate a live assertion would (`Provenance::Api`), so a fact that could
     /// never have been asserted legitimately cannot be smuggled back in
-    /// through bytes ([`Snapshot::from_bytes`]'s controller pin).
+    /// through bytes ([`Snapshot::from_bytes`]'s controller pin). The one
+    /// deviation is deliberate and temporary: an object reference whose
+    /// referent is not yet in the store is returned as a
+    /// [`gate::DeferredRef`] for `from_bytes`'s post-restore pass instead of
+    /// being refused — wire order is interning order, not dependency order.
     ///
     /// A restored subject may legitimately fall inside [`SKOLEM_NAMESPACE`] —
     /// it was minted there by the *original* world's own counter — so this
@@ -372,16 +420,17 @@ impl World {
         subject: Iri,
         class: Iri,
         properties: Vec<(Iri, Value)>,
-    ) -> Result<(), HorismosError> {
+    ) -> Result<Vec<gate::DeferredRef>, HorismosError> {
         let kind = if self.resolve(subject).starts_with(SKOLEM_NAMESPACE) {
             Subject::Skolem(subject)
         } else {
             Subject::Named(subject)
         };
-        let instance = gate::check_assertion(self, Provenance::Api, kind, class, &properties)
-            .map_err(|witness| HorismosError::ValidationRejected { witness })?;
+        let (instance, deferred) =
+            gate::check_assertion_restoring(self, Provenance::Api, kind, class, &properties)
+                .map_err(|witness| HorismosError::ValidationRejected { witness })?;
         self.instances.insert(subject, instance);
-        Ok(())
+        Ok(deferred)
     }
 }
 
@@ -1004,6 +1053,105 @@ mod tests {
         match err {
             HorismosError::ValidationRejected { witness } => {
                 assert_eq!(witness.kind, ConstraintKind::ClassNotDeclared);
+            }
+            other => panic!("expected ValidationRejected, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn a_rolled_back_skolem_counter_is_rejected_as_corrupt() {
+        // A wire counter at or below a restored skolem subject would let a
+        // later legitimate anonymous assertion re-mint that subject's IRI
+        // and silently merge into it — the corruption check 1's reserved-
+        // namespace rule exists to prevent, reopened through the wire field.
+        let onto = triage_world().ontology().clone();
+        let wire = WireSnapshot {
+            next_skolem: 2,
+            instances: vec![WireInstance {
+                subject: format!("{SKOLEM_NAMESPACE}3"),
+                class: "https://example.org/triage#Patient".to_owned(),
+                properties: vec![],
+            }],
+        };
+        let bytes = encode(&wire);
+        let err = Snapshot::from_bytes(&onto, &bytes)
+            .expect_err("a counter behind its own skolem subject must be refused");
+        match err {
+            HorismosError::SnapshotFormat { reason } => {
+                assert!(
+                    reason.contains("skolem counter 2"),
+                    "reason must name the counter: {reason}"
+                );
+                assert!(
+                    reason.contains(&format!("{SKOLEM_NAMESPACE}3")),
+                    "reason must name the conflicting subject: {reason}"
+                );
+            }
+            other => panic!("expected SnapshotFormat, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn restoration_tolerates_an_object_reference_ahead_of_its_referent_in_wire_order() {
+        // Wire order is interning order, not dependency order: a subject
+        // may reference an instance that appears later in the wire. The
+        // two-phase restore defers the reference and settles it once the
+        // store is complete.
+        let onto = spread_world().ontology().clone();
+        let wire = WireSnapshot {
+            next_skolem: 0,
+            instances: vec![
+                WireInstance {
+                    subject: "https://example.org/t#p1".to_owned(),
+                    class: "https://example.org/t#Patient".to_owned(),
+                    properties: vec![(
+                        "https://example.org/t#seenIn".to_owned(),
+                        vec![WireValue::Ref("https://example.org/t#e1".to_owned())],
+                    )],
+                },
+                WireInstance {
+                    subject: "https://example.org/t#e1".to_owned(),
+                    class: "https://example.org/t#Encounter".to_owned(),
+                    properties: vec![],
+                },
+            ],
+        };
+        let bytes = encode(&wire);
+        let snapshot = Snapshot::from_bytes(&onto, &bytes)
+            .expect("a forward reference within the same snapshot is legitimate");
+        let mut world = World::from_snapshot(&onto, snapshot);
+        let p1 = t(&mut world, "p1");
+        let seen_in = t(&mut world, "seenIn");
+        let e1 = t(&mut world, "e1");
+        assert_eq!(
+            world.value(Ref::new(p1), seen_in),
+            Some(&Value::Ref(Ref::new(e1)))
+        );
+    }
+
+    #[test]
+    fn a_dangling_object_reference_in_a_snapshot_is_still_rejected() {
+        // Deferral is not forgiveness: a reference that no restored instance
+        // (and no declared class) ever satisfies fails the post-restore pass
+        // with the same witness a live assertion would have produced.
+        let onto = spread_world().ontology().clone();
+        let wire = WireSnapshot {
+            next_skolem: 0,
+            instances: vec![WireInstance {
+                subject: "https://example.org/t#p1".to_owned(),
+                class: "https://example.org/t#Patient".to_owned(),
+                properties: vec![(
+                    "https://example.org/t#seenIn".to_owned(),
+                    vec![WireValue::Ref("https://example.org/t#nowhere".to_owned())],
+                )],
+            }],
+        };
+        let bytes = encode(&wire);
+        let err = Snapshot::from_bytes(&onto, &bytes)
+            .expect_err("a reference nothing in the snapshot satisfies must be refused");
+        match err {
+            HorismosError::ValidationRejected { witness } => {
+                assert_eq!(witness.kind, ConstraintKind::UnknownReference);
             }
             other => panic!("expected ValidationRejected, got {other:?}"),
         }
