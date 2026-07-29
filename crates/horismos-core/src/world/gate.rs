@@ -43,7 +43,7 @@
 use imbl::{OrdMap, Vector};
 use rust_decimal::Decimal;
 
-use crate::ontology::schema::{Cardinality, PropertyDecl, PropertyRange, Schema};
+use crate::ontology::schema::{AssignedBy, Cardinality, PropertyDecl, PropertyRange, Schema};
 use crate::ontology::term::{Datatype, Iri, Ref, Value};
 use crate::world::{Instance, Provenance, World};
 
@@ -59,6 +59,16 @@ pub enum Operation {
     Assert,
     /// A `World::retract*` call.
     Retract,
+}
+
+impl Operation {
+    /// The noun domain-term errors use ("… assertion came from perception").
+    fn noun(self) -> &'static str {
+        match self {
+            Self::Assert => "assertion",
+            Self::Retract => "retraction",
+        }
+    }
 }
 
 /// The specific check that refused, with the bound it was checking against.
@@ -142,6 +152,14 @@ pub enum ConstraintKind {
     Immutable {
         /// The value(s) the property already holds, rendered.
         existing: String,
+    },
+
+    // -- check 5 -----------------------------------------------------------
+    /// The property's `horis:assignedBy` policy refuses this mutation's
+    /// provenance.
+    ProvenanceRefused {
+        /// The declared policy, as the `horis:` term it was authored as.
+        policy: String,
     },
 
     // -- retraction-only ---------------------------------------------------
@@ -296,16 +314,52 @@ pub fn check_retraction(
 }
 
 /// **Check 5.** `horis:assignedBy` versus the mutation's provenance
-/// (`docs/framework/02-ontology.md`).
+/// (`docs/framework/02-ontology.md`): `horis:RulesOnly` admits only
+/// [`Provenance::Rule`], `horis:ToolsOnly` only [`Provenance::Tool`], and
+/// `horis:PerceptionAllowed` — the default when a property declares no
+/// policy — admits all four.
 ///
-/// U6 wires the slot and admits everything; the policy that fills it in —
-/// `horis:RulesOnly` admitting only [`Provenance::Rule`], `horis:ToolsOnly`
-/// only [`Provenance::Tool`] — is U7's.
+/// This is the property-level enforcement of "neural proposes, symbolic
+/// decides" (CLAUDE.md): a transducer's output can never reach a
+/// `horis:RulesOnly` property, however confident the model was. The policy
+/// is about the *property*, not about the direction of the mutation, so
+/// retraction is held to it identically — a provenance that may not assign
+/// `:acuity` may not take it away either.
 pub fn check_provenance(
-    _property: &PropertyDecl,
-    _provenance: Provenance,
+    property: &PropertyDecl,
+    provenance: Provenance,
 ) -> Result<(), ConstraintKind> {
-    Ok(())
+    let permitted = match property.assigned_by {
+        AssignedBy::RulesOnly => provenance == Provenance::Rule,
+        AssignedBy::ToolsOnly => provenance == Provenance::Tool,
+        AssignedBy::PerceptionAllowed => true,
+    };
+    if permitted {
+        return Ok(());
+    }
+    Err(ConstraintKind::ProvenanceRefused {
+        policy: assigned_by_term(property.assigned_by).to_owned(),
+    })
+}
+
+/// The `horis:` term a policy was authored as, for the witness.
+fn assigned_by_term(policy: AssignedBy) -> &'static str {
+    match policy {
+        AssignedBy::RulesOnly => "horis:RulesOnly",
+        AssignedBy::ToolsOnly => "horis:ToolsOnly",
+        AssignedBy::PerceptionAllowed => "horis:PerceptionAllowed",
+    }
+}
+
+/// Who a policy admits, for the domain text ("… may only be assigned by
+/// rules …"). `horis:PerceptionAllowed` never reaches this — it refuses
+/// nothing, so it never produces a witness.
+fn assigned_by_audience(policy: AssignedBy) -> &'static str {
+    match policy {
+        AssignedBy::RulesOnly => "rules",
+        AssignedBy::ToolsOnly => "tools",
+        AssignedBy::PerceptionAllowed => "anything",
+    }
 }
 
 // -- The gate --------------------------------------------------------------
@@ -752,6 +806,17 @@ impl Gate<'_> {
             },
             ConstraintKind::Immutable { existing } => format!(
                 "{name} is horis:immutable and already holds {existing}; it cannot be re-asserted as {shown} on {class}"
+            ),
+            ConstraintKind::ProvenanceRefused { policy } => format!(
+                "{name} may only be assigned by {} (horis:assignedBy {policy}); {} came from {}",
+                assigned_by_audience(
+                    self.schema()
+                        .property(property.expect("a policy rejection always names its property"))
+                        .expect("check 2 established that the property is declared")
+                        .assigned_by
+                ),
+                self.operation.noun(),
+                self.provenance.as_str(),
             ),
             ConstraintKind::SubjectNotPresent => {
                 format!("{subject} is not an instance in the world")

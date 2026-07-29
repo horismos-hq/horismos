@@ -42,8 +42,11 @@ const SKOLEM_NAMESPACE: &str = "https://w3id.org/horismos/.well-known/genid/";
 /// property's `horis:assignedBy` policy — the property-level enforcement of
 /// "the LLM never decides" (`docs/framework/02-ontology.md`).
 ///
-/// U6 threads it through the gate and into every [`gate::Witness`]; the
-/// policy that consumes it is U7's ([`gate::check_provenance`]).
+/// Every mutating method takes one. The provenance-free conveniences
+/// ([`World::assert_instance`], [`World::assert_named_instance`],
+/// [`World::retract`]) state [`Provenance::Api`] — a direct API call is
+/// exactly what they are; the `_as` forms take it explicitly, and are what
+/// the perception, rule, and tool paths will call.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum Provenance {
     /// A transducer's typed output (doc 06). Never trusted with
@@ -990,7 +993,7 @@ mod tests {
         );
     }
 
-    // -- provenance (U6 slot; the policy itself is U7) -----------------------
+    // -- gate check 5: the horis:assignedBy provenance policy (U7) -----------
 
     #[test]
     fn the_witness_records_the_assertions_provenance() {
@@ -1037,5 +1040,172 @@ mod tests {
                 )
                 .unwrap_or_else(|e| panic!("{provenance:?} must be accepted: {e}"));
         }
+    }
+
+    #[test]
+    fn a_rules_only_property_is_refused_from_perception_in_the_documented_wording() {
+        // :acuity is horis:assignedBy horis:RulesOnly — "perception may NEVER
+        // set this field" (triage.ttl), the property-level enforcement of
+        // "neural proposes, symbolic decides".
+        let mut world = triage_world();
+        let patient = tri(&mut world, "Patient");
+        let acuity = tri(&mut world, "acuity");
+        let immediate = tri(&mut world, "Immediate");
+
+        let err = world
+            .assert_instance_as(
+                Provenance::Perception,
+                None,
+                patient,
+                [(acuity, Value::Ref(Ref::new(immediate)))],
+            )
+            .expect_err("a transducer may never assign a horis:RulesOnly property");
+
+        let w = witness_of(&err);
+        assert_eq!(
+            w.kind,
+            ConstraintKind::ProvenanceRefused {
+                policy: "horis:RulesOnly".to_owned()
+            }
+        );
+        assert_eq!(w.provenance, Provenance::Perception);
+        assert_eq!(w.operation, Operation::Assert);
+        assert_eq!(
+            w.property.as_deref(),
+            Some("https://example.org/triage#acuity")
+        );
+        assert_eq!(
+            err.domain_text(),
+            "acuity may only be assigned by rules (horis:assignedBy horis:RulesOnly); assertion came from perception"
+        );
+    }
+
+    #[test]
+    fn a_rules_only_property_refuses_every_provenance_but_rule() {
+        let mut world = triage_world();
+        let patient = tri(&mut world, "Patient");
+        let acuity = tri(&mut world, "acuity");
+        let immediate = Value::Ref(Ref::new(tri(&mut world, "Immediate")));
+
+        for refused in [Provenance::Perception, Provenance::Tool, Provenance::Api] {
+            let err = world
+                .assert_instance_as(refused, None, patient, [(acuity, immediate.clone())])
+                .expect_err("only a rule may assign a horis:RulesOnly property");
+            assert_eq!(
+                witness_of(&err).kind,
+                ConstraintKind::ProvenanceRefused {
+                    policy: "horis:RulesOnly".to_owned()
+                },
+                "{refused:?}"
+            );
+            assert_eq!(
+                world.instance_count(),
+                0,
+                "a refused assertion stores nothing"
+            );
+        }
+    }
+
+    #[test]
+    fn a_tools_only_property_admits_only_tool_provenance() {
+        let mut world = world_of(
+            ":Patient a rdfs:Class .\n\
+             :labResult a rdf:Property ; rdfs:domain :Patient ; rdfs:range xsd:string ;\n\
+             \x20   horis:assignedBy horis:ToolsOnly .",
+        );
+        let patient = t(&mut world, "Patient");
+        let lab_result = t(&mut world, "labResult");
+        let value = Value::String("K 5.9".to_owned());
+
+        world
+            .assert_instance_as(
+                Provenance::Tool,
+                None,
+                patient,
+                [(lab_result, value.clone())],
+            )
+            .expect("a tool effect may assign a horis:ToolsOnly property");
+
+        for refused in [Provenance::Perception, Provenance::Rule, Provenance::Api] {
+            let err = world
+                .assert_instance_as(refused, None, patient, [(lab_result, value.clone())])
+                .expect_err("only a tool may assign a horis:ToolsOnly property");
+            assert_eq!(
+                witness_of(&err).kind,
+                ConstraintKind::ProvenanceRefused {
+                    policy: "horis:ToolsOnly".to_owned()
+                },
+                "{refused:?}"
+            );
+        }
+
+        let err = world
+            .assert_instance_as(Provenance::Perception, None, patient, [(lab_result, value)])
+            .expect_err("rejected");
+        assert_eq!(
+            err.domain_text(),
+            "labResult may only be assigned by tools (horis:assignedBy horis:ToolsOnly); assertion came from perception"
+        );
+    }
+
+    #[test]
+    fn a_rules_only_property_is_accepted_from_a_rule() {
+        let mut world = triage_world();
+        let patient = tri(&mut world, "Patient");
+        let acuity = tri(&mut world, "acuity");
+        let immediate = tri(&mut world, "Immediate");
+
+        let p = world
+            .assert_instance_as(
+                Provenance::Rule,
+                None,
+                patient,
+                [(acuity, Value::Ref(Ref::new(immediate)))],
+            )
+            .expect("a rule conclusion is exactly what horis:RulesOnly admits");
+        assert_eq!(world.values(p, acuity).count(), 1);
+    }
+
+    #[test]
+    fn retraction_passes_the_same_provenance_policy() {
+        let mut world = triage_world();
+        let patient = tri(&mut world, "Patient");
+        let acuity = tri(&mut world, "acuity");
+        let immediate = Value::Ref(Ref::new(tri(&mut world, "Immediate")));
+
+        let p = world
+            .assert_instance_as(
+                Provenance::Rule,
+                None,
+                patient,
+                [(acuity, immediate.clone())],
+            )
+            .expect("accepted");
+
+        let err = world
+            .retract_as(Provenance::Perception, p, acuity, &immediate)
+            .expect_err("perception may not retract a horis:RulesOnly fact either");
+        let w = witness_of(&err);
+        assert_eq!(
+            w.kind,
+            ConstraintKind::ProvenanceRefused {
+                policy: "horis:RulesOnly".to_owned()
+            }
+        );
+        assert_eq!(w.operation, Operation::Retract);
+        assert_eq!(
+            err.domain_text(),
+            "acuity may only be assigned by rules (horis:assignedBy horis:RulesOnly); retraction came from perception"
+        );
+        assert_eq!(
+            world.values(p, acuity).count(),
+            1,
+            "the refused retraction must leave the fact in place"
+        );
+
+        world
+            .retract_as(Provenance::Rule, p, acuity, &immediate)
+            .expect("a rule may retract what a rule asserted");
+        assert_eq!(world.values(p, acuity).count(), 0);
     }
 }
