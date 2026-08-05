@@ -4,7 +4,7 @@
 **Depends on**: PRP-000 (positioning), docs/framework/14 (layout authority)
 
 Unnumbered because it is not a phase: it is the substrate every phase assumes —
-repo layout, build tooling, agentic-session conventions (CLAUDE.md), and the
+repo layout, build tooling, agentic-session conventions (AGENTS.md), and the
 Claude skills roster. Revised whenever the substrate changes.
 
 ## Intent
@@ -22,7 +22,7 @@ horismos/
 ├── rust-toolchain.toml        # stable + rustfmt/clippy + wasm32 target
 ├── Makefile                   # THE dev entry point (make ships with macOS; just isn't installed)
 ├── pyproject.toml             # maturin backend, uv dep groups, ruff/mypy/pytest config
-├── CLAUDE.md                  # session conventions; points here and at docs/
+├── AGENTS.md                  # session conventions; points here and at docs/ (CLAUDE.md = compat symlink)
 ├── crates/
 │   ├── horismos-core/            # ontology/ world/ reason/ workflow/ verify/ trace/ bridge/ error wasm
 │   ├── horismos-bridges/         # mock + feature-gated anthropic/openai/onnx stubs
@@ -71,7 +71,7 @@ locally. Strong external collections, referenced not vendored:
 - [wshobson/agents](https://github.com/wshobson/agents) — `python-type-safety`,
   `python-project-structure`
 - obra/superpowers — already installed globally (TDD, systematic debugging,
-  verification-before-completion); cited from CLAUDE.md, not duplicated
+  verification-before-completion); cited from AGENTS.md, not duplicated
 
 **Project-local skills** (`.claude/skills/`), per official authoring guidance
 (description = discovery trigger; SKILL.md < 500 lines as a table of contents;
@@ -102,5 +102,5 @@ scripts for fragile sequences):
 
 `git clone` → `make verify` green with no network beyond crates.io/PyPI: fmt, clippy
 `-D warnings`, ruff, mypy strict, Rust tests, pytest native-roundtrip, anti-wrapper
-boundary + no-model-gate. CLAUDE.md and the three "now" skills exist and agree with
+boundary + no-model-gate. AGENTS.md and the three "now" skills exist and agree with
 docs/framework. **Met 2026-07-28.**

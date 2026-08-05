@@ -10,13 +10,39 @@ Draft ──activate──▶ Active ──DoD met──▶ Done
 Standing (000, foundational-skeleton, this file, BOARD): never "done", revised in place
 ```
 
-- **Draft**: a single one-page `.md` file — intent, scope, non-goals, key decisions,
-  definition of done. Nothing more; sprint detail is produced at activation.
+- **Draft**: a single `.md` file — intent, scope, non-goals, key decisions,
+  definition of done. Far-future Drafts stay one page; the next-up Draft is
+  teaching-grade (see below). Sprint detail is produced at activation either way.
 - **Active**: the PRP being implemented. **A PRP converts from single file to folder
   at activation** (see below). Only one PRP is Active at a time unless explicitly
   parallelized.
 - **Done**: definition of done met and verified (`make verify` + the PRP's own DoD).
   The folder stays as the record.
+
+## Teaching-grade PRPs (PRP-002 onward)
+
+From PRP-002 onward, the **Active PRP and the next-up Draft are teaching-grade**: in
+addition to the five spec sections (intent, scope, non-goals, key decisions,
+definition of done — meaning unchanged), the document carries:
+
+- a **background section** explaining the concepts the phase assumes, written for a
+  Python developer new to the domain;
+- **worked examples** from the clinical-triage running example
+  (`examples/triage/`), hand-checkable step by step and consistent with shipped
+  semantics (illustrative rules/properties are allowed but must be flagged as not
+  part of the fixture, and must use only declared vocabulary);
+- **"Python parallel" notes** wherever the spec touches Rust-specific design
+  (traits, enums, ownership, error types), anchored in sigil-lang's Python side
+  where it is the prior art;
+- a **glossary** of terms in plain English.
+
+Rules: teaching sections cite `docs/framework/` rather than restating it at length;
+they never resolve open **[DECIDE]** questions — decisions stay open until resolved
+in the owning PRP. The one-page summary form remains correct for far-future Drafts;
+a PRP is expanded to teaching grade when it becomes next-up. Teaching material does
+not count toward the ~150-line early-folder-conversion trigger below — conversion
+still happens at activation, when the teaching-grade document moves to
+`01-objective.md` and is kept current as usual.
 
 ## The folder convention (large / active PRPs)
 
