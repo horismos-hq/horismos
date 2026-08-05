@@ -13,7 +13,7 @@ wins — then fix this skill.
 
 | Status | Form | Contents |
 |---|---|---|
-| **Draft** | one file `PRPs/PRP-NNN-slug.md`, ≤ ~150 lines | intent, scope, non-goals, key decisions, DoD. **Nothing more** — no unit breakdown |
+| **Draft** | one file `PRPs/PRP-NNN-slug.md` | intent, scope, non-goals, key decisions, DoD — no unit breakdown. Far-future: ≤ ~150 lines. **Next-up: teaching-grade** (CONVENTIONS.md § Teaching-grade PRPs) — background, worked triage examples, Python-parallel notes, glossary; teaching material doesn't trigger early folder conversion |
 | **Active** | folder `PRPs/PRP-NNN-slug/` | `01-objective.md` (the one-pager, kept current) + `02-tasks-and-gaps.md` (working surface) + optional `03-*.md` (spikes, benchmarks, decision records) |
 | **Done** | the folder stays as the record | DoD met and verified |
 | **Standing** | one file, revised in place | 000, foundational-skeleton, CONVENTIONS, BOARD — never "Done" |

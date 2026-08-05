@@ -25,9 +25,11 @@ symbolic runtime decides. See `../docs/framework/` for the full framework defini
 Full rules in [CONVENTIONS.md](CONVENTIONS.md) (lifecycle, folder form for active
 PRPs, tracks). At-a-glance state: [BOARD.md](BOARD.md).
 
-- PRPs are **very high level** — one page each: intent, scope, non-goals, key decisions,
-  definition of done. Sprint-level detail is produced when a PRP is activated (the PRP
-  converts to a folder: `01-objective.md` + `02-tasks-and-gaps.md`).
+- PRPs are **very high level** — intent, scope, non-goals, key decisions, definition
+  of done. Far-future Drafts are one page each; from PRP-002 onward the next-up/Active
+  PRP is teaching-grade (background, worked triage examples, Python-parallel notes,
+  glossary — see CONVENTIONS.md). Sprint-level detail is produced when a PRP is
+  activated (the PRP converts to a folder: `01-objective.md` + `02-tasks-and-gaps.md`).
 - Numbering is sequence. Each PRP assumes the previous ones are done (PRP-000 is a
   standing document, revised as positioning sharpens).
 - The running example across all PRPs is **clinical triage** (`docs/framework/` uses it
