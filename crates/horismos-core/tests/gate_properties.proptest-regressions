@@ -1,0 +1,8 @@
+# Seeds for failure cases proptest has generated in the past. It is
+# automatically read and these particular cases re-run before any
+# novel cases are generated.
+#
+# It is recommended to check this file in to source control so that
+# everyone who runs the test benefits from these saved cases.
+cc d0d0215c1cf1c25b8eb83cede245d7f48f7e417706758d3e88cee22f5e501b68 # shrinks to prefix = [], bad = HeartRateAboveMax { heart_rate: 301 }, suffix = [AssertNamedPatient { index: 0, heart_rate: 0 }, AssertPatient { heart_rate: 0 }]
+cc e30b077fba58786a7442e7078d5f7b2b51b30f3b15688983e60069172c0a657a # shrinks to prefix = [], bad = SkolemSquat, suffix = [AssertNamedPatient { index: 0, heart_rate: 0 }, AssertPatient { heart_rate: 0 }]

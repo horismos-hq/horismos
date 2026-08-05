@@ -1,6 +1,8 @@
 # PRP-001 — Ontology Core (Rust)
 
-**Status**: Draft — next to activate (see `02-tasks-and-gaps.md`)
+**Status**: ✅ **Done** (2026-07-29) — D1–D6 resolved, U1–U11 built and green
+under `make verify`; DoD run ships as `crates/horismos-core/tests/dod.rs`
+(see `02-tasks-and-gaps.md`, incl. gaps handed to PRP-002/006)
 **Depends on**: PRP-000
 
 ## Intent

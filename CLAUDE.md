@@ -15,7 +15,7 @@ proof → NL). Delete the LLM and the framework still runs.
 ## Sources of truth
 
 - `PRPs/BOARD.md`: at-a-glance state — current / next / end goal. Visual version:
-  the [Horismos Board artifact](https://claude.ai/code/artifact/95d5a1ed-95cf-41b2-8b38-f51404f79b0b)
+  the [Horismos Board artifact](https://claude.ai/code/artifact/dc7ee691-4c9f-40a7-b235-0760de8ff17d)
   (regenerate from `planning/board.html`, republish to the same URL on status changes).
 - `docs/framework/00-index.md` → docs 01–14: the framework definition, written in
   shipped voice. **Read the relevant doc before implementing anything.**
@@ -73,10 +73,28 @@ make verify        # all of the above — run before claiming work done
 - The `horis:` vocabulary, the 11 condition operators, and the RDFS-plus profile are
   defined in `docs/framework/02-ontology.md` — never invent vocabulary terms ad hoc.
 
-## Project skills (.claude/skills/)
+## Project skills (.claude/skills/) and agents (.claude/agents/)
+
+Domain skills — consult before touching the matching surface:
 
 - `cargo-workspace-map` — which crate/module owns what; consult before placing code.
 - `ontology-modeling-conventions` — the `horis:` vocabulary, IRI scheme, operators;
   consult before writing or editing any `.ttl`.
 - `pyo3-boundary` — Rust↔Python boundary conventions; consult before touching
   `horismos-py` or `python/horismos`.
+- `learn-codebase` — guided-tour/onboarding artifact for newcomers.
+
+Process skills — the PRP workflow itself:
+
+- `generate-prp` — drafting a new PRP (lifecycle, D/U-items, [DECIDE] links, board).
+- `impl-prp` — executing an Active PRP (worktree, ledger, batching, briefs,
+  reviews, finish sequence). Use this to start or resume any PRP build.
+- `git-workflow` — branches, worktrees, commit rules, PR flow for this repo.
+- `self-review` — pre-report audit checklist (determinism, boundary, errors, gate).
+- `brainstorming` — research-aware protocol for resolving [DECIDE] questions;
+  never decide them ad hoc.
+
+Agents:
+
+- `senior-reviewer` — diff/batch reviewer with this repo's severity calibration;
+  used per batch and for final whole-branch reviews in `impl-prp`.

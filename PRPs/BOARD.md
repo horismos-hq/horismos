@@ -2,32 +2,40 @@
 
 At-a-glance project state. Updated in the same commit as any PRP status change
 (`CONVENTIONS.md`). Visual version:
-[Horismos Board artifact](https://claude.ai/code/artifact/95d5a1ed-95cf-41b2-8b38-f51404f79b0b)
+[Horismos Board artifact](https://claude.ai/code/artifact/dc7ee691-4c9f-40a7-b235-0760de8ff17d)
 (source: `planning/board.html`, republished to the same URL on updates).
 
-_Last updated: 2026-07-28_
+_Last updated: 2026-07-29_
 
 ## Current state
 
-**Definition phase complete; zero engine code.** The framework is fully specified
-(docs/framework 00–14, shipped voice, every open question a **[DECIDE]** owned by one
-PRP). The workspace skeleton is green under `make verify`: three crates + Python
-package, PyO3 roundtrip proven, anti-wrapper boundary mechanically enforced
-(`check-boundary`, `no-model-gate`). Five project skills, CLAUDE.md, triage fixture
-seeded.
+**The ontology core is real: PRP-001 is Done.** `horismos-core` loads an RDFS-plus
+ontology (Turtle via oxigraph's parser crates), validates it against the profile,
+builds a queryable schema with sameAs-anchored subsumption over imported
+vocabularies (a ~50-concept SNOMED chest-pain subset ships as the fixture), and
+holds a typed World whose **every mutation passes the five-check validation gate** —
+atomic rejection, domain-term witnesses ("heartRate 1280 exceeds horis:max 300
+(bpm) on :Patient"), provenance policy (`horis:assignedBy`) enforced. O(1)
+snapshots with structural diff and a gate-revalidated postcard binary form;
+tier-1 pattern queries; a proptest suite pinning gate invariants (validity,
+atomicity, rejection naming, byte-identical determinism); the DoD run is
+`crates/horismos-core/tests/dod.rs`. ~160 tests, `make verify` green, zero LLM.
+Branch: `prp-001-ontology-core` (PR #1). Six PRP-workflow skills + a
+senior-reviewer agent now live in `.claude/`.
 
 ## Next goal
 
-**Activate PRP-001** (folder ready: `PRP-001-ontology-core/02-tasks-and-gaps.md`):
-D1 is decided (oxigraph); resolve D2–D6, then units U1–U11 ending at the DoD:
-`triage.ttl` + SNOMED subset loads, schema violations rejected in domain terms,
-Turtle round-trips, snapshots, pattern queries — no LLM. Side quests: register
-`horismos.dev` + file the w3id.org/horismos PR (human), reserve crates.io/PyPI names
-(PRP-006 or early).
+**PRP-002 (reasoning substrate) is next**: forward chaining (Rete-lite),
+backward `prove`/`explain`, proof trees, training-grade traces. It inherits
+dated gap notes from PRP-001 (see its `02-tasks-and-gaps.md`): retraction vs
+`horis:immutable` [DECIDE], sameAs-canonical class lookup, stored fact
+provenance, plus D6's rule-side unit check at rule load.
 
-Decisions closed 2026-07-28 (recorded in PRP-000): rebrand **Sigil → Horismos**,
-proving ground both-track (τ-Bench number, triage narrative), license MIT OR
-Apache-2.0 dual, parser oxigraph.
+Human side quests: register `horismos.dev`; file the w3id.org/horismos PR; reserve
+crates.io/PyPI names early; merge PR #1.
+
+Also closed 2026-07-28 (in PRP-000): rebrand **Sigil → Horismos**, proving ground
+both-track (τ-Bench number, triage narrative), license MIT OR Apache-2.0 dual.
 
 ## End goal
 
@@ -52,8 +60,8 @@ provenance semirings over the Datalog-shaped subset (Type 5), GNN guidance.
 |-------|-----|--------|-----------|
 | Standing | [foundational-skeleton](foundational-skeleton.md) | ✅ Done (standing) | Repo layout, tooling, skills — `make verify` green |
 | Standing | [PRP-000 vision](PRP-000-vision-positioning.md) | ✅ Decisions closed | Pitch, personas, honest Kautz 2–3 placement; naming/license/benchmark resolved |
-| Engine | [PRP-001 ontology core](PRP-001-ontology-core/01-objective.md) | 🔜 Next — folder ready | Load/validate ontology, typed World, validation gate |
-| Engine | [PRP-002 reasoning](PRP-002-reasoning-substrate.md) | ⬜ Draft | Chaining, subsumption, proof trees, training-grade traces |
+| Engine | [PRP-001 ontology core](PRP-001-ontology-core/01-objective.md) | ✅ Done (2026-07-29) | Load/validate ontology, typed World, five-check gate, snapshots, queries |
+| Engine | [PRP-002 reasoning](PRP-002-reasoning-substrate.md) | ⬜ Draft — **next up** | Chaining, subsumption, proof trees, training-grade traces |
 | Engine | [PRP-005 verification](PRP-005-guarantees-verification.md) | ⬜ Draft | BDD checks + domain-term witnesses (needs only 001+002) |
 | Surface | [PRP-003 python bindings](PRP-003-python-bindings.md) | ⬜ Draft | `pip install horismos`; the Pythonic front door |
 | Runtime | [PRP-004 agent loop](PRP-004-agent-loop.md) | ⬜ Draft | Workflow engine, perception/narration boundaries, tools, Bridge |
@@ -68,12 +76,17 @@ after 002 (it deliberately doesn't need the agent loop).
 - **Spec**: docs/framework 00–14 — concepts, ontology profile, world/gate, reasoning,
   workflows, LLM boundaries, tools, bridge, traces, verification, both APIs,
   authoring, architecture.
-- **Skeleton**: `horismos-core` (module tree = the seven nouns, docs-only stubs),
-  `horismos-bridges` (mock + gated provider stubs), `horismos-py` (version roundtrip),
-  `python/horismos`, `examples/triage/triage.ttl`, Makefile, all green.
+- **Engine (PRP-001)**: `horismos-core::ontology` (terms/interning, Turtle,
+  profile validation, schema + subsumption, imports/anchoring) and
+  `horismos-core::world` (store, five-check gate, provenance, snapshots/diff/
+  binary form, tier-1 queries), property-tested; fixtures
+  `examples/triage/{triage,snomed-ct-subset}.ttl`.
+- **Skeleton**: `horismos-bridges` (mock + gated provider stubs), `horismos-py`
+  (version roundtrip), `python/horismos`, Makefile — all green.
 - **Conventions**: CLAUDE.md hard rules; PRP lifecycle in
   [CONVENTIONS.md](CONVENTIONS.md).
 - **Skills**: cargo-workspace-map, ontology-modeling-conventions, pyo3-boundary,
-  learn-codebase (+ global superpowers).
+  learn-codebase, generate-prp, impl-prp, git-workflow, self-review,
+  brainstorming + the senior-reviewer agent (+ global superpowers).
 - **Prior art**: `../sigil-lang` — Rete-lite, BDD verifier, constraint solver, trace
   design, neural bridge, authoring loop (~1,270 tests to port from).

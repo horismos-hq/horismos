@@ -1,0 +1,12 @@
+## U5 test fixture: a root document declaring one relative import,
+## resolved relative to this file's own location by the fs convenience
+## loader (`ontology::imports::OntologySet::load`).
+
+@prefix :      <https://example.org/imports-fixture#> .
+@prefix horis: <https://w3id.org/horismos#> .
+@prefix rdfs:  <http://www.w3.org/2000/01/rdf-schema#> .
+
+<> horis:imports <./snomed-subset.ttl> .
+
+:Patient a rdfs:Class ;
+    rdfs:label "Patient" .
