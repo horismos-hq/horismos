@@ -245,6 +245,15 @@ impl Schema {
         self.same_as.get(&iri).copied().unwrap_or(iri)
     }
 
+    /// `iri`'s `owl:sameAs` canonical representative — public face of the
+    /// equivalence map (PRP-002 D-7), for *individual* identity questions
+    /// ("is `:Immediate` the same individual as its anchored twin?") where
+    /// no class declaration is involved. Returns `iri` itself when it never
+    /// appeared in a `sameAs` triple.
+    pub fn canonical_iri(&self, iri: Iri) -> Iri {
+        self.canonical(iri)
+    }
+
     /// The *declared* class `iri` names, looked up `owl:sameAs`-canonically
     /// (PRP-002 D-7): an exact declaration wins; otherwise any member of
     /// `iri`'s `sameAs` equivalence class that *is* declared answers for it,

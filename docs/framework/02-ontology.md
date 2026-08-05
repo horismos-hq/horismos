@@ -110,7 +110,9 @@ Two semantics notes (full detail in doc 04):
 - `horis:is :ChestPain` matches **any subclass** via subsumption — that is the point
   of having an ontology.
 - Conditions over unassigned properties are false (`horis:isNot` true) — Horismos's
-  pragmatic closed-world stance, inherited and re-validated **[DECIDE: PRP-002]**.
+  pragmatic closed-world stance, inherited from sigil-lang and re-validated for the
+  graph world (decided, PRP-002): `isNot` is the ∀ negation of `is`, including over
+  multi-valued properties (doc 04's table).
 
 ## Workflow vocabulary
 
