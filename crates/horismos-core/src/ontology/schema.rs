@@ -245,6 +245,31 @@ impl Schema {
         self.same_as.get(&iri).copied().unwrap_or(iri)
     }
 
+    /// The *declared* class `iri` names, looked up `owl:sameAs`-canonically
+    /// (PRP-002 D-7): an exact declaration wins; otherwise any member of
+    /// `iri`'s `sameAs` equivalence class that *is* declared answers for it,
+    /// lowest-token member first (deterministic — `BTreeMap` order). `None`
+    /// when neither `iri` nor any of its twins is a declared class.
+    ///
+    /// This is how an anchored external IRI (`sct:29857009`) becomes
+    /// first-class wherever its local twin (`:ChestPain`) is: rule
+    /// conditions, gate range/oneOf checks, and reasoner class positions all
+    /// resolve through here rather than through exact-IRI [`Schema::class`].
+    pub fn class_declared(&self, iri: Iri) -> Option<Iri> {
+        if self.classes.contains_key(&iri) {
+            return Some(iri);
+        }
+        let canonical = self.canonical(iri);
+        if self.classes.contains_key(&canonical) {
+            return Some(canonical);
+        }
+        self.same_as
+            .iter()
+            .filter(|&(_, &c)| c == canonical)
+            .map(|(&member, _)| member)
+            .find(|member| self.classes.contains_key(member))
+    }
+
     /// Builds a [`Schema`] from `document`. Callers are expected to have
     /// already run [`crate::ontology::profile::validate`] — an
     /// out-of-profile document (a bad datatype in `rdfs:range`, say) simply

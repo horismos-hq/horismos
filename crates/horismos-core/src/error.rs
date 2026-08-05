@@ -196,6 +196,93 @@ pub enum OntologyError {
         b: String,
     },
 
+    // -- PRP-002 U1: rule parse/validation at load -------------------------
+    /// A `horis:Rule` is structurally incomplete: no `horis:when`, no
+    /// `horis:then`, no `horis:subject` on its conditions, or a malformed
+    /// body where a condition node was expected.
+    #[error("rule {rule} is missing {part}")]
+    RuleMissingPart { rule: String, part: String },
+
+    /// A rule condition or conclusion names a property the schema does not
+    /// declare.
+    #[error("rule {rule} names {property}, which is not a declared property in the ontology")]
+    RuleUndeclaredProperty { rule: String, property: String },
+
+    /// A condition's `horis:subject` names a class the schema does not
+    /// declare (checked `owl:sameAs`-canonically, so an anchored external
+    /// IRI is as good as its local twin).
+    #[error(
+        "rule {rule} horis:subject names {class}, which is not a declared class in the ontology"
+    )]
+    RuleUndeclaredSubject { rule: String, class: String },
+
+    /// Conditions of one rule name two different subject classes. A v1 rule
+    /// binds exactly one subject instance (doc 04's `{?p → :p7}` bindings);
+    /// cross-subject joins are not in the profile.
+    #[error(
+        "rule {rule} conditions name both {a} and {b} as horis:subject; a rule binds one subject class"
+    )]
+    RuleMixedSubjects { rule: String, a: String, b: String },
+
+    /// A condition states no recognized operator (one of the 11,
+    /// `docs/framework/02-ontology.md`).
+    #[error(
+        "rule {rule} condition on {property} states no operator (expected one of the 11 horis: condition operators)"
+    )]
+    RuleMissingOperator { rule: String, property: String },
+
+    /// A condition states more than one operator; each condition tests one.
+    #[error(
+        "rule {rule} condition on {property} states both horis:{a} and horis:{b}; a condition tests one operator"
+    )]
+    RuleMultipleOperators {
+        rule: String,
+        property: String,
+        a: String,
+        b: String,
+    },
+
+    /// `horis:priority`'s object is not an `xsd:integer`.
+    #[error("rule {rule} horis:priority {value} is not an xsd:integer")]
+    RuleInvalidPriority { rule: String, value: String },
+
+    /// An operator was given an operand of the wrong shape (a node where a
+    /// literal is required, a scalar where a list is required, …).
+    #[error("rule {rule} {operator} {value} is not usable here (expected {expected})")]
+    RuleInvalidOperand {
+        rule: String,
+        operator: String,
+        value: String,
+        expected: String,
+    },
+
+    /// `horis:between` did not receive a list of exactly two values.
+    #[error("rule {rule} horis:between expects a list of exactly two values, found {found}")]
+    RuleBetweenArity { rule: String, found: usize },
+
+    /// D6 (strict units), rule-side: a condition's stated `horis:unit`
+    /// contradicts the property's declared unit.
+    #[error(
+        "rule {rule} {property} condition states horis:unit \"{stated}\" but {property} is declared in \"{declared}\""
+    )]
+    RuleUnitMismatch {
+        rule: String,
+        property: String,
+        stated: String,
+        declared: String,
+    },
+
+    /// D6 (strict units), rule-side: a condition states a `horis:unit` on a
+    /// property that declares none.
+    #[error(
+        "rule {rule} {property} condition states horis:unit \"{stated}\" but {property} declares no unit"
+    )]
+    RuleUnitWithoutDeclaration {
+        rule: String,
+        property: String,
+        stated: String,
+    },
+
     // -- U6: the Ontology facade ------------------------------------------
     /// A property's `horis:pattern` is not a valid regular expression.
     /// Patterns are compiled once when the [`crate::Ontology`] is assembled,

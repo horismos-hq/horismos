@@ -6,3 +6,7 @@
 //! dependence — same inputs, same conclusions, always.
 //!
 //! Spec: `docs/framework/04-reasoning.md` · Owner: PRP-002
+
+pub mod rule;
+
+pub use rule::{Conclusion, Condition, ConditionTree, Op, Rule, Term};
