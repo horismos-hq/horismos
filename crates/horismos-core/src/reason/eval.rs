@@ -107,8 +107,10 @@ fn ref_matches(world: &World, r: Ref, target: Iri) -> bool {
     if r.iri() == target {
         return true;
     }
-    if let (Some(a), Some(b)) = (schema.class_declared(r.iri()), schema.class_declared(target))
-        && schema.is_subclass_of(a, b)
+    if let (Some(a), Some(b)) = (
+        schema.class_declared(r.iri()),
+        schema.class_declared(target),
+    ) && schema.is_subclass_of(a, b)
     {
         return true;
     }
@@ -222,7 +224,6 @@ mod tests {
             &world,
             p,
             &cond(has_symptom, Op::Is(Term::Iri(symptom))),
-
         ));
         assert!(condition_holds(
             &world,
@@ -243,10 +244,7 @@ mod tests {
             .assert_instance(crushing, [])
             .expect("a CrushingChestPain instance");
         let p = world
-            .assert_instance(
-                patient,
-                [(has_symptom, Value::Ref(symptom_instance))],
-            )
+            .assert_instance(patient, [(has_symptom, Value::Ref(symptom_instance))])
             .expect("accepted");
 
         assert!(condition_holds(
@@ -339,10 +337,26 @@ mod tests {
             .assert_instance(patient, [(heart_rate, Value::Integer(80))])
             .expect("accepted");
 
-        assert!(!condition_holds(&world, empty, &cond(heart_rate, Op::IsAssigned)));
-        assert!(condition_holds(&world, empty, &cond(heart_rate, Op::IsEmpty)));
-        assert!(condition_holds(&world, full, &cond(heart_rate, Op::IsAssigned)));
-        assert!(!condition_holds(&world, full, &cond(heart_rate, Op::IsEmpty)));
+        assert!(!condition_holds(
+            &world,
+            empty,
+            &cond(heart_rate, Op::IsAssigned)
+        ));
+        assert!(condition_holds(
+            &world,
+            empty,
+            &cond(heart_rate, Op::IsEmpty)
+        ));
+        assert!(condition_holds(
+            &world,
+            full,
+            &cond(heart_rate, Op::IsAssigned)
+        ));
+        assert!(!condition_holds(
+            &world,
+            full,
+            &cond(heart_rate, Op::IsEmpty)
+        ));
     }
 
     /// D-4's worked case: hasSymptom = {CrushingChestPain, Nausea-shaped
@@ -369,7 +383,11 @@ mod tests {
             .expect("accepted");
 
         assert!(
-            !condition_holds(&world, p, &cond(has_symptom, Op::IsNot(Term::Iri(chest_pain)))),
+            !condition_holds(
+                &world,
+                p,
+                &cond(has_symptom, Op::IsNot(Term::Iri(chest_pain)))
+            ),
             "∀ reading: some value IS a ChestPain, so isNot is false"
         );
         assert!(
@@ -408,7 +426,10 @@ mod tests {
         assert!(condition_holds(
             &world,
             p,
-            &cond(heart_rate, Op::AtMost(Value::Decimal(Decimal::new(1285, 1))))
+            &cond(
+                heart_rate,
+                Op::AtMost(Value::Decimal(Decimal::new(1285, 1)))
+            )
         ));
     }
 
@@ -461,10 +482,7 @@ mod tests {
         assert!(condition_holds(
             &world,
             p,
-            &cond(
-                has_symptom,
-                Op::InList(vec![Term::Iri(chest_pain)])
-            )
+            &cond(has_symptom, Op::InList(vec![Term::Iri(chest_pain)]))
         ));
     }
 
@@ -491,8 +509,16 @@ mod tests {
             p,
             &ConditionTree::Any(vec![below.clone(), above.clone()])
         ));
-        assert!(holds(&world, p, &ConditionTree::NoneOf(vec![below.clone()])));
-        assert!(!holds(&world, p, &ConditionTree::NoneOf(vec![above.clone()])));
+        assert!(holds(
+            &world,
+            p,
+            &ConditionTree::NoneOf(vec![below.clone()])
+        ));
+        assert!(!holds(
+            &world,
+            p,
+            &ConditionTree::NoneOf(vec![above.clone()])
+        ));
 
         // Identities: All([]) = true, Any([]) = false, NoneOf([]) = true.
         assert!(holds(&world, p, &ConditionTree::All(vec![])));

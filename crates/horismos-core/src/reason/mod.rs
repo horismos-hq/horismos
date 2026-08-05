@@ -8,6 +8,7 @@
 //! Spec: `docs/framework/04-reasoning.md` · Owner: PRP-002
 
 pub mod eval;
+pub mod matcher;
 pub mod rule;
 
 pub use rule::{Conclusion, Condition, ConditionTree, Op, Rule, Term};
