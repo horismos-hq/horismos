@@ -11,7 +11,7 @@ symbolic runtime decides. See `../docs/framework/` for the full framework defini
 | PRP | Phase | One-liner |
 |-----|-------|-----------|
 | [PRP-000](PRP-000-vision-positioning.md) | Vision & positioning | What we claim, to whom, and what we deliberately do not claim |
-| [Foundational skeleton](foundational-skeleton.md) | Infrastructure (standing) | Repo layout, build tooling, CLAUDE.md, Claude skills — the substrate every phase assumes |
+| [Foundational skeleton](foundational-skeleton.md) | Infrastructure (standing) | Repo layout, build tooling, AGENTS.md, Claude skills — the substrate every phase assumes |
 | [PRP-001](PRP-001-ontology-core/01-objective.md) | Ontology core | RDFS-plus schema model, typed instance store, validated mutations (Rust) |
 | [PRP-002](PRP-002-reasoning-substrate.md) | Reasoning substrate | Chaining, subsumption, constraints, proof trees, training-ready traces |
 | [PRP-003](PRP-003-python-bindings.md) | Python bindings & API | PyO3 wheels; the Pythonic front door |

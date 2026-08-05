@@ -16,7 +16,8 @@ Pre-alpha: framework definition and skeleton. Nothing is implemented yet.
 
 - `docs/framework/` — the framework definition (docs 00–14), written in shipped voice
 - `PRPs/` — phase plans (PRP-000 vision → PRP-007 authoring agent)
-- `CLAUDE.md` — working conventions for agentic development sessions
+- `AGENTS.md` — working conventions for agentic development sessions (`CLAUDE.md` is
+  a compatibility symlink)
 
 ## Layout
 
