@@ -13,7 +13,7 @@ symbolic runtime decides. See `../docs/framework/` for the full framework defini
 | [PRP-000](PRP-000-vision-positioning.md) | Vision & positioning | What we claim, to whom, and what we deliberately do not claim |
 | [Foundational skeleton](foundational-skeleton.md) | Infrastructure (standing) | Repo layout, build tooling, AGENTS.md, Claude skills — the substrate every phase assumes |
 | [PRP-001](PRP-001-ontology-core/01-objective.md) | Ontology core | RDFS-plus schema model, typed instance store, validated mutations (Rust) |
-| [PRP-002](PRP-002-reasoning-substrate.md) | Reasoning substrate | Chaining, subsumption, constraints, proof trees, training-ready traces |
+| [PRP-002](PRP-002-reasoning-substrate/01-objective.md) | Reasoning substrate | Chaining, subsumption, constraints, proof trees, training-ready traces |
 | [PRP-003](PRP-003-python-bindings.md) | Python bindings & API | PyO3 wheels; the Pythonic front door |
 | [PRP-004](PRP-004-agent-loop.md) | Ontology-first agent loop | Workflow execution, perception/narration boundaries, tools, Bridge |
 | [PRP-005](PRP-005-guarantees-verification.md) | Guarantees & verification | BDD checks with witnesses, surfaced in both APIs |

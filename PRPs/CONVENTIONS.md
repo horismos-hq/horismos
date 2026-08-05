@@ -40,8 +40,9 @@ Rules: teaching sections cite `docs/framework/` rather than restating it at leng
 they never resolve open **[DECIDE]** questions — decisions stay open until resolved
 in the owning PRP. The one-page summary form remains correct for far-future Drafts;
 a PRP is expanded to teaching grade when it becomes next-up. Teaching material does
-not count toward the ~150-line early-folder-conversion trigger below — conversion
-still happens at activation, when the teaching-grade document moves to
+not count toward the ~150-line early-folder-conversion trigger below, though a
+next-up PRP may still convert early under the ordinary folder convention (PRP-002
+did); whenever conversion happens, the teaching-grade document moves to
 `01-objective.md` and is kept current as usual.
 
 ## The folder convention (large / active PRPs)
