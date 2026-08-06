@@ -518,6 +518,14 @@ impl World {
         self.last_reasoning.as_ref()
     }
 
+    /// Goal-directed proving (doc 04, U6): searches for a derivation that
+    /// *would* establish `(subject, property, value)` — from the facts, or
+    /// through rules, recursively — without mutating this world. `None`
+    /// when the goal is not establishable within the cycle/depth caps.
+    pub fn prove(&self, subject: Ref, property: Iri, value: &Value) -> Option<ProofNode> {
+        crate::reason::backward::prove(self, subject, property, value)
+    }
+
     /// The recorded derivation of an existing rule-derived fact (doc 04:
     /// "why *is* this established?") — from the forward-chaining record,
     /// not a fresh search. `None` for base facts and unset properties;

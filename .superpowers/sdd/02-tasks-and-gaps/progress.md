@@ -118,15 +118,18 @@
   `none(is X)` ≡ `isNot X` on a single condition. Pinned by property test
   `is_not_is_the_negation_of_is`. Doc 04 marker struck in the same commit (U2);
   doc 02's inherited-and-re-validated note rewritten.
-- [x] D-5. **Retraction of rule-derived facts: forbid** (decided 2026-08-05).
-  Statement: "A fact recorded as rule-derived cannot be retracted directly, by any
-  provenance; the error names the deriving rule. Derived facts change only by
-  re-running inference after base-fact changes." Evidence: doc 03's own lean
+- [x] D-5. **Retraction of rule-derived facts: forbid, except from the rule path
+  itself** (decided 2026-08-05, refined 2026-08-06). Statement: "A fact recorded as
+  rule-derived refuses retraction from perception/tool/api provenance; the error
+  names the deriving rule and points at re-running inference. `Provenance::Rule`
+  retraction remains permitted — it is the inference side's own mechanism, and
+  PRP-001 U7 already pinned 'a rule may retract what a rule asserted'
+  (`retraction_passes_the_same_provenance_policy`)." Evidence: doc 03's lean
   ("lean forbid — derived facts are retracted only by re-running inference");
   cascade requires truth-maintenance machinery PRP-002's scope excludes; allowing
-  silent retraction would let the world contradict its recorded proofs — trace and
-  world would disagree, violating principle 2. Fallback: cascade can be added later
-  behind the same gate check without changing the forbid default.
+  caller-side retraction would let the world contradict its recorded proofs —
+  trace and world disagreeing violates principle 2. Fallback: cascade can be added
+  later behind the same gate check without changing the forbid default.
 - [x] D-6. **`horis:immutable` binds retraction** (decided 2026-08-05). Statement:
   "Retracting a value of a `horis:immutable` property is refused at the gate, same
   witness shape as re-assertion; retract-then-assert can no longer replace an

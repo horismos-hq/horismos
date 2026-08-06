@@ -7,6 +7,7 @@
 //!
 //! Spec: `docs/framework/04-reasoning.md` · Owner: PRP-002
 
+pub mod backward;
 pub mod eval;
 pub mod forward;
 pub mod matcher;
