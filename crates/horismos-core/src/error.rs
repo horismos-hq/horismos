@@ -55,6 +55,16 @@ pub enum HorismosError {
     /// every interned token — so it is refused outright.
     #[error("{reason}")]
     SnapshotMismatch { reason: String },
+
+    /// Forward chaining hit its iteration cap with candidates still fireable
+    /// (PRP-002 U4, `docs/framework/04-reasoning.md`): the tripwire for a
+    /// rule set that may not terminate — termination is *verified* in
+    /// PRP-005 (doc 10). The whole transaction rolled back; the world is
+    /// exactly as before the triggering assertion.
+    #[error(
+        "forward chaining exceeded {cap} iterations without reaching a fixed point (last fired rule {last_rule}); the transaction was rolled back"
+    )]
+    IterationCapExceeded { cap: usize, last_rule: String },
 }
 
 impl HorismosError {
@@ -65,6 +75,7 @@ impl HorismosError {
             Self::ValidationRejected { witness } => witness.text.clone(),
             Self::SnapshotFormat { reason } => reason.clone(),
             Self::SnapshotMismatch { reason } => reason.clone(),
+            Self::IterationCapExceeded { .. } => self.to_string(),
         }
     }
 

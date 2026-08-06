@@ -48,7 +48,12 @@ const SNAPSHOT_MAGIC: [u8; 4] = *b"HSNP";
 /// The wire format this build writes and reads. Bump on any breaking change
 /// to [`WireSnapshot`]'s shape; [`Snapshot::from_bytes`] rejects every other
 /// version rather than guess at compatibility.
-const SNAPSHOT_VERSION: u16 = 1;
+///
+/// v2 (PRP-002): every fact carries its provenance, so restoration re-gates
+/// each fact under the provenance it was originally admitted with — closing
+/// PRP-001's "a `horis:RulesOnly` fact does not survive the wire form" gap.
+/// v1 payloads (no pre-release corpus exists) are refused, not converted.
+const SNAPSHOT_VERSION: u16 = 2;
 /// `magic` (4 bytes) + `version` (2 bytes, little-endian).
 const HEADER_LEN: usize = SNAPSHOT_MAGIC.len() + 2;
 
@@ -62,6 +67,10 @@ pub struct Snapshot {
     pub(super) instances: OrdMap<Iri, Instance>,
     pub(super) next_skolem: u64,
     pub(super) interner: Arc<Interner>,
+    /// Per-fact provenance, captured with the store (PRP-002): the wire
+    /// form writes it per fact, and [`World::from_snapshot`] reinstates it,
+    /// so proof leaves and `horis:assignedBy` re-gating survive both paths.
+    pub(super) fact_meta: OrdMap<Iri, OrdMap<Iri, imbl::Vector<Provenance>>>,
 }
 
 impl Snapshot {
@@ -84,11 +93,21 @@ impl Snapshot {
                     properties: instance
                         .properties()
                         .map(|property| {
-                            let values = instance
+                            let meta = self.fact_meta.get(&subject).and_then(|m| m.get(&property));
+                            let facts = instance
                                 .values(property)
-                                .map(|v| WireValue::from_value(v, &self.interner))
+                                .enumerate()
+                                .map(|(index, v)| WireFact {
+                                    value: WireValue::from_value(v, &self.interner),
+                                    // A fact whose provenance was never
+                                    // recorded (pre-v2 world state) writes
+                                    // the conservative default.
+                                    provenance: meta
+                                        .and_then(|m| m.get(index).copied())
+                                        .unwrap_or(Provenance::Api),
+                                })
                                 .collect();
-                            (self.interner.resolve(property).to_owned(), values)
+                            (self.interner.resolve(property).to_owned(), facts)
                         })
                         .collect(),
                 })
@@ -102,9 +121,9 @@ impl Snapshot {
     /// header or an unsupported format version before attempting to decode
     /// the payload at all.
     ///
-    /// Every restored fact is re-validated through `ontology`'s gate with
-    /// [`Provenance::Api`] — the controller pin for U8 (`docs/framework/03-world.md`):
-    /// bytes are untrusted input, so a tampered snapshot (a `heartRate` above
+    /// Every restored fact is re-validated through `ontology`'s gate — the
+    /// controller pin for U8 (`docs/framework/03-world.md`): bytes are
+    /// untrusted input, so a tampered snapshot (a `heartRate` above
     /// `horis:max`, say) is rejected exactly as the same assertion would be
     /// live, in the same domain terms
     /// ([`HorismosError::ValidationRejected`]). A decode failure that never
@@ -112,15 +131,15 @@ impl Snapshot {
     /// postcard payload, or a literal whose lexical form doesn't parse —
     /// surfaces as [`HorismosError::SnapshotFormat`] instead.
     ///
-    /// **Known limitation (PRP-001):** the wire form does not record each
-    /// fact's provenance, so restoration re-gates everything as
-    /// [`Provenance::Api`] — a world holding a `horis:assignedBy
-    /// horis:RulesOnly`/`ToolsOnly` fact (legitimately assigned by a rule or
-    /// tool) will NOT restore from its own bytes; check 5 refuses it. Fact
-    /// provenance travels with the wire form when PRP-002 lands traces (see
-    /// the dated gap note in `PRPs/PRP-001-ontology-core/02-tasks-and-gaps.md`);
-    /// until then, use in-memory [`World::from_snapshot`] for such worlds.
-    /// Pinned by `a_rules_only_fact_does_not_survive_the_wire_form_yet`.
+    /// Since wire v2 (PRP-002), each fact carries its recorded provenance
+    /// and check 5 re-gates it under exactly that provenance — a
+    /// `horis:RulesOnly` fact a rule derived restores as a rule's fact
+    /// (closing PRP-001's wire-form gap, pinned by
+    /// `a_rules_only_fact_survives_the_wire_form_with_its_provenance`).
+    /// Trust note: provenance is recorded data, so forged bytes can *claim*
+    /// rule/tool origin — but they always could claim any fact admissible
+    /// under some provenance; the trust boundary is unchanged (a snapshot
+    /// is trusted exactly as far as its bytes' custody).
     pub fn from_bytes(ontology: &Ontology, bytes: &[u8]) -> Result<Snapshot, HorismosError> {
         if bytes.len() < HEADER_LEN || bytes[..SNAPSHOT_MAGIC.len()] != SNAPSHOT_MAGIC {
             return Err(HorismosError::SnapshotFormat {
@@ -156,10 +175,11 @@ impl Snapshot {
             let subject = world.intern(&wi.subject);
             let class = world.intern(&wi.class);
             let mut properties = Vec::new();
-            for (property, values) in wi.properties {
+            for (property, facts) in wi.properties {
                 let property = world.intern(&property);
-                for value in values {
-                    properties.push((property, value.into_value(&mut world)?));
+                for fact in facts {
+                    let value = fact.value.into_value(&mut world)?;
+                    properties.push((property, value, fact.provenance));
                 }
             }
             if let Some(index) = wi
@@ -363,6 +383,7 @@ impl World {
             instances: self.instances.clone(),
             next_skolem: self.next_skolem,
             interner: Arc::clone(&self.interner),
+            fact_meta: self.fact_meta.clone(),
         }
     }
 
@@ -394,11 +415,17 @@ impl World {
                     .to_owned(),
             });
         }
+        // Derivation records (the proofs behind `explain`) deliberately do
+        // not travel with a snapshot: replay re-derives them
+        // deterministically (doc 09). Fact provenance does (PRP-002).
         Ok(World {
             ontology: ontology.clone(),
             interner: snapshot.interner,
             instances: snapshot.instances,
             next_skolem: snapshot.next_skolem,
+            fact_meta: snapshot.fact_meta,
+            derivations: imbl::OrdMap::new(),
+            last_reasoning: None,
         })
     }
 
@@ -445,17 +472,33 @@ impl World {
         &mut self,
         subject: Iri,
         class: Iri,
-        properties: Vec<(Iri, Value)>,
+        facts: Vec<(Iri, Value, Provenance)>,
     ) -> Result<Vec<gate::DeferredRef>, HorismosError> {
         let kind = if self.resolve(subject).starts_with(SKOLEM_NAMESPACE) {
             Subject::Skolem(subject)
         } else {
             Subject::Named(subject)
         };
-        let (instance, deferred) =
-            gate::check_assertion_restoring(self, Provenance::Api, kind, class, &properties)
-                .map_err(|witness| HorismosError::ValidationRejected { witness })?;
+        let (instance, deferred) = gate::check_assertion_restoring(self, kind, class, &facts)
+            .map_err(|witness| HorismosError::ValidationRejected { witness })?;
+        // Reinstate each fact's provenance positionally against the stored
+        // value order (wire order is stored order; the gate dedupes, so
+        // position-match by value rather than assuming index equality).
+        let mut meta: imbl::OrdMap<Iri, imbl::Vector<Provenance>> = imbl::OrdMap::new();
+        for property in instance.properties() {
+            let mut vector = imbl::Vector::new();
+            for value in instance.values(property) {
+                let recorded = facts
+                    .iter()
+                    .find(|(p, v, _)| *p == property && v == value)
+                    .map(|(_, _, provenance)| *provenance)
+                    .unwrap_or(Provenance::Api);
+                vector.push_back(recorded);
+            }
+            meta.insert(property, vector);
+        }
         self.instances.insert(subject, instance);
+        self.fact_meta.insert(subject, meta);
         Ok(deferred)
     }
 }
@@ -475,7 +518,16 @@ struct WireSnapshot {
 struct WireInstance {
     subject: String,
     class: String,
-    properties: Vec<(String, Vec<WireValue>)>,
+    properties: Vec<(String, Vec<WireFact>)>,
+}
+
+/// One stored fact on the wire: its value plus the provenance it was
+/// admitted with (v2) — what lets restoration re-gate `horis:assignedBy`
+/// facts exactly as they were admitted live.
+#[derive(Debug, Serialize, Deserialize)]
+struct WireFact {
+    value: WireValue,
+    provenance: Provenance,
 }
 
 /// One value, portable across processes: `Integer`/`String`/`Boolean` travel
@@ -1039,7 +1091,10 @@ mod tests {
                 class: "https://example.org/triage#Patient".to_owned(),
                 properties: vec![(
                     "https://example.org/triage#heartRate".to_owned(),
-                    vec![WireValue::Integer(1280)],
+                    vec![WireFact {
+                        value: WireValue::Integer(1280),
+                        provenance: Provenance::Api,
+                    }],
                 )],
             }],
         };
@@ -1137,7 +1192,10 @@ mod tests {
                     class: "https://example.org/t#Patient".to_owned(),
                     properties: vec![(
                         "https://example.org/t#seenIn".to_owned(),
-                        vec![WireValue::Ref("https://example.org/t#e1".to_owned())],
+                        vec![WireFact {
+                            value: WireValue::Ref("https://example.org/t#e1".to_owned()),
+                            provenance: Provenance::Api,
+                        }],
                     )],
                 },
                 WireInstance {
@@ -1174,7 +1232,10 @@ mod tests {
                 class: "https://example.org/t#Patient".to_owned(),
                 properties: vec![(
                     "https://example.org/t#seenIn".to_owned(),
-                    vec![WireValue::Ref("https://example.org/t#nowhere".to_owned())],
+                    vec![WireFact {
+                        value: WireValue::Ref("https://example.org/t#nowhere".to_owned()),
+                        provenance: Provenance::Api,
+                    }],
                 )],
             }],
         };
@@ -1221,17 +1282,16 @@ mod tests {
     }
 
     #[test]
-    fn a_rules_only_fact_does_not_survive_the_wire_form_yet() {
-        // Pins the documented PRP-001 limitation (see from_bytes's rustdoc
-        // and the dated gap note in the PRP): the wire form carries no fact
-        // provenance, restoration re-gates as Api, and check 5 refuses the
-        // rule-assigned acuity. When PRP-002 puts provenance on the wire,
-        // this test should flip to a round-trip success.
+    fn a_rules_only_fact_survives_the_wire_form_with_its_provenance() {
+        // The flip of PRP-001's pinned limitation, closed by wire v2
+        // (PRP-002): each fact travels with its provenance, so the
+        // rule-assigned acuity re-gates as a rule's fact and restores — and
+        // the restored world still knows who asserted it.
         let mut world = triage_world();
         let patient = world.intern("https://example.org/triage#Patient");
         let acuity = world.intern("https://example.org/triage#acuity");
         let immediate = world.intern("https://example.org/triage#Immediate");
-        world
+        let p = world
             .assert_instance_as(
                 Provenance::Rule,
                 None,
@@ -1241,12 +1301,53 @@ mod tests {
             .expect("a rule may assign acuity");
 
         let bytes = world.snapshot().to_bytes();
-        let err = Snapshot::from_bytes(world.ontology(), &bytes)
-            .expect_err("PRP-001 wire form cannot restore a RulesOnly fact");
+        let snapshot = Snapshot::from_bytes(world.ontology(), &bytes)
+            .expect("wire v2 restores a RulesOnly fact under its recorded provenance");
+        let restored = World::from_snapshot(world.ontology(), snapshot)
+            .expect("a snapshot restores under its own ontology");
+
+        let subject = restored
+            .instances(patient)
+            .next()
+            .expect("the patient restored");
+        let value = restored
+            .value(subject, acuity)
+            .expect("the RulesOnly fact restored")
+            .clone();
+        assert_eq!(
+            restored.fact_provenance(subject, acuity, &value),
+            Some(Provenance::Rule),
+            "provenance survives the round trip"
+        );
+        let _ = p;
+    }
+
+    /// A forged provenance does not widen what bytes can smuggle past the
+    /// *value* checks: a fact invalid on its face is refused whatever
+    /// provenance it claims.
+    #[test]
+    fn a_forged_provenance_cannot_smuggle_an_invalid_value() {
+        let onto = triage_world().ontology().clone();
+        let wire = WireSnapshot {
+            next_skolem: 0,
+            instances: vec![WireInstance {
+                subject: "https://example.org/triage#p1".to_owned(),
+                class: "https://example.org/triage#Patient".to_owned(),
+                properties: vec![(
+                    "https://example.org/triage#acuity".to_owned(),
+                    vec![WireFact {
+                        value: WireValue::Ref("https://example.org/triage#Whenever".to_owned()),
+                        provenance: Provenance::Rule,
+                    }],
+                )],
+            }],
+        };
+        let err = Snapshot::from_bytes(&onto, &encode(&wire))
+            .expect_err(":Whenever is outside horis:oneOf whatever the claimed provenance");
         match err {
             HorismosError::ValidationRejected { witness } => {
                 assert!(
-                    matches!(witness.kind, ConstraintKind::ProvenanceRefused { .. }),
+                    matches!(witness.kind, ConstraintKind::OneOf { .. }),
                     "unexpected kind: {:?}",
                     witness.kind
                 );

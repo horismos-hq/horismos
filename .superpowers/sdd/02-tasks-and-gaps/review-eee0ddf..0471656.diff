@@ -1,0 +1,2492 @@
+diff --git a/.superpowers/sdd/02-tasks-and-gaps/progress.md b/.superpowers/sdd/02-tasks-and-gaps/progress.md
+new file mode 100644
+index 0000000..4af3a13
+--- /dev/null
++++ b/.superpowers/sdd/02-tasks-and-gaps/progress.md
+@@ -0,0 +1,154 @@
++# PRP-002 Reasoning Substrate — run ledger
++
++- Plan: `PRPs/PRP-002-reasoning-substrate.md` (teaching-grade, single-file on main).
++  PR #3 converts it to folder form (`PRPs/PRP-002-reasoning-substrate/02-tasks-and-gaps.md`);
++  per the launch brief this run derives its own unit plan until that merges, then
++  rebases and adopts the folder's ledger surface.
++- Branch: `fm/horismos-prp002-impl-a1` (firstmate-managed disposable worktree —
++  supersedes the `.claude/worktrees/prp-NNN-slug` convention for this run).
++- Worktree: `/Users/billaram/.treehouse/horismos-86ae5f/3/horismos`
++- Baseline: `eee0ddf` (main; `make verify` green checked at run start — see below).
++
++## Unit plan (derived from the PRP's Scope + DoD; PRP-001 folder shape)
++
++- U1. Rule model + load-time parse: `reason::rule::{Rule, ConditionTree, Condition,
++  Conclusion}`; parsed from ontology documents at `Ontology::assemble`; load-time
++  validation in domain terms (undeclared property/class in conditions or conclusion,
++  invalid operator arity/type, rule-side `horis:unit` mismatch — PRP-001 D6
++  follow-through); `Ontology::rules()` accessor.
++- U2. Condition evaluation over `&World`: 11 operators + 3 combinators, closed-world
++  edge semantics per doc 04's table with resolved ∀-`isNot` (D-4 below);
++  subsumption-aware `is`/`isNot`/`inList` via `Schema::is_subclass_of`.
++- U3. Naive matcher (the correctness oracle): candidates = all (rule, subject)
++  pairs whose conditions hold, minus fired; ordered priority desc, then rule IRI
++  lexicographic.
++- U4. Forward chaining to fixed point inside the World transaction: one firing per
++  pass, no re-fire, conflict suppression (higher priority wins), iteration cap 100,
++  conclusions through the gate with `Provenance::Rule`, gate rejects surfaced as
++  diagnostics (world stays valid, firing recorded), whole-transaction rollback on
++  cap exceeded; per-firing proof + derivation records; stored fact provenance
++  (in-memory side map — PRP-001 gap adoption, see rulings).
++- U5. `ProofNode` + `render()` (doc 04 format) + `World::explain(subject, property)`
++  from the recorded forward-chaining derivations.
++- U6. Backward chaining `prove(world, goal)`: rule index (property → concluding
++  rules), cycle detection via in-progress goal set, depth cap 50, hypothesis overlay
++  (prove never mutates the world), subsumption leaves — `backward.py` semantics
++  re-keyed to graph goals.
++- U7. Trace schema `horismos.trace/1`: typed steps (`reasoning` now; `perception`/
++  `action`/`narration` shapes reserved), fired/suppressed/diagnostics, `loss_mask`,
++  outcome labels; serde JSON compact + pretty; byte-identical serialization pinned;
++  written versioning policy + v1→v2 dry-run migration test (D-3).
++- U8. Rete-lite matcher (alpha memories keyed class + property); differential
++  property tests vs the naive oracle; criterion benchmarks (triage fixture + larger
++  synthetic ontology); D-1 resolved from the numbers; loser stays in-tree as oracle.
++- U9. Retraction rulings wired into the gate: derived-fact retraction forbidden
++  (D-5), `horis:immutable` binds retraction (D-6), sameAs-canonical class lookup
++  ruling (D-7); doc 02/03/04 [DECIDE] markers struck in the same commits.
++- U10. DoD run: Examples 1–3 from the PRP as executable parity tests against
++  hand-computed fixed points; trace equality assertions; proptest suite for
++  inference invariants (fixed-point convergence, no re-fire, caps, determinism).
++
++## Controller resolutions (interfaces pinned across units)
++
++- The reasoner reads the world as `&World` only; every conclusion is asserted via
++  `World::assert_instance_as(Provenance::Rule, ..)`-equivalent internal path — the
++  gate is the only write path (no back door).
++- Rules parse at `Ontology::assemble` into `Inner.rules: Vec<Rule>` — a rule error is
++  a *load* error (same posture as `horis:pattern` compilation). `Ontology::rules()`
++  returns `&[Rule]` sorted by (priority desc, IRI lex) at build time.
++- v1 rule shape: every condition in a rule names the same `horis:subject` class; the
++  conclusion applies to that bound instance. Mixed-subject rules are a load-time
++  domain-term error (recorded as a gap, not silently supported wrong).
++- Bindings render as `?<initial>` of the subject class local name (`?p` for
++  `:Patient`) — matches doc 09's example JSON and the PRP's `{?p→:p7}`.
++- `Matcher` is a trait with `NaiveMatcher` and `ReteLite` implementations; forward
++  chaining is generic over it; the default is set by D-1's benchmark.
++- Proof granularity is per-condition (D-2): one `ProofNode` child per condition,
++  subsumption hops explicit (`via: subsumption(...)`).
++- Timing fields in traces are `Option` and omitted from JSON when absent, so trace
++  equality remains byte-exact in deterministic tests.
++
++## Decisions (brainstorming protocol; to be transferred into the PRP folder's
++## 02-tasks-and-gaps.md when PR #3 merges)
++
++- [ ] D-1. **Matcher: build both, benchmark decides the default** (resolution *path*
++  fixed 2026-08-05; checkbox closes when U8's numbers exist). Statement: "Forward
++  chaining's default matcher at triage scale is chosen by criterion benchmark; naive
++  and Rete-lite both ship, the loser as differential-testing oracle." Evidence: PRP
++  Key decision 1 prescribes exactly this; doc 14 pins CI-tracked criterion benchmarks
++  from PRP-002 onward; sigil-lang's marshaling-dominated result is void in-process.
++  Fallback: if the benchmark is a wash at both scales, naive is the default (simpler,
++  easier to audit) and Rete-lite stays behind the trait. RESULT: *pending U8* — to be
++  recorded here with the measured numbers.
++- [x] D-2. **Proof-tree granularity: per-condition** (decided 2026-08-05).
++  Statement: "Every condition evaluation — including each subsumption hop — is its
++  own `ProofNode`; a firing is the parent node." Evidence: doc 04's `ProofNode`
++  literally shows per-condition children and explicit `via: subsumption(...)` nodes
++  ("hierarchy steps are explicit proof nodes"); `backward.py` produces per-condition
++  subgoals; the PRP says per-rule loses if downstream consumers use the detail —
++  narration (doc 06) and the authoring loop (doc 13) both render the per-condition
++  tree. Measured cost: *pending U10* — record the triage Example-1 compact trace size
++  here; if it stays in the low KBs the per-rule size argument does not materialize.
++  Fallback: if realistic traces blow up, collapse *rendering*, not the recorded
++  structure.
++- [x] D-3. **Trace schema versioning policy** (decided 2026-08-05). Statement:
++  "`horismos.trace/1` never changes meaning. Additive-optional fields (serde
++  `skip_serializing_if` + `default`) are non-breaking within v1; anything that
++  changes the meaning or type of an existing field, adds a required field, adds a
++  new `kind`/step variant consumers must understand, or repurposes
++  `loss_mask`/outcome labels is breaking and mints `horismos.trace/2` plus a pure
++  `convert_v1_to_v2` function in `trace::migrate`, exercised by a dry-run test.
++  Reserved fields (`loss_mask`, `outcome.labels`) may gain new *keys* without a
++  version bump; existing keys never change meaning — corpora already trained on
++  stay valid (TIR/CIR: sigil-lang INTERLEAVED_SYMBOLIC_EXECUTION.md §Design
++  Recommendations)." Training-export tag set (folded in): XML-style per-step-kind
++  tags `<perceive>`/`<reason>`/`<act>`/`<narrate>` with `<observe>` for masked
++  executor output — the NVIDIA `<llm-code>`/`<llm-code-output>` family, the largest
++  existing TIR-corpus precedent (OpenMathInstruct-1/NeMo-Skills, structurally
++  identical per the research doc's comparison table); recorded as the doc-09 tag
++  set, consumed when the exporter lands (PRP-003+). Fallback: tags are exporter
++  template data, not trace data — swapping them never touches recorded traces.
++- [x] D-4. **Negation semantics: ∀ for multi-valued `isNot`** (decided 2026-08-05).
++  Statement: "`horis:isNot X` holds iff *no* value of the property `is X`
++  (subsumption-aware) — `isNot` ≡ ¬`is` in every world state." Evidence: the
++  doc-04 edge table pins unassigned→`isNot` true; the ∃ reading contradicts it (an
++  unassigned property has no witness value, so ∃ would yield false) — only ∀ keeps
++  the documented table coherent; sigil-lang's `_UNBOUND` precedent ("comparisons
++  false, `is not` true") is exactly the ¬ reading; `horis:none` (¬∨) then composes:
++  `none(is X)` ≡ `isNot X` on a single condition. Pinned by property test
++  `is_not_is_the_negation_of_is`. Doc 04 marker struck in the same commit (U2);
++  doc 02's inherited-and-re-validated note rewritten.
++- [x] D-5. **Retraction of rule-derived facts: forbid** (decided 2026-08-05).
++  Statement: "A fact recorded as rule-derived cannot be retracted directly, by any
++  provenance; the error names the deriving rule. Derived facts change only by
++  re-running inference after base-fact changes." Evidence: doc 03's own lean
++  ("lean forbid — derived facts are retracted only by re-running inference");
++  cascade requires truth-maintenance machinery PRP-002's scope excludes; allowing
++  silent retraction would let the world contradict its recorded proofs — trace and
++  world would disagree, violating principle 2. Fallback: cascade can be added later
++  behind the same gate check without changing the forbid default.
++- [x] D-6. **`horis:immutable` binds retraction** (decided 2026-08-05). Statement:
++  "Retracting a value of a `horis:immutable` property is refused at the gate, same
++  witness shape as re-assertion; retract-then-assert can no longer replace an
++  immutable value." Evidence: doc 02 defines immutable as "once set, cannot be
++  re-asserted with a different value" — a two-step bypass makes the declaration
++  vacuous; the PRP-001 gap note (2026-07-29) flagged exactly this hole and handed
++  it here. Fallback: a future `horis:retractable` term could opt back in per
++  property; none is needed now. Doc 02 marker struck in the same commit (U9).
++- [x] D-7. **sameAs-canonical class lookup** (decided 2026-08-05). Statement:
++  "Everywhere the reasoner or gate answers a *class* question, IRIs are first
++  mapped through the `owl:sameAs` canonical map — `Schema::class()` gains a
++  canonical-aware sibling used by gate range/oneOf checks and by rule-condition
++  class references, so an anchored external IRI (`sct:29857009`) is first-class
++  wherever its local twin is." Evidence: PRP-001 gap (spurious rejects only);
++  subsumption is already canonical — the asymmetry is the bug. Scope note: value
++  *identity* (`Value::Ref` equality) stays token-exact; only class-position lookups
++  canonicalize. Fallback: none needed — strictly fewer spurious rejects.
++
++## Unit log
++
++(one line per unit as it completes)
++
++## Gaps discovered during implementation
++
++(dated notes; transfer to the PRP folder's 02-tasks-and-gaps.md on rebase)
+diff --git a/.superpowers/sdd/02-tasks-and-gaps/task-U1-brief.md b/.superpowers/sdd/02-tasks-and-gaps/task-U1-brief.md
+new file mode 100644
+index 0000000..61735e8
+--- /dev/null
++++ b/.superpowers/sdd/02-tasks-and-gaps/task-U1-brief.md
+@@ -0,0 +1,77 @@
++# Batch 0 — U1: rule model + load-time parse
++
++## Task text (from the run ledger's derived unit plan, tracking the PRP Scope)
++
++> U1. Rule model + load-time parse: `reason::rule::{Rule, ConditionTree, Condition,
++> Conclusion}`; parsed from ontology documents at `Ontology::assemble`; load-time
++> validation in domain terms (undeclared property/class in conditions or conclusion,
++> invalid operator arity/type, rule-side `horis:unit` mismatch — PRP-001 D6
++> follow-through); `Ontology::rules()` accessor.
++
++PRP Scope bullet this serves: "Forward chaining: rules fire over the graph …" —
++rules must first exist as typed data. Doc 02 § Rule vocabulary is the grammar;
++doc 04 fixes the semantics the model must be able to express.
++
++## Governing decisions
++
++- PRP-001 D6 (units, strict): "units are opaque labels, exact match required between
++  rule conditions and property declarations; mismatch is a load-time verification
++  error in domain terms." The PRP-001 gap note hands the *rule-side* check to
++  PRP-002: a condition may state `horis:unit`; if stated it must equal the
++  property's declared unit exactly; a condition on a property with a declared unit
++  and no unit in the condition inherits the declaration (no error).
++- Controller pin: rules parse at `Ontology::assemble`; a rule error is a load error.
++- Controller pin: v1 rules bind one subject class; mixed-subject rules are a
++  load-time domain-term error.
++- No new vocabulary terms: only doc-02's 11 operators, 3 combinators,
++  `horis:Rule/priority/when/then/explain/subject/property/value/unit`.
++
++## Required reading
++
++- `docs/framework/02-ontology.md` § Rule vocabulary (the 11 operators + 3 combinators)
++- `docs/framework/04-reasoning.md` (semantics the model must carry: priority,
++  explain string, conclusion property+value)
++- `crates/horismos-core/src/ontology/schema.rs` (RawTriples pattern, rdf list
++  walking, error style), `turtle.rs` (`Document`, `Object`, `Literal`, `Node`)
++- `.claude/skills/ontology-modeling-conventions`
++
++## Requirements
++
++1. `reason::rule` module: `Rule { iri, priority: i64 (default 0), when: ConditionTree,
++   then: Conclusion, explain: Option<String>, subject_class: Iri }`,
++   `ConditionTree { All(Vec<..>) | Any(Vec<..>) | None(Vec<..>) | Leaf(Condition) }`,
++   `Condition { property: Iri, op: Op, unit: Option<String> }`,
++   `Op` = 11 variants: Exceeds(Value) Below(Value) AtLeast(Value) AtMost(Value)
++   Between(Value, Value) Is(TermOrValue) IsNot(TermOrValue) IsAssigned IsEmpty
++   Contains(Value) InList(Vec<TermOrValue>), `Conclusion { property: Iri,
++   value: TermOrValue }`.
++2. Parse from the ontology's `Document`s (all graphs) every subject with
++   `a horis:Rule`. Blank-node condition/conclusion bodies; `horis:all/any/none`
++   over RDF lists; nested combinators allowed.
++3. Load-time domain-term errors (new `OntologyError` variants), each naming the rule:
++   - condition/conclusion property not declared → "rule :r9 names pulse, which is
++     not a declared property in the ontology"
++   - `horis:subject` names an undeclared class
++   - conditions naming two different subject classes
++   - missing `horis:when`/`horis:then`
++   - `horis:between` without exactly two values; operator/value type mismatches are
++     NOT checked here (evaluation semantics + PRP-005 verification own that) except
++     unit: rule-side `horis:unit` ≠ declared unit → "rule :rX heartRate condition
++     states unit \"mmHg\" but heartRate is declared in \"bpm\"" (exact strings in
++     tests may differ; tests assert the load fails and the text names rule,
++     property, both units).
++4. `Ontology::rules()` → `&[Rule]`, sorted (priority desc, rule IRI lex) at build.
++5. `triage.ttl` loads with exactly one rule, r1: priority 10, 2-condition All,
++   conclusion acuity=:Immediate, explain string intact.
++6. TDD: RED = behavioural failures (tests naming the missing module/API compile
++   failure is acceptable for the very first test; the validation tests must show
++   behavioural RED once the type exists).
++
++## Out of scope
++
++Condition *evaluation* (U2), matching (U3/U8), firing (U4), proof trees (U5/U6),
++traces (U7), workflow vocabulary (PRP-004). No `.ttl` fixture changes.
++
++## Carried-forward concerns
++
++None (first batch).
+diff --git a/.superpowers/sdd/02-tasks-and-gaps/task-U2-U3-brief.md b/.superpowers/sdd/02-tasks-and-gaps/task-U2-U3-brief.md
+new file mode 100644
+index 0000000..8f4a091
+--- /dev/null
++++ b/.superpowers/sdd/02-tasks-and-gaps/task-U2-U3-brief.md
+@@ -0,0 +1,69 @@
++# Batch 1 — U2 condition evaluation + U3 naive matcher
++
++## Task text (ledger unit plan)
++
++> U2. Condition evaluation over `&World`: 11 operators + 3 combinators,
++> closed-world edge semantics per doc 04's table with resolved ∀-`isNot` (D-4);
++> subsumption-aware `is`/`isNot`/`inList` via `Schema::is_subclass_of`.
++>
++> U3. Naive matcher (the correctness oracle): candidates = all (rule, subject)
++> pairs whose conditions hold, minus fired; ordered priority desc, then rule IRI
++> lexicographic.
++
++## Governing decisions
++
++- D-4 (ledger): `isNot X` ≡ ¬(`is X`) — ∀ over multi-valued; unassigned → true.
++  Strike doc 04's `[DECIDE]` marker and rewrite doc 02's re-validation note in
++  the same commit. Pin with property test `is_not_is_the_negation_of_is`.
++- Doc 04 edge table verbatim: unassigned + comparison → false; unassigned +
++  `isAssigned` → false; multi-valued `is` → ∃.
++- Controller pin: `Matcher` trait; naive returns the single next candidate per
++  doc-04 order (priority desc, rule IRI lex, then subject token asc for
++  multi-subject ties — token order = first-intern order, deterministic).
++
++## Semantics detail (from doc 02/03/04 + gate precedent)
++
++- `is X` on a `Ref` value r: true iff r ≡ X sameAs-canonically, or r is a
++  declared class with r ⊑ X, or r names a world instance whose class ⊑ X —
++  mirroring the gate's own range acceptance (class-as-value and
++  instance-as-value both occur in PRP-001's tests).
++- Numeric comparisons cross-type over Integer/Decimal; DateTime ordered;
++  String lexicographic (sigil `compare_values` precedent); Duration/Boolean
++  unordered → false.
++- `between` is inclusive on both bounds (sigil `Between` precedent).
++- `contains`: string value + string term → substring; otherwise ∃-membership
++  with the same match relation as `is`.
++- `inList`: ∃ value, ∃ listed term with the `is` match relation.
++- Combinators: All ∧, Any ∨ (empty Any → false; empty All → true — standard
++  identities), NoneOf ≡ ¬∨.
++
++## Required reading
++
++docs 02 § Rule vocabulary, 04 § Condition evaluation; `reason/rule.rs` (U1);
++`world/mod.rs` queries; `.claude/skills/ontology-modeling-conventions`.
++
++## Requirements
++
++1. `reason::eval`: `holds(world, subject, &ConditionTree) -> bool` and
++   `condition_holds(world, subject, &Condition) -> bool`; pure, `&World` only.
++2. `reason::matcher`: `FiredSet`, `Candidate { rule: usize, subject: Ref }`,
++   `trait Matcher { fn next_candidate(&mut self, world, rules, fired) -> Option<Candidate>; fn invalidate(&mut self, ...) }`
++   (shape may be refined in U8 — naive must stay the oracle), `NaiveMatcher`.
++3. Tests: r1 candidate cases from PRP Example 1 pass 1 (p7 matches r1 via
++   subsumption; r3-style rule not a candidate while acuity unassigned);
++   fired exclusion; deterministic ordering; doc-04 edge table row by row;
++   proptest: `isNot ≡ ¬is`, `isEmpty ≡ ¬isAssigned` over arbitrary worlds.
++4. TDD: behavioural RED runs recorded for the new modules (module stub with
++   `todo!()` or missing fn compile error for the first test; assertion
++   failures for semantics tests where feasible).
++5. `make verify` green; separate commits U2 then U3.
++
++## Out of scope
++
++Firing/transactions (U4), proofs (U5), Rete (U8), trace (U7).
++
++## Carried-forward concerns
++
++- U1 note: `Op::Contains`/`InList` accept any `Term`; evaluation defines their
++  runtime meaning — keep it exactly as specified above so PRP-005 can verify
++  against the same table.
+diff --git a/crates/horismos-core/src/error.rs b/crates/horismos-core/src/error.rs
+index fe3cab7..4792291 100644
+--- a/crates/horismos-core/src/error.rs
++++ b/crates/horismos-core/src/error.rs
+@@ -196,6 +196,93 @@ pub enum OntologyError {
+         b: String,
+     },
+ 
++    // -- PRP-002 U1: rule parse/validation at load -------------------------
++    /// A `horis:Rule` is structurally incomplete: no `horis:when`, no
++    /// `horis:then`, no `horis:subject` on its conditions, or a malformed
++    /// body where a condition node was expected.
++    #[error("rule {rule} is missing {part}")]
++    RuleMissingPart { rule: String, part: String },
++
++    /// A rule condition or conclusion names a property the schema does not
++    /// declare.
++    #[error("rule {rule} names {property}, which is not a declared property in the ontology")]
++    RuleUndeclaredProperty { rule: String, property: String },
++
++    /// A condition's `horis:subject` names a class the schema does not
++    /// declare (checked `owl:sameAs`-canonically, so an anchored external
++    /// IRI is as good as its local twin).
++    #[error(
++        "rule {rule} horis:subject names {class}, which is not a declared class in the ontology"
++    )]
++    RuleUndeclaredSubject { rule: String, class: String },
++
++    /// Conditions of one rule name two different subject classes. A v1 rule
++    /// binds exactly one subject instance (doc 04's `{?p → :p7}` bindings);
++    /// cross-subject joins are not in the profile.
++    #[error(
++        "rule {rule} conditions name both {a} and {b} as horis:subject; a rule binds one subject class"
++    )]
++    RuleMixedSubjects { rule: String, a: String, b: String },
++
++    /// A condition states no recognized operator (one of the 11,
++    /// `docs/framework/02-ontology.md`).
++    #[error(
++        "rule {rule} condition on {property} states no operator (expected one of the 11 horis: condition operators)"
++    )]
++    RuleMissingOperator { rule: String, property: String },
++
++    /// A condition states more than one operator; each condition tests one.
++    #[error(
++        "rule {rule} condition on {property} states both horis:{a} and horis:{b}; a condition tests one operator"
++    )]
++    RuleMultipleOperators {
++        rule: String,
++        property: String,
++        a: String,
++        b: String,
++    },
++
++    /// `horis:priority`'s object is not an `xsd:integer`.
++    #[error("rule {rule} horis:priority {value} is not an xsd:integer")]
++    RuleInvalidPriority { rule: String, value: String },
++
++    /// An operator was given an operand of the wrong shape (a node where a
++    /// literal is required, a scalar where a list is required, …).
++    #[error("rule {rule} {operator} {value} is not usable here (expected {expected})")]
++    RuleInvalidOperand {
++        rule: String,
++        operator: String,
++        value: String,
++        expected: String,
++    },
++
++    /// `horis:between` did not receive a list of exactly two values.
++    #[error("rule {rule} horis:between expects a list of exactly two values, found {found}")]
++    RuleBetweenArity { rule: String, found: usize },
++
++    /// D6 (strict units), rule-side: a condition's stated `horis:unit`
++    /// contradicts the property's declared unit.
++    #[error(
++        "rule {rule} {property} condition states horis:unit \"{stated}\" but {property} is declared in \"{declared}\""
++    )]
++    RuleUnitMismatch {
++        rule: String,
++        property: String,
++        stated: String,
++        declared: String,
++    },
++
++    /// D6 (strict units), rule-side: a condition states a `horis:unit` on a
++    /// property that declares none.
++    #[error(
++        "rule {rule} {property} condition states horis:unit \"{stated}\" but {property} declares no unit"
++    )]
++    RuleUnitWithoutDeclaration {
++        rule: String,
++        property: String,
++        stated: String,
++    },
++
+     // -- U6: the Ontology facade ------------------------------------------
+     /// A property's `horis:pattern` is not a valid regular expression.
+     /// Patterns are compiled once when the [`crate::Ontology`] is assembled,
+diff --git a/crates/horismos-core/src/ontology/facade.rs b/crates/horismos-core/src/ontology/facade.rs
+index f986c32..584e48c 100644
+--- a/crates/horismos-core/src/ontology/facade.rs
++++ b/crates/horismos-core/src/ontology/facade.rs
+@@ -27,6 +27,7 @@ use crate::error::OntologyError;
+ use crate::ontology::imports::OntologySet;
+ use crate::ontology::schema::Schema;
+ use crate::ontology::term::{Interner, Iri};
++use crate::reason::rule::{Rule, parse_rules};
+ 
+ /// A loaded ontology: graphs, schema, interner. Construct with
+ /// [`Ontology::load`] (filesystem) or [`Ontology::load_from_str`] (pure);
+@@ -55,6 +56,10 @@ struct Inner {
+     /// at load so the gate is a lookup, and an unparseable pattern surfaces
+     /// as [`OntologyError::InvalidPattern`] before any world exists.
+     patterns: BTreeMap<Iri, Regex>,
++    /// Every `horis:Rule` across the graph set, parsed and validated at load
++    /// (PRP-002 U1) and pre-sorted by (priority desc, rule IRI lexicographic)
++    /// — the order forward chaining consumes them in (doc 04's tie-break).
++    rules: Vec<Rule>,
+ }
+ 
+ impl Ontology {
+@@ -90,6 +95,7 @@ impl Ontology {
+             interner: shared.interner.clone(),
+             compaction: shared.compaction.clone(),
+             patterns: shared.patterns.clone(),
++            rules: shared.rules.clone(),
+         });
+         let mut interner = inner.interner;
+         let set = inner.set.with_import(path, &mut interner)?;
+@@ -102,6 +108,7 @@ impl Ontology {
+         set.validate(&interner)?;
+         let schema = Schema::build_all(set.documents(), &interner)?;
+         let patterns = compile_patterns(&schema, &interner)?;
++        let rules = parse_rules(set.documents(), &schema, &interner)?;
+ 
+         let mut compaction = set.prefixes.clone();
+         compaction.sort_by(|(a_name, a_ns), (b_name, b_ns)| {
+@@ -115,6 +122,7 @@ impl Ontology {
+                 interner,
+                 compaction,
+                 patterns,
++                rules,
+             }),
+         })
+     }
+@@ -155,6 +163,14 @@ impl Ontology {
+         self.inner.patterns.get(&property)
+     }
+ 
++    /// Every `horis:Rule` this ontology declares (PRP-002 U1), pre-sorted by
++    /// (priority desc, rule IRI lexicographic) — never load order (doc 04).
++    /// Parsed and validated at load: an `Ontology` value never holds a
++    /// malformed rule.
++    pub fn rules(&self) -> &[Rule] {
++        &self.inner.rules
++    }
++
+     /// Resolves an `Iri` token interned by *this* ontology back to its text.
+     ///
+     /// # Panics
+diff --git a/crates/horismos-core/src/ontology/schema.rs b/crates/horismos-core/src/ontology/schema.rs
+index feee8b5..116e360 100644
+--- a/crates/horismos-core/src/ontology/schema.rs
++++ b/crates/horismos-core/src/ontology/schema.rs
+@@ -245,6 +245,40 @@ impl Schema {
+         self.same_as.get(&iri).copied().unwrap_or(iri)
+     }
+ 
++    /// `iri`'s `owl:sameAs` canonical representative — public face of the
++    /// equivalence map (PRP-002 D-7), for *individual* identity questions
++    /// ("is `:Immediate` the same individual as its anchored twin?") where
++    /// no class declaration is involved. Returns `iri` itself when it never
++    /// appeared in a `sameAs` triple.
++    pub fn canonical_iri(&self, iri: Iri) -> Iri {
++        self.canonical(iri)
++    }
++
++    /// The *declared* class `iri` names, looked up `owl:sameAs`-canonically
++    /// (PRP-002 D-7): an exact declaration wins; otherwise any member of
++    /// `iri`'s `sameAs` equivalence class that *is* declared answers for it,
++    /// lowest-token member first (deterministic — `BTreeMap` order). `None`
++    /// when neither `iri` nor any of its twins is a declared class.
++    ///
++    /// This is how an anchored external IRI (`sct:29857009`) becomes
++    /// first-class wherever its local twin (`:ChestPain`) is: rule
++    /// conditions, gate range/oneOf checks, and reasoner class positions all
++    /// resolve through here rather than through exact-IRI [`Schema::class`].
++    pub fn class_declared(&self, iri: Iri) -> Option<Iri> {
++        if self.classes.contains_key(&iri) {
++            return Some(iri);
++        }
++        let canonical = self.canonical(iri);
++        if self.classes.contains_key(&canonical) {
++            return Some(canonical);
++        }
++        self.same_as
++            .iter()
++            .filter(|&(_, &c)| c == canonical)
++            .map(|(&member, _)| member)
++            .find(|member| self.classes.contains_key(member))
++    }
++
+     /// Builds a [`Schema`] from `document`. Callers are expected to have
+     /// already run [`crate::ontology::profile::validate`] — an
+     /// out-of-profile document (a bad datatype in `rdfs:range`, say) simply
+diff --git a/crates/horismos-core/src/reason/eval.rs b/crates/horismos-core/src/reason/eval.rs
+new file mode 100644
+index 0000000..32f0802
+--- /dev/null
++++ b/crates/horismos-core/src/reason/eval.rs
+@@ -0,0 +1,603 @@
++//! Condition evaluation (U2): the 11 operators and 3 combinators evaluated
++//! over the instance graph, with the documented pragmatic closed-world edge
++//! semantics (doc 04's table):
++//!
++//! | Situation | Result |
++//! |-----------|--------|
++//! | Property unassigned, any comparison (`exceeds`, `is`, …) | `false` |
++//! | Property unassigned, `horis:isNot` | `true` |
++//! | Property unassigned, `horis:isAssigned` | `false` |
++//! | Multi-valued property, `horis:is X` | `true` if **any** value matches (∃) |
++//! | Multi-valued property, `horis:isNot X` | `true` iff **no** value matches (∀) |
++//!
++//! The ∀ reading of `isNot` is D-4's resolution: `isNot X` ≡ ¬(`is X`) in
++//! every world state — the only reading consistent with the unassigned row
++//! (an unassigned property has no witness value, so ∃ would contradict
++//! `isNot` = true) and with sigil-lang's `_UNBOUND` precedent.
++//!
++//! `is X` is subsumption-aware, `owl:sameAs`-canonically (doc 04's "matches
++//! any subclass", D-7): a `Ref` value matches `X` when it *is* `X`, when it
++//! names a declared class that is a subclass of `X`, or when it names a world
++//! instance whose class is a subclass of `X` — the same three shapes the
++//! gate's own range check admits.
++//!
++//! Spec: `docs/framework/04-reasoning.md` · Owner: PRP-002
++
++use std::cmp::Ordering;
++
++use rust_decimal::Decimal;
++
++use crate::World;
++use crate::ontology::term::{Iri, Ref, Value};
++use crate::reason::rule::{Condition, ConditionTree, Op, Term};
++
++/// Evaluates a whole `horis:when` tree for `subject`. Combinator identities:
++/// `All([])` is `true`, `Any([])` is `false`, `NoneOf([])` is `true` (¬∨ of
++/// nothing).
++pub fn holds(world: &World, subject: Ref, tree: &ConditionTree) -> bool {
++    match tree {
++        ConditionTree::Leaf(condition) => condition_holds(world, subject, condition),
++        ConditionTree::All(children) => children.iter().all(|c| holds(world, subject, c)),
++        ConditionTree::Any(children) => children.iter().any(|c| holds(world, subject, c)),
++        ConditionTree::NoneOf(children) => !children.iter().any(|c| holds(world, subject, c)),
++    }
++}
++
++/// Evaluates one leaf condition for `subject`, per the module-level table.
++pub fn condition_holds(world: &World, subject: Ref, condition: &Condition) -> bool {
++    let values: Vec<&Value> = world.values(subject, condition.property).collect();
++
++    match &condition.op {
++        // isNot ≡ ¬is (D-4): delegate so the equivalence is structural, not
++        // re-implemented — the property test pins it, the code guarantees it.
++        Op::IsNot(term) => !values.iter().any(|v| term_matches(world, v, term)),
++        Op::IsAssigned => !values.is_empty(),
++        Op::IsEmpty => values.is_empty(),
++        // Every remaining operator is a comparison: unassigned → false, and
++        // a multi-valued property satisfies it if any value does (∃).
++        Op::Is(term) => values.iter().any(|v| term_matches(world, v, term)),
++        Op::Exceeds(bound) => values
++            .iter()
++            .any(|v| compare(v, bound) == Some(Ordering::Greater)),
++        Op::Below(bound) => values
++            .iter()
++            .any(|v| compare(v, bound) == Some(Ordering::Less)),
++        Op::AtLeast(bound) => values
++            .iter()
++            .any(|v| matches!(compare(v, bound), Some(Ordering::Greater | Ordering::Equal))),
++        Op::AtMost(bound) => values
++            .iter()
++            .any(|v| matches!(compare(v, bound), Some(Ordering::Less | Ordering::Equal))),
++        Op::Between(low, high) => values.iter().any(|v| {
++            matches!(compare(v, low), Some(Ordering::Greater | Ordering::Equal))
++                && matches!(compare(v, high), Some(Ordering::Less | Ordering::Equal))
++        }),
++        Op::Contains(term) => values.iter().any(|v| contains_matches(world, v, term)),
++        Op::InList(terms) => values
++            .iter()
++            .any(|v| terms.iter().any(|t| term_matches(world, v, t))),
++    }
++}
++
++/// The `is` match relation between one stored value and one condition term.
++fn term_matches(world: &World, value: &Value, term: &Term) -> bool {
++    match (value, term) {
++        (Value::Ref(r), Term::Iri(target)) => ref_matches(world, *r, *target),
++        (value, Term::Literal(expected)) => value_eq(value, expected),
++        // A literal value never matches an IRI term.
++        (_, Term::Iri(_)) => false,
++    }
++}
++
++/// `horis:contains`: substring on string/string, else the `is` relation on
++/// any value (∃ membership).
++fn contains_matches(world: &World, value: &Value, term: &Term) -> bool {
++    if let (Value::String(s), Term::Literal(Value::String(needle))) = (value, term) {
++        return s.contains(needle.as_str());
++    }
++    term_matches(world, value, term)
++}
++
++/// Does the node `r` count as `target`? Three shapes, all
++/// `owl:sameAs`-canonical (D-7), mirroring the gate's range acceptance:
++/// exact/canonical identity; a declared class that subsumes into `target`;
++/// a world instance whose class subsumes into `target`.
++fn ref_matches(world: &World, r: Ref, target: Iri) -> bool {
++    let schema = world.ontology().schema();
++    if r.iri() == target {
++        return true;
++    }
++    if let (Some(a), Some(b)) = (
++        schema.class_declared(r.iri()),
++        schema.class_declared(target),
++    ) && schema.is_subclass_of(a, b)
++    {
++        return true;
++    }
++    if let Some(instance) = world.instance(r)
++        && schema.is_subclass_of(instance.class(), target)
++    {
++        return true;
++    }
++    // Non-class, non-instance IRIs (enum members like :Immediate) still
++    // deserve canonical identity: sameAs twins are the same individual.
++    schema.canonical_iri(r.iri()) == schema.canonical_iri(target)
++}
++
++/// Value equality with numeric cross-typing: `Integer 5` equals
++/// `Decimal 5.0` (an integer *is* a decimal in XSD's derivation hierarchy).
++fn value_eq(a: &Value, b: &Value) -> bool {
++    match (a, b) {
++        (Value::Integer(x), Value::Decimal(y)) | (Value::Decimal(y), Value::Integer(x)) => {
++            Decimal::from(*x) == *y
++        }
++        _ => a == b,
++    }
++}
++
++/// Ordering for the comparison operators: numeric cross-type
++/// (Integer/Decimal), `xsd:dateTime`, and lexicographic strings (sigil-lang
++/// `compare_values` precedent). Booleans, durations (partially ordered), and
++/// node references are incomparable → `None` → the comparison is `false`.
++fn compare(value: &Value, bound: &Value) -> Option<Ordering> {
++    match (value, bound) {
++        (Value::Integer(a), Value::Integer(b)) => Some(a.cmp(b)),
++        (Value::Decimal(a), Value::Decimal(b)) => Some(a.cmp(b)),
++        (Value::Integer(a), Value::Decimal(b)) => Some(Decimal::from(*a).cmp(b)),
++        (Value::Decimal(a), Value::Integer(b)) => Some(a.cmp(&Decimal::from(*b))),
++        (Value::DateTime(a), Value::DateTime(b)) => Some(a.cmp(b)),
++        (Value::String(a), Value::String(b)) => Some(a.as_str().cmp(b.as_str())),
++        _ => None,
++    }
++}
++
++#[cfg(test)]
++mod tests {
++    use super::*;
++    use crate::Ontology;
++    use crate::ontology::term::Iri;
++    use crate::reason::rule::{Condition, Op, Term};
++    use proptest::prelude::*;
++    use rust_decimal::Decimal;
++
++    fn triage_world() -> World {
++        let onto = Ontology::load(concat!(
++            env!("CARGO_MANIFEST_DIR"),
++            "/../../examples/triage/triage.ttl"
++        ))
++        .expect("triage.ttl must load");
++        World::new(&onto)
++    }
++
++    fn tri(world: &mut World, local: &str) -> Iri {
++        world.intern(&format!("https://example.org/triage#{local}"))
++    }
++
++    fn cond(property: Iri, op: Op) -> Condition {
++        Condition {
++            property,
++            op,
++            unit: None,
++        }
++    }
++
++    /// PRP Example 1 pass 1, first condition: `heartRate exceeds 120` holds
++    /// for p7 (128) and not for a 96-bpm patient.
++    #[test]
++    fn exceeds_holds_for_128_over_120_and_not_for_96() {
++        let mut world = triage_world();
++        let patient = tri(&mut world, "Patient");
++        let heart_rate = tri(&mut world, "heartRate");
++        let p7 = world
++            .assert_instance(patient, [(heart_rate, Value::Integer(128))])
++            .expect("accepted");
++        let p9 = world
++            .assert_instance(patient, [(heart_rate, Value::Integer(96))])
++            .expect("accepted");
++
++        let c = cond(heart_rate, Op::Exceeds(Value::Integer(120)));
++        assert!(condition_holds(&world, p7, &c));
++        assert!(!condition_holds(&world, p9, &c));
++    }
++
++    /// PRP Example 1's subsumption hop: `hasSymptom is :ChestPain` holds for
++    /// a patient whose symptom is :CrushingChestPain — a class no rule
++    /// mentions.
++    #[test]
++    fn is_matches_a_subclass_value_via_subsumption() {
++        let mut world = triage_world();
++        let patient = tri(&mut world, "Patient");
++        let has_symptom = tri(&mut world, "hasSymptom");
++        let crushing = tri(&mut world, "CrushingChestPain");
++        let chest_pain = tri(&mut world, "ChestPain");
++        let symptom = tri(&mut world, "Symptom");
++        let p = world
++            .assert_instance(patient, [(has_symptom, Value::Ref(Ref::new(crushing)))])
++            .expect("accepted");
++
++        assert!(condition_holds(
++            &world,
++            p,
++            &cond(has_symptom, Op::Is(Term::Iri(chest_pain)))
++        ));
++        assert!(condition_holds(
++            &world,
++            p,
++            &cond(has_symptom, Op::Is(Term::Iri(symptom))),
++        ));
++        assert!(condition_holds(
++            &world,
++            p,
++            &cond(has_symptom, Op::Is(Term::Iri(crushing)))
++        ));
++    }
++
++    #[test]
++    fn is_matches_an_instance_value_through_its_class() {
++        let mut world = triage_world();
++        let patient = tri(&mut world, "Patient");
++        let has_symptom = tri(&mut world, "hasSymptom");
++        let crushing = tri(&mut world, "CrushingChestPain");
++        let chest_pain = tri(&mut world, "ChestPain");
++
++        let symptom_instance = world
++            .assert_instance(crushing, [])
++            .expect("a CrushingChestPain instance");
++        let p = world
++            .assert_instance(patient, [(has_symptom, Value::Ref(symptom_instance))])
++            .expect("accepted");
++
++        assert!(condition_holds(
++            &world,
++            p,
++            &cond(has_symptom, Op::Is(Term::Iri(chest_pain)))
++        ));
++    }
++
++    #[test]
++    fn is_does_not_match_a_sibling_or_superclass_downward() {
++        let mut world = triage_world();
++        let patient = tri(&mut world, "Patient");
++        let has_symptom = tri(&mut world, "hasSymptom");
++        let chest_pain = tri(&mut world, "ChestPain");
++        let crushing = tri(&mut world, "CrushingChestPain");
++        let p = world
++            .assert_instance(patient, [(has_symptom, Value::Ref(Ref::new(chest_pain)))])
++            .expect("accepted");
++
++        assert!(
++            !condition_holds(&world, p, &cond(has_symptom, Op::Is(Term::Iri(crushing)))),
++            "subsumption must not hold downward: a ChestPain is not a CrushingChestPain"
++        );
++    }
++
++    // -- Doc 04's edge-semantics table, row by row --------------------------
++
++    #[test]
++    fn an_unassigned_property_fails_every_comparison() {
++        let mut world = triage_world();
++        let patient = tri(&mut world, "Patient");
++        let heart_rate = tri(&mut world, "heartRate");
++        let chest_pain = tri(&mut world, "ChestPain");
++        let has_symptom = tri(&mut world, "hasSymptom");
++        let p = world.assert_instance(patient, []).expect("accepted");
++
++        for op in [
++            Op::Exceeds(Value::Integer(0)),
++            Op::Below(Value::Integer(1000)),
++            Op::AtLeast(Value::Integer(0)),
++            Op::AtMost(Value::Integer(1000)),
++            Op::Between(Value::Integer(0), Value::Integer(1000)),
++        ] {
++            assert!(
++                !condition_holds(&world, p, &cond(heart_rate, op.clone())),
++                "unassigned heartRate must fail {}",
++                op.name()
++            );
++        }
++        assert!(!condition_holds(
++            &world,
++            p,
++            &cond(has_symptom, Op::Is(Term::Iri(chest_pain)))
++        ));
++        assert!(!condition_holds(
++            &world,
++            p,
++            &cond(has_symptom, Op::InList(vec![Term::Iri(chest_pain)]))
++        ));
++        assert!(!condition_holds(
++            &world,
++            p,
++            &cond(has_symptom, Op::Contains(Term::Iri(chest_pain)))
++        ));
++    }
++
++    #[test]
++    fn an_unassigned_property_satisfies_is_not() {
++        let mut world = triage_world();
++        let patient = tri(&mut world, "Patient");
++        let has_symptom = tri(&mut world, "hasSymptom");
++        let chest_pain = tri(&mut world, "ChestPain");
++        let p = world.assert_instance(patient, []).expect("accepted");
++
++        assert!(condition_holds(
++            &world,
++            p,
++            &cond(has_symptom, Op::IsNot(Term::Iri(chest_pain)))
++        ));
++    }
++
++    #[test]
++    fn is_assigned_and_is_empty_are_complements() {
++        let mut world = triage_world();
++        let patient = tri(&mut world, "Patient");
++        let heart_rate = tri(&mut world, "heartRate");
++        let empty = world.assert_instance(patient, []).expect("accepted");
++        let full = world
++            .assert_instance(patient, [(heart_rate, Value::Integer(80))])
++            .expect("accepted");
++
++        assert!(!condition_holds(
++            &world,
++            empty,
++            &cond(heart_rate, Op::IsAssigned)
++        ));
++        assert!(condition_holds(
++            &world,
++            empty,
++            &cond(heart_rate, Op::IsEmpty)
++        ));
++        assert!(condition_holds(
++            &world,
++            full,
++            &cond(heart_rate, Op::IsAssigned)
++        ));
++        assert!(!condition_holds(
++            &world,
++            full,
++            &cond(heart_rate, Op::IsEmpty)
++        ));
++    }
++
++    /// D-4's worked case: hasSymptom = {CrushingChestPain, Nausea-shaped
++    /// sibling}. `isNot :ChestPain` is ∀ — false, because one value IS a
++    /// ChestPain.
++    #[test]
++    fn multi_valued_is_not_is_the_forall_reading() {
++        let mut world = triage_world();
++        let patient = tri(&mut world, "Patient");
++        let has_symptom = tri(&mut world, "hasSymptom");
++        let crushing = tri(&mut world, "CrushingChestPain");
++        let chest_pain = tri(&mut world, "ChestPain");
++        let symptom = tri(&mut world, "Symptom");
++
++        // :Symptom itself is a declared class, usable as a non-ChestPain value.
++        let p = world
++            .assert_instance(
++                patient,
++                [
++                    (has_symptom, Value::Ref(Ref::new(crushing))),
++                    (has_symptom, Value::Ref(Ref::new(symptom))),
++                ],
++            )
++            .expect("accepted");
++
++        assert!(
++            !condition_holds(
++                &world,
++                p,
++                &cond(has_symptom, Op::IsNot(Term::Iri(chest_pain)))
++            ),
++            "∀ reading: some value IS a ChestPain, so isNot is false"
++        );
++        assert!(
++            condition_holds(&world, p, &cond(has_symptom, Op::Is(Term::Iri(chest_pain)))),
++            "∃ reading of is: some value matches"
++        );
++    }
++
++    // -- Value semantics -----------------------------------------------------
++
++    #[test]
++    fn numeric_comparison_is_cross_typed_between_integer_and_decimal() {
++        let mut world = triage_world();
++        let patient = tri(&mut world, "Patient");
++        let heart_rate = tri(&mut world, "heartRate");
++        let p = world
++            .assert_instance(
++                patient,
++                [(heart_rate, Value::Decimal(Decimal::new(1285, 1)))], // 128.5
++            )
++            .expect("accepted");
++
++        assert!(condition_holds(
++            &world,
++            p,
++            &cond(heart_rate, Op::Exceeds(Value::Integer(128)))
++        ));
++        assert!(condition_holds(
++            &world,
++            p,
++            &cond(
++                heart_rate,
++                Op::Between(Value::Integer(100), Value::Integer(129))
++            )
++        ));
++        assert!(condition_holds(
++            &world,
++            p,
++            &cond(
++                heart_rate,
++                Op::AtMost(Value::Decimal(Decimal::new(1285, 1)))
++            )
++        ));
++    }
++
++    #[test]
++    fn between_is_inclusive_on_both_bounds() {
++        let mut world = triage_world();
++        let patient = tri(&mut world, "Patient");
++        let heart_rate = tri(&mut world, "heartRate");
++        let p = world
++            .assert_instance(patient, [(heart_rate, Value::Integer(120))])
++            .expect("accepted");
++
++        assert!(condition_holds(
++            &world,
++            p,
++            &cond(
++                heart_rate,
++                Op::Between(Value::Integer(120), Value::Integer(140))
++            )
++        ));
++        assert!(condition_holds(
++            &world,
++            p,
++            &cond(
++                heart_rate,
++                Op::Between(Value::Integer(100), Value::Integer(120))
++            )
++        ));
++        assert!(!condition_holds(
++            &world,
++            p,
++            &cond(
++                heart_rate,
++                Op::Between(Value::Integer(121), Value::Integer(140))
++            )
++        ));
++    }
++
++    #[test]
++    fn in_list_matches_membership_with_subsumption() {
++        let mut world = triage_world();
++        let patient = tri(&mut world, "Patient");
++        let has_symptom = tri(&mut world, "hasSymptom");
++        let crushing = tri(&mut world, "CrushingChestPain");
++        let chest_pain = tri(&mut world, "ChestPain");
++        let p = world
++            .assert_instance(patient, [(has_symptom, Value::Ref(Ref::new(crushing)))])
++            .expect("accepted");
++
++        assert!(condition_holds(
++            &world,
++            p,
++            &cond(has_symptom, Op::InList(vec![Term::Iri(chest_pain)]))
++        ));
++    }
++
++    #[test]
++    fn combinators_compose_with_documented_identities() {
++        let mut world = triage_world();
++        let patient = tri(&mut world, "Patient");
++        let heart_rate = tri(&mut world, "heartRate");
++        let p = world
++            .assert_instance(patient, [(heart_rate, Value::Integer(128))])
++            .expect("accepted");
++
++        let above = ConditionTree::Leaf(cond(heart_rate, Op::Exceeds(Value::Integer(120))));
++        let below = ConditionTree::Leaf(cond(heart_rate, Op::Below(Value::Integer(100))));
++
++        assert!(holds(&world, p, &ConditionTree::All(vec![above.clone()])));
++        assert!(!holds(
++            &world,
++            p,
++            &ConditionTree::All(vec![above.clone(), below.clone()])
++        ));
++        assert!(holds(
++            &world,
++            p,
++            &ConditionTree::Any(vec![below.clone(), above.clone()])
++        ));
++        assert!(holds(
++            &world,
++            p,
++            &ConditionTree::NoneOf(vec![below.clone()])
++        ));
++        assert!(!holds(
++            &world,
++            p,
++            &ConditionTree::NoneOf(vec![above.clone()])
++        ));
++
++        // Identities: All([]) = true, Any([]) = false, NoneOf([]) = true.
++        assert!(holds(&world, p, &ConditionTree::All(vec![])));
++        assert!(!holds(&world, p, &ConditionTree::Any(vec![])));
++        assert!(holds(&world, p, &ConditionTree::NoneOf(vec![])));
++    }
++
++    #[test]
++    fn contains_does_substring_on_strings() {
++        let mut world = World::new(
++            &Ontology::load_from_str(
++                "@prefix : <https://example.org/t#> .\n\
++                 @prefix horis: <https://w3id.org/horismos#> .\n\
++                 @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .\n\
++                 @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .\n\
++                 @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .\n\
++                 :Note a rdfs:Class .\n\
++                 :text a rdf:Property ; rdfs:domain :Note ; rdfs:range xsd:string .\n",
++                |_| None,
++            )
++            .expect("valid"),
++        );
++        let note = world.intern("https://example.org/t#Note");
++        let text = world.intern("https://example.org/t#text");
++        let n = world
++            .assert_instance(note, [(text, Value::String("crushing chest pain".into()))])
++            .expect("accepted");
++
++        assert!(condition_holds(
++            &world,
++            n,
++            &cond(
++                text,
++                Op::Contains(Term::Literal(Value::String("chest".into())))
++            )
++        ));
++        assert!(!condition_holds(
++            &world,
++            n,
++            &cond(
++                text,
++                Op::Contains(Term::Literal(Value::String("fracture".into())))
++            )
++        ));
++    }
++
++    // -- D-4 pinned property-style: isNot ≡ ¬is, isEmpty ≡ ¬isAssigned -----
++
++    proptest! {
++        /// D-4's algebra pin: for arbitrary small symptom sets (including
++        /// empty), `isNot X` answers exactly `!is X`, and `isEmpty` answers
++        /// exactly `!isAssigned`.
++        #[test]
++        fn is_not_is_the_negation_of_is(symptom_picks in proptest::collection::vec(0usize..3, 0..3)) {
++            let mut world = triage_world();
++            let patient = tri(&mut world, "Patient");
++            let has_symptom = tri(&mut world, "hasSymptom");
++            let classes = [
++                tri(&mut world, "CrushingChestPain"),
++                tri(&mut world, "ChestPain"),
++                tri(&mut world, "Symptom"),
++            ];
++            let chest_pain = classes[1];
++
++            let properties: Vec<_> = symptom_picks
++                .iter()
++                .map(|&i| (has_symptom, Value::Ref(Ref::new(classes[i]))))
++                .collect();
++            let p = world
++                .assert_instance(patient, properties)
++                .expect("all three classes are valid Symptom values");
++
++            let is = condition_holds(&world, p, &cond(has_symptom, Op::Is(Term::Iri(chest_pain))));
++            let is_not = condition_holds(&world, p, &cond(has_symptom, Op::IsNot(Term::Iri(chest_pain))));
++            prop_assert_eq!(is_not, !is, "isNot must be the ∀ negation of is");
++
++            let assigned = condition_holds(&world, p, &cond(has_symptom, Op::IsAssigned));
++            let empty = condition_holds(&world, p, &cond(has_symptom, Op::IsEmpty));
++            prop_assert_eq!(empty, !assigned);
++        }
++    }
++}
+diff --git a/crates/horismos-core/src/reason/matcher.rs b/crates/horismos-core/src/reason/matcher.rs
+new file mode 100644
+index 0000000..c8b95b9
+--- /dev/null
++++ b/crates/horismos-core/src/reason/matcher.rs
+@@ -0,0 +1,278 @@
++//! Candidate matching (U3/U8): which (rule, subject) may fire next.
++//!
++//! Two implementations behind one trait (PRP-002 Key decision 1): the
++//! [`NaiveMatcher`], which re-evaluates every rule against the world each
++//! pass — trivially correct, the differential-testing oracle — and the
++//! Rete-lite network (U8), which keeps per-condition alpha memories keyed on
++//! class + property so one assertion re-checks only the rules that mention
++//! it. Both produce the *identical* candidate sequence; the property tests
++//! pin that.
++//!
++//! Candidate order is doc 04's, exactly: priority descending, ties by rule
++//! IRI lexicographic (the rules slice arrives pre-sorted that way from
++//! [`crate::Ontology::rules`]), and — when one rule matches several subjects
++//! — subject token order, which is first-intern order and therefore
++//! deterministic (CLAUDE.md: never hash-iteration order, never load order
++//! beyond the document itself).
++//!
++//! Spec: `docs/framework/04-reasoning.md` · Owner: PRP-002
++
++use std::collections::BTreeSet;
++
++use crate::World;
++use crate::ontology::term::{Iri, Ref};
++use crate::reason::eval::holds;
++use crate::reason::rule::Rule;
++
++/// The (rule IRI, subject IRI) pairs that already fired this transaction —
++/// doc 04's no-re-fire guard. A pair enters the set when the rule fires,
++/// whether its conclusion was derived, suppressed, or rejected.
++pub type FiredSet = BTreeSet<(Iri, Iri)>;
++
++/// One fireable match: an index into the pre-sorted rules slice, and the
++/// bound subject instance.
++#[derive(Debug, Clone, Copy, PartialEq, Eq)]
++pub struct Candidate {
++    pub rule_index: usize,
++    pub subject: Ref,
++}
++
++/// The matching strategy behind forward chaining. Implementations must
++/// return byte-identical candidate sequences for identical inputs — the
++/// strategy is a performance choice, never a semantics choice.
++pub trait Matcher {
++    /// The highest-priority (rule, subject) whose conditions hold in
++    /// `world` and which is not in `fired`, in the documented deterministic
++    /// order; `None` at fixed point.
++    fn next_candidate(
++        &mut self,
++        world: &World,
++        rules: &[Rule],
++        fired: &FiredSet,
++    ) -> Option<Candidate>;
++
++    /// A fact landed on `subject` (a fired conclusion committed). Incremental
++    /// matchers refresh their memories here; the naive matcher ignores it.
++    fn notify_asserted(&mut self, world: &World, rules: &[Rule], subject: Ref, property: Iri) {
++        let _ = (world, rules, subject, property);
++    }
++}
++
++/// The oracle: full re-evaluation, no state. O(rules × instances) per call
++/// and proudly so — every incremental matcher is tested against it.
++#[derive(Debug, Default)]
++pub struct NaiveMatcher;
++
++impl NaiveMatcher {
++    pub fn new() -> Self {
++        Self
++    }
++}
++
++impl Matcher for NaiveMatcher {
++    fn next_candidate(
++        &mut self,
++        world: &World,
++        rules: &[Rule],
++        fired: &FiredSet,
++    ) -> Option<Candidate> {
++        for (rule_index, rule) in rules.iter().enumerate() {
++            for subject in world.instances(rule.subject_class) {
++                if fired.contains(&(rule.iri, subject.iri())) {
++                    continue;
++                }
++                if holds(world, subject, &rule.when) {
++                    return Some(Candidate {
++                        rule_index,
++                        subject,
++                    });
++                }
++            }
++        }
++        None
++    }
++}
++
++#[cfg(test)]
++mod tests {
++    use super::*;
++    use crate::Ontology;
++    use crate::ontology::term::Value;
++
++    const PRELUDE: &str = "@prefix : <https://example.org/t#> .\n\
++         @prefix horis: <https://w3id.org/horismos#> .\n\
++         @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .\n\
++         @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .\n\
++         @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .\n";
++
++    /// PRP Example 1's illustrative r2/r3 alongside the r1 shape, on an
++    /// inline patient schema (r2/r3 are illustrative only — not fixture
++    /// changes).
++    const EXAMPLE_1: &str = ":Patient a rdfs:Class .\n\
++         :Symptom a rdfs:Class .\n\
++         :ChestPain rdfs:subClassOf :Symptom .\n\
++         :CrushingChestPain rdfs:subClassOf :ChestPain .\n\
++         :AcuityLevel a rdfs:Class ; horis:oneOf ( :Immediate :Urgent :Standard ) .\n\
++         :heartRate a rdf:Property ; rdfs:domain :Patient ; rdfs:range xsd:decimal ;\n\
++         \x20   horis:unit \"bpm\" ; horis:min 0 ; horis:max 300 ; horis:cardinality \"0..1\" .\n\
++         :hasSymptom a rdf:Property ; rdfs:domain :Patient ; rdfs:range :Symptom ;\n\
++         \x20   horis:cardinality \"0..*\" .\n\
++         :acuity a rdf:Property ; rdfs:domain :Patient ; rdfs:range :AcuityLevel ;\n\
++         \x20   horis:cardinality \"0..1\" ; horis:assignedBy horis:RulesOnly .\n\
++         :needsCardiacMonitor a rdf:Property ; rdfs:domain :Patient ;\n\
++         \x20   rdfs:range xsd:boolean ; horis:cardinality \"0..1\" ;\n\
++         \x20   horis:assignedBy horis:RulesOnly .\n\
++         :r1 a horis:Rule ; horis:priority 10 ;\n\
++         \x20 horis:when [ horis:all (\n\
++         \x20   [ horis:subject :Patient ; horis:property :heartRate ; horis:exceeds 120 ]\n\
++         \x20   [ horis:subject :Patient ; horis:property :hasSymptom ; horis:is :ChestPain ]\n\
++         \x20 ) ] ;\n\
++         \x20 horis:then [ horis:property :acuity ; horis:value :Immediate ] ;\n\
++         \x20 horis:explain \"Tachycardia with chest pain — immediate track\" .\n\
++         :r2 a horis:Rule ; horis:priority 5 ;\n\
++         \x20 horis:when [ horis:all (\n\
++         \x20   [ horis:subject :Patient ; horis:property :hasSymptom ; horis:is :ChestPain ]\n\
++         \x20 ) ] ;\n\
++         \x20 horis:then [ horis:property :acuity ; horis:value :Urgent ] ;\n\
++         \x20 horis:explain \"Chest pain — at least urgent\" .\n\
++         :r3 a horis:Rule ; horis:priority 8 ;\n\
++         \x20 horis:when [ horis:all (\n\
++         \x20   [ horis:subject :Patient ; horis:property :acuity ; horis:is :Immediate ]\n\
++         \x20 ) ] ;\n\
++         \x20 horis:then [ horis:property :needsCardiacMonitor ; horis:value true ] ;\n\
++         \x20 horis:explain \"Immediate track — continuous cardiac monitoring\" .\n";
++
++    fn example_world() -> World {
++        let onto = Ontology::load_from_str(&format!("{PRELUDE}{EXAMPLE_1}"), |_| None)
++            .expect("the Example 1 ontology must load");
++        World::new(&onto)
++    }
++
++    fn t(world: &mut World, local: &str) -> Iri {
++        world.intern(&format!("https://example.org/t#{local}"))
++    }
++
++    fn rule_iri<'a>(world: &'a World, candidate: &Candidate) -> &'a str {
++        let rule = &world.ontology().rules()[candidate.rule_index];
++        world.ontology().resolve(rule.iri)
++    }
++
++    /// PRP Example 1, pass 1: r1 and r2 are candidates (subsumption match),
++    /// r3 is not (acuity unassigned → comparison false). Highest priority
++    /// candidate is r1.
++    #[test]
++    fn pass_one_picks_r1_over_r2_and_excludes_r3() {
++        let mut world = example_world();
++        let patient = t(&mut world, "Patient");
++        let heart_rate = t(&mut world, "heartRate");
++        let has_symptom = t(&mut world, "hasSymptom");
++        let crushing = t(&mut world, "CrushingChestPain");
++        let p7 = world
++            .assert_instance(
++                patient,
++                [
++                    (heart_rate, Value::Integer(128)),
++                    (has_symptom, Value::Ref(Ref::new(crushing))),
++                ],
++            )
++            .expect("accepted");
++
++        let rules = world.ontology().rules().to_vec();
++        let mut matcher = NaiveMatcher::new();
++        let fired = FiredSet::new();
++
++        let candidate = matcher
++            .next_candidate(&world, &rules, &fired)
++            .expect("r1 must be fireable");
++        assert_eq!(rule_iri(&world, &candidate), "https://example.org/t#r1");
++        assert_eq!(candidate.subject, p7);
++    }
++
++    #[test]
++    fn a_fired_pair_is_excluded_and_the_next_priority_takes_over() {
++        let mut world = example_world();
++        let patient = t(&mut world, "Patient");
++        let heart_rate = t(&mut world, "heartRate");
++        let has_symptom = t(&mut world, "hasSymptom");
++        let crushing = t(&mut world, "CrushingChestPain");
++        let r1 = t(&mut world, "r1");
++        let p7 = world
++            .assert_instance(
++                patient,
++                [
++                    (heart_rate, Value::Integer(128)),
++                    (has_symptom, Value::Ref(Ref::new(crushing))),
++                ],
++            )
++            .expect("accepted");
++
++        let rules = world.ontology().rules().to_vec();
++        let mut matcher = NaiveMatcher::new();
++        let mut fired = FiredSet::new();
++        fired.insert((r1, p7.iri()));
++
++        let candidate = matcher
++            .next_candidate(&world, &rules, &fired)
++            .expect("r2 remains fireable");
++        assert_eq!(
++            rule_iri(&world, &candidate),
++            "https://example.org/t#r2",
++            "with (r1, p7) fired, priority 5 r2 is the best remaining candidate (r3 needs acuity)"
++        );
++    }
++
++    #[test]
++    fn no_candidates_is_the_fixed_point() {
++        let mut world = example_world();
++        let patient = t(&mut world, "Patient");
++        let heart_rate = t(&mut world, "heartRate");
++        let p = world
++            .assert_instance(patient, [(heart_rate, Value::Integer(96))])
++            .expect("accepted");
++        let _ = p;
++
++        let rules = world.ontology().rules().to_vec();
++        let mut matcher = NaiveMatcher::new();
++        let fired = FiredSet::new();
++        assert_eq!(
++            matcher.next_candidate(&world, &rules, &fired),
++            None,
++            "96 bpm and no symptoms fires nothing"
++        );
++    }
++
++    #[test]
++    fn one_rule_matching_two_subjects_yields_them_in_intern_order() {
++        let mut world = example_world();
++        let patient = t(&mut world, "Patient");
++        let has_symptom = t(&mut world, "hasSymptom");
++        let chest_pain = t(&mut world, "ChestPain");
++        let r1 = t(&mut world, "r1");
++        let symptom_value = Value::Ref(Ref::new(chest_pain));
++
++        let first = world
++            .assert_instance(patient, [(has_symptom, symptom_value.clone())])
++            .expect("accepted");
++        let second = world
++            .assert_instance(patient, [(has_symptom, symptom_value)])
++            .expect("accepted");
++
++        let rules = world.ontology().rules().to_vec();
++        let mut matcher = NaiveMatcher::new();
++        let mut fired = FiredSet::new();
++        // Neither patient is tachycardic, so r2 (priority 5) is the top rule.
++        let a = matcher
++            .next_candidate(&world, &rules, &fired)
++            .expect("candidate");
++        assert_eq!(rule_iri(&world, &a), "https://example.org/t#r2");
++        assert_eq!(a.subject, first, "first-interned subject first");
++
++        let r2 = t(&mut world, "r2");
++        let _ = r1;
++        fired.insert((r2, first.iri()));
++        let b = matcher
++            .next_candidate(&world, &rules, &fired)
++            .expect("candidate");
++        assert_eq!(b.subject, second);
++    }
++}
+diff --git a/crates/horismos-core/src/reason/mod.rs b/crates/horismos-core/src/reason/mod.rs
+index 7b04df6..64dc651 100644
+--- a/crates/horismos-core/src/reason/mod.rs
++++ b/crates/horismos-core/src/reason/mod.rs
+@@ -6,3 +6,9 @@
+ //! dependence — same inputs, same conclusions, always.
+ //!
+ //! Spec: `docs/framework/04-reasoning.md` · Owner: PRP-002
++
++pub mod eval;
++pub mod matcher;
++pub mod rule;
++
++pub use rule::{Conclusion, Condition, ConditionTree, Op, Rule, Term};
+diff --git a/crates/horismos-core/src/reason/rule.rs b/crates/horismos-core/src/reason/rule.rs
+new file mode 100644
+index 0000000..6aa8c26
+--- /dev/null
++++ b/crates/horismos-core/src/reason/rule.rs
+@@ -0,0 +1,1019 @@
++//! The typed rule model (U1): `horis:Rule` parsed from the ontology's graphs
++//! into data the reasoner interprets — a rule is a row in a rules table, not
++//! a function.
++//!
++//! Parsing happens once, at [`crate::Ontology`] assembly, so every rule error
++//! is a *load* error in domain terms (the same posture as `horis:pattern`
++//! compilation): an undeclared property in a condition, a `horis:unit` that
++//! contradicts the property's declaration (PRP-001 D6's rule-side
++//! follow-through), or conditions that bind more than one subject class can
++//! never surprise a running world.
++//!
++//! Spec: `docs/framework/02-ontology.md` § Rule vocabulary,
++//! `docs/framework/04-reasoning.md` · Owner: PRP-002
++
++use std::collections::BTreeMap;
++
++use crate::error::OntologyError;
++use crate::ontology::schema::Schema;
++use crate::ontology::term::{Interner, Iri, Value};
++use crate::ontology::turtle::{Document, Literal, Node, Object, Triple};
++
++// -- Vocabulary this module reads directly -------------------------------
++
++const RDF_TYPE: &str = "http://www.w3.org/1999/02/22-rdf-syntax-ns#type";
++const RDF_FIRST: &str = "http://www.w3.org/1999/02/22-rdf-syntax-ns#first";
++const RDF_REST: &str = "http://www.w3.org/1999/02/22-rdf-syntax-ns#rest";
++const RDF_NIL: &str = "http://www.w3.org/1999/02/22-rdf-syntax-ns#nil";
++const HORIS_RULE: &str = "https://w3id.org/horismos#Rule";
++const HORIS_PRIORITY: &str = "https://w3id.org/horismos#priority";
++const HORIS_WHEN: &str = "https://w3id.org/horismos#when";
++const HORIS_THEN: &str = "https://w3id.org/horismos#then";
++const HORIS_EXPLAIN: &str = "https://w3id.org/horismos#explain";
++const HORIS_ALL: &str = "https://w3id.org/horismos#all";
++const HORIS_ANY: &str = "https://w3id.org/horismos#any";
++const HORIS_NONE: &str = "https://w3id.org/horismos#none";
++const HORIS_SUBJECT: &str = "https://w3id.org/horismos#subject";
++const HORIS_PROPERTY: &str = "https://w3id.org/horismos#property";
++const HORIS_VALUE: &str = "https://w3id.org/horismos#value";
++const HORIS_UNIT: &str = "https://w3id.org/horismos#unit";
++const HORIS_EXCEEDS: &str = "https://w3id.org/horismos#exceeds";
++const HORIS_BELOW: &str = "https://w3id.org/horismos#below";
++const HORIS_AT_LEAST: &str = "https://w3id.org/horismos#atLeast";
++const HORIS_AT_MOST: &str = "https://w3id.org/horismos#atMost";
++const HORIS_BETWEEN: &str = "https://w3id.org/horismos#between";
++const HORIS_IS: &str = "https://w3id.org/horismos#is";
++const HORIS_IS_NOT: &str = "https://w3id.org/horismos#isNot";
++const HORIS_IS_ASSIGNED: &str = "https://w3id.org/horismos#isAssigned";
++const HORIS_IS_EMPTY: &str = "https://w3id.org/horismos#isEmpty";
++const HORIS_CONTAINS: &str = "https://w3id.org/horismos#contains";
++const HORIS_IN_LIST: &str = "https://w3id.org/horismos#inList";
++
++// -- Public model ----------------------------------------------------------
++
++/// The value position of `horis:is`/`isNot`/`inList`/`horis:value`: either a
++/// node (a class, enum member, or instance IRI) or a typed literal.
++#[derive(Debug, Clone, PartialEq)]
++pub enum Term {
++    Iri(Iri),
++    Literal(Value),
++}
++
++/// One of the 11 condition operators (`docs/framework/02-ontology.md`),
++/// carrying its declared operand(s). Operand *type* coherence is evaluation
++/// semantics (U2) and verification (PRP-005); only structure is checked here.
++#[derive(Debug, Clone, PartialEq)]
++pub enum Op {
++    Exceeds(Value),
++    Below(Value),
++    AtLeast(Value),
++    AtMost(Value),
++    Between(Value, Value),
++    Is(Term),
++    IsNot(Term),
++    IsAssigned,
++    IsEmpty,
++    Contains(Term),
++    InList(Vec<Term>),
++}
++
++impl Op {
++    /// The `horis:` local name of the operator, for domain-term messages and
++    /// proof rendering ("exceeds", "is", …).
++    pub fn name(&self) -> &'static str {
++        match self {
++            Op::Exceeds(_) => "exceeds",
++            Op::Below(_) => "below",
++            Op::AtLeast(_) => "atLeast",
++            Op::AtMost(_) => "atMost",
++            Op::Between(_, _) => "between",
++            Op::Is(_) => "is",
++            Op::IsNot(_) => "isNot",
++            Op::IsAssigned => "isAssigned",
++            Op::IsEmpty => "isEmpty",
++            Op::Contains(_) => "contains",
++            Op::InList(_) => "inList",
++        }
++    }
++}
++
++/// One leaf condition: a property of the rule's bound subject, tested by one
++/// operator. `unit`, when stated, was already checked against the property's
++/// declaration at load (D6: strict units).
++#[derive(Debug, Clone, PartialEq)]
++pub struct Condition {
++    pub property: Iri,
++    pub op: Op,
++    pub unit: Option<String>,
++}
++
++/// The `horis:when` body: leaf conditions under the three combinators
++/// (`horis:all` ∧, `horis:any` ∨, `horis:none` ¬∨), arbitrarily nested.
++#[derive(Debug, Clone, PartialEq)]
++pub enum ConditionTree {
++    Leaf(Condition),
++    All(Vec<ConditionTree>),
++    Any(Vec<ConditionTree>),
++    NoneOf(Vec<ConditionTree>),
++}
++
++/// The `horis:then` body: assert `property = value` on the bound subject,
++/// through the gate, with `Provenance::Rule`.
++#[derive(Debug, Clone, PartialEq)]
++pub struct Conclusion {
++    pub property: Iri,
++    pub value: Term,
++}
++
++/// One parsed `horis:Rule`. `subject_class` is the single class every
++/// condition's `horis:subject` names (v1 rules bind one subject; see
++/// [`OntologyError::RuleMixedSubjects`]).
++#[derive(Debug, Clone, PartialEq)]
++pub struct Rule {
++    pub iri: Iri,
++    /// `horis:priority`, defaulting to 0 when undeclared. Orders candidate
++    /// selection during forward chaining (doc 04) — higher fires first.
++    pub priority: i64,
++    pub subject_class: Iri,
++    pub when: ConditionTree,
++    pub then: Conclusion,
++    pub explain: Option<String>,
++}
++
++impl ConditionTree {
++    /// Every leaf condition, in declaration order.
++    pub fn leaves(&self) -> Vec<&Condition> {
++        let mut out = Vec::new();
++        self.collect_leaves(&mut out);
++        out
++    }
++
++    fn collect_leaves<'a>(&'a self, out: &mut Vec<&'a Condition>) {
++        match self {
++            ConditionTree::Leaf(c) => out.push(c),
++            ConditionTree::All(children)
++            | ConditionTree::Any(children)
++            | ConditionTree::NoneOf(children) => {
++                for child in children {
++                    child.collect_leaves(out);
++                }
++            }
++        }
++    }
++}
++
++// -- Parsing ----------------------------------------------------------------
++
++/// Parses every `horis:Rule` across `documents` against the built [`Schema`],
++/// returning rules sorted by (priority descending, rule IRI lexicographic on
++/// the resolved string — doc 04's documented tie-break, never load order).
++///
++/// Every failure is an [`OntologyError`] naming the rule in domain terms;
++/// callers surface it as a *load* error.
++pub fn parse_rules<'a>(
++    documents: impl IntoIterator<Item = &'a Document>,
++    schema: &Schema,
++    interner: &Interner,
++) -> Result<Vec<Rule>, OntologyError> {
++    let graph = SubjectGraph::collect(documents, interner);
++
++    let mut rules = Vec::new();
++    for &rule_iri in &graph.rule_ids {
++        rules.push(parse_rule(rule_iri, &graph, schema, interner)?);
++    }
++
++    rules.sort_by(|a, b| {
++        b.priority.cmp(&a.priority).then_with(|| {
++            let a_iri = interner.resolve(a.iri);
++            let b_iri = interner.resolve(b.iri);
++            a_iri.cmp(b_iri)
++        })
++    });
++    Ok(rules)
++}
++
++/// All triples regrouped subject-major, plus the set of `a horis:Rule`
++/// subjects — the shape rule parsing walks. Predicate/object pairs stay in
++/// source order per subject, so parsing is deterministic.
++struct SubjectGraph {
++    by_subject: BTreeMap<Iri, Vec<(Iri, Object)>>,
++    rule_ids: Vec<Iri>,
++}
++
++impl SubjectGraph {
++    fn collect<'a>(documents: impl IntoIterator<Item = &'a Document>, interner: &Interner) -> Self {
++        let mut by_subject: BTreeMap<Iri, Vec<(Iri, Object)>> = BTreeMap::new();
++        let mut rule_ids = Vec::new();
++        for document in documents {
++            for Triple {
++                subject,
++                predicate,
++                object,
++            } in &document.triples
++            {
++                let subject = node_iri(*subject);
++                if interner.resolve(*predicate) == RDF_TYPE
++                    && let Object::Node(node) = object
++                    && interner.resolve(node_iri(*node)) == HORIS_RULE
++                    && !rule_ids.contains(&subject)
++                {
++                    rule_ids.push(subject);
++                }
++                by_subject
++                    .entry(subject)
++                    .or_default()
++                    .push((*predicate, object.clone()));
++            }
++        }
++        // Rule order must not depend on document load order for error
++        // reporting either: sort by resolved IRI.
++        rule_ids.sort_by(|&a, &b| interner.resolve(a).cmp(interner.resolve(b)));
++        Self {
++            by_subject,
++            rule_ids,
++        }
++    }
++
++    fn pairs(&self, subject: Iri) -> &[(Iri, Object)] {
++        self.by_subject
++            .get(&subject)
++            .map(Vec::as_slice)
++            .unwrap_or(&[])
++    }
++
++    /// The first object for `predicate` on `subject`, in source order.
++    fn object<'a>(
++        &'a self,
++        subject: Iri,
++        predicate: &str,
++        interner: &Interner,
++    ) -> Option<&'a Object> {
++        self.pairs(subject)
++            .iter()
++            .find(|(p, _)| interner.resolve(*p) == predicate)
++            .map(|(_, o)| o)
++    }
++
++    /// Walks the `rdf:first`/`rdf:rest` chain from `head`, yielding each
++    /// `rdf:first` object in list order.
++    fn list(&self, head: Node, interner: &Interner) -> Vec<Object> {
++        let mut out = Vec::new();
++        let mut cursor = head;
++        loop {
++            let cell = node_iri(cursor);
++            if interner.resolve(cell) == RDF_NIL {
++                break;
++            }
++            match self.object(cell, RDF_FIRST, interner) {
++                Some(first) => out.push(first.clone()),
++                None => break,
++            }
++            match self.object(cell, RDF_REST, interner) {
++                Some(Object::Node(next)) => cursor = *next,
++                _ => break,
++            }
++        }
++        out
++    }
++}
++
++/// The running "one subject class per rule" state while walking conditions.
++struct RuleCx<'a> {
++    rule: Iri,
++    schema: &'a Schema,
++    interner: &'a Interner,
++    subject_class: Option<Iri>,
++}
++
++impl RuleCx<'_> {
++    fn rule_name(&self) -> String {
++        self.interner.resolve(self.rule).to_owned()
++    }
++}
++
++fn parse_rule(
++    rule_iri: Iri,
++    graph: &SubjectGraph,
++    schema: &Schema,
++    interner: &Interner,
++) -> Result<Rule, OntologyError> {
++    let rule_name = || interner.resolve(rule_iri).to_owned();
++
++    let priority = match graph.object(rule_iri, HORIS_PRIORITY, interner) {
++        Some(Object::Literal(Literal::Typed(Value::Integer(p)))) => *p,
++        Some(other) => {
++            return Err(OntologyError::RuleInvalidPriority {
++                rule: rule_name(),
++                value: object_text(other, interner),
++            });
++        }
++        None => 0,
++    };
++
++    let explain = match graph.object(rule_iri, HORIS_EXPLAIN, interner) {
++        Some(Object::Literal(Literal::Typed(Value::String(s)))) => Some(s.clone()),
++        _ => None,
++    };
++
++    let mut cx = RuleCx {
++        rule: rule_iri,
++        schema,
++        interner,
++        subject_class: None,
++    };
++
++    let when_node = match graph.object(rule_iri, HORIS_WHEN, interner) {
++        Some(Object::Node(node)) => *node,
++        _ => {
++            return Err(OntologyError::RuleMissingPart {
++                rule: rule_name(),
++                part: "horis:when".to_owned(),
++            });
++        }
++    };
++    let when = parse_condition_node(when_node, graph, &mut cx)?;
++
++    let then_node = match graph.object(rule_iri, HORIS_THEN, interner) {
++        Some(Object::Node(node)) => *node,
++        _ => {
++            return Err(OntologyError::RuleMissingPart {
++                rule: rule_name(),
++                part: "horis:then".to_owned(),
++            });
++        }
++    };
++    let then = parse_conclusion(then_node, graph, &mut cx)?;
++
++    let subject_class = cx
++        .subject_class
++        .ok_or_else(|| OntologyError::RuleMissingPart {
++            rule: rule_name(),
++            part: "horis:subject on its conditions".to_owned(),
++        })?;
++
++    Ok(Rule {
++        iri: rule_iri,
++        priority,
++        subject_class,
++        when,
++        then,
++        explain,
++    })
++}
++
++/// Parses a node that is either a combinator (`horis:all/any/none` over a
++/// list) or a leaf condition.
++fn parse_condition_node(
++    node: Node,
++    graph: &SubjectGraph,
++    cx: &mut RuleCx<'_>,
++) -> Result<ConditionTree, OntologyError> {
++    let subject = node_iri(node);
++    for (combinator, build) in [
++        (HORIS_ALL, ConditionTree::All as fn(_) -> _),
++        (HORIS_ANY, ConditionTree::Any as fn(_) -> _),
++        (HORIS_NONE, ConditionTree::NoneOf as fn(_) -> _),
++    ] {
++        if let Some(Object::Node(head)) = graph.object(subject, combinator, cx.interner) {
++            let mut children = Vec::new();
++            for item in graph.list(*head, cx.interner) {
++                let Object::Node(child) = item else {
++                    return Err(OntologyError::RuleMissingPart {
++                        rule: cx.rule_name(),
++                        part: "a condition node inside its combinator list".to_owned(),
++                    });
++                };
++                children.push(parse_condition_node(child, graph, cx)?);
++            }
++            return Ok(build(children));
++        }
++    }
++    Ok(ConditionTree::Leaf(parse_leaf_condition(node, graph, cx)?))
++}
++
++fn parse_leaf_condition(
++    node: Node,
++    graph: &SubjectGraph,
++    cx: &mut RuleCx<'_>,
++) -> Result<Condition, OntologyError> {
++    let subject = node_iri(node);
++
++    // horis:subject — bind (and cross-check) the rule's one subject class.
++    if let Some(Object::Node(class_node)) = graph.object(subject, HORIS_SUBJECT, cx.interner) {
++        let class = node_iri(*class_node);
++        if cx.schema.class_declared(class).is_none() {
++            return Err(OntologyError::RuleUndeclaredSubject {
++                rule: cx.rule_name(),
++                class: cx.interner.resolve(class).to_owned(),
++            });
++        }
++        match cx.subject_class {
++            None => cx.subject_class = Some(class),
++            Some(existing) if canonically_equal(cx.schema, existing, class) => {}
++            Some(existing) => {
++                return Err(OntologyError::RuleMixedSubjects {
++                    rule: cx.rule_name(),
++                    a: cx.interner.resolve(existing).to_owned(),
++                    b: cx.interner.resolve(class).to_owned(),
++                });
++            }
++        }
++    }
++
++    let property = match graph.object(subject, HORIS_PROPERTY, cx.interner) {
++        Some(Object::Node(p)) => node_iri(*p),
++        _ => {
++            return Err(OntologyError::RuleMissingPart {
++                rule: cx.rule_name(),
++                part: "horis:property on a condition".to_owned(),
++            });
++        }
++    };
++    let property_decl =
++        cx.schema
++            .property(property)
++            .ok_or_else(|| OntologyError::RuleUndeclaredProperty {
++                rule: cx.rule_name(),
++                property: cx.interner.resolve(property).to_owned(),
++            })?;
++
++    // D6 follow-through: a condition may state horis:unit; stated units must
++    // exactly equal the property's declared unit (strict, opaque labels).
++    let unit = match graph.object(subject, HORIS_UNIT, cx.interner) {
++        Some(Object::Literal(Literal::Typed(Value::String(u)))) => Some(u.clone()),
++        _ => None,
++    };
++    if let Some(stated) = &unit {
++        match &property_decl.unit {
++            Some(declared) if declared == stated => {}
++            Some(declared) => {
++                return Err(OntologyError::RuleUnitMismatch {
++                    rule: cx.rule_name(),
++                    property: cx.interner.resolve(property).to_owned(),
++                    stated: stated.clone(),
++                    declared: declared.clone(),
++                });
++            }
++            None => {
++                return Err(OntologyError::RuleUnitWithoutDeclaration {
++                    rule: cx.rule_name(),
++                    property: cx.interner.resolve(property).to_owned(),
++                    stated: stated.clone(),
++                });
++            }
++        }
++    }
++
++    let op = parse_operator(subject, graph, cx, property)?;
++
++    Ok(Condition { property, op, unit })
++}
++
++fn parse_operator(
++    subject: Iri,
++    graph: &SubjectGraph,
++    cx: &mut RuleCx<'_>,
++    property: Iri,
++) -> Result<Op, OntologyError> {
++    let mut found: Option<Op> = None;
++    for (predicate, object) in graph.pairs(subject) {
++        let predicate = cx.interner.resolve(*predicate);
++        let op = match predicate {
++            HORIS_EXCEEDS => Some(Op::Exceeds(literal_operand(object, predicate, cx)?)),
++            HORIS_BELOW => Some(Op::Below(literal_operand(object, predicate, cx)?)),
++            HORIS_AT_LEAST => Some(Op::AtLeast(literal_operand(object, predicate, cx)?)),
++            HORIS_AT_MOST => Some(Op::AtMost(literal_operand(object, predicate, cx)?)),
++            HORIS_BETWEEN => {
++                let Object::Node(head) = object else {
++                    return Err(OntologyError::RuleBetweenArity {
++                        rule: cx.rule_name(),
++                        found: 0,
++                    });
++                };
++                let items = graph.list(*head, cx.interner);
++                let values: Vec<Value> = items
++                    .iter()
++                    .filter_map(|o| match o {
++                        Object::Literal(Literal::Typed(v)) => Some(v.clone()),
++                        _ => None,
++                    })
++                    .collect();
++                if values.len() != 2 {
++                    return Err(OntologyError::RuleBetweenArity {
++                        rule: cx.rule_name(),
++                        found: values.len(),
++                    });
++                }
++                Some(Op::Between(values[0].clone(), values[1].clone()))
++            }
++            HORIS_IS => Some(Op::Is(term_operand(object))),
++            HORIS_IS_NOT => Some(Op::IsNot(term_operand(object))),
++            HORIS_IS_ASSIGNED => match object {
++                Object::Literal(Literal::Typed(Value::Boolean(true))) => Some(Op::IsAssigned),
++                other => {
++                    return Err(OntologyError::RuleInvalidOperand {
++                        rule: cx.rule_name(),
++                        operator: "horis:isAssigned".to_owned(),
++                        value: object_text(other, cx.interner),
++                        expected: "the literal true".to_owned(),
++                    });
++                }
++            },
++            HORIS_IS_EMPTY => match object {
++                Object::Literal(Literal::Typed(Value::Boolean(true))) => Some(Op::IsEmpty),
++                other => {
++                    return Err(OntologyError::RuleInvalidOperand {
++                        rule: cx.rule_name(),
++                        operator: "horis:isEmpty".to_owned(),
++                        value: object_text(other, cx.interner),
++                        expected: "the literal true".to_owned(),
++                    });
++                }
++            },
++            HORIS_CONTAINS => Some(Op::Contains(term_operand(object))),
++            HORIS_IN_LIST => {
++                let Object::Node(head) = object else {
++                    return Err(OntologyError::RuleInvalidOperand {
++                        rule: cx.rule_name(),
++                        operator: "horis:inList".to_owned(),
++                        value: object_text(object, cx.interner),
++                        expected: "a list".to_owned(),
++                    });
++                };
++                let items = graph
++                    .list(*head, cx.interner)
++                    .iter()
++                    .map(term_operand)
++                    .collect();
++                Some(Op::InList(items))
++            }
++            _ => None,
++        };
++        if let Some(op) = op {
++            if let Some(existing) = &found {
++                return Err(OntologyError::RuleMultipleOperators {
++                    rule: cx.rule_name(),
++                    property: cx.interner.resolve(property).to_owned(),
++                    a: existing.name().to_owned(),
++                    b: op.name().to_owned(),
++                });
++            }
++            found = Some(op);
++        }
++    }
++    found.ok_or_else(|| OntologyError::RuleMissingOperator {
++        rule: cx.rule_name(),
++        property: cx.interner.resolve(property).to_owned(),
++    })
++}
++
++fn parse_conclusion(
++    node: Node,
++    graph: &SubjectGraph,
++    cx: &mut RuleCx<'_>,
++) -> Result<Conclusion, OntologyError> {
++    let subject = node_iri(node);
++    let property = match graph.object(subject, HORIS_PROPERTY, cx.interner) {
++        Some(Object::Node(p)) => node_iri(*p),
++        _ => {
++            return Err(OntologyError::RuleMissingPart {
++                rule: cx.rule_name(),
++                part: "horis:property on its conclusion".to_owned(),
++            });
++        }
++    };
++    if cx.schema.property(property).is_none() {
++        return Err(OntologyError::RuleUndeclaredProperty {
++            rule: cx.rule_name(),
++            property: cx.interner.resolve(property).to_owned(),
++        });
++    }
++    let value = match graph.object(subject, HORIS_VALUE, cx.interner) {
++        Some(object) => term_operand(object),
++        None => {
++            return Err(OntologyError::RuleMissingPart {
++                rule: cx.rule_name(),
++                part: "horis:value on its conclusion".to_owned(),
++            });
++        }
++    };
++    Ok(Conclusion { property, value })
++}
++
++/// True when `a` and `b` name the same class through the `owl:sameAs`
++/// equivalence (D-7: class positions are canonical-aware).
++fn canonically_equal(schema: &Schema, a: Iri, b: Iri) -> bool {
++    a == b || schema.class_declared(a) == schema.class_declared(b)
++}
++
++fn literal_operand(
++    object: &Object,
++    operator: &str,
++    cx: &RuleCx<'_>,
++) -> Result<Value, OntologyError> {
++    match object {
++        Object::Literal(Literal::Typed(v)) => Ok(v.clone()),
++        other => Err(OntologyError::RuleInvalidOperand {
++            rule: cx.rule_name(),
++            operator: cx
++                .interner
++                .get(operator)
++                .map(|_| operator)
++                .unwrap_or(operator)
++                .to_owned(),
++            value: object_text(other, cx.interner),
++            expected: "a typed literal".to_owned(),
++        }),
++    }
++}
++
++fn term_operand(object: &Object) -> Term {
++    match object {
++        Object::Node(node) => Term::Iri(node_iri(*node)),
++        Object::Literal(Literal::Typed(v)) => Term::Literal(v.clone()),
++        Object::Literal(Literal::Other { lexical, .. })
++        | Object::Literal(Literal::LangString { lexical, .. }) => {
++            Term::Literal(Value::String(lexical.clone()))
++        }
++    }
++}
++
++fn object_text(object: &Object, interner: &Interner) -> String {
++    match object {
++        Object::Node(node) => interner.resolve(node_iri(*node)).to_owned(),
++        Object::Literal(Literal::Typed(v)) => v.lexical_form().unwrap_or_default(),
++        Object::Literal(Literal::Other { lexical, .. })
++        | Object::Literal(Literal::LangString { lexical, .. }) => lexical.clone(),
++    }
++}
++
++fn node_iri(node: Node) -> Iri {
++    match node {
++        Node::Named(iri) | Node::Blank(iri) => iri,
++    }
++}
++
++#[cfg(test)]
++mod tests {
++    use super::*;
++    use crate::Ontology;
++    use crate::error::OntologyError;
++
++    const PRELUDE: &str = "@prefix : <https://example.org/t#> .\n\
++         @prefix horis: <https://w3id.org/horismos#> .\n\
++         @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .\n\
++         @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .\n\
++         @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .\n";
++
++    /// A minimal patient-shaped schema for inline rule fixtures.
++    const DOMAIN: &str = ":Patient a rdfs:Class .\n\
++         :Symptom a rdfs:Class .\n\
++         :ChestPain rdfs:subClassOf :Symptom .\n\
++         :AcuityLevel a rdfs:Class ; horis:oneOf ( :Immediate :Urgent :Standard ) .\n\
++         :heartRate a rdf:Property ; rdfs:domain :Patient ; rdfs:range xsd:decimal ;\n\
++         \x20   horis:unit \"bpm\" ; horis:min 0 ; horis:max 300 ; horis:cardinality \"0..1\" .\n\
++         :hasSymptom a rdf:Property ; rdfs:domain :Patient ; rdfs:range :Symptom ;\n\
++         \x20   horis:cardinality \"0..*\" .\n\
++         :acuity a rdf:Property ; rdfs:domain :Patient ; rdfs:range :AcuityLevel ;\n\
++         \x20   horis:cardinality \"0..1\" ; horis:assignedBy horis:RulesOnly .\n";
++
++    fn load(rules: &str) -> Result<Ontology, OntologyError> {
++        Ontology::load_from_str(&format!("{PRELUDE}{DOMAIN}{rules}\n"), |_| None)
++    }
++
++    fn triage() -> Ontology {
++        Ontology::load(concat!(
++            env!("CARGO_MANIFEST_DIR"),
++            "/../../examples/triage/triage.ttl"
++        ))
++        .expect("triage.ttl must load")
++    }
++
++    #[test]
++    fn triage_ttl_yields_exactly_r1_with_its_documented_shape() {
++        let onto = triage();
++        let rules = onto.rules();
++        assert_eq!(rules.len(), 1, "triage.ttl declares exactly :r1");
++
++        let r1 = &rules[0];
++        assert_eq!(onto.resolve(r1.iri), "https://example.org/triage#r1");
++        assert_eq!(r1.priority, 10);
++        assert_eq!(
++            r1.explain.as_deref(),
++            Some("Tachycardia with chest pain — immediate track")
++        );
++        assert_eq!(
++            onto.resolve(r1.subject_class),
++            "https://example.org/triage#Patient"
++        );
++
++        // when: all( heartRate exceeds 120, hasSymptom is :ChestPain )
++        let ConditionTree::All(children) = &r1.when else {
++            panic!(
++                "r1's when must be a horis:all combinator, got {:?}",
++                r1.when
++            );
++        };
++        assert_eq!(children.len(), 2);
++        let ConditionTree::Leaf(first) = &children[0] else {
++            panic!("expected a leaf condition");
++        };
++        assert_eq!(
++            onto.resolve(first.property),
++            "https://example.org/triage#heartRate"
++        );
++        assert_eq!(first.op, Op::Exceeds(Value::Integer(120)));
++        let ConditionTree::Leaf(second) = &children[1] else {
++            panic!("expected a leaf condition");
++        };
++        assert_eq!(
++            onto.resolve(second.property),
++            "https://example.org/triage#hasSymptom"
++        );
++        let chest_pain = onto
++            .iri("https://example.org/triage#ChestPain")
++            .expect("ChestPain");
++        assert_eq!(second.op, Op::Is(Term::Iri(chest_pain)));
++
++        // then: acuity = :Immediate
++        assert_eq!(
++            onto.resolve(r1.then.property),
++            "https://example.org/triage#acuity"
++        );
++        let immediate = onto
++            .iri("https://example.org/triage#Immediate")
++            .expect("Immediate");
++        assert_eq!(r1.then.value, Term::Iri(immediate));
++    }
++
++    #[test]
++    fn rules_are_sorted_by_priority_desc_then_iri_lexicographic() {
++        let onto = load(
++            ":rB a horis:Rule ; horis:priority 5 ;\n\
++             \x20 horis:when [ horis:all ( [ horis:subject :Patient ; horis:property :heartRate ; horis:exceeds 100 ] ) ] ;\n\
++             \x20 horis:then [ horis:property :acuity ; horis:value :Urgent ] .\n\
++             :rA a horis:Rule ; horis:priority 5 ;\n\
++             \x20 horis:when [ horis:all ( [ horis:subject :Patient ; horis:property :heartRate ; horis:exceeds 110 ] ) ] ;\n\
++             \x20 horis:then [ horis:property :acuity ; horis:value :Urgent ] .\n\
++             :rTop a horis:Rule ; horis:priority 10 ;\n\
++             \x20 horis:when [ horis:all ( [ horis:subject :Patient ; horis:property :heartRate ; horis:exceeds 120 ] ) ] ;\n\
++             \x20 horis:then [ horis:property :acuity ; horis:value :Immediate ] .",
++        )
++        .expect("three valid rules must load");
++        let names: Vec<&str> = onto.rules().iter().map(|r| onto.resolve(r.iri)).collect();
++        assert_eq!(
++            names,
++            vec![
++                "https://example.org/t#rTop",
++                "https://example.org/t#rA",
++                "https://example.org/t#rB",
++            ],
++            "priority desc, ties by rule IRI lexicographic"
++        );
++    }
++
++    #[test]
++    fn a_rule_without_priority_defaults_to_zero() {
++        let onto = load(
++            ":r a horis:Rule ;\n\
++             \x20 horis:when [ horis:all ( [ horis:subject :Patient ; horis:property :heartRate ; horis:exceeds 100 ] ) ] ;\n\
++             \x20 horis:then [ horis:property :acuity ; horis:value :Urgent ] .",
++        )
++        .expect("valid");
++        assert_eq!(onto.rules()[0].priority, 0);
++    }
++
++    #[test]
++    fn an_undeclared_condition_property_is_a_load_error_naming_the_rule() {
++        let err = load(
++            ":r9 a horis:Rule ;\n\
++             \x20 horis:when [ horis:all ( [ horis:subject :Patient ; horis:property :pulse ; horis:exceeds 100 ] ) ] ;\n\
++             \x20 horis:then [ horis:property :acuity ; horis:value :Urgent ] .",
++        )
++        .expect_err("pulse is not declared");
++        let text = err.domain_text();
++        assert!(text.contains("t#r9"), "{text}");
++        assert!(text.contains("t#pulse"), "{text}");
++        assert!(text.contains("not a declared property"), "{text}");
++    }
++
++    #[test]
++    fn an_undeclared_conclusion_property_is_a_load_error() {
++        let err = load(
++            ":r9 a horis:Rule ;\n\
++             \x20 horis:when [ horis:all ( [ horis:subject :Patient ; horis:property :heartRate ; horis:exceeds 100 ] ) ] ;\n\
++             \x20 horis:then [ horis:property :disposition ; horis:value :Urgent ] .",
++        )
++        .expect_err("disposition is not declared");
++        assert!(
++            err.domain_text().contains("t#disposition"),
++            "{}",
++            err.domain_text()
++        );
++    }
++
++    #[test]
++    fn an_undeclared_subject_class_is_a_load_error() {
++        let err = load(
++            ":r9 a horis:Rule ;\n\
++             \x20 horis:when [ horis:all ( [ horis:subject :Ghost ; horis:property :heartRate ; horis:exceeds 100 ] ) ] ;\n\
++             \x20 horis:then [ horis:property :acuity ; horis:value :Urgent ] .",
++        )
++        .expect_err(":Ghost is not declared");
++        let text = err.domain_text();
++        assert!(text.contains("t#r9"), "{text}");
++        assert!(text.contains("t#Ghost"), "{text}");
++    }
++
++    #[test]
++    fn mixed_subject_classes_are_a_load_error() {
++        let err = load(
++            ":r9 a horis:Rule ;\n\
++             \x20 horis:when [ horis:all (\n\
++             \x20   [ horis:subject :Patient ; horis:property :heartRate ; horis:exceeds 100 ]\n\
++             \x20   [ horis:subject :Symptom ; horis:property :hasSymptom ; horis:isAssigned true ]\n\
++             \x20 ) ] ;\n\
++             \x20 horis:then [ horis:property :acuity ; horis:value :Urgent ] .",
++        )
++        .expect_err("v1 rules bind one subject class");
++        let text = err.domain_text();
++        assert!(text.contains("t#Patient"), "{text}");
++        assert!(text.contains("t#Symptom"), "{text}");
++        assert!(text.contains("one subject"), "{text}");
++    }
++
++    #[test]
++    fn a_missing_when_is_a_load_error() {
++        let err = load(
++            ":r9 a horis:Rule ; horis:then [ horis:property :acuity ; horis:value :Urgent ] .",
++        )
++        .expect_err("no when");
++        let text = err.domain_text();
++        assert!(text.contains("t#r9"), "{text}");
++        assert!(text.contains("horis:when"), "{text}");
++    }
++
++    #[test]
++    fn a_missing_then_is_a_load_error() {
++        let err = load(
++            ":r9 a horis:Rule ;\n\
++             \x20 horis:when [ horis:all ( [ horis:subject :Patient ; horis:property :heartRate ; horis:exceeds 100 ] ) ] .",
++        )
++        .expect_err("no then");
++        assert!(
++            err.domain_text().contains("horis:then"),
++            "{}",
++            err.domain_text()
++        );
++    }
++
++    #[test]
++    fn a_condition_without_an_operator_is_a_load_error() {
++        let err = load(
++            ":r9 a horis:Rule ;\n\
++             \x20 horis:when [ horis:all ( [ horis:subject :Patient ; horis:property :heartRate ] ) ] ;\n\
++             \x20 horis:then [ horis:property :acuity ; horis:value :Urgent ] .",
++        )
++        .expect_err("no operator stated");
++        let text = err.domain_text();
++        assert!(text.contains("t#heartRate"), "{text}");
++        assert!(text.contains("operator"), "{text}");
++    }
++
++    #[test]
++    fn a_rule_side_unit_mismatch_is_a_load_error_in_domain_terms() {
++        // D6 (strict units), rule-side follow-through: heartRate is declared
++        // in "bpm"; a condition stating "mmHg" is a load error, never a
++        // runtime surprise.
++        let err = load(
++            ":r9 a horis:Rule ;\n\
++             \x20 horis:when [ horis:all ( [ horis:subject :Patient ; horis:property :heartRate ;\n\
++             \x20   horis:unit \"mmHg\" ; horis:exceeds 100 ] ) ] ;\n\
++             \x20 horis:then [ horis:property :acuity ; horis:value :Urgent ] .",
++        )
++        .expect_err("mmHg contradicts the declared bpm");
++        let text = err.domain_text();
++        assert!(text.contains("t#r9"), "{text}");
++        assert!(text.contains("heartRate"), "{text}");
++        assert!(text.contains("mmHg"), "{text}");
++        assert!(text.contains("bpm"), "{text}");
++    }
++
++    #[test]
++    fn a_matching_rule_side_unit_is_accepted() {
++        load(
++            ":r a horis:Rule ;\n\
++             \x20 horis:when [ horis:all ( [ horis:subject :Patient ; horis:property :heartRate ;\n\
++             \x20   horis:unit \"bpm\" ; horis:exceeds 100 ] ) ] ;\n\
++             \x20 horis:then [ horis:property :acuity ; horis:value :Urgent ] .",
++        )
++        .expect("an exactly-matching stated unit is fine");
++    }
++
++    #[test]
++    fn a_stated_unit_on_a_unitless_property_is_a_load_error() {
++        let err = load(
++            ":r9 a horis:Rule ;\n\
++             \x20 horis:when [ horis:all ( [ horis:subject :Patient ; horis:property :hasSymptom ;\n\
++             \x20   horis:unit \"bpm\" ; horis:isAssigned true ] ) ] ;\n\
++             \x20 horis:then [ horis:property :acuity ; horis:value :Urgent ] .",
++        )
++        .expect_err("hasSymptom declares no unit");
++        let text = err.domain_text();
++        assert!(text.contains("hasSymptom"), "{text}");
++        assert!(text.contains("no unit"), "{text}");
++    }
++
++    #[test]
++    fn between_requires_exactly_two_values() {
++        let err = load(
++            ":r9 a horis:Rule ;\n\
++             \x20 horis:when [ horis:all ( [ horis:subject :Patient ; horis:property :heartRate ;\n\
++             \x20   horis:between ( 100 ) ] ) ] ;\n\
++             \x20 horis:then [ horis:property :acuity ; horis:value :Urgent ] .",
++        )
++        .expect_err("between wants two bounds");
++        assert!(
++            err.domain_text().contains("two values"),
++            "{}",
++            err.domain_text()
++        );
++    }
++
++    #[test]
++    fn between_with_two_values_parses() {
++        let onto = load(
++            ":r a horis:Rule ;\n\
++             \x20 horis:when [ horis:all ( [ horis:subject :Patient ; horis:property :heartRate ;\n\
++             \x20   horis:between ( 100 120 ) ] ) ] ;\n\
++             \x20 horis:then [ horis:property :acuity ; horis:value :Urgent ] .",
++        )
++        .expect("valid");
++        let leaves = onto.rules()[0].when.leaves();
++        assert_eq!(
++            leaves[0].op,
++            Op::Between(Value::Integer(100), Value::Integer(120))
++        );
++    }
++
++    #[test]
++    fn two_operators_on_one_condition_are_a_load_error() {
++        let err = load(
++            ":r9 a horis:Rule ;\n\
++             \x20 horis:when [ horis:all ( [ horis:subject :Patient ; horis:property :heartRate ;\n\
++             \x20   horis:exceeds 100 ; horis:below 200 ] ) ] ;\n\
++             \x20 horis:then [ horis:property :acuity ; horis:value :Urgent ] .",
++        )
++        .expect_err("one operator per condition");
++        let text = err.domain_text();
++        assert!(text.contains("exceeds"), "{text}");
++        assert!(text.contains("below"), "{text}");
++    }
++
++    #[test]
++    fn nested_combinators_parse() {
++        let onto = load(
++            ":r a horis:Rule ;\n\
++             \x20 horis:when [ horis:any (\n\
++             \x20   [ horis:subject :Patient ; horis:property :heartRate ; horis:exceeds 150 ]\n\
++             \x20   [ horis:all (\n\
++             \x20     [ horis:subject :Patient ; horis:property :heartRate ; horis:exceeds 120 ]\n\
++             \x20     [ horis:subject :Patient ; horis:property :hasSymptom ; horis:is :ChestPain ]\n\
++             \x20   ) ]\n\
++             \x20 ) ] ;\n\
++             \x20 horis:then [ horis:property :acuity ; horis:value :Immediate ] .",
++        )
++        .expect("nesting is part of the grammar");
++        let ConditionTree::Any(children) = &onto.rules()[0].when else {
++            panic!("outer combinator must be Any");
++        };
++        assert_eq!(children.len(), 2);
++        assert!(matches!(children[1], ConditionTree::All(_)));
++    }
++
++    #[test]
++    fn in_list_parses_its_members_in_order() {
++        let onto = load(
++            ":r a horis:Rule ;\n\
++             \x20 horis:when [ horis:all ( [ horis:subject :Patient ; horis:property :acuity ;\n\
++             \x20   horis:inList ( :Immediate :Urgent ) ] ) ] ;\n\
++             \x20 horis:then [ horis:property :acuity ; horis:value :Immediate ] .",
++        )
++        .expect("valid");
++        let leaves = onto.rules()[0].when.leaves();
++        let immediate = onto
++            .iri("https://example.org/t#Immediate")
++            .expect("interned");
++        let urgent = onto.iri("https://example.org/t#Urgent").expect("interned");
++        assert_eq!(
++            leaves[0].op,
++            Op::InList(vec![Term::Iri(immediate), Term::Iri(urgent)])
++        );
++    }
++
++    #[test]
++    fn an_ontology_without_rules_has_an_empty_rule_slice() {
++        let onto = load("").expect("no rules is fine");
++        assert!(onto.rules().is_empty());
++    }
++}
+diff --git a/docs/framework/02-ontology.md b/docs/framework/02-ontology.md
+index 6cae4dd..8309a8d 100644
+--- a/docs/framework/02-ontology.md
++++ b/docs/framework/02-ontology.md
+@@ -110,7 +110,9 @@ Two semantics notes (full detail in doc 04):
+ - `horis:is :ChestPain` matches **any subclass** via subsumption — that is the point
+   of having an ontology.
+ - Conditions over unassigned properties are false (`horis:isNot` true) — Horismos's
+-  pragmatic closed-world stance, inherited and re-validated **[DECIDE: PRP-002]**.
++  pragmatic closed-world stance, inherited from sigil-lang and re-validated for the
++  graph world (decided, PRP-002): `isNot` is the ∀ negation of `is`, including over
++  multi-valued properties (doc 04's table).
+ 
+ ## Workflow vocabulary
+ 
+diff --git a/docs/framework/04-reasoning.md b/docs/framework/04-reasoning.md
+index 161e913..5685006 100644
+--- a/docs/framework/04-reasoning.md
++++ b/docs/framework/04-reasoning.md
+@@ -52,11 +52,16 @@ The 11 operators evaluate over the graph with these edge semantics:
+ | Property unassigned, `horis:isNot` | `true` |
+ | Property unassigned, `horis:isAssigned` | `false` |
+ | Multi-valued property (`hasSymptom`), `horis:is X` | `true` if **any** value matches (∃) |
++| Multi-valued property, `horis:isNot X` | `true` iff **no** value matches (∀) — `isNot` ≡ ¬`is`, always |
+ | Unit mismatch in comparison | Load-time verification error, not a runtime surprise |
+ 
+ This is a pragmatic closed-world reading of an open-world data model. It is a
+ deliberate, documented divergence from RDF semantics — Horismos worlds are operational
+-state, not the open web. **[DECIDE: confirm ∃ vs. ∀ for multi-valued `isNot` — PRP-002]**
++state, not the open web. `isNot` takes the ∀ reading (decided, PRP-002): it is the
++negation of `is` in every world state — the only reading consistent with the
++unassigned row above (no value exists to witness an ∃), with sigil-lang's `_UNBOUND`
++precedent, and with `horis:none` (¬∨) composing as `none(is X)` ≡ `isNot X`. Pinned
++by the `is_not_is_the_negation_of_is` property test.
+ 
+ ## Backward chaining
+ 

@@ -48,34 +48,48 @@ pub fn condition_holds(world: &World, subject: Ref, condition: &Condition) -> bo
     let values: Vec<&Value> = world.values(subject, condition.property).collect();
 
     match &condition.op {
-        // isNot ≡ ¬is (D-4): delegate so the equivalence is structural, not
-        // re-implemented — the property test pins it, the code guarantees it.
+        // isNot ≡ ¬is (D-4): the ∀ negation of the ∃ per-value relation —
+        // structural, not re-implemented; the property test pins it.
         Op::IsNot(term) => !values.iter().any(|v| term_matches(world, v, term)),
-        Op::IsAssigned => !values.is_empty(),
         Op::IsEmpty => values.is_empty(),
-        // Every remaining operator is a comparison: unassigned → false, and
-        // a multi-valued property satisfies it if any value does (∃).
-        Op::Is(term) => values.iter().any(|v| term_matches(world, v, term)),
-        Op::Exceeds(bound) => values
-            .iter()
-            .any(|v| compare(v, bound) == Some(Ordering::Greater)),
-        Op::Below(bound) => values
-            .iter()
-            .any(|v| compare(v, bound) == Some(Ordering::Less)),
-        Op::AtLeast(bound) => values
-            .iter()
-            .any(|v| matches!(compare(v, bound), Some(Ordering::Greater | Ordering::Equal))),
-        Op::AtMost(bound) => values
-            .iter()
-            .any(|v| matches!(compare(v, bound), Some(Ordering::Less | Ordering::Equal))),
-        Op::Between(low, high) => values.iter().any(|v| {
-            matches!(compare(v, low), Some(Ordering::Greater | Ordering::Equal))
-                && matches!(compare(v, high), Some(Ordering::Less | Ordering::Equal))
-        }),
-        Op::Contains(term) => values.iter().any(|v| contains_matches(world, v, term)),
-        Op::InList(terms) => values
-            .iter()
-            .any(|v| terms.iter().any(|t| term_matches(world, v, t))),
+        // Every remaining operator is ∃ over values (unassigned → false —
+        // there is nothing to witness it), including `isAssigned`, which any
+        // value at all witnesses.
+        op => values.iter().any(|v| value_satisfies(world, v, op)),
+    }
+}
+
+/// Does this single stored value witness `op`? The per-value ∃ relation
+/// `condition_holds` quantifies over — also the proof builder's witness
+/// finder (U4). The ∀/absence-shaped operators (`isNot`, `isEmpty`) have no
+/// per-value witness and answer `false`.
+pub(crate) fn value_satisfies(world: &World, value: &Value, op: &Op) -> bool {
+    match op {
+        Op::IsNot(_) | Op::IsEmpty => false,
+        Op::IsAssigned => true,
+        Op::Is(term) => term_matches(world, value, term),
+        Op::Exceeds(bound) => compare(value, bound) == Some(Ordering::Greater),
+        Op::Below(bound) => compare(value, bound) == Some(Ordering::Less),
+        Op::AtLeast(bound) => {
+            matches!(
+                compare(value, bound),
+                Some(Ordering::Greater | Ordering::Equal)
+            )
+        }
+        Op::AtMost(bound) => {
+            matches!(
+                compare(value, bound),
+                Some(Ordering::Less | Ordering::Equal)
+            )
+        }
+        Op::Between(low, high) => {
+            matches!(
+                compare(value, low),
+                Some(Ordering::Greater | Ordering::Equal)
+            ) && matches!(compare(value, high), Some(Ordering::Less | Ordering::Equal))
+        }
+        Op::Contains(term) => contains_matches(world, value, term),
+        Op::InList(terms) => terms.iter().any(|t| term_matches(world, value, t)),
     }
 }
 

@@ -282,20 +282,27 @@ pub(crate) struct DeferredRef {
 
 /// [`check_assertion`], in restoration mode: identical checks, except that an
 /// object reference whose referent is not (yet) in the store is *deferred*
-/// rather than refused. The caller must settle every returned [`DeferredRef`]
-/// with [`check_restored_reference`] once all instances are restored — until
-/// then the gate's guarantee is not yet re-established.
+/// rather than refused, and check 5 runs **per fact**, against each restored
+/// fact's own recorded provenance (PRP-002: provenance travels with the wire
+/// form, so a `horis:RulesOnly` fact a rule legitimately derived restores as
+/// `Provenance::Rule`, exactly as it was admitted live). The caller must
+/// settle every returned [`DeferredRef`] with [`check_restored_reference`]
+/// once all instances are restored — until then the gate's guarantee is not
+/// yet re-established.
 pub(crate) fn check_assertion_restoring(
     world: &World,
-    provenance: Provenance,
     subject: Subject,
     class: Iri,
-    properties: &[(Iri, Value)],
+    facts: &[(Iri, Value, Provenance)],
 ) -> Result<(Instance, Vec<DeferredRef>), Box<Witness>> {
+    let properties: Vec<(Iri, Value)> = facts
+        .iter()
+        .map(|(property, value, _)| (*property, value.clone()))
+        .collect();
     let deferred = std::cell::RefCell::new(Vec::new());
     let gate = Gate {
         world,
-        provenance,
+        provenance: Provenance::Api,
         operation: Operation::Assert,
         subject: subject.iri(),
         class,
@@ -303,10 +310,27 @@ pub(crate) fn check_assertion_restoring(
     };
 
     gate.check_class(subject)?;
-    gate.check_domain_and_range(properties)?;
-    gate.check_constraints(properties)?;
-    let candidate = gate.check_cardinality(properties)?;
-    gate.check_assertion_provenance(properties)?;
+    gate.check_domain_and_range(&properties)?;
+    gate.check_constraints(&properties)?;
+    let candidate = gate.check_cardinality(&properties)?;
+    // Check 5, per fact: the recorded provenance is the one the policy
+    // judges — and the one a refusal's witness names.
+    for (property, value, provenance) in facts {
+        let decl = gate
+            .schema()
+            .property(*property)
+            .expect("check 2 established that every asserted property is declared");
+        let fact_gate = Gate {
+            world,
+            provenance: *provenance,
+            operation: Operation::Assert,
+            subject: subject.iri(),
+            class,
+            deferred: None,
+        };
+        check_provenance(decl, *provenance)
+            .map_err(|kind| fact_gate.reject(Some(*property), Some(value), kind))?;
+    }
     Ok((candidate, deferred.into_inner()))
 }
 

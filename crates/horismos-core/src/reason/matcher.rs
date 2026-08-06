@@ -96,57 +96,8 @@ impl Matcher for NaiveMatcher {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::Ontology;
     use crate::ontology::term::Value;
-
-    const PRELUDE: &str = "@prefix : <https://example.org/t#> .\n\
-         @prefix horis: <https://w3id.org/horismos#> .\n\
-         @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .\n\
-         @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .\n\
-         @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .\n";
-
-    /// PRP Example 1's illustrative r2/r3 alongside the r1 shape, on an
-    /// inline patient schema (r2/r3 are illustrative only — not fixture
-    /// changes).
-    const EXAMPLE_1: &str = ":Patient a rdfs:Class .\n\
-         :Symptom a rdfs:Class .\n\
-         :ChestPain rdfs:subClassOf :Symptom .\n\
-         :CrushingChestPain rdfs:subClassOf :ChestPain .\n\
-         :AcuityLevel a rdfs:Class ; horis:oneOf ( :Immediate :Urgent :Standard ) .\n\
-         :heartRate a rdf:Property ; rdfs:domain :Patient ; rdfs:range xsd:decimal ;\n\
-         \x20   horis:unit \"bpm\" ; horis:min 0 ; horis:max 300 ; horis:cardinality \"0..1\" .\n\
-         :hasSymptom a rdf:Property ; rdfs:domain :Patient ; rdfs:range :Symptom ;\n\
-         \x20   horis:cardinality \"0..*\" .\n\
-         :acuity a rdf:Property ; rdfs:domain :Patient ; rdfs:range :AcuityLevel ;\n\
-         \x20   horis:cardinality \"0..1\" ; horis:assignedBy horis:RulesOnly .\n\
-         :needsCardiacMonitor a rdf:Property ; rdfs:domain :Patient ;\n\
-         \x20   rdfs:range xsd:boolean ; horis:cardinality \"0..1\" ;\n\
-         \x20   horis:assignedBy horis:RulesOnly .\n\
-         :r1 a horis:Rule ; horis:priority 10 ;\n\
-         \x20 horis:when [ horis:all (\n\
-         \x20   [ horis:subject :Patient ; horis:property :heartRate ; horis:exceeds 120 ]\n\
-         \x20   [ horis:subject :Patient ; horis:property :hasSymptom ; horis:is :ChestPain ]\n\
-         \x20 ) ] ;\n\
-         \x20 horis:then [ horis:property :acuity ; horis:value :Immediate ] ;\n\
-         \x20 horis:explain \"Tachycardia with chest pain — immediate track\" .\n\
-         :r2 a horis:Rule ; horis:priority 5 ;\n\
-         \x20 horis:when [ horis:all (\n\
-         \x20   [ horis:subject :Patient ; horis:property :hasSymptom ; horis:is :ChestPain ]\n\
-         \x20 ) ] ;\n\
-         \x20 horis:then [ horis:property :acuity ; horis:value :Urgent ] ;\n\
-         \x20 horis:explain \"Chest pain — at least urgent\" .\n\
-         :r3 a horis:Rule ; horis:priority 8 ;\n\
-         \x20 horis:when [ horis:all (\n\
-         \x20   [ horis:subject :Patient ; horis:property :acuity ; horis:is :Immediate ]\n\
-         \x20 ) ] ;\n\
-         \x20 horis:then [ horis:property :needsCardiacMonitor ; horis:value true ] ;\n\
-         \x20 horis:explain \"Immediate track — continuous cardiac monitoring\" .\n";
-
-    fn example_world() -> World {
-        let onto = Ontology::load_from_str(&format!("{PRELUDE}{EXAMPLE_1}"), |_| None)
-            .expect("the Example 1 ontology must load");
-        World::new(&onto)
-    }
+    use crate::reason::testing::example_world;
 
     fn t(world: &mut World, local: &str) -> Iri {
         world.intern(&format!("https://example.org/t#{local}"))
@@ -157,9 +108,10 @@ mod tests {
         world.ontology().resolve(rule.iri)
     }
 
-    /// PRP Example 1, pass 1: r1 and r2 are candidates (subsumption match),
-    /// r3 is not (acuity unassigned → comparison false). Highest priority
-    /// candidate is r1.
+    /// The highest-priority rule whose conditions hold wins: r1 (priority
+    /// 10) over r2 (5) and r3 (8). (The assertion itself already chained to
+    /// fixed point — U4 — so this exercises candidate *selection* on the
+    /// settled world, where a fresh transaction would re-offer every rule.)
     #[test]
     fn pass_one_picks_r1_over_r2_and_excludes_r3() {
         let mut world = example_world();
@@ -211,14 +163,20 @@ mod tests {
         let mut fired = FiredSet::new();
         fired.insert((r1, p7.iri()));
 
+        // The assertion chained to fixed point (U4), so acuity is already
+        // :Immediate here — r3's condition holds, and at priority 8 it
+        // outranks r2's 5.
         let candidate = matcher
             .next_candidate(&world, &rules, &fired)
-            .expect("r2 remains fireable");
-        assert_eq!(
-            rule_iri(&world, &candidate),
-            "https://example.org/t#r2",
-            "with (r1, p7) fired, priority 5 r2 is the best remaining candidate (r3 needs acuity)"
-        );
+            .expect("r3 remains fireable");
+        assert_eq!(rule_iri(&world, &candidate), "https://example.org/t#r3");
+
+        let r3 = t(&mut world, "r3");
+        fired.insert((r3, p7.iri()));
+        let candidate = matcher
+            .next_candidate(&world, &rules, &fired)
+            .expect("r2 is last");
+        assert_eq!(rule_iri(&world, &candidate), "https://example.org/t#r2");
     }
 
     #[test]
