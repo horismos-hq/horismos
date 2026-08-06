@@ -347,3 +347,167 @@ fn render_op(world: &World, op: &Op) -> String {
         ),
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::reason::testing::example_world;
+
+    fn t(world: &mut World, local: &str) -> Iri {
+        world.intern(&format!("https://example.org/t#{local}"))
+    }
+
+    /// PRP Example 2's `explain` half: after Example 1's transaction
+    /// committed, the recorded r1 derivation renders in doc 04's exact
+    /// shape — conclusion via rule with its explain string, one line per
+    /// condition, the subsumption hop explicit.
+    #[test]
+    fn explain_renders_the_recorded_r1_proof_in_doc_04_shape() {
+        let mut world = example_world();
+        let patient = t(&mut world, "Patient");
+        let heart_rate = t(&mut world, "heartRate");
+        let has_symptom = t(&mut world, "hasSymptom");
+        let crushing = t(&mut world, "CrushingChestPain");
+        let acuity = t(&mut world, "acuity");
+
+        let p7 = world
+            .assert_instance(
+                patient,
+                [
+                    (heart_rate, Value::Integer(128)),
+                    (has_symptom, Value::Ref(Ref::new(crushing))),
+                ],
+            )
+            .expect("accepted");
+
+        let proof = world
+            .explain(p7, acuity)
+            .expect("acuity was rule-derived, so it has a recorded derivation");
+        assert_eq!(
+            proof.render(&world),
+            ":acuity = :Immediate   via r1 — \"Tachycardia with chest pain — immediate track\"\n\
+             \x20 ├─ heartRate 128 exceeds 120   (asserted by the api)\n\
+             \x20 └─ hasSymptom :CrushingChestPain ⊑ :ChestPain   (subsumption)\n"
+        );
+    }
+
+    #[test]
+    fn explain_is_none_for_base_facts_and_unset_properties() {
+        let mut world = example_world();
+        let patient = t(&mut world, "Patient");
+        let heart_rate = t(&mut world, "heartRate");
+        let acuity = t(&mut world, "acuity");
+
+        let p = world
+            .assert_instance(patient, [(heart_rate, Value::Integer(96))])
+            .expect("accepted");
+
+        assert!(
+            world.explain(p, heart_rate).is_none(),
+            "a base fact has no rule derivation to explain"
+        );
+        assert!(
+            world.explain(p, acuity).is_none(),
+            "an unset property has nothing to explain"
+        );
+    }
+
+    /// The proof's leaves carry the provenance of the facts they rest on —
+    /// doc 04's visible neuro-symbolic seam ("asserted by perception").
+    #[test]
+    fn proof_leaves_carry_the_asserting_provenance() {
+        use crate::world::Provenance;
+
+        let mut world = example_world();
+        let patient = t(&mut world, "Patient");
+        let heart_rate = t(&mut world, "heartRate");
+        let has_symptom = t(&mut world, "hasSymptom");
+        let crushing = t(&mut world, "CrushingChestPain");
+        let acuity = t(&mut world, "acuity");
+
+        let p7 = world
+            .assert_instance_as(
+                Provenance::Perception,
+                None,
+                patient,
+                [
+                    (heart_rate, Value::Integer(128)),
+                    (has_symptom, Value::Ref(Ref::new(crushing))),
+                ],
+            )
+            .expect("accepted");
+
+        let proof = world.explain(p7, acuity).expect("derived");
+        let rendered = proof.render(&world);
+        assert!(
+            rendered.contains("(asserted by perception)"),
+            "the neural seam must be visible: {rendered}"
+        );
+
+        let ProofKind::Condition { via, .. } = &proof.children[1].kind else {
+            panic!("second child is the symptom condition");
+        };
+        let ConditionVia::Subsumption {
+            provenance: Some(Provenance::Perception),
+            ..
+        } = via
+        else {
+            panic!("the subsumption leaf must carry perception provenance, got {via:?}");
+        };
+    }
+
+    /// After a late higher-priority override (U4), explain answers with the
+    /// *standing* derivation, not the replaced one.
+    #[test]
+    fn explain_follows_a_conflict_override() {
+        use crate::Ontology;
+        use crate::reason::testing::PRELUDE;
+
+        let source = format!(
+            "{PRELUDE}\
+             :Patient a rdfs:Class .\n\
+             :Symptom a rdfs:Class .\n\
+             :ChestPain rdfs:subClassOf :Symptom .\n\
+             :AcuityLevel a rdfs:Class ; horis:oneOf ( :Immediate :Urgent :Standard ) .\n\
+             :hasSymptom a rdf:Property ; rdfs:domain :Patient ; rdfs:range :Symptom ;\n\
+             \x20   horis:cardinality \"0..*\" .\n\
+             :acuity a rdf:Property ; rdfs:domain :Patient ; rdfs:range :AcuityLevel ;\n\
+             \x20   horis:cardinality \"0..1\" ; horis:assignedBy horis:RulesOnly .\n\
+             :needsCardiacMonitor a rdf:Property ; rdfs:domain :Patient ;\n\
+             \x20   rdfs:range xsd:boolean ; horis:cardinality \"0..1\" ;\n\
+             \x20   horis:assignedBy horis:RulesOnly .\n\
+             :rA a horis:Rule ; horis:priority 9 ;\n\
+             \x20 horis:when [ horis:all (\n\
+             \x20   [ horis:subject :Patient ; horis:property :hasSymptom ; horis:is :ChestPain ] ) ] ;\n\
+             \x20 horis:then [ horis:property :acuity ; horis:value :Urgent ] .\n\
+             :rC a horis:Rule ; horis:priority 8 ;\n\
+             \x20 horis:when [ horis:all (\n\
+             \x20   [ horis:subject :Patient ; horis:property :hasSymptom ; horis:is :ChestPain ] ) ] ;\n\
+             \x20 horis:then [ horis:property :needsCardiacMonitor ; horis:value true ] .\n\
+             :rB a horis:Rule ; horis:priority 20 ;\n\
+             \x20 horis:when [ horis:all (\n\
+             \x20   [ horis:subject :Patient ; horis:property :needsCardiacMonitor ; horis:is true ] ) ] ;\n\
+             \x20 horis:then [ horis:property :acuity ; horis:value :Immediate ] .\n"
+        );
+        let onto = Ontology::load_from_str(&source, |_| None).expect("valid");
+        let mut world = World::new(&onto);
+        let patient = t(&mut world, "Patient");
+        let has_symptom = t(&mut world, "hasSymptom");
+        let chest_pain = t(&mut world, "ChestPain");
+        let acuity = t(&mut world, "acuity");
+
+        let p = world
+            .assert_instance(patient, [(has_symptom, Value::Ref(Ref::new(chest_pain)))])
+            .expect("accepted");
+
+        let proof = world.explain(p, acuity).expect("derived");
+        let ProofKind::Conclusion { rule, .. } = &proof.kind else {
+            panic!("a derivation roots at a Conclusion");
+        };
+        assert_eq!(
+            world.resolve(*rule),
+            "https://example.org/t#rB",
+            "explain must answer with the standing (overriding) derivation"
+        );
+    }
+}
