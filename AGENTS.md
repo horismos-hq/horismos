@@ -72,6 +72,14 @@ make verify        # all of the above — run before claiming work done
   owning PRP referenced. Don't silently decide them in code.
 - The `horis:` vocabulary, the 11 condition operators, and the RDFS-plus profile are
   defined in `docs/framework/02-ontology.md` — never invent vocabulary terms ad hoc.
+- Two wire contracts are versioned forever — evolve them only per their written
+  policies: the trace schema (`horismos-core::trace::migrate` module doc) and the
+  snapshot binary form (`world/snapshot.rs` header consts; `Provenance` variant
+  order is part of it).
+- Process artifacts (ledgers, briefs, review diffs) are untracked scratch
+  (`.superpowers/` is gitignored); the durable record is the owning PRP's
+  `02-tasks-and-gaps.md` and the shipped-voice text where `[DECIDE]` markers were
+  struck.
 
 ## Project skills (.claude/skills/) and agents (.claude/agents/)
 
