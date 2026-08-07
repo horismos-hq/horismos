@@ -51,7 +51,7 @@ use crate::error::HorismosError;
 use crate::ontology::Ontology;
 use crate::ontology::term::{Interner, Iri, Ref, Value};
 use crate::reason::forward::{self, ReasoningRecord};
-use crate::reason::matcher::NaiveMatcher;
+use crate::reason::matcher::MatcherKind;
 use crate::reason::proof::ProofNode;
 
 /// The namespace anonymous instances are skolemized into: RDF 1.1's
@@ -184,6 +184,11 @@ pub struct World {
     /// The most recent transaction's chaining record — the reasoning-step
     /// payload traces consume (doc 09). `None` before the first assertion.
     last_reasoning: Option<ReasoningRecord>,
+    /// The matching strategy chaining uses (PRP-002 Key decision 1's
+    /// benchmark fixes the default; see [`MatcherKind`]). A pure
+    /// performance choice — both strategies produce byte-identical records,
+    /// and the differential tests pin that.
+    matcher_kind: MatcherKind,
 }
 
 /// The recorded derivation of one standing rule-derived fact.
@@ -204,7 +209,15 @@ impl World {
             fact_meta: OrdMap::new(),
             derivations: OrdMap::new(),
             last_reasoning: None,
+            matcher_kind: MatcherKind::default(),
         }
+    }
+
+    /// Selects the matching strategy for this world's chaining
+    /// ([`MatcherKind`]) — the D-1 escape valve and the differential tests'
+    /// lever. Semantics are identical either way; only cost differs.
+    pub fn use_matcher(&mut self, kind: MatcherKind) {
+        self.matcher_kind = kind;
     }
 
     /// The ontology this world is bound to.
@@ -383,8 +396,9 @@ impl World {
         // recorded diagnostic, not a rollback — but the iteration-cap
         // tripwire rolls the whole transaction back. Subscriber notification
         // and the runtime trace append remain PRP-004's slots.
-        let mut matcher = NaiveMatcher::new();
-        match forward::chain(self, &mut matcher) {
+        let ontology = self.ontology.clone();
+        let mut matcher = self.matcher_kind.build(self, ontology.rules());
+        match forward::chain(self, matcher.as_mut()) {
             Ok(record) => self.last_reasoning = Some(record),
             Err(err) => {
                 self.instances = checkpoint_instances;

@@ -71,15 +71,21 @@
 ## Decisions (brainstorming protocol; to be transferred into the PRP folder's
 ## 02-tasks-and-gaps.md when PR #3 merges)
 
-- [ ] D-1. **Matcher: build both, benchmark decides the default** (resolution *path*
-  fixed 2026-08-05; checkbox closes when U8's numbers exist). Statement: "Forward
-  chaining's default matcher at triage scale is chosen by criterion benchmark; naive
-  and Rete-lite both ship, the loser as differential-testing oracle." Evidence: PRP
-  Key decision 1 prescribes exactly this; doc 14 pins CI-tracked criterion benchmarks
-  from PRP-002 onward; sigil-lang's marshaling-dominated result is void in-process.
-  Fallback: if the benchmark is a wash at both scales, naive is the default (simpler,
-  easier to audit) and Rete-lite stays behind the trait. RESULT: *pending U8* — to be
-  recorded here with the measured numbers.
+- [x] D-1. **Matcher: Rete-lite default, naive stays as the oracle** (decided
+  2026-08-07 from U8's criterion run). Statement: "Forward chaining's default
+  matcher is chosen by criterion benchmark; naive and Rete-lite both ship, the
+  loser as differential-testing oracle." Evidence: PRP Key decision 1 prescribes
+  exactly this; doc 14 pins CI-tracked criterion benchmarks from PRP-002 onward.
+  RESULT (2026-08-07, `cargo bench -p horismos-core --bench matching`, Apple
+  Silicon dev machine): triage_transaction naive 5.30 µs vs rete 5.47 µs per
+  full transaction — a wash, both ~200× under the 1 ms perf posture;
+  chain60_transaction (60-rule sequential chain, 31 instances) naive 1.60 ms —
+  OVER the 1 ms posture — vs rete 126.9 µs, a 12.6× win exactly where doc 14
+  predicted incremental matching pays. Default = `MatcherKind::ReteLite`;
+  `NaiveMatcher` stays selectable via `World::use_matcher` as the
+  differential-testing oracle (pinned by the `differential_tests` proptest:
+  byte-identical traces and stores under both). Fallback: `use_matcher` is the
+  escape valve if numbers change at an unmeasured scale.
 - [x] D-2. **Proof-tree granularity: per-condition** (decided 2026-08-05).
   Statement: "Every condition evaluation — including each subsumption hop — is its
   own `ProofNode`; a firing is the parent node." Evidence: doc 04's `ProofNode`
@@ -165,6 +171,10 @@
   byte-exactly; leaves carry provenance.
 - Task U6: complete (commit 88f21a7). prove(goal) via cloned hypothesis world
   through the real gate; cycle set + depth cap 50 ported as-is.
+- Task U7: complete (commit 080ea1a). horismos.trace/1 schema (all four step
+  kinds are v1; reasoning emitted), byte-exact serialization pinned, D-3
+  resolved: policy in trace::migrate module doc, v1→v2 dry-run test, export
+  tag set pinned by test, doc 09 marker struck.
 - Ruling: matcher unit tests re-baselined after U4 integration (assertion now
   chains, so post-assert world states include derived facts — candidate-
   selection expectations updated accordingly; candidate ORDER semantics

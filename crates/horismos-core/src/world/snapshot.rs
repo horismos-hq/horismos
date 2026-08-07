@@ -426,6 +426,7 @@ impl World {
             fact_meta: snapshot.fact_meta,
             derivations: imbl::OrdMap::new(),
             last_reasoning: None,
+            matcher_kind: crate::reason::matcher::MatcherKind::default(),
         })
     }
 

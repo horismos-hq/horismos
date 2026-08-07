@@ -58,6 +58,35 @@ pub trait Matcher {
     }
 }
 
+/// Which matcher a [`crate::World`] chains with. The default is fixed by
+/// PRP-002 Key decision 1's criterion benchmark (see the run ledger and
+/// `benches/matching.rs`); the loser stays selectable — it is the
+/// differential-testing oracle, and the escape valve if the numbers change
+/// at a scale the benchmark did not cover.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum MatcherKind {
+    Naive,
+    /// Alpha-level Rete (sigil-lang's "Rete-lite"), adapted to ontology
+    /// instances: match memory maintained per rule, invalidated per
+    /// (subject, property). The default per D-1's criterion evidence
+    /// (2026-08-07, `benches/matching.rs`): a wash at triage scale
+    /// (5.3 µs naive vs 5.5 µs rete per transaction — both far under the
+    /// 1 ms posture) and 12.6× faster on a 60-rule chain over 31 instances
+    /// (1.60 ms naive — over budget — vs 127 µs rete).
+    #[default]
+    ReteLite,
+}
+
+impl MatcherKind {
+    /// Instantiates the strategy for one chaining run.
+    pub(crate) fn build(self, world: &World, rules: &[Rule]) -> Box<dyn Matcher> {
+        match self {
+            MatcherKind::Naive => Box::new(NaiveMatcher::new()),
+            MatcherKind::ReteLite => Box::new(ReteLite::new(world, rules)),
+        }
+    }
+}
+
 /// The oracle: full re-evaluation, no state. O(rules × instances) per call
 /// and proudly so — every incremental matcher is tested against it.
 #[derive(Debug, Default)]
@@ -90,6 +119,102 @@ impl Matcher for NaiveMatcher {
             }
         }
         None
+    }
+}
+
+/// Alpha-level Rete adapted to ontology instances (U8, PRP Key decision 1):
+/// one **match memory** per rule — the subjects whose whole `horis:when`
+/// currently holds — built once per chaining run (one naive-cost pass) and
+/// then maintained incrementally: an assertion on (subject, property)
+/// re-evaluates only the rules whose conditions mention that property for
+/// that one subject, instead of every rule against the whole graph.
+///
+/// This is sigil-lang `matcher.rs`'s design point (alpha level, no beta
+/// joins — a v1 rule binds one subject, so there is nothing to join) with
+/// the alpha predicates re-keyed to property IRIs. Candidate order is
+/// byte-identical to [`NaiveMatcher`]'s: rule slice order, then subject
+/// token order (`BTreeSet<Ref>` iterates in `Ord` order = token order).
+#[derive(Debug)]
+pub struct ReteLite {
+    /// rule index → subjects whose conditions all hold right now.
+    matches: Vec<std::collections::BTreeSet<Ref>>,
+    /// property IRI → rules with a leaf condition on it — the invalidation
+    /// index ("asserting `:p7 :heartRate 128` touches only the conditions
+    /// that mention `:heartRate`").
+    by_property: std::collections::BTreeMap<Iri, Vec<usize>>,
+}
+
+impl ReteLite {
+    /// Builds the network and its initial match memories — the one
+    /// naive-cost pass; everything after is incremental.
+    pub fn new(world: &World, rules: &[Rule]) -> Self {
+        let mut by_property: std::collections::BTreeMap<Iri, Vec<usize>> =
+            std::collections::BTreeMap::new();
+        for (index, rule) in rules.iter().enumerate() {
+            for condition in rule.when.leaves() {
+                let entry = by_property.entry(condition.property).or_default();
+                if !entry.contains(&index) {
+                    entry.push(index);
+                }
+            }
+        }
+        let matches = rules
+            .iter()
+            .map(|rule| {
+                world
+                    .instances(rule.subject_class)
+                    .filter(|&subject| holds(world, subject, &rule.when))
+                    .collect()
+            })
+            .collect();
+        Self {
+            matches,
+            by_property,
+        }
+    }
+}
+
+impl Matcher for ReteLite {
+    fn next_candidate(
+        &mut self,
+        world: &World,
+        rules: &[Rule],
+        fired: &FiredSet,
+    ) -> Option<Candidate> {
+        let _ = world;
+        for (rule_index, subjects) in self.matches.iter().enumerate() {
+            let rule = &rules[rule_index];
+            if let Some(&subject) = subjects
+                .iter()
+                .find(|s| !fired.contains(&(rule.iri, s.iri())))
+            {
+                return Some(Candidate {
+                    rule_index,
+                    subject,
+                });
+            }
+        }
+        None
+    }
+
+    fn notify_asserted(&mut self, world: &World, rules: &[Rule], subject: Ref, property: Iri) {
+        let Some(affected) = self.by_property.get(&property) else {
+            return;
+        };
+        let schema = world.ontology().schema();
+        let subject_class = world.instance(subject).map(|i| i.class());
+        for &rule_index in affected {
+            let rule = &rules[rule_index];
+            let bound = subject_class.is_some_and(|c| schema.is_subclass_of(c, rule.subject_class));
+            if !bound {
+                continue;
+            }
+            if holds(world, subject, &rule.when) {
+                self.matches[rule_index].insert(subject);
+            } else {
+                self.matches[rule_index].remove(&subject);
+            }
+        }
     }
 }
 
@@ -232,5 +357,95 @@ mod tests {
             .next_candidate(&world, &rules, &fired)
             .expect("candidate");
         assert_eq!(b.subject, second);
+    }
+}
+
+#[cfg(test)]
+mod differential_tests {
+    use super::*;
+    use crate::ontology::term::Value;
+    use crate::reason::testing::example_world;
+    use crate::trace::reasoning_step;
+    use proptest::prelude::*;
+
+    fn t(world: &mut World, local: &str) -> Iri {
+        world.intern(&format!("https://example.org/t#{local}"))
+    }
+
+    /// One scripted assertion against a world under a given strategy;
+    /// returns the trace JSON of every transaction's reasoning step plus a
+    /// rendering of the final store.
+    fn run(kind: MatcherKind, script: &[(i64, usize)]) -> (Vec<String>, Vec<String>) {
+        let mut world = example_world();
+        world.use_matcher(kind);
+        let patient = t(&mut world, "Patient");
+        let heart_rate = t(&mut world, "heartRate");
+        let has_symptom = t(&mut world, "hasSymptom");
+        let symptom_classes = [
+            t(&mut world, "CrushingChestPain"),
+            t(&mut world, "ChestPain"),
+            t(&mut world, "Symptom"),
+        ];
+
+        let mut steps = Vec::new();
+        for &(rate, symptom_pick) in script {
+            let mut properties = vec![(heart_rate, Value::Integer(rate))];
+            if symptom_pick < symptom_classes.len() {
+                properties.push((
+                    has_symptom,
+                    Value::Ref(Ref::new(symptom_classes[symptom_pick])),
+                ));
+            }
+            world
+                .assert_instance(patient, properties)
+                .expect("script values are all gate-valid");
+            let record = world.last_reasoning().cloned().expect("chained");
+            steps.push(
+                serde_json::to_string(&reasoning_step(&world, None, &record)).expect("serializes"),
+            );
+        }
+
+        let mut store = Vec::new();
+        for subject in world.instances(patient) {
+            let instance = world.instance(subject).expect("held");
+            for property in instance.properties() {
+                for value in instance.values(property) {
+                    store.push(format!(
+                        "{} {} {:?}",
+                        world.resolve(subject.iri()),
+                        world.resolve(property),
+                        value
+                    ));
+                }
+            }
+        }
+        (steps, store)
+    }
+
+    /// The two strategies are the same machine at different speeds: every
+    /// transaction's trace step and the final store are byte-identical.
+    #[test]
+    fn naive_and_rete_agree_on_the_example_1_transaction() {
+        let script = [(128, 0)];
+        assert_eq!(
+            run(MatcherKind::Naive, &script),
+            run(MatcherKind::ReteLite, &script)
+        );
+    }
+
+    proptest! {
+        /// Randomized differential run: arbitrary short scripts of valid
+        /// patients (heart rates spanning the r1 threshold, symptom picks
+        /// including none) produce identical traces and stores under both
+        /// matchers — the U8 oracle guarantee.
+        #[test]
+        fn naive_and_rete_agree_on_arbitrary_scripts(
+            script in proptest::collection::vec((60i64..200, 0usize..4), 1..5)
+        ) {
+            prop_assert_eq!(
+                run(MatcherKind::Naive, &script),
+                run(MatcherKind::ReteLite, &script)
+            );
+        }
     }
 }
