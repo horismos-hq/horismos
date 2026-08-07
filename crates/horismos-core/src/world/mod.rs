@@ -195,6 +195,8 @@ pub struct World {
 #[derive(Debug, Clone, PartialEq)]
 pub struct Derivation {
     pub value: Value,
+    /// The rule that concluded it — named by the D-5 retraction refusal.
+    pub rule: Iri,
     pub proof: ProofNode,
 }
 
@@ -455,10 +457,11 @@ impl World {
         subject: Ref,
         property: Iri,
         value: Value,
+        rule: Iri,
         proof: ProofNode,
     ) {
         self.derivations
-            .insert((subject.iri(), property), Derivation { value, proof });
+            .insert((subject.iri(), property), Derivation { value, rule, proof });
     }
 
     /// Rebuilds the per-value provenance vector for every property touched
@@ -575,22 +578,26 @@ impl World {
     /// 1. the world holds `subject`;
     /// 2. `property` is declared by the ontology;
     /// 3. `subject` actually holds `value` for `property`;
-    /// 4. removing it would not leave `subject` below `property`'s
+    /// 4. `property` is not `horis:immutable` (decided, PRP-002: an
+    ///    immutable fact can be neither re-asserted differently nor
+    ///    retracted — the two-step bypass is closed);
+    /// 5. the fact is not rule-derived, unless `provenance` is
+    ///    [`Provenance::Rule`] (decided, PRP-002: derived facts change only
+    ///    by re-running inference after base-fact changes; the rule path
+    ///    itself remains admitted per PRP-001 U7's pinned semantics);
+    /// 6. removing it would not leave `subject` below `property`'s
     ///    `horis:cardinality` minimum;
-    /// 5. `property`'s `horis:assignedBy` policy admits `provenance` — the
+    /// 7. `property`'s `horis:assignedBy` policy admits `provenance` — the
     ///    same check 5, and the same errors, as an assertion.
     ///
     /// It is **not** the full assertion gate. `rdfs:domain`/`rdfs:range`,
     /// `horis:min`/`max`/`pattern`/`oneOf`, and cardinality *maxima* all
     /// constrain what may enter the world and cannot be violated by removal,
-    /// so they do not run. `horis:immutable` does not run either, which means
-    /// retract-then-assert can today replace an immutable value — see
-    /// [`gate::check_retraction`] for that **[DECIDE: PRP-002]**.
+    /// so they do not run.
     ///
     /// The unit of retraction is one *fact*, deliberately: whole-instance
-    /// retraction would have to answer what happens to facts referencing the
-    /// removed instance, and retraction of rule-derived facts is
-    /// **[DECIDE: PRP-002]** — every fact a U6 world holds is a base fact.
+    /// retraction would have to answer what happens to facts referencing
+    /// the removed instance, and nothing yet needs it.
     pub fn retract_as(
         &mut self,
         provenance: Provenance,
@@ -1766,5 +1773,165 @@ mod tests {
             )
             .expect("accepted");
         assert_eq!(world.value(p, has_symptom), Some(&crushing));
+    }
+}
+
+#[cfg(test)]
+mod retraction_ruling_tests {
+    use super::*;
+    use crate::reason::testing::example_world;
+    use crate::world::gate::ConstraintKind;
+
+    fn t(world: &mut World, local: &str) -> Iri {
+        world.intern(&format!("https://example.org/t#{local}"))
+    }
+
+    fn witness_of(err: &HorismosError) -> &gate::Witness {
+        err.witness().expect("a gate rejection carries a witness")
+    }
+
+    /// D-6: horis:immutable binds retraction — from every provenance — so
+    /// the retract-then-assert bypass is closed.
+    #[test]
+    fn an_immutable_fact_refuses_retraction_in_the_documented_wording() {
+        let onto = Ontology::load_from_str(
+            "@prefix : <https://example.org/t#> .\n\
+             @prefix horis: <https://w3id.org/horismos#> .\n\
+             @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .\n\
+             @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .\n\
+             @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .\n\
+             :Patient a rdfs:Class .\n\
+             :mrn a rdf:Property ; rdfs:domain :Patient ; rdfs:range xsd:string ;\n\
+             \x20   horis:cardinality \"0..1\" ; horis:immutable true .\n",
+            |_| None,
+        )
+        .expect("loads");
+        let mut world = World::new(&onto);
+        let patient = t(&mut world, "Patient");
+        let mrn = t(&mut world, "mrn");
+        let value = Value::String("AB-1".to_owned());
+
+        let p1 = t(&mut world, "p1");
+        let p = world
+            .assert_named_instance(p1, patient, [(mrn, value.clone())])
+            .expect("first assignment");
+
+        for provenance in [
+            Provenance::Api,
+            Provenance::Perception,
+            Provenance::Rule,
+            Provenance::Tool,
+        ] {
+            let err = world
+                .retract_as(provenance, p, mrn, &value)
+                .expect_err("immutable binds retraction, whatever the provenance");
+            assert_eq!(witness_of(&err).kind, ConstraintKind::ImmutableRetraction);
+        }
+
+        let err = world.retract(p, mrn, &value).expect_err("refused");
+        assert_eq!(
+            err.domain_text(),
+            "mrn is horis:immutable and holds \"AB-1\"; an immutable fact can be neither re-asserted differently nor retracted on :Patient"
+        );
+
+        // The two-step bypass is closed: the value cannot be replaced.
+        let err = world
+            .assert_named_instance(p.iri(), patient, [(mrn, Value::String("CD-2".to_owned()))])
+            .expect_err("re-assertion path was already closed in PRP-001");
+        assert!(matches!(
+            witness_of(&err).kind,
+            ConstraintKind::Immutable { .. }
+        ));
+        assert_eq!(
+            world.values(p, mrn).cloned().collect::<Vec<_>>(),
+            vec![value],
+            "the original value stands"
+        );
+    }
+
+    /// D-5: a rule-derived fact refuses retraction from the api, naming the
+    /// deriving rule; the rule path itself remains admitted.
+    #[test]
+    fn a_derived_fact_refuses_api_retraction_but_admits_the_rule_path() {
+        let mut world = example_world();
+        let patient = t(&mut world, "Patient");
+        let heart_rate = t(&mut world, "heartRate");
+        let has_symptom = t(&mut world, "hasSymptom");
+        let crushing = t(&mut world, "CrushingChestPain");
+        let acuity = t(&mut world, "acuity");
+        let immediate = t(&mut world, "Immediate");
+        let monitor = t(&mut world, "needsCardiacMonitor");
+
+        let p7 = world
+            .assert_instance(
+                patient,
+                [
+                    (heart_rate, Value::Integer(128)),
+                    (has_symptom, Value::Ref(Ref::new(crushing))),
+                ],
+            )
+            .expect("accepted; chaining derives acuity and the monitor flag");
+
+        let derived = Value::Ref(Ref::new(immediate));
+        let err = world
+            .retract(p7, acuity, &derived)
+            .expect_err("the api may not retract what a rule derived");
+        let w = witness_of(&err);
+        assert_eq!(
+            w.kind,
+            ConstraintKind::DerivedFactRetraction {
+                rule: ":r1".to_owned()
+            }
+        );
+        assert_eq!(
+            err.domain_text(),
+            "acuity :Immediate was derived by :r1; derived facts change only by re-running inference after base-fact changes; retraction came from the api"
+        );
+        assert_eq!(world.values(p7, acuity).count(), 1, "the fact stands");
+
+        // Tool/perception are refused the same way; the rule path is not.
+        for refused in [Provenance::Perception, Provenance::Tool] {
+            let err = world
+                .retract_as(refused, p7, acuity, &derived)
+                .expect_err("only the rule path may unwind a derivation");
+            assert!(matches!(
+                witness_of(&err).kind,
+                ConstraintKind::DerivedFactRetraction { .. }
+            ));
+        }
+        world
+            .retract_as(Provenance::Rule, p7, monitor, &Value::Boolean(true))
+            .expect("the rule path retracts what rules derived (PRP-001 U7 pin)");
+    }
+
+    /// D-7 at the gate: an owl:sameAs-anchored enum member is accepted where
+    /// its local twin is enumerated — the PRP-001 spurious reject is gone.
+    #[test]
+    fn one_of_accepts_a_same_as_anchored_member() {
+        let onto = Ontology::load_from_str(
+            "@prefix : <https://example.org/t#> .\n\
+             @prefix horis: <https://w3id.org/horismos#> .\n\
+             @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .\n\
+             @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .\n\
+             @prefix owl: <http://www.w3.org/2002/07/owl#> .\n\
+             @prefix sct: <http://snomed.info/id/> .\n\
+             @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .\n\
+             :Patient a rdfs:Class .\n\
+             :AcuityLevel a rdfs:Class ; horis:oneOf ( :Immediate :Urgent ) .\n\
+             :Immediate owl:sameAs sct:14816004 .\n\
+             :acuity a rdf:Property ; rdfs:domain :Patient ; rdfs:range :AcuityLevel ;\n\
+             \x20   horis:cardinality \"0..1\" .\n",
+            |_| None,
+        )
+        .expect("loads");
+        let mut world = World::new(&onto);
+        let patient = t(&mut world, "Patient");
+        let acuity = t(&mut world, "acuity");
+        let anchored = world.intern("http://snomed.info/id/14816004");
+
+        let p = world
+            .assert_instance(patient, [(acuity, Value::Ref(Ref::new(anchored)))])
+            .expect("the anchored twin is the same individual as :Immediate");
+        assert_eq!(world.values(p, acuity).count(), 1);
     }
 }

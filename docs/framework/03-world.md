@@ -40,9 +40,17 @@ Rejections raise `HorismosValidationError` with the failing constraint **in doma
 ("heartRate 1280 exceeds horis:max 300 (bpm) on :Patient") and a machine-readable
 structure (used by the perception retry loop, doc 06).
 
-`world.retract(fact)` exists and passes the same policy checks. **[DECIDE: retraction
-semantics for rule-derived facts — cascade vs. forbid; lean forbid (derived facts are
-retracted only by re-running inference after base-fact changes) — PRP-002]**
+`world.retract(fact)` exists and passes the same policy checks, plus two retraction
+rulings (decided, PRP-002): a `horis:immutable` fact refuses retraction outright,
+and a **rule-derived** fact refuses retraction from perception/tool/api — the error
+names the deriving rule; derived facts change only by re-running inference after
+base-fact changes (rule provenance, the inference side's own mechanism, remains
+admitted). There is no cascade in v1.
+
+One modeling ruling made at the gate in PRP-001 and recorded here: **instances are
+single-typed** — a subject asserted as a second `rdf:type` is refused
+(`ClassConflict`). Multi-classification is modeled through the class hierarchy
+(`rdfs:subClassOf`), not through multiple types on one instance.
 
 ## Queries
 

@@ -195,7 +195,7 @@ pub fn chain(
 
         match world.apply_rule_conclusion(subject, property, value.clone()) {
             Ok(()) => {
-                world.record_derivation(subject, property, value.clone(), proof.clone());
+                world.record_derivation(subject, property, value.clone(), rule.iri, proof.clone());
                 matcher.notify_asserted(world, rules, subject, property);
                 standing.insert((subject.iri(), property), record.fired.len());
                 record.fired.push(Firing {
