@@ -93,10 +93,11 @@
   ("hierarchy steps are explicit proof nodes"); `backward.py` produces per-condition
   subgoals; the PRP says per-rule loses if downstream consumers use the detail —
   narration (doc 06) and the authoring loop (doc 13) both render the per-condition
-  tree. Measured cost: *pending U10* — record the triage Example-1 compact trace size
-  here; if it stays in the low KBs the per-rule size argument does not materialize.
-  Fallback: if realistic traces blow up, collapse *rendering*, not the recorded
-  structure.
+  tree. Measured cost (2026-08-07, U10 DoD run over triage+SNOMED, one reasoning
+  step, full per-condition proof with the subsumption hop): **778 bytes compact,
+  1,299 bytes pretty** — the per-rule size argument does not materialize at
+  profile scale (bounded < 4 KB by the DoD test). Fallback: if realistic traces
+  blow up, collapse *rendering*, not the recorded structure.
 - [x] D-3. **Trace schema versioning policy** (decided 2026-08-05). Statement:
   "`horismos.trace/1` never changes meaning. Additive-optional fields (serde
   `skip_serializing_if` + `default`) are non-breaking within v1; anything that
@@ -175,6 +176,13 @@
   kinds are v1; reasoning emitted), byte-exact serialization pinned, D-3
   resolved: policy in trace::migrate module doc, v1→v2 dry-run test, export
   tag set pinned by test, doc 09 marker struck.
+- Task U8: complete (commit 9af7089). Rete-lite + differential proptest vs
+  the naive oracle + criterion benchmarks; D-1 resolved (ReteLite default,
+  12.6× at chain-60 scale; see 03-benchmarks.md).
+- Task U9: complete (commit d8cf777, amended once for a clippy manual-map).
+  Immutable-binds-retraction (D-6), derived-facts-forbid with rule-path
+  exception (D-5), sameAs-canonical oneOf/range at the gate (D-7); doc 02/03
+  markers struck; single-typed ruling recorded in doc 03.
 - Ruling: matcher unit tests re-baselined after U4 integration (assertion now
   chains, so post-assert world states include derived facts — candidate-
   selection expectations updated accordingly; candidate ORDER semantics
