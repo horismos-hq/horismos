@@ -150,7 +150,78 @@
 
 ## Unit log
 
-(one line per unit as it completes)
+- Task U1: complete (commit 68c5fb4, verify green). Rule model + load-time parse
+  incl. D6 rule-side unit check and D-7 canonical class lookup.
+- Task U2: complete (commit b3c98b3). Evaluation + D-4 resolved (∀-isNot), doc
+  02/04 markers struck, property test pins isNot ≡ ¬is.
+- Task U3: complete (commit 0471656, amended for fmt — the pre-amend commit
+  briefly carried fmt drift, noted). Matcher trait + naive oracle.
+- Task U4: complete (commit c0efc2f). Forward chaining in the transaction,
+  conflict policy incl. late-override re-marking, cap rollback, per-fact
+  provenance store, gate-diagnostic rejections; ALSO closed the PRP-001
+  wire-form provenance gap (snapshot wire v2) because chaining made every
+  triage world hold a RulesOnly fact — snapshot round-trip required it.
+- Task U5: complete (commit fd8f2fa). explain() + doc-04 render pinned
+  byte-exactly; leaves carry provenance.
+- Task U6: complete (commit 88f21a7). prove(goal) via cloned hypothesis world
+  through the real gate; cycle set + depth cap 50 ported as-is.
+- Ruling: matcher unit tests re-baselined after U4 integration (assertion now
+  chains, so post-assert world states include derived facts — candidate-
+  selection expectations updated accordingly; candidate ORDER semantics
+  unchanged).
+- Ruling (U4): a conclusion that is both a conflict loser and gate-invalid is
+  recorded as *suppressed* (conflict policy runs before the gate — it decides
+  whether the conclusion is even proposed); Example 3's diagnostic surfaces
+  when no standing conflict shields the rule, which is the PRP's own setup.
+- Ruling (U6): negated combinators are evaluated, never derived toward, in
+  prove — non-monotonicity under closed world; documented in backward.rs.
+
+## Inline self-review of U1–U6 (2026-08-07; firstmate-authorized fallback —
+## senior-reviewer infra down, see status log)
+
+Ran the `.claude/skills/self-review` checklist over the committed range:
+- Determinism: no HashMap/HashSet/wall-clock/RNG in any reason module; all
+  chaining state is BTree/imbl-ordered; record-level trace equality pinned by
+  test. PASS.
+- Boundary: no new deps in U1–U6 (serde_json arrives with U7 — pure,
+  wasm-safe, workspace-declared). PASS.
+- Gate: apply_rule_conclusion and the wire-v2 restore path both route through
+  gate::check_assertion*; prove mutates only a cloned hypothesis
+  (copy-on-write verified by the prove-is-read-only test). PASS.
+- Errors: rule load errors are thiserror variants with full-IRI rendering —
+  matches PRP-001's load-error style (SubclassCycle, InvalidPattern);
+  compacted domain-term form remains the gate-witness convention. Ruling:
+  consistent, keep.
+- FIXED during review: `concludes_goal` literal match was exact `==`; now
+  uses the evaluator's numeric cross-typed `value_eq` (U4–U6 named risk 5).
+- FIXED during review: U1 unit-mismatch test upgraded to exact-sentence
+  assertion.
+- Task U1–U6 minors (deferred): (a) malformed condition rdf-lists stop the
+  walk silently if hand-authored triples evade oxttl's desugaring — profile
+  validation owns list well-formedness, revisit in PRP-005 verification;
+  (b) `ConditionTree::leaves()` currently test-only — U8's alpha-memory
+  build is its intended consumer.
+- Named risks re-checked mechanically: prove aliasing (risk 4) — clone-on-
+  write confirmed by test; wire-v2 forgery (risk 6) — bounded, pinned by
+  a_forged_provenance_cannot_smuggle_an_invalid_value.
+
+## Gaps discovered during implementation
+
+(dated notes; transfer to the PRP folder's 02-tasks-and-gaps.md on rebase)
+
+- 2026-08-06 — **retraction does not re-chain**: doc 03's transaction stages
+  are implemented for assertion; a retraction commits without forward
+  chaining, so a rule enabled by an absence (`isEmpty`/`isNot`) does not fire
+  until the next assertion-bearing transaction. No TMS in v1 (per D-5's
+  forbid). Owner: PRP-004's transaction/workflow pass, alongside
+  subscriptions.
+- 2026-08-06 — **derivation records don't survive the wire form**: fact
+  provenance now travels (wire v2) but the proofs behind `explain` are
+  rebuilt only by re-running inference (doc 09 replay); a byte-restored world
+  answers `explain` with None until then. Documented on `from_snapshot`.
+- 2026-08-06 — **snapshot wire v1 refused, not converted**: SNAPSHOT_VERSION
+  bumped to 2 for per-fact provenance; no pre-release v1 corpus exists, so
+  from_bytes refuses v1 with its version message rather than converting.
 
 ## Gaps discovered during implementation
 

@@ -892,11 +892,12 @@ mod tests {
              \x20 horis:then [ horis:property :acuity ; horis:value :Urgent ] .",
         )
         .expect_err("mmHg contradicts the declared bpm");
-        let text = err.domain_text();
-        assert!(text.contains("t#r9"), "{text}");
-        assert!(text.contains("heartRate"), "{text}");
-        assert!(text.contains("mmHg"), "{text}");
-        assert!(text.contains("bpm"), "{text}");
+        assert_eq!(
+            err.domain_text(),
+            "rule https://example.org/t#r9 https://example.org/t#heartRate condition states \
+             horis:unit \"mmHg\" but https://example.org/t#heartRate is declared in \"bpm\"",
+            "the exact D6 wording, naming rule, property, and both units"
+        );
     }
 
     #[test]

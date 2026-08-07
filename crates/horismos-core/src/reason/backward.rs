@@ -113,7 +113,9 @@ fn concludes_goal(world: &World, rule: &Rule, subject: Ref, property: Iri, value
         (Term::Iri(concluded), Value::Ref(goal)) => {
             schema.canonical_iri(*concluded) == schema.canonical_iri(goal.iri())
         }
-        (Term::Literal(concluded), goal) => concluded == goal,
+        // Numeric cross-typing (an authored `1` matches a goal `1.0`), same
+        // relation the evaluator uses everywhere else.
+        (Term::Literal(concluded), goal) => eval::value_eq(concluded, goal),
         (Term::Iri(_), _) => false,
     }
 }

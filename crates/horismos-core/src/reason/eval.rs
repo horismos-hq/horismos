@@ -140,7 +140,7 @@ fn ref_matches(world: &World, r: Ref, target: Iri) -> bool {
 
 /// Value equality with numeric cross-typing: `Integer 5` equals
 /// `Decimal 5.0` (an integer *is* a decimal in XSD's derivation hierarchy).
-fn value_eq(a: &Value, b: &Value) -> bool {
+pub(crate) fn value_eq(a: &Value, b: &Value) -> bool {
     match (a, b) {
         (Value::Integer(x), Value::Decimal(y)) | (Value::Decimal(y), Value::Integer(x)) => {
             Decimal::from(*x) == *y

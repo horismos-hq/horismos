@@ -324,7 +324,7 @@ fn render_value(world: &World, value: &Value) -> String {
 
 /// The operator with its operand(s), in doc 04's phrasing ("exceeds 120",
 /// "is :ChestPain").
-fn render_op(world: &World, op: &Op) -> String {
+pub(crate) fn render_op(world: &World, op: &Op) -> String {
     let term = |t: &Term| match t {
         Term::Iri(i) => world.ontology().compact(world.resolve(*i)),
         Term::Literal(v) => v.lexical_form().unwrap_or_default(),
