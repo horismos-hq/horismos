@@ -223,6 +223,30 @@ Ran the `.claude/skills/self-review` checklist over the committed range:
   write confirmed by test; wire-v2 forgery (risk 6) — bounded, pinned by
   a_forged_provenance_cannot_smuggle_an_invalid_value.
 
+## Inline self-review of U7–U10 (2026-08-07; option-b fallback, second batch)
+
+- Task U10: complete (commit 3ccb657, after a clippy type-complexity fix
+  caught by the gated verify). DoD run + property suite; D-2 size evidence
+  recorded (778 B compact).
+- Determinism: trace modules have no HashMap/wall-clock; 38 optionals are
+  `skip_serializing_if`; bindings/labels are BTreeMaps; emission is a pure
+  function of (world, record) — pinned by byte-equality tests + proptest.
+- Boundary: serde_json (pure) and criterion (dev-only) — check-boundary and
+  no-model-gate green throughout.
+- FIXED during review: the `Provenance` serde doc claimed "never a variant
+  index" — false for the postcard snapshot wire form, which encodes variant
+  order; the comment now states the real contract (reordering variants =
+  snapshot-format break, bump SNAPSHOT_VERSION).
+- YAGNI check: all four step kinds in trace v1 is deliberate (adding a kind
+  later would be a breaking v2 per the D-3 policy — the shapes are doc 09's
+  own); `use_matcher`/`MatcherKind` has three real consumers (benches,
+  differential tests, the D-1 escape valve); `EXPORT_TAGS` is D-3's pinned
+  resolution awaiting the PRP-003 exporter.
+- Deviation to name in the PR: status surfaces (U-item boxes, PRP Status
+  flip, BOARD.md + board artifact) are DEFERRED until PR #3's folder
+  conversion merges — the launch brief forbids restructuring PRP docs in
+  this branch; the ledger carries the record meanwhile.
+
 ## Gaps discovered during implementation
 
 (dated notes; transfer to the PRP folder's 02-tasks-and-gaps.md on rebase)

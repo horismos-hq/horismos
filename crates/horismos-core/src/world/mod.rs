@@ -76,9 +76,11 @@ pub(crate) const SKOLEM_NAMESPACE: &str = "https://w3id.org/horismos/.well-known
 /// exactly what they are; the `_as` forms take it explicitly, and are what
 /// the perception, rule, and tool paths will call.
 ///
-/// Serialized (snapshot wire form v2, traces) as its doc-03 lowercase name
-/// (`"perception" | "rule" | "tool" | "api"`) — a stable, versioned wire
-/// vocabulary, never a variant index.
+/// Serialization: JSON forms (traces, doc 09) write the doc-03 lowercase
+/// name (`"perception" | "rule" | "tool" | "api"`). The postcard snapshot
+/// wire form (v2) instead encodes the **variant index** — variant order is
+/// part of that wire contract, so reordering variants is a snapshot-format
+/// break (bump `SNAPSHOT_VERSION`), not a refactor.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Provenance {
