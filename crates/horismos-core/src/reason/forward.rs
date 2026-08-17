@@ -161,11 +161,14 @@ pub fn chain(
             .is_some_and(|c| c.is_single_valued());
 
         // Conflict policy: another rule set a *different* value for this
-        // single-cardinality slot earlier in this transaction.
+        // single-cardinality slot earlier in this transaction. (Difference
+        // is semantic — numeric cross-typed, `owl:sameAs`-canonical — the
+        // same equality every other comparison in inference uses.)
+        let mut overrides: Option<usize> = None;
         if single_valued && let Some(&setter_index) = standing.get(&(subject.iri(), property)) {
             let setter_rule = record.fired[setter_index].rule;
             let setter_value = record.fired[setter_index].value.clone();
-            if setter_value != value {
+            if !crate::reason::eval::value_semantically_eq(world, &setter_value, &value) {
                 let setter_priority = rules
                     .iter()
                     .find(|r| r.iri == setter_rule)
@@ -187,14 +190,20 @@ pub fn chain(
                     });
                     continue;
                 }
-                // This rule outranks the setter: derive below, and re-mark
-                // the earlier firing as overridden.
-                record.fired[setter_index].outcome = FiringOutcome::Overridden { winner: rule.iri };
+                // This rule outranks the setter — but the earlier firing is
+                // re-marked Overridden only once the gate actually accepts
+                // the replacement below; a trace must never claim a
+                // still-standing value was replaced.
+                overrides = Some(setter_index);
             }
         }
 
         match world.apply_rule_conclusion(subject, property, value.clone()) {
             Ok(()) => {
+                if let Some(setter_index) = overrides {
+                    record.fired[setter_index].outcome =
+                        FiringOutcome::Overridden { winner: rule.iri };
+                }
                 world.record_derivation(subject, property, value.clone(), rule.iri, proof.clone());
                 matcher.notify_asserted(world, rules, subject, property);
                 standing.insert((subject.iri(), property), record.fired.len());
@@ -607,5 +616,92 @@ mod tests {
         let record = world.last_reasoning().expect("chained");
         // Second transaction: r2 fires for both subjects (fresh fired set).
         assert_eq!(record.derived().count(), 2);
+    }
+}
+
+#[cfg(test)]
+mod override_gate_tests {
+    use super::*;
+    use crate::Ontology;
+    use crate::reason::testing::PRELUDE;
+
+    fn t(world: &mut World, local: &str) -> Iri {
+        world.intern(&format!("https://example.org/t#{local}"))
+    }
+
+    /// Review finding: the earlier firing must be re-marked Overridden only
+    /// once the gate ACCEPTS the replacement. Here the would-be overrider
+    /// (priority 20) concludes a value outside the oneOf enumeration — the
+    /// gate refuses it — so the earlier conclusion still stands and its
+    /// firing record must keep saying Derived.
+    #[test]
+    fn a_gate_refused_override_leaves_the_standing_record_derived() {
+        let source = format!(
+            "{PRELUDE}\
+             :Patient a rdfs:Class .\n\
+             :Symptom a rdfs:Class .\n\
+             :ChestPain rdfs:subClassOf :Symptom .\n\
+             :AcuityLevel a rdfs:Class ; horis:oneOf ( :Immediate :Urgent :Standard ) .\n\
+             :hasSymptom a rdf:Property ; rdfs:domain :Patient ; rdfs:range :Symptom ;\n\
+             \x20   horis:cardinality \"0..*\" .\n\
+             :acuity a rdf:Property ; rdfs:domain :Patient ; rdfs:range :AcuityLevel ;\n\
+             \x20   horis:cardinality \"0..1\" ; horis:assignedBy horis:RulesOnly .\n\
+             :needsCardiacMonitor a rdf:Property ; rdfs:domain :Patient ;\n\
+             \x20   rdfs:range xsd:boolean ; horis:cardinality \"0..1\" ;\n\
+             \x20   horis:assignedBy horis:RulesOnly .\n\
+             :rA a horis:Rule ; horis:priority 9 ;\n\
+             \x20 horis:when [ horis:all (\n\
+             \x20   [ horis:subject :Patient ; horis:property :hasSymptom ; horis:is :ChestPain ] ) ] ;\n\
+             \x20 horis:then [ horis:property :acuity ; horis:value :Urgent ] .\n\
+             :rC a horis:Rule ; horis:priority 8 ;\n\
+             \x20 horis:when [ horis:all (\n\
+             \x20   [ horis:subject :Patient ; horis:property :hasSymptom ; horis:is :ChestPain ] ) ] ;\n\
+             \x20 horis:then [ horis:property :needsCardiacMonitor ; horis:value true ] .\n\
+             :rBad a horis:Rule ; horis:priority 20 ;\n\
+             \x20 horis:when [ horis:all (\n\
+             \x20   [ horis:subject :Patient ; horis:property :needsCardiacMonitor ; horis:is true ] ) ] ;\n\
+             \x20 horis:then [ horis:property :acuity ; horis:value :Discharged ] .\n"
+        );
+        let onto = Ontology::load_from_str(&source, |_| None).expect("valid");
+        let mut world = World::new(&onto);
+        let patient = t(&mut world, "Patient");
+        let has_symptom = t(&mut world, "hasSymptom");
+        let chest_pain = t(&mut world, "ChestPain");
+        let acuity = t(&mut world, "acuity");
+        let urgent = t(&mut world, "Urgent");
+
+        let p = world
+            .assert_instance(patient, [(has_symptom, Value::Ref(Ref::new(chest_pain)))])
+            .expect("accepted");
+
+        // rA's :Urgent stands — rBad's :Discharged was refused by the gate.
+        assert_eq!(world.value(p, acuity), Some(&Value::Ref(Ref::new(urgent))));
+
+        let record = world.last_reasoning().expect("chained");
+        let ra = record
+            .fired
+            .iter()
+            .find(|f| world.resolve(f.rule).ends_with("#rA"))
+            .expect("rA fired");
+        assert_eq!(
+            ra.outcome,
+            FiringOutcome::Derived,
+            "the trace must not claim a still-standing value was overridden"
+        );
+        let rbad = record
+            .fired
+            .iter()
+            .find(|f| world.resolve(f.rule).ends_with("#rBad"))
+            .expect("rBad fired");
+        assert!(
+            matches!(rbad.outcome, FiringOutcome::Rejected { .. }),
+            "the refused override is a diagnostic"
+        );
+        // And explain still answers with rA's standing derivation.
+        let proof = world.explain(p, acuity).expect("recorded");
+        let crate::reason::proof::ProofKind::Conclusion { rule, .. } = &proof.kind else {
+            panic!("conclusion root");
+        };
+        assert!(world.resolve(*rule).ends_with("#rA"));
     }
 }

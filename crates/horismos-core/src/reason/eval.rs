@@ -138,6 +138,18 @@ fn ref_matches(world: &World, r: Ref, target: Iri) -> bool {
     schema.canonical_iri(r.iri()) == schema.canonical_iri(target)
 }
 
+/// Full semantic value equality: [`value_eq`]'s numeric cross-typing plus
+/// `owl:sameAs`-canonical identity for node references — the equality the
+/// conflict policy uses to decide whether two rule conclusions are "the
+/// same value" (an anchored twin is not a conflict with its local name).
+pub(crate) fn value_semantically_eq(world: &World, a: &Value, b: &Value) -> bool {
+    if let (Value::Ref(x), Value::Ref(y)) = (a, b) {
+        let schema = world.ontology().schema();
+        return schema.canonical_iri(x.iri()) == schema.canonical_iri(y.iri());
+    }
+    value_eq(a, b)
+}
+
 /// Value equality with numeric cross-typing: `Integer 5` equals
 /// `Decimal 5.0` (an integer *is* a decimal in XSD's derivation hierarchy).
 pub(crate) fn value_eq(a: &Value, b: &Value) -> bool {

@@ -257,6 +257,22 @@ pub enum OntologyError {
     #[error("rule {rule} horis:priority {value} is not an xsd:integer")]
     RuleInvalidPriority { rule: String, value: String },
 
+    /// A `horis:Rule` was declared on an anonymous (blank) subject. Blank
+    /// ids are minted per parse, so an anonymous rule would have a
+    /// different identity on every load — nondeterministic tie-breaks,
+    /// error text, and traces. Rules must be named.
+    #[error(
+        "a horis:Rule is declared on an anonymous subject; rules must be named (a blank node's identity differs on every load)"
+    )]
+    RuleAnonymous,
+
+    /// A condition node states more than one combinator
+    /// (`horis:all`/`any`/`none`); each node is one combinator or one leaf.
+    #[error(
+        "rule {rule} a condition node states both horis:{a} and horis:{b}; a node is one combinator or one leaf condition"
+    )]
+    RuleMultipleCombinators { rule: String, a: String, b: String },
+
     /// An operator was given an operand of the wrong shape (a node where a
     /// literal is required, a scalar where a list is required, …).
     #[error("rule {rule} {operator} {value} is not usable here (expected {expected})")]

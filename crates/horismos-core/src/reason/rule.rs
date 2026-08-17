@@ -12,7 +12,7 @@
 //! Spec: `docs/framework/02-ontology.md` § Rule vocabulary,
 //! `docs/framework/04-reasoning.md` · Owner: PRP-002
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use crate::error::OntologyError;
 use crate::ontology::schema::Schema;
@@ -176,6 +176,9 @@ pub fn parse_rules<'a>(
     interner: &Interner,
 ) -> Result<Vec<Rule>, OntologyError> {
     let graph = SubjectGraph::collect(documents, interner);
+    if graph.anonymous_rule {
+        return Err(OntologyError::RuleAnonymous);
+    }
 
     let mut rules = Vec::new();
     for &rule_iri in &graph.rule_ids {
@@ -198,12 +201,19 @@ pub fn parse_rules<'a>(
 struct SubjectGraph {
     by_subject: BTreeMap<Iri, Vec<(Iri, Object)>>,
     rule_ids: Vec<Iri>,
+    /// True when some rule was declared on an anonymous (blank) subject —
+    /// refused at load: oxttl mints blank ids *randomly per parse*, so an
+    /// anonymous rule's identity would differ on every load, leaking
+    /// nondeterminism into priority tie-breaks, error text, firing records,
+    /// and traces ("same ontology → same trace", doc 04).
+    anonymous_rule: bool,
 }
 
 impl SubjectGraph {
     fn collect<'a>(documents: impl IntoIterator<Item = &'a Document>, interner: &Interner) -> Self {
         let mut by_subject: BTreeMap<Iri, Vec<(Iri, Object)>> = BTreeMap::new();
         let mut rule_ids = Vec::new();
+        let mut anonymous_rule = false;
         for document in documents {
             for Triple {
                 subject,
@@ -211,13 +221,17 @@ impl SubjectGraph {
                 object,
             } in &document.triples
             {
-                let subject = node_iri(*subject);
+                let subject_node = *subject;
+                let subject = node_iri(subject_node);
                 if interner.resolve(*predicate) == RDF_TYPE
                     && let Object::Node(node) = object
                     && interner.resolve(node_iri(*node)) == HORIS_RULE
-                    && !rule_ids.contains(&subject)
                 {
-                    rule_ids.push(subject);
+                    if matches!(subject_node, Node::Blank(_)) {
+                        anonymous_rule = true;
+                    } else if !rule_ids.contains(&subject) {
+                        rule_ids.push(subject);
+                    }
                 }
                 by_subject
                     .entry(subject)
@@ -231,6 +245,7 @@ impl SubjectGraph {
         Self {
             by_subject,
             rule_ids,
+            anonymous_rule,
         }
     }
 
@@ -255,13 +270,17 @@ impl SubjectGraph {
     }
 
     /// Walks the `rdf:first`/`rdf:rest` chain from `head`, yielding each
-    /// `rdf:first` object in list order.
+    /// `rdf:first` object in list order. A cell revisited (a hand-authored
+    /// cyclic list — `_:l rdf:rest _:l`) ends the walk instead of hanging
+    /// the load; the truncation surfaces downstream as the arity/operand
+    /// error the malformed list deserves.
     fn list(&self, head: Node, interner: &Interner) -> Vec<Object> {
         let mut out = Vec::new();
+        let mut visited = std::collections::BTreeSet::new();
         let mut cursor = head;
         loop {
             let cell = node_iri(cursor);
-            if interner.resolve(cell) == RDF_NIL {
+            if interner.resolve(cell) == RDF_NIL || !visited.insert(cell) {
                 break;
             }
             match self.object(cell, RDF_FIRST, interner) {
@@ -331,7 +350,7 @@ fn parse_rule(
             });
         }
     };
-    let when = parse_condition_node(when_node, graph, &mut cx)?;
+    let when = parse_condition_node(when_node, graph, &mut cx, &mut BTreeSet::new())?;
 
     let then_node = match graph.object(rule_iri, HORIS_THEN, interner) {
         Some(Object::Node(node)) => *node,
@@ -362,33 +381,59 @@ fn parse_rule(
 }
 
 /// Parses a node that is either a combinator (`horis:all/any/none` over a
-/// list) or a leaf condition.
+/// list) or a leaf condition. `on_path` carries the condition nodes above
+/// this one — a node reachable from itself (`_:a horis:all ( _:a )`, valid
+/// Turtle) is a load error, not unbounded recursion.
 fn parse_condition_node(
     node: Node,
     graph: &SubjectGraph,
     cx: &mut RuleCx<'_>,
+    on_path: &mut BTreeSet<Iri>,
 ) -> Result<ConditionTree, OntologyError> {
     let subject = node_iri(node);
-    for (combinator, build) in [
-        (HORIS_ALL, ConditionTree::All as fn(_) -> _),
-        (HORIS_ANY, ConditionTree::Any as fn(_) -> _),
-        (HORIS_NONE, ConditionTree::NoneOf as fn(_) -> _),
+    if !on_path.insert(subject) {
+        return Err(OntologyError::RuleMissingPart {
+            rule: cx.rule_name(),
+            part: "an acyclic horis:when body (a condition node contains itself)".to_owned(),
+        });
+    }
+
+    type CombinatorMatch = (&'static str, fn(Vec<ConditionTree>) -> ConditionTree, Node);
+    let mut found: Option<CombinatorMatch> = None;
+    for (combinator, name, build) in [
+        (HORIS_ALL, "all", ConditionTree::All as fn(_) -> _),
+        (HORIS_ANY, "any", ConditionTree::Any as fn(_) -> _),
+        (HORIS_NONE, "none", ConditionTree::NoneOf as fn(_) -> _),
     ] {
         if let Some(Object::Node(head)) = graph.object(subject, combinator, cx.interner) {
-            let mut children = Vec::new();
-            for item in graph.list(*head, cx.interner) {
-                let Object::Node(child) = item else {
-                    return Err(OntologyError::RuleMissingPart {
-                        rule: cx.rule_name(),
-                        part: "a condition node inside its combinator list".to_owned(),
-                    });
-                };
-                children.push(parse_condition_node(child, graph, cx)?);
+            if let Some((existing, _, _)) = found {
+                return Err(OntologyError::RuleMultipleCombinators {
+                    rule: cx.rule_name(),
+                    a: existing.to_owned(),
+                    b: name.to_owned(),
+                });
             }
-            return Ok(build(children));
+            found = Some((name, build, *head));
         }
     }
-    Ok(ConditionTree::Leaf(parse_leaf_condition(node, graph, cx)?))
+
+    let result = if let Some((_, build, head)) = found {
+        let mut children = Vec::new();
+        for item in graph.list(head, cx.interner) {
+            let Object::Node(child) = item else {
+                return Err(OntologyError::RuleMissingPart {
+                    rule: cx.rule_name(),
+                    part: "a condition node inside its combinator list".to_owned(),
+                });
+            };
+            children.push(parse_condition_node(child, graph, cx, on_path)?);
+        }
+        Ok(build(children))
+    } else {
+        Ok(ConditionTree::Leaf(parse_leaf_condition(node, graph, cx)?))
+    };
+    on_path.remove(&subject);
+    result
 }
 
 fn parse_leaf_condition(
@@ -439,9 +484,19 @@ fn parse_leaf_condition(
 
     // D6 follow-through: a condition may state horis:unit; stated units must
     // exactly equal the property's declared unit (strict, opaque labels).
+    // A stated unit must be a plain string — a mistyped one silently
+    // skipping the D6 check would defeat "mismatch is a load-time error".
     let unit = match graph.object(subject, HORIS_UNIT, cx.interner) {
         Some(Object::Literal(Literal::Typed(Value::String(u)))) => Some(u.clone()),
-        _ => None,
+        Some(other) => {
+            return Err(OntologyError::RuleInvalidOperand {
+                rule: cx.rule_name(),
+                operator: "horis:unit".to_owned(),
+                value: object_text(other, cx.interner),
+                expected: "a string literal".to_owned(),
+            });
+        }
+        None => None,
     };
     if let Some(stated) = &unit {
         match &property_decl.unit {
@@ -491,13 +546,23 @@ fn parse_operator(
                     });
                 };
                 let items = graph.list(*head, cx.interner);
-                let values: Vec<Value> = items
-                    .iter()
-                    .filter_map(|o| match o {
-                        Object::Literal(Literal::Typed(v)) => Some(v.clone()),
-                        _ => None,
-                    })
-                    .collect();
+                // Every member must be a typed literal — silently dropping
+                // a bad member would load `between ( 100 :oops 200 )` as
+                // `between 100 and 200`, changing semantics without a word.
+                let mut values = Vec::new();
+                for item in &items {
+                    match item {
+                        Object::Literal(Literal::Typed(v)) => values.push(v.clone()),
+                        other => {
+                            return Err(OntologyError::RuleInvalidOperand {
+                                rule: cx.rule_name(),
+                                operator: "horis:between".to_owned(),
+                                value: object_text(other, cx.interner),
+                                expected: "a typed literal list member".to_owned(),
+                            });
+                        }
+                    }
+                }
                 if values.len() != 2 {
                     return Err(OntologyError::RuleBetweenArity {
                         rule: cx.rule_name(),
@@ -601,9 +666,12 @@ fn parse_conclusion(
 }
 
 /// True when `a` and `b` name the same class through the `owl:sameAs`
-/// equivalence (D-7: class positions are canonical-aware).
+/// equivalence (D-7: class positions are canonical-aware). Compares the
+/// canonical representatives directly — `class_declared` would answer each
+/// *declared* twin with itself, wrongly splitting an anchored pair in which
+/// both sides are declared classes.
 fn canonically_equal(schema: &Schema, a: Iri, b: Iri) -> bool {
-    a == b || schema.class_declared(a) == schema.class_declared(b)
+    a == b || schema.canonical_iri(a) == schema.canonical_iri(b)
 }
 
 fn literal_operand(
@@ -615,12 +683,12 @@ fn literal_operand(
         Object::Literal(Literal::Typed(v)) => Ok(v.clone()),
         other => Err(OntologyError::RuleInvalidOperand {
             rule: cx.rule_name(),
-            operator: cx
-                .interner
-                .get(operator)
-                .map(|_| operator)
-                .unwrap_or(operator)
-                .to_owned(),
+            // Rendered as the authored `horis:` prefixed form, matching the
+            // isAssigned/isEmpty/inList error paths.
+            operator: operator
+                .strip_prefix("https://w3id.org/horismos#")
+                .map(|local| format!("horis:{local}"))
+                .unwrap_or_else(|| operator.to_owned()),
             value: object_text(other, cx.interner),
             expected: "a typed literal".to_owned(),
         }),
@@ -677,7 +745,7 @@ mod tests {
          :acuity a rdf:Property ; rdfs:domain :Patient ; rdfs:range :AcuityLevel ;\n\
          \x20   horis:cardinality \"0..1\" ; horis:assignedBy horis:RulesOnly .\n";
 
-    fn load(rules: &str) -> Result<Ontology, OntologyError> {
+    pub(super) fn load(rules: &str) -> Result<Ontology, OntologyError> {
         Ontology::load_from_str(&format!("{PRELUDE}{DOMAIN}{rules}\n"), |_| None)
     }
 
@@ -1016,5 +1084,114 @@ mod tests {
     fn an_ontology_without_rules_has_an_empty_rule_slice() {
         let onto = load("").expect("no rules is fine");
         assert!(onto.rules().is_empty());
+    }
+}
+
+#[cfg(test)]
+mod strictness_tests {
+    use super::tests::load;
+    use crate::error::OntologyError;
+
+    #[test]
+    fn an_anonymous_rule_is_a_load_error() {
+        // Blank ids are minted per parse — an anonymous rule would have a
+        // different identity on every load (PRP-002 review).
+        let err = load(
+            "[] a horis:Rule ; horis:priority 1 ;\n\
+             \x20 horis:when [ horis:all ( [ horis:subject :Patient ; horis:property :heartRate ; horis:exceeds 100 ] ) ] ;\n\
+             \x20 horis:then [ horis:property :acuity ; horis:value :Urgent ] .",
+        )
+        .expect_err("rules must be named");
+        assert!(matches!(err, OntologyError::RuleAnonymous));
+        assert!(
+            err.domain_text().contains("must be named"),
+            "{}",
+            err.domain_text()
+        );
+    }
+
+    #[test]
+    fn a_cyclic_between_list_terminates_as_an_arity_error() {
+        // `_:l rdf:rest _:l` — a hand-authored cyclic list must not hang
+        // the load; the truncated walk surfaces as the arity error.
+        let err = load(
+            ":r a horis:Rule ; horis:priority 1 ;\n\
+             \x20 horis:when [ horis:all ( [ horis:subject :Patient ; horis:property :heartRate ;\n\
+             \x20   horis:between _:cyc ] ) ] ;\n\
+             \x20 horis:then [ horis:property :acuity ; horis:value :Urgent ] .\n\
+             _:cyc rdf:first 100 .\n\
+             _:cyc rdf:rest _:cyc .",
+        )
+        .expect_err("a cyclic list is malformed, not an infinite loop");
+        assert!(
+            matches!(err, OntologyError::RuleBetweenArity { .. }),
+            "got {err:?}"
+        );
+    }
+
+    #[test]
+    fn a_self_containing_condition_node_is_a_load_error() {
+        // `_:a horis:all ( _:a )` is valid Turtle; without the path guard
+        // it recursed to stack overflow (PRP-002 review).
+        let err = load(
+            ":r a horis:Rule ; horis:priority 1 ;\n\
+             \x20 horis:when _:a ;\n\
+             \x20 horis:then [ horis:property :acuity ; horis:value :Urgent ] .\n\
+             _:a horis:all ( _:a ) .",
+        )
+        .expect_err("a condition node containing itself is malformed");
+        assert!(
+            err.domain_text().contains("acyclic"),
+            "{}",
+            err.domain_text()
+        );
+    }
+
+    #[test]
+    fn two_combinators_on_one_node_are_a_load_error() {
+        let err = load(
+            ":r a horis:Rule ; horis:priority 1 ;\n\
+             \x20 horis:when [\n\
+             \x20   horis:all ( [ horis:subject :Patient ; horis:property :heartRate ; horis:exceeds 100 ] ) ;\n\
+             \x20   horis:any ( [ horis:subject :Patient ; horis:property :heartRate ; horis:below 50 ] )\n\
+             \x20 ] ;\n\
+             \x20 horis:then [ horis:property :acuity ; horis:value :Urgent ] .",
+        )
+        .expect_err("a node is one combinator or one leaf");
+        let text = err.domain_text();
+        assert!(text.contains("horis:all"), "{text}");
+        assert!(text.contains("horis:any"), "{text}");
+    }
+
+    #[test]
+    fn a_non_literal_between_member_is_a_load_error_not_a_silent_drop() {
+        // Without the strictness, `between ( 100 :oops 200 )` loaded as
+        // `between 100 and 200` — semantics changed without a word.
+        let err = load(
+            ":r a horis:Rule ; horis:priority 1 ;\n\
+             \x20 horis:when [ horis:all ( [ horis:subject :Patient ; horis:property :heartRate ;\n\
+             \x20   horis:between ( 100 :oops 200 ) ] ) ] ;\n\
+             \x20 horis:then [ horis:property :acuity ; horis:value :Urgent ] .",
+        )
+        .expect_err("every between member must be a typed literal");
+        let text = err.domain_text();
+        assert!(text.contains("horis:between"), "{text}");
+        assert!(text.contains("t#oops"), "{text}");
+    }
+
+    #[test]
+    fn a_non_string_unit_is_a_load_error_not_a_skipped_check() {
+        // A mistyped unit silently skipping D6 would defeat "mismatch is a
+        // load-time error".
+        let err = load(
+            ":r a horis:Rule ; horis:priority 1 ;\n\
+             \x20 horis:when [ horis:all ( [ horis:subject :Patient ; horis:property :heartRate ;\n\
+             \x20   horis:unit 42 ; horis:exceeds 100 ] ) ] ;\n\
+             \x20 horis:then [ horis:property :acuity ; horis:value :Urgent ] .",
+        )
+        .expect_err("horis:unit must be a string");
+        let text = err.domain_text();
+        assert!(text.contains("horis:unit"), "{text}");
+        assert!(text.contains("string"), "{text}");
     }
 }

@@ -19,10 +19,11 @@
 //! *resolved* IRI strings and lexical values — never raw `Iri` tokens, which
 //! are only meaningful relative to the interner that minted them and so
 //! cannot survive a process boundary. `from_bytes` re-validates every
-//! restored fact through the same gate a live assertion goes through
-//! (`Provenance::Api`) — "the validation gate has no back door" (CLAUDE.md)
-//! applies to bytes on disk exactly as it does to a caller's `assert_*` call,
-//! so a tampered snapshot cannot smuggle an invalid fact into a world.
+//! restored fact through the same gate a live assertion goes through —
+//! since wire v2 (PRP-002), under each fact's own recorded provenance —
+//! "the validation gate has no back door" (CLAUDE.md) applies to bytes on
+//! disk exactly as it does to a caller's `assert_*` call, so a tampered
+//! snapshot cannot smuggle an invalid fact into a world.
 //! `World::from_snapshot`, by contrast, is in-memory reconstruction of a
 //! snapshot this same process already validated (its own `snapshot()`, or the
 //! result of a `from_bytes` that already ran the gate) — it trusts that and
@@ -453,9 +454,10 @@ impl World {
     }
 
     /// Restores one instance from a snapshot's wire form: runs the *same*
-    /// gate a live assertion would (`Provenance::Api`), so a fact that could
-    /// never have been asserted legitimately cannot be smuggled back in
-    /// through bytes ([`Snapshot::from_bytes`]'s controller pin). The one
+    /// gate a live assertion would, under each fact's recorded provenance
+    /// (wire v2), so a fact that could never have been asserted
+    /// legitimately cannot be smuggled back in through bytes
+    /// ([`Snapshot::from_bytes`]'s controller pin). The one
     /// deviation is deliberate and temporary: an object reference whose
     /// referent is not yet in the store is returned as a
     /// [`gate::DeferredRef`] for `from_bytes`'s post-restore pass instead of

@@ -713,10 +713,13 @@ fn walk_rdf_list(
     interner: &Interner,
 ) -> Vec<Iri> {
     let mut out = Vec::new();
+    let mut visited = BTreeSet::new();
     let mut cursor = head;
     loop {
         let cell = node_iri(cursor);
-        if interner.resolve(cell) == RDF_NIL {
+        // The visited check keeps a hand-authored cyclic list
+        // (`_:l rdf:rest _:l`) from hanging the load (PRP-002 review).
+        if interner.resolve(cell) == RDF_NIL || !visited.insert(cell) {
             break;
         }
         match first.get(&cell) {

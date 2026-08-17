@@ -123,6 +123,12 @@ fn concludes_goal(world: &World, rule: &Rule, subject: Ref, property: Iri, value
 /// Tries to establish every condition of `rule` for `subject` — from facts,
 /// or recursively from other rules — and, on success, lands the conclusion
 /// in the hypothesis world through the gate.
+///
+/// **Abandoned branches roll back.** A failed attempt restores the
+/// hypothesis to its entry state (an O(1) persistent-structure clone), so
+/// facts derived along a path that ultimately failed can neither falsify
+/// later `isNot`/`isEmpty` evaluations nor prop up a sibling branch's
+/// proof — the search explores alternatives, it does not accumulate them.
 fn try_rule(
     hypothesis: &mut World,
     rule: &Rule,
@@ -130,28 +136,35 @@ fn try_rule(
     proving: &mut BTreeSet<(Iri, Iri)>,
     depth: usize,
 ) -> Option<ProofNode> {
-    let children = prove_tree(hypothesis, subject, &rule.when, proving, depth)?;
+    let checkpoint = hypothesis.clone();
+    let attempt = (|| {
+        let children = prove_tree(hypothesis, subject, &rule.when, proving, depth)?;
 
-    let value = match &rule.then.value {
-        Term::Iri(iri) => Value::Ref(Ref::new(*iri)),
-        Term::Literal(v) => v.clone(),
-    };
-    // Even a hypothesis passes the gate: a rule whose conclusion the gate
-    // refuses (Example 3's :r9) can establish nothing.
-    hypothesis
-        .apply_rule_conclusion(subject, rule.then.property, value.clone())
-        .ok()?;
+        let value = match &rule.then.value {
+            Term::Iri(iri) => Value::Ref(Ref::new(*iri)),
+            Term::Literal(v) => v.clone(),
+        };
+        // Even a hypothesis passes the gate: a rule whose conclusion the gate
+        // refuses (Example 3's :r9) can establish nothing.
+        hypothesis
+            .apply_rule_conclusion(subject, rule.then.property, value.clone())
+            .ok()?;
 
-    Some(ProofNode {
-        kind: ProofKind::Conclusion {
-            subject,
-            property: rule.then.property,
-            value,
-            rule: rule.iri,
-            explain: rule.explain.clone(),
-        },
-        children,
-    })
+        Some(ProofNode {
+            kind: ProofKind::Conclusion {
+                subject,
+                property: rule.then.property,
+                value,
+                rule: rule.iri,
+                explain: rule.explain.clone(),
+            },
+            children,
+        })
+    })();
+    if attempt.is_none() {
+        *hypothesis = checkpoint;
+    }
+    attempt
 }
 
 /// Establishes one `horis:when` subtree, returning the proof children in
@@ -172,9 +185,16 @@ fn prove_tree(
             }
             Some(proofs)
         }
-        ConditionTree::Any(children) => children
-            .iter()
-            .find_map(|child| prove_tree(hypothesis, subject, child, proving, depth)),
+        ConditionTree::Any(children) => children.iter().find_map(|child| {
+            // Each failed alternative rolls its derivations back before the
+            // next is tried (see `try_rule`'s abandoned-branches contract).
+            let checkpoint = hypothesis.clone();
+            let attempt = prove_tree(hypothesis, subject, child, proving, depth);
+            if attempt.is_none() {
+                *hypothesis = checkpoint;
+            }
+            attempt
+        }),
         // Negation is evaluated, never derived toward (module doc).
         ConditionTree::NoneOf(_) => eval::holds(hypothesis, subject, tree)
             .then(|| vec![proof::tree_proof(hypothesis, subject, tree)]),
@@ -202,7 +222,8 @@ fn prove_condition(
     // backward.py's "prove unbound variables first": each rule concluding
     // this property offers a candidate value; prove one, then re-evaluate
     // the condition against the enriched hypothesis (the derived value may
-    // still fail the operator — try the next rule).
+    // still fail the operator — roll the attempt back and try the next
+    // rule, per the abandoned-branches contract on `try_rule`).
     let ontology = hypothesis.ontology().clone();
     for rule in ontology.rules() {
         if rule.then.property != condition.property {
@@ -212,6 +233,7 @@ fn prove_condition(
             Term::Iri(iri) => Value::Ref(Ref::new(*iri)),
             Term::Literal(v) => v.clone(),
         };
+        let checkpoint = hypothesis.clone();
         let Some(subproof) = prove_goal(
             hypothesis,
             subject,
@@ -220,6 +242,7 @@ fn prove_condition(
             proving,
             depth + 1,
         ) else {
+            *hypothesis = checkpoint;
             continue;
         };
         if eval::condition_holds(hypothesis, subject, condition) {
@@ -233,6 +256,7 @@ fn prove_condition(
                 children: vec![subproof],
             });
         }
+        *hypothesis = checkpoint;
     }
     None
 }
@@ -506,5 +530,102 @@ mod tests {
         );
         // (The positive control — a derivation *within* the cap — is
         // `prove_chains_through_intermediate_rules` above.)
+    }
+}
+
+#[cfg(test)]
+mod branch_rollback_tests {
+    use super::*;
+    use crate::Ontology;
+    use crate::reason::testing::PRELUDE;
+
+    fn t(world: &mut World, local: &str) -> Iri {
+        world.intern(&format!("https://example.org/t#{local}"))
+    }
+
+    /// The abandoned-branches contract (PRP-002 review finding): a rule
+    /// attempt that fails after deriving intermediate facts must roll them
+    /// back — here, rA's derivation would otherwise falsify rB's `isEmpty`
+    /// condition, making a provable goal unprovable.
+    #[test]
+    fn a_failed_branch_rolls_back_and_cannot_poison_a_negation() {
+        // Goal: :verdict = :Ok. Two deriving rules, tried in priority order:
+        //   rA (priority 9): needs :marker = true (derivable via rM) AND
+        //       heartRate exceeds 999 (false — the branch fails late,
+        //       after rM's marker fact landed in the hypothesis).
+        //   rB (priority 5): needs :marker isEmpty — true in the real
+        //       world, and true again only if rA's attempt rolled back.
+        let source = format!(
+            "{PRELUDE}\
+             :Patient a rdfs:Class .\n\
+             :Verdict a rdfs:Class ; horis:oneOf ( :Ok ) .\n\
+             :heartRate a rdf:Property ; rdfs:domain :Patient ; rdfs:range xsd:decimal ;\n\
+             \x20   horis:cardinality \"0..1\" .\n\
+             :marker a rdf:Property ; rdfs:domain :Patient ; rdfs:range xsd:boolean ;\n\
+             \x20   horis:cardinality \"0..1\" ; horis:assignedBy horis:RulesOnly .\n\
+             :verdict a rdf:Property ; rdfs:domain :Patient ; rdfs:range :Verdict ;\n\
+             \x20   horis:cardinality \"0..1\" ; horis:assignedBy horis:RulesOnly .\n\
+             :rM a horis:Rule ; horis:priority 1 ;\n\
+             \x20 horis:when [ horis:all (\n\
+             \x20   [ horis:subject :Patient ; horis:property :heartRate ; horis:isAssigned true ] ) ] ;\n\
+             \x20 horis:then [ horis:property :marker ; horis:value true ] .\n\
+             :rA a horis:Rule ; horis:priority 9 ;\n\
+             \x20 horis:when [ horis:all (\n\
+             \x20   [ horis:subject :Patient ; horis:property :marker ; horis:is true ]\n\
+             \x20   [ horis:subject :Patient ; horis:property :heartRate ; horis:exceeds 999 ] ) ] ;\n\
+             \x20 horis:then [ horis:property :verdict ; horis:value :Ok ] .\n\
+             :rB a horis:Rule ; horis:priority 5 ;\n\
+             \x20 horis:when [ horis:all (\n\
+             \x20   [ horis:subject :Patient ; horis:property :marker ; horis:isEmpty true ] ) ] ;\n\
+             \x20 horis:then [ horis:property :verdict ; horis:value :Ok ] .\n"
+        );
+        let onto = Ontology::load_from_str(&source, |_| None).expect("valid");
+        let mut world = World::new(&onto);
+        let patient = t(&mut world, "Patient");
+        let heart_rate = t(&mut world, "heartRate");
+        let verdict = t(&mut world, "verdict");
+        let ok = t(&mut world, "Ok");
+        let marker = t(&mut world, "marker");
+
+        // The assertion chains: rB fires first (marker still empty at pass
+        // 1) deriving the verdict, then rM sets the marker. Unwind both
+        // through the rule path so the world is clean and the goal
+        // genuinely open.
+        let p = world
+            .assert_instance(patient, [(heart_rate, Value::Integer(80))])
+            .expect("accepted");
+        world
+            .retract_as(
+                crate::world::Provenance::Rule,
+                p,
+                verdict,
+                &Value::Ref(Ref::new(ok)),
+            )
+            .expect("unwind the chained verdict");
+        world
+            .retract_as(
+                crate::world::Provenance::Rule,
+                p,
+                marker,
+                &Value::Boolean(true),
+            )
+            .expect("unwind the chained marker");
+        assert_eq!(world.value(p, marker), None, "marker must be open");
+        assert_eq!(world.value(p, verdict), None, "the goal must be open");
+
+        // prove tries rA first (priority 9): rM re-derives marker into the
+        // hypothesis, then `exceeds 999` fails. Without rollback, that
+        // leftover marker falsifies rB's isEmpty and the goal is wrongly
+        // unprovable; with rollback, rB proves it.
+        let proof = prove(&world, p, verdict, &Value::Ref(Ref::new(ok)))
+            .expect("rB must prove the goal after rA's branch rolls back");
+        let ProofKind::Conclusion { rule, .. } = &proof.kind else {
+            panic!("roots at a conclusion");
+        };
+        assert_eq!(
+            world.resolve(*rule),
+            "https://example.org/t#rB",
+            "the proof must come from rB, on a hypothesis rA did not pollute"
+        );
     }
 }
