@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import difflib
 import re
+import threading
 from collections.abc import Callable
 from typing import Any, final
 
@@ -62,17 +63,27 @@ class Subscription:
         self._world._subs.pop(self._key, None)
 
 
+class _DispatchLocal(threading.local):
+    """Per-thread dispatch state: each mutating thread drains only the
+    diffs its own transactions produced (B2 — callbacks fire on the
+    mutating thread), so two threads sharing a ``World`` never hand off
+    each other's pending callback queue."""
+
+    def __init__(self) -> None:
+        self.dispatching = False
+        self.pending: list[tuple[Callable[[Ref, Any], None], Ref, Any]] = []
+
+
 @final
 class World:
     """The typed, gate-guarded instance store over a loaded ontology
     (doc 11 § World)."""
 
     __slots__ = (
-        "_dispatching",
+        "_dispatch_local",
         "_native",
         "_next_sub",
         "_onto",
-        "_pending",
         "_prop_by_snake",
         "_subs",
     )
@@ -86,8 +97,7 @@ class World:
     def _init_subscriptions(self) -> None:
         self._subs: dict[int, tuple[str, object, Callable[[Ref, Any], None]]] = {}
         self._next_sub = 0
-        self._dispatching = False
-        self._pending: list[tuple[Callable[[Ref, Any], None], Ref, Any]] = []
+        self._dispatch_local = _DispatchLocal()
 
     # -- naming sugar (this layer's entire job) -----------------------------
 
@@ -206,6 +216,7 @@ class World:
         return Subscription(self, key)
 
     def _dispatch(self, diff: _horismos.Diff) -> None:
+        local = self._dispatch_local
         for fact in diff.added:
             if fact.kind != "property":
                 continue
@@ -214,16 +225,16 @@ class World:
                     continue
                 if wanted is not _ANY and fact.value != wanted:
                     continue
-                self._pending.append((callback, fact.subject, fact.value))
-        if self._dispatching:
-            return  # the outer dispatch loop drains what we queued
-        self._dispatching = True
+                local.pending.append((callback, fact.subject, fact.value))
+        if local.dispatching:
+            return  # this thread's outer dispatch loop drains what we queued
+        local.dispatching = True
         try:
-            while self._pending:
-                callback, subject, fact_value = self._pending.pop(0)
+            while local.pending:
+                callback, subject, fact_value = local.pending.pop(0)
                 callback(subject, fact_value)
         finally:
-            self._dispatching = False
+            local.dispatching = False
 
     # -- snapshots (doc 03) ---------------------------------------------------
 

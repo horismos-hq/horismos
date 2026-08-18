@@ -93,6 +93,47 @@ def test_two_threads_share_a_world_without_deadlocking(onto: Ontology, world: Wo
     assert failures == []
 
 
+def test_dispatch_fires_callbacks_on_the_asserting_thread(onto: Ontology, world: World) -> None:
+    """B2: with two threads sharing a World and a subscription registered,
+    each thread's committed facts must dispatch on that same thread — an
+    invariant, not a timing race, so thread-local dispatch state can never
+    let one thread drain another's queued callbacks."""
+    callback_ident_by_ref: dict[Ref, int] = {}
+    lock = threading.Lock()
+
+    def on_heart_rate(subject: Ref, value: Any) -> None:
+        with lock:
+            callback_ident_by_ref[subject] = threading.get_ident()
+
+    world.subscribe("heart_rate", on_heart_rate)
+
+    own_refs: dict[int, list[Ref]] = {}
+    failures: list[BaseException] = []
+
+    def worker() -> None:
+        try:
+            ident = threading.get_ident()
+            refs = [world.assert_(":Patient", heart_rate=100 + i) for i in range(50)]
+            own_refs[ident] = refs
+        except BaseException as e:
+            failures.append(e)
+
+    threads = [threading.Thread(target=worker, daemon=True) for _ in range(2)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join(timeout=15)
+
+    assert not any(t.is_alive() for t in threads), "threads wedged: deadlock"
+    assert failures == []
+    assert len(own_refs) == 2
+    for ident, refs in own_refs.items():
+        for ref in refs:
+            assert callback_ident_by_ref[ref] == ident, (
+                "a callback for a fact asserted on one thread fired on another"
+            )
+
+
 def test_a_long_native_call_releases_the_gil(tmp_path: Path) -> None:
     """D3: while Rust loads/validates a large ontology, other Python
     threads keep running. If the GIL were held across the native call,
