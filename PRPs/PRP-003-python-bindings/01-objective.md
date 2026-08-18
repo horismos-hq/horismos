@@ -192,12 +192,12 @@ from horismos import Ontology, World
 onto = Ontology.load("examples/triage/triage.ttl",
                      imports=["examples/triage/snomed-ct-subset.ttl"])
 assert onto.verify().ok            # stub until PRP-005: load-time checks only
-assert onto.namespaces["triage"] == "https://example.org/triage#"
+assert onto.namespaces[""] == "https://example.org/triage#"   # the : prefix
 
 world = World(onto)
-p = world.assert_("triage:Patient",
+p = world.assert_(":Patient",
                   heart_rate=128,
-                  has_symptom=["triage:CrushingChestPain"])
+                  has_symptom=[":CrushingChestPain"])
 ```
 
 Hand-check what just happened, entirely on the Rust side of the boundary:
@@ -212,8 +212,8 @@ Hand-check what just happened, entirely on the Rust side of the boundary:
    `horis:assignedBy horis:RulesOnly`: no API caller could have set it.
 
 ```python
-assert world.value(p, "triage:acuity") == onto.ref("triage:Immediate")
-print(world.explain(p, "triage:acuity").render())
+assert world.value(p, ":acuity") == onto.ref(":Immediate")
+print(world.explain(p, ":acuity").render())
 ```
 
 renders doc 04's indented proof form, byte-identical to the Rust rendering
@@ -230,7 +230,7 @@ the bindings pass it through untouched):
 
 ```python
 try:
-    world.assert_("triage:Patient", heart_rate=1280)
+    world.assert_(":Patient", heart_rate=1280)
 except HorismosValidationError as e:
     str(e)          # "heartRate 1280 exceeds horis:max 300 (bpm) on :Patient"
     e.constraint    # "max" — machine-readable, no string parsing
@@ -243,7 +243,7 @@ side, the world is byte-identical to before the call, and the whole witness
 crossed the boundary once. A rules-only violation reads the same way:
 
 ```python
-world.assert_("triage:Patient", acuity="triage:Immediate")
+world.assert_(":Patient", acuity=":Immediate")
 # HorismosValidationError: acuity is horis:assignedBy horis:RulesOnly;
 # provenance api may not assert it
 ```
@@ -261,9 +261,9 @@ p = world.assert_(T.Patient(heart_rate=128,
                             has_symptom=[T.CrushingChestPain]))
 
 # Candidate B — dict-like generic construction:
-p = world.assert_("triage:Patient",
+p = world.assert_(":Patient",
                   heart_rate=128,
-                  has_symptom=["triage:CrushingChestPain"])
+                  has_symptom=[":CrushingChestPain"])
 ```
 
 A: discoverable (`T.<TAB>` lists the domain), typo-safe at construction time,
