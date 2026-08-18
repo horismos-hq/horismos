@@ -13,20 +13,30 @@ use pyo3::prelude::*;
 use horismos_core::world::snapshot::{Diff, Fact};
 use horismos_core::{Iri, Ref, Snapshot, Value};
 
-use crate::errors::{naming_err, to_py_err};
+use crate::errors::{internal_err, to_py_err};
 use crate::ontology::{PyNodeRef, PyOntology};
 use crate::values::{from_value, to_value};
 
 /// A proof tree node, marshaled eagerly: the doc-04 rendering is computed
 /// Rust-side in the same call that produced the proof, so `render()` is a
 /// stored-string read with no world back-reference.
-#[pyclass(frozen, name = "ProofNode", module = "horismos._horismos")]
+#[pyclass(
+    frozen,
+    skip_from_py_object,
+    name = "ProofNode",
+    module = "horismos._horismos"
+)]
+#[derive(Clone)]
 pub(crate) struct PyProof {
     rendered: String,
     /// The concluding rule in prefixed form, when this node is a rule
     /// conclusion.
     #[pyo3(get)]
     rule: Option<String>,
+    /// Child nodes, recursively (P6); each child's `render()` is its own
+    /// subtree's rendering.
+    #[pyo3(get)]
+    children: Vec<PyProof>,
 }
 
 #[pymethods]
@@ -50,7 +60,7 @@ pub(crate) struct PyFact {
     #[pyo3(get)]
     kind: &'static str,
     #[pyo3(get)]
-    subject: String,
+    subject: PyNodeRef,
     /// The property IRI (`None` for a class fact).
     #[pyo3(get)]
     property: Option<String>,
@@ -104,10 +114,28 @@ pub(crate) struct PyWorld {
 }
 
 impl PyWorld {
+    /// GIL-safe acquire (ledger P3, revised after batch review): never
+    /// block on the mutex while holding the GIL — a lock holder may be
+    /// detached inside a long core call and needs the GIL back to finish,
+    /// so a blocking `lock()` here would deadlock two Python threads
+    /// (lock-order inversion). Spin with a detached yield instead: while
+    /// this thread yields, the GIL is free for the holder to re-attach,
+    /// finish, and release the mutex.
     fn lock(&self, py: Python<'_>) -> PyResult<std::sync::MutexGuard<'_, horismos_core::World>> {
-        self.inner
-            .lock()
-            .map_err(|_| naming_err(py, "the world lock was poisoned by an earlier panic".into()))
+        loop {
+            match self.inner.try_lock() {
+                Ok(guard) => return Ok(guard),
+                Err(std::sync::TryLockError::WouldBlock) => {
+                    py.detach(std::thread::yield_now);
+                }
+                Err(std::sync::TryLockError::Poisoned(_)) => {
+                    return Err(internal_err(
+                        py,
+                        "the world lock was poisoned by an earlier panic".into(),
+                    ));
+                }
+            }
+        }
     }
 }
 
@@ -343,6 +371,7 @@ fn proof(world: &horismos_core::World, p: &horismos_core::reason::proof::ProofNo
     PyProof {
         rendered: p.render(world),
         rule,
+        children: p.children.iter().map(|c| proof(world, c)).collect(),
     }
 }
 
@@ -350,7 +379,7 @@ fn fact(py: Python<'_>, world: &horismos_core::World, f: &Fact) -> PyResult<PyFa
     Ok(match f {
         Fact::Class { subject, class } => PyFact {
             kind: "class",
-            subject: world.resolve(*subject).to_owned(),
+            subject: node(world, Ref::new(*subject)),
             property: None,
             value: world
                 .resolve(*class)
@@ -365,7 +394,7 @@ fn fact(py: Python<'_>, world: &horismos_core::World, f: &Fact) -> PyResult<PyFa
             value,
         } => PyFact {
             kind: "property",
-            subject: world.resolve(*subject).to_owned(),
+            subject: node(world, Ref::new(*subject)),
             property: Some(world.resolve(*property).to_owned()),
             value: from_value(py, value, world)?,
         },

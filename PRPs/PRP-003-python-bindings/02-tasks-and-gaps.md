@@ -67,18 +67,28 @@ Pinned at activation; sharpened 2026-08-18 per the independent plan review
       v1** (dated note below); if built, it compiles to this tier. Doc
       03's marker struck, § Queries rewritten in shipped voice, same
       commit.
-- [ ] D3. **GIL release policy**. Which native calls detach from the
-      interpreter (load / assert-with-chaining / prove / snapshot codecs)
-      and the proof that none touches Python while detached. Blocks U8.
-      Recorded here and in `crates/horismos-py`'s module docs; escalate only
-      if it forces an API change.
+- [x] D3. **GIL release policy** (decided 2026-08-18, prescribed by the
+      task brief; spike waived): the interpreter is detached
+      (`Python::detach`) around ontology load/with_import,
+      assert-with-chaining, retract, prove, and the snapshot byte codecs;
+      nothing touches Python while detached (all marshaling happens
+      before/after — pyo3's `Ungil` bound enforces it at compile time).
+      **Amended after the batch review found a lock-order deadlock**: the
+      world mutex is acquired GIL-safely (try_lock + detached-yield loop) —
+      never block on the lock while holding the GIL (ledger pin P3,
+      revised). No API change; no escalation. Recorded here and in
+      `crates/horismos-py/src/world.rs` module docs; observable tests:
+      `test_subscribe.py` (GIL-release measurement + two-thread
+      shared-world no-deadlock stress).
 
 ## Units of work
 
 - [ ] U1. **Native handles: `Ontology` across the boundary.** `_horismos`
       exposes an ontology handle: `load(path, imports)` (core `load` +
       `with_import`, whole call one crossing), `namespaces`, `ref`,
-      rule introspection (IRI, priority, explain), `version`.
+      rule introspection (IRI, priority, explain). (`version`/`hash` were
+      in this unit's first cut — deferred 2026-08-18, see the dated gap
+      note: no ontology-level version vocabulary exists to bind.)
       Test target: `python/tests/test_ontology.py` loads
       `examples/triage/triage.ttl` + SNOMED import, sees the `triage`
       prefix, `ref("triage:Immediate")` round-trips, and a malformed TTL
@@ -86,8 +96,9 @@ Pinned at activation; sharpened 2026-08-18 per the independent plan review
 - [ ] U2. **The `HorismosError` hierarchy.** Exception types per doc 11
       § Errors defined in the native module, raised from every fallible
       binding; `str(exc)` == `domain_text()`, witness fields
-      (`constraint`, `subject`, `property_`, `value`, `provenance`,
-      `operation`) + `suggestion` (None-able) as attributes; never a bare
+      (`constraint`, `subject`, `property`, `value`, `provenance`,
+      `operation` — `property` is a builtin, not a keyword, so no trailing
+      underscore) + `suggestion` (None-able) as attributes; never a bare
       `RuntimeError`/`ValueError`. Test target: `test_errors.py` pins
       Example 2's exact message for `heart_rate=1280` and the RulesOnly
       rejection, and asserts `except HorismosValidationError` catches as
@@ -156,6 +167,19 @@ Pinned at activation; sharpened 2026-08-18 per the independent plan review
 
 (append dated notes here; scope changes go back into `01-objective.md` by explicit edit)
 
+- 2026-08-18 (U1, from batch review): `Ontology.version`/`hash` (doc 11:
+  "deployment identity, stamped into traces") is **deferred** — the
+  ontology profile declares no ontology-level version vocabulary
+  (`horis:version` is declared on workflows), and inventing one here would
+  decide vocabulary outside `ontology-modeling-conventions`. Its consumer
+  (trace stamping) is PRP-004; whichever PRP lands it must add the core
+  accessor first.
+- 2026-08-18 (U2, from batch review): most load-time `OntologyError`
+  variants cross with an *empty* `data` dict — structured fields are
+  populated only for the boundary's own naming errors (`UnknownPrefix`,
+  `NotACurie`, `UndeclaredTerm`); the rest are authoring-time errors whose
+  product is the prose. Full structured surfacing deferred until a
+  programmatic consumer (the PRP-007 authoring loop) exists.
 - 2026-08-18 (D2 deferral): the textual SPARQL SELECT/ASK subset (FILTER,
   OPTIONAL, ORDER BY/LIMIT over basic graph patterns) is deferred beyond
   v1 — no v1 consumer needs a SPARQL string (evidence in

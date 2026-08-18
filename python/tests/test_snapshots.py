@@ -13,7 +13,8 @@ def test_diff_shows_exactly_the_added_facts(onto: Ontology, world: World) -> Non
 
     diff = world.diff(before)
     assert diff.removed == []
-    added = {(f.kind, f.subject, f.property, f.value) for f in diff.added}
+    assert len(diff.added) == 4, "class + heartRate + hasSymptom + derived acuity"
+    added = {(f.kind, f.subject.iri, f.property, f.value) for f in diff.added}
     assert (
         "class",
         p.iri,

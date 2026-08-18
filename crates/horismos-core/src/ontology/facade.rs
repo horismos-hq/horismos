@@ -162,9 +162,8 @@ impl Ontology {
             return Ok(term.to_owned());
         }
         let Some((prefix, local)) = term.split_once(':') else {
-            return Err(OntologyError::UnknownPrefix {
+            return Err(OntologyError::NotACurie {
                 term: term.to_owned(),
-                prefix: term.to_owned(),
             });
         };
         match self
@@ -459,6 +458,14 @@ mod tests {
         assert_eq!(
             err.to_string(),
             "cannot expand nope:Immediate: prefix \"nope\" is not declared by the ontology"
+        );
+
+        let err = triage()
+            .expand("heartRate")
+            .expect_err("a bare local name is not expandable");
+        assert_eq!(
+            err.to_string(),
+            "cannot expand heartRate: expected a CURIE (prefix:localName) or a full IRI"
         );
     }
 

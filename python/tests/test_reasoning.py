@@ -15,6 +15,11 @@ def test_explain_renders_the_r1_proof_byte_identically(onto: Ontology, world: Wo
     assert proof is not None
     assert proof.render() == R1_PROOF
     assert proof.rule == ":r1"
+    # The tree is real (P6): children marshaled recursively, each rendering
+    # its own subtree.
+    assert len(proof.children) == 2
+    assert "heartRate 128 exceeds 120" in proof.children[0].render()
+    assert proof.children[0].children == []
 
 
 def test_explain_is_none_for_a_base_fact(onto: Ontology, world: World) -> None:

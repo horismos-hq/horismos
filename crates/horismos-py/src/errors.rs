@@ -88,19 +88,19 @@ pub(crate) fn register(m: &Bound<'_, PyModule>) -> PyResult<()> {
 }
 
 /// One core error → one raised Python exception carrying the whole outcome.
-// Consumed by the World bindings from U3 on.
-#[allow(dead_code)]
 pub(crate) fn to_py_err(py: Python<'_>, err: CoreError) -> PyErr {
     let text = err.domain_text();
     match err {
         CoreError::Ontology(inner) => ontology_err_with(py, text, &inner),
         CoreError::ValidationRejected { witness } => validation_err(py, text, &witness),
-        // Snapshot format/mismatch and the chaining tripwire are still
-        // validation-shaped refusals of a World mutation.
-        CoreError::SnapshotFormat { .. }
-        | CoreError::SnapshotMismatch { .. }
-        | CoreError::IterationCapExceeded { .. } => {
-            plain(py, py.get_type::<HorismosValidationError>(), text)
+        // Refusals of a World mutation that carry no gate witness: still
+        // HorismosValidationError, with a constraint tag and every witness
+        // attribute present (None where a witness would have carried it) —
+        // the stubs promise the full attribute set (B3).
+        CoreError::SnapshotFormat { .. } => witnessless_err(py, "snapshot_format", text),
+        CoreError::SnapshotMismatch { .. } => witnessless_err(py, "snapshot_mismatch", text),
+        CoreError::IterationCapExceeded { .. } => {
+            witnessless_err(py, "iteration_cap_exceeded", text)
         }
     }
 }
@@ -111,15 +111,67 @@ pub(crate) fn ontology_err(py: Python<'_>, err: OntologyError) -> PyErr {
     ontology_err_with(py, text, &err)
 }
 
-fn ontology_err_with(py: Python<'_>, text: String, _err: &OntologyError) -> PyErr {
-    plain(py, py.get_type::<HorismosOntologyError>(), text)
+fn ontology_err_with(py: Python<'_>, text: String, err: &OntologyError) -> PyErr {
+    let class = py.get_type::<HorismosOntologyError>();
+    match build(py, &class, &text, |inst| {
+        // The machine-readable structure (B3) for the variants a running
+        // program can hit through the boundary's own naming paths; the
+        // remaining load-time authoring errors carry an empty dict (their
+        // structured surfacing is a recorded gap, 02-tasks-and-gaps.md).
+        let data = PyDict::new(py);
+        match err {
+            OntologyError::UnknownPrefix { term, prefix } => {
+                data.set_item("term", term)?;
+                data.set_item("prefix", prefix)?;
+            }
+            OntologyError::NotACurie { term } => {
+                data.set_item("term", term)?;
+            }
+            OntologyError::UndeclaredTerm { term } => {
+                data.set_item("term", term)?;
+            }
+            _ => {}
+        }
+        inst.setattr("data", data)?;
+        Ok(())
+    }) {
+        Ok(err) => err,
+        Err(err) => err,
+    }
 }
 
 /// A boundary-side naming/typing problem (an argument that cannot be
 /// marshaled at all) — the one error family the binding words itself, still
-/// carrying the shared `domain_text`/`suggestion` attributes.
+/// carrying the shared `domain_text`/`suggestion`/`data` attributes.
 pub(crate) fn naming_err(py: Python<'_>, text: String) -> PyErr {
     plain(py, py.get_type::<HorismosOntologyError>(), text)
+}
+
+/// An internal invariant failure (a poisoned lock) — the base class, not a
+/// domain family, and never a bare builtin exception.
+pub(crate) fn internal_err(py: Python<'_>, text: String) -> PyErr {
+    plain(py, py.get_type::<HorismosError>(), text)
+}
+
+/// A `HorismosValidationError` for a mutation refusal that has no gate
+/// witness: the full B3 attribute set, `None` where a witness would have
+/// carried the value.
+fn witnessless_err(py: Python<'_>, constraint: &'static str, text: String) -> PyErr {
+    let class = py.get_type::<HorismosValidationError>();
+    match build(py, &class, &text, |inst| {
+        inst.setattr("constraint", constraint)?;
+        inst.setattr("data", PyDict::new(py))?;
+        inst.setattr("subject", py.None())?;
+        inst.setattr("class_", py.None())?;
+        inst.setattr("property", py.None())?;
+        inst.setattr("value", py.None())?;
+        inst.setattr("provenance", py.None())?;
+        inst.setattr("operation", py.None())?;
+        Ok(())
+    }) {
+        Ok(err) => err,
+        Err(err) => err,
+    }
 }
 
 /// Builds an exception instance with the shared attributes every Horismos
@@ -177,6 +229,9 @@ fn build(
     let inst = class.call1((text,))?;
     inst.setattr("domain_text", text)?;
     inst.setattr("suggestion", py.None())?;
+    // Every Horismos error carries `data` (doc 11); `extra` may overwrite
+    // this default with a populated dict.
+    inst.setattr("data", PyDict::new(py))?;
     extra(&inst)?;
     Ok(PyErr::from_value(inst))
 }

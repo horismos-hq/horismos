@@ -165,3 +165,37 @@ fn the_definition_of_done_run() {
     // (g) Zero LLM: see the module doc — `make no-model-gate` builds and
     // tests this whole surface with no model, no network, no keys.
 }
+
+/// Anchors the exact proof text the Python quickstart pins
+/// (`python/tests/test_reasoning.py`, PRP-003 B4): same scenario with the
+/// local `:CrushingChestPain` leaf instead of the imported SNOMED one, so
+/// cross-language byte-parity is asserted against a Rust-side expectation,
+/// not just a shared code path.
+#[test]
+fn the_python_quickstart_proof_renders_identically() {
+    let onto = load();
+    let mut world = World::new(&onto);
+    let patient = triage(&mut world, "Patient");
+    let heart_rate = triage(&mut world, "heartRate");
+    let has_symptom = triage(&mut world, "hasSymptom");
+    let crushing = triage(&mut world, "CrushingChestPain");
+    let acuity = triage(&mut world, "acuity");
+
+    let p = world
+        .assert_instance(
+            patient,
+            [
+                (heart_rate, Value::Integer(128)),
+                (has_symptom, Value::Ref(Ref::new(crushing))),
+            ],
+        )
+        .expect("the base facts pass the gate");
+
+    let proof = world.explain(p, acuity).expect("r1 derived the acuity");
+    assert_eq!(
+        proof.render(&world),
+        ":acuity = :Immediate   via r1 \u{2014} \"Tachycardia with chest pain \u{2014} immediate track\"\n\
+         \x20 \u{251c}\u{2500} heartRate 128 exceeds 120   (asserted by the api)\n\
+         \x20 \u{2514}\u{2500} hasSymptom :CrushingChestPain \u{2291} :ChestPain   (subsumption)\n"
+    );
+}

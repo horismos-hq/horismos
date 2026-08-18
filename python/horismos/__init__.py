@@ -25,7 +25,7 @@ from horismos._horismos import (
     __version__,
 )
 from horismos._ontology import Ontology, VerificationReport
-from horismos._world import Snapshot, World
+from horismos._world import Snapshot, Subscription, World
 
 __all__ = [
     "PROFILE_VERSION",
@@ -43,6 +43,7 @@ __all__ = [
     "Ref",
     "Rule",
     "Snapshot",
+    "Subscription",
     "VerificationReport",
     "World",
     "__version__",

@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import difflib
 import re
+from collections.abc import Callable
 from typing import Any, final
 
 from horismos import _horismos
@@ -15,6 +16,10 @@ from horismos._horismos import ProofNode, Ref
 from horismos._ontology import Ontology
 
 _CAMEL = re.compile(r"(?<!^)(?=[A-Z])")
+
+# "no value filter" sentinel — None is a meaningless filter here anyway,
+# but a distinct sentinel keeps the intent unambiguous.
+_ANY: Any = object()
 
 
 def _snake(name: str) -> str:
@@ -44,16 +49,45 @@ class Snapshot:
 
 
 @final
+class Subscription:
+    """A handle on one registered callback; ``cancel()`` stops delivery."""
+
+    __slots__ = ("_key", "_world")
+
+    def __init__(self, world: World, key: int) -> None:
+        self._world = world
+        self._key = key
+
+    def cancel(self) -> None:
+        self._world._subs.pop(self._key, None)
+
+
+@final
 class World:
     """The typed, gate-guarded instance store over a loaded ontology
     (doc 11 § World)."""
 
-    __slots__ = ("_native", "_onto", "_prop_by_snake")
+    __slots__ = (
+        "_dispatching",
+        "_native",
+        "_next_sub",
+        "_onto",
+        "_pending",
+        "_prop_by_snake",
+        "_subs",
+    )
 
     def __init__(self, onto: Ontology) -> None:
         self._onto = onto
         self._native = _horismos.World(onto._handle)
         self._prop_by_snake = _property_names(onto)
+        self._init_subscriptions()
+
+    def _init_subscriptions(self) -> None:
+        self._subs: dict[int, tuple[str, object, Callable[[Ref, Any], None]]] = {}
+        self._next_sub = 0
+        self._dispatching = False
+        self._pending: list[tuple[Callable[[Ref, Any], None], Ref, Any]] = []
 
     # -- naming sugar (this layer's entire job) -----------------------------
 
@@ -88,8 +122,21 @@ class World:
     def assert_(self, class_: str, *, subject: str | None = None, **properties: Any) -> Ref:
         """Asserts one instance of ``class_`` — the whole payload crosses in
         one call; the five-check gate and forward chaining to the fixed
-        point run inside that same transaction (doc 03)."""
-        return self._native.assert_(self._onto.expand(class_), self._pairs(properties), subject)
+        point run inside that same transaction (doc 03).
+
+        The parameter names ``class_`` and ``subject`` are reserved by this
+        signature: a property whose local name collides with them (or with
+        another namespace's property) cannot be spelled as a keyword here.
+        """
+        if not self._subs:
+            return self._native.assert_(self._onto.expand(class_), self._pairs(properties), subject)
+        # Post-commit subscription dispatch (B2): callbacks fire after the
+        # transaction committed, matched against the core-computed diff —
+        # a rejected transaction raised above and notifies nobody.
+        before = self._native.snapshot()
+        ref = self._native.assert_(self._onto.expand(class_), self._pairs(properties), subject)
+        self._dispatch(self._native.diff(before))
+        return ref
 
     def retract(self, subject: Ref, property: str, value: object) -> None:
         """Retracts one fact through the retraction gate (doc 03)."""
@@ -131,6 +178,49 @@ class World:
         established?" — returning a proof tree, or None."""
         return self._native.prove(subject, self._property_iri(property), value)
 
+    # -- subscriptions (doc 03 § Subscriptions; B2's PRP-003 half) ------------
+
+    def subscribe(
+        self,
+        property: str,
+        callback: Callable[[Ref, Any], None],
+        *,
+        value: object = _ANY,
+    ) -> Subscription:
+        """Registers ``callback`` for facts added by future transactions:
+        it fires once per committed ``(subject, property, value)`` fact
+        whose property matches (and whose value equals ``value``, when
+        given — pass a :class:`Ref` for node values), strictly after the
+        transaction committed, on the mutating thread. A mutation made
+        from inside a callback is its own new transaction, dispatched
+        after the current dispatch drains. The runtime's transactional
+        notification stage is PRP-004's; this is the registration surface.
+        """
+        key = self._next_sub
+        self._next_sub += 1
+        self._subs[key] = (self._property_iri(property), value, callback)
+        return Subscription(self, key)
+
+    def _dispatch(self, diff: _horismos.Diff) -> None:
+        for fact in diff.added:
+            if fact.kind != "property":
+                continue
+            for prop_iri, wanted, callback in list(self._subs.values()):
+                if fact.property != prop_iri:
+                    continue
+                if wanted is not _ANY and fact.value != wanted:
+                    continue
+                self._pending.append((callback, fact.subject, fact.value))
+        if self._dispatching:
+            return  # the outer dispatch loop drains what we queued
+        self._dispatching = True
+        try:
+            while self._pending:
+                callback, subject, fact_value = self._pending.pop(0)
+                callback(subject, fact_value)
+        finally:
+            self._dispatching = False
+
     # -- snapshots (doc 03) ---------------------------------------------------
 
     def snapshot(self) -> Snapshot:
@@ -144,6 +234,7 @@ class World:
         world._onto = onto
         world._native = _horismos.World.from_snapshot(onto._handle, snapshot._native)
         world._prop_by_snake = _property_names(onto)
+        world._init_subscriptions()
         return world
 
     def diff(self, snapshot: Snapshot) -> _horismos.Diff:

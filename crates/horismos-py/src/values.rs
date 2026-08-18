@@ -34,7 +34,15 @@ pub(crate) fn to_value(
         return Ok(Value::Boolean(ob.extract::<bool>()?));
     }
     if ob.is_instance_of::<PyInt>() {
-        return Ok(Value::Integer(ob.extract::<i64>()?));
+        // Never a bare OverflowError from binding code: an int outside
+        // xsd:integer's 64-bit lexical space is a value-form problem.
+        return match ob.extract::<i64>() {
+            Ok(i) => Ok(Value::Integer(i)),
+            Err(_) => Err(crate::errors::naming_err(
+                py,
+                format!("{ob} does not fit xsd:integer's 64-bit value space"),
+            )),
+        };
     }
     if ob.is_instance_of::<PyFloat>() {
         // Through core's lexical parser so an unrepresentable float (nan,

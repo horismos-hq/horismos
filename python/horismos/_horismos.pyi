@@ -9,19 +9,19 @@ PROFILE_VERSION: str
 class HorismosError(Exception):
     domain_text: str
     suggestion: str | None
+    data: dict[str, Any]
 
 class HorismosOntologyError(HorismosError): ...
 class HorismosVerificationError(HorismosError): ...
 
 class HorismosValidationError(HorismosError):
     constraint: str
-    data: dict[str, Any]
-    subject: str
-    class_: str
+    subject: str | None
+    class_: str | None
     property: str | None
     value: str | None
-    provenance: str
-    operation: str
+    provenance: str | None
+    operation: str | None
 
 class HorismosWorkflowError(HorismosError): ...
 class HorismosBridgeError(HorismosError): ...
@@ -63,12 +63,14 @@ class Ontology:
 class ProofNode:
     @property
     def rule(self) -> str | None: ...
+    @property
+    def children(self) -> list[ProofNode]: ...
     def render(self) -> str: ...
 
 @final
 class Fact:
     kind: str
-    subject: str
+    subject: Ref
     property: str | None
     value: Any
 

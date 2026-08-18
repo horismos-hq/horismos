@@ -36,7 +36,8 @@ def test_ref_rejects_an_unknown_prefix(onto: Ontology) -> None:
 def test_ref_rejects_an_undeclared_term(onto: Ontology) -> None:
     with pytest.raises(HorismosOntologyError) as e:
         onto.ref(":Ghost")
-    assert ":Ghost" in str(e.value) or ":Ghost" in str(e.value)
+    assert ":Ghost" in str(e.value)
+    assert e.value.data["term"] == ":Ghost"
 
 
 def test_rules_are_introspectable(onto: Ontology) -> None:
