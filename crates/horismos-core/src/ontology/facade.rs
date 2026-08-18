@@ -148,6 +148,53 @@ impl Ontology {
         self.inner.interner.get(iri)
     }
 
+    /// The inverse of [`Ontology::compact`] (PRP-003): expands a Turtle
+    /// prefixed name (`triage:Patient`, `:r1`) against the unified prefix
+    /// map. A term containing `://` is already a full IRI and passes through
+    /// unchanged; an angle-bracketed form (`<urn:x:y>`) is unwrapped. A
+    /// prefixed name whose prefix has no binding is an
+    /// [`OntologyError::UnknownPrefix`] in domain terms.
+    pub fn expand(&self, term: &str) -> Result<String, OntologyError> {
+        if let Some(inner) = term.strip_prefix('<').and_then(|t| t.strip_suffix('>')) {
+            return Ok(inner.to_owned());
+        }
+        if term.contains("://") {
+            return Ok(term.to_owned());
+        }
+        let Some((prefix, local)) = term.split_once(':') else {
+            return Err(OntologyError::NotACurie {
+                term: term.to_owned(),
+            });
+        };
+        match self
+            .inner
+            .set
+            .prefixes
+            .iter()
+            .find(|(name, _)| name == prefix)
+        {
+            Some((_, namespace)) => Ok(format!("{namespace}{local}")),
+            None => Err(OntologyError::UnknownPrefix {
+                term: term.to_owned(),
+                prefix: prefix.to_owned(),
+            }),
+        }
+    }
+
+    /// Expands `term` and resolves it to the token this ontology interned
+    /// for it (PRP-003) — the node-handle lookup behind the Python
+    /// `Ontology.ref()`. A term the ontology's graphs never mention is an
+    /// [`OntologyError::UndeclaredTerm`]: an ontology is immutable, so it
+    /// cannot be named against one (mint instance IRIs against a world
+    /// instead).
+    pub fn node_ref(&self, term: &str) -> Result<Iri, OntologyError> {
+        let expanded = self.expand(term)?;
+        self.iri(&expanded)
+            .ok_or_else(|| OntologyError::UndeclaredTerm {
+                term: self.compact(&expanded),
+            })
+    }
+
     /// The loaded graph set: root document plus imports (U5).
     pub fn graphs(&self) -> &OntologySet {
         &self.inner.set
@@ -379,6 +426,65 @@ mod tests {
             }
             other => panic!("expected InvalidPattern, got {other:?}"),
         }
+    }
+
+    #[test]
+    fn expand_inverts_compact_and_passes_full_iris_through() {
+        let onto = triage();
+        assert_eq!(
+            onto.expand(":Patient").expect(": is bound"),
+            "https://example.org/triage#Patient"
+        );
+        assert_eq!(
+            onto.expand("sct:29857009").expect("sct: is bound"),
+            "http://snomed.info/id/29857009"
+        );
+        assert_eq!(
+            onto.expand("https://example.org/triage#Patient")
+                .expect("full IRIs pass through"),
+            "https://example.org/triage#Patient"
+        );
+        assert_eq!(
+            onto.expand("<urn:x:y>").expect("angle brackets unwrap"),
+            "urn:x:y"
+        );
+    }
+
+    #[test]
+    fn expand_rejects_an_unbound_prefix_in_domain_terms() {
+        let err = triage()
+            .expand("nope:Immediate")
+            .expect_err("nope: has no binding");
+        assert_eq!(
+            err.to_string(),
+            "cannot expand nope:Immediate: prefix \"nope\" is not declared by the ontology"
+        );
+
+        let err = triage()
+            .expand("heartRate")
+            .expect_err("a bare local name is not expandable");
+        assert_eq!(
+            err.to_string(),
+            "cannot expand heartRate: expected a CURIE (prefix:localName) or a full IRI"
+        );
+    }
+
+    #[test]
+    fn node_ref_resolves_declared_terms_and_refuses_ghosts() {
+        let onto = triage();
+        let immediate = onto.node_ref(":Immediate").expect(":Immediate is declared");
+        assert_eq!(
+            onto.resolve(immediate),
+            "https://example.org/triage#Immediate"
+        );
+
+        let err = onto
+            .node_ref(":Ghost")
+            .expect_err(":Ghost is not mentioned anywhere");
+        assert_eq!(
+            err.to_string(),
+            ":Ghost names no term declared by the ontology"
+        );
     }
 
     #[test]

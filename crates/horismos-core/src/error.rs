@@ -114,6 +114,23 @@ pub enum OntologyError {
     #[error("no such term in the horis: vocabulary: {term}")]
     UnknownHorisTerm { term: String },
 
+    /// A prefixed name (`nope:Immediate`) whose prefix has no binding in the
+    /// loaded graph set's unified prefix map — from
+    /// [`crate::Ontology::expand`] (PRP-003).
+    #[error("cannot expand {term}: prefix \"{prefix}\" is not declared by the ontology")]
+    UnknownPrefix { term: String, prefix: String },
+
+    /// A term that is neither a CURIE (`prefix:localName`) nor a full IRI —
+    /// from [`crate::Ontology::expand`] (PRP-003).
+    #[error("cannot expand {term}: expected a CURIE (prefix:localName) or a full IRI")]
+    NotACurie { term: String },
+
+    /// A well-formed term that none of the loaded graphs mention — from
+    /// [`crate::Ontology::node_ref`] (PRP-003). `term` is already in
+    /// compacted domain form.
+    #[error("{term} names no term declared by the ontology")]
+    UndeclaredTerm { term: String },
+
     /// A literal whose datatype is not one of the six XSD types the profile
     /// supports, or a language-tagged string (the profile has no vocabulary
     /// for `rdf:langString`).

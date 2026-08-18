@@ -47,7 +47,7 @@ use imbl::{OrdMap, Vector};
 
 pub use snapshot::{Diff, Fact, Snapshot};
 
-use crate::error::HorismosError;
+use crate::error::{HorismosError, OntologyError};
 use crate::ontology::Ontology;
 use crate::ontology::term::{Interner, Iri, Ref, Value};
 use crate::reason::forward::{self, ReasoningRecord};
@@ -301,6 +301,47 @@ impl World {
     /// the one asserted first, not necessarily the only one.
     pub fn value(&self, subject: Ref, property: Iri) -> Option<&Value> {
         self.values(subject, property).next()
+    }
+
+    /// The tier-2 pattern query (doc 03 § Queries; PRP-003 U7, decision
+    /// record `PRPs/PRP-003-python-bindings/03-decision-query.md`): every
+    /// instance of `class` — subsumption-aware, exactly like
+    /// [`World::instances`] — that holds, for *each* `(property, value)`
+    /// pair, at least one value equal to `value` (typed [`Value`] equality;
+    /// node refs compare by IRI). Conjunction only, one subject class per
+    /// query, results in the store's deterministic order.
+    ///
+    /// A class or property the ontology does not declare is a domain-term
+    /// *error*, never a silently empty result — a query cannot tell "no
+    /// matches" from "you misspelled acuity" any other way.
+    pub fn query_pattern(
+        &self,
+        class: Iri,
+        patterns: &[(Iri, Value)],
+    ) -> Result<Vec<Ref>, HorismosError> {
+        let schema = self.ontology.schema();
+        if schema.class_declared(class).is_none() {
+            return Err(OntologyError::UndeclaredTerm {
+                term: self.ontology.compact(self.resolve(class)),
+            }
+            .into());
+        }
+        for (property, _) in patterns {
+            if schema.property(*property).is_none() {
+                return Err(OntologyError::UndeclaredTerm {
+                    term: self.ontology.compact(self.resolve(*property)),
+                }
+                .into());
+            }
+        }
+        Ok(self
+            .instances(class)
+            .filter(|subject| {
+                patterns
+                    .iter()
+                    .all(|(property, value)| self.values(*subject, *property).any(|v| v == value))
+            })
+            .collect())
     }
 
     // -- Assertion ---------------------------------------------------------
@@ -679,6 +720,67 @@ mod tests {
     }
 
     // -- happy path --------------------------------------------------------
+
+    #[test]
+    fn query_pattern_filters_instances_by_conjunctive_value_equality() {
+        let mut world = triage_world();
+        let patient = tri(&mut world, "Patient");
+        let heart_rate = tri(&mut world, "heartRate");
+        let has_symptom = tri(&mut world, "hasSymptom");
+        let acuity = tri(&mut world, "acuity");
+        let immediate = Value::Ref(Ref::new(tri(&mut world, "Immediate")));
+        let crushing = Value::Ref(Ref::new(tri(&mut world, "CrushingChestPain")));
+
+        // r1 fires for p1 (tachycardic chest pain) but not p2 (calm).
+        let p1 = world
+            .assert_instance(
+                patient,
+                [(heart_rate, Value::Integer(128)), (has_symptom, crushing)],
+            )
+            .expect("p1 is gate-valid");
+        let p2 = world
+            .assert_instance(patient, [(heart_rate, Value::Integer(70))])
+            .expect("p2 is gate-valid");
+
+        assert_eq!(
+            world
+                .query_pattern(patient, &[(acuity, immediate.clone())])
+                .expect("declared terms"),
+            vec![p1],
+            "only the immediate-acuity patient matches"
+        );
+        assert_eq!(
+            world.query_pattern(patient, &[]).expect("declared terms"),
+            vec![p1, p2],
+            "an empty conjunction is the class scan, deterministic order"
+        );
+        assert_eq!(
+            world
+                .query_pattern(
+                    patient,
+                    &[(acuity, immediate), (heart_rate, Value::Integer(70))]
+                )
+                .expect("declared terms"),
+            Vec::<Ref>::new(),
+            "conjunction: no patient is both immediate and at 70 bpm"
+        );
+
+        let ghost = tri(&mut world, "Ghost");
+        let err = world
+            .query_pattern(ghost, &[])
+            .expect_err("an undeclared class is an error, not an empty result");
+        assert_eq!(
+            err.domain_text(),
+            ":Ghost names no term declared by the ontology"
+        );
+        let err = world
+            .query_pattern(patient, &[(ghost, Value::Integer(1))])
+            .expect_err("an undeclared property is an error, not an empty result");
+        assert_eq!(
+            err.domain_text(),
+            ":Ghost names no term declared by the ontology"
+        );
+    }
 
     #[test]
     fn asserts_a_patient_with_a_heart_rate_from_triage_ttl() {

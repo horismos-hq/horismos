@@ -39,7 +39,10 @@ platform, Python ≥ 3.11. Don't use APIs outside the stable ABI.
   from binding code.
 - **GIL**: release it (`py.detach` / allow-threads) around any core call that can
   run long — chaining, verification, load. Never call back into Python while
-  detached.
+  detached. **Never block on a lock while holding the GIL** (PRP-003 review
+  reproduced the deadlock): a holder may be detached and needs the GIL back to
+  finish — acquire with `try_lock` + a detached-yield loop, as
+  `crates/horismos-py/src/world.rs::lock` does.
 - **Stubs**: `python/horismos/_horismos.pyi` is updated in the *same change* as any native
   surface change; `make lint` (mypy --strict) is the gate. `py.typed` ships in the
   package.

@@ -9,11 +9,19 @@
 
 use pyo3::prelude::*;
 
+mod errors;
+mod ontology;
+mod values;
+mod world;
+
 /// Native module registered as `horismos._horismos`; the pure-Python package in
 /// `python/horismos/` is the public surface and re-exports from here.
 #[pymodule]
 fn _horismos(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add("__version__", horismos_core::VERSION)?;
     m.add("PROFILE_VERSION", horismos_core::PROFILE_VERSION)?;
+    errors::register(m)?;
+    ontology::register(m)?;
+    world::register(m)?;
     Ok(())
 }

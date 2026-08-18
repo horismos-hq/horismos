@@ -115,26 +115,26 @@
     <p class="tagline">Ontology-first neuro-symbolic agent framework — Rust core, Python
     bindings. One authored RDFS-plus ontology is the domain, the rules, and the agent
     loop; LLMs live only at declared perception/narration boundaries.</p>
-    <p class="stamp">Updated 2026-07-29 · mirrors <code>PRPs/BOARD.md</code> · repo <code>~/code/billaram/horismos</code></p>
+    <p class="stamp">Updated 2026-08-18 · mirrors <code>PRPs/BOARD.md</code> · repo <code>~/code/billaram/horismos</code></p>
   </header>
 
   <section class="highlights" aria-label="Highlights">
     <div class="hl hl-now">
       <p class="hl-label">Now · Where we are</p>
-      <h3>PRP-001 Done — the ontology core is real</h3>
+      <h3>PRP-003 Done — the Python front door is real</h3>
       <ul>
-        <li><strong>Load → validate → hold</strong>: Turtle in/out, RDFS-plus profile enforcement, queryable schema with <code>owl:sameAs</code>-anchored subsumption over a shipped ~50-concept SNOMED subset.</li>
-        <li><strong>The gate has no back door</strong>: five checks, atomic rejection, domain-term witnesses ("heartRate 1280 exceeds horis:max 300 (bpm) on :Patient"), <code>horis:assignedBy</code> provenance policy.</li>
-        <li><strong>O(1) snapshots + gate-revalidated binary form</strong>, tier-1 queries, proptest-pinned invariants — ~160 tests, <code>make verify</code> green, zero LLM (PR #1).</li>
+        <li><strong><code>pip install</code> works</strong>: the abi3 wheel runs the symbolic triage quickstart verbatim in a fresh venv — <code>Ontology.load</code>, whole-transaction <code>assert_</code> (gate + chaining in one crossing, GIL released), pattern query, subscriptions, snapshots, proof trees byte-identical to the Rust rendering.</li>
+        <li><strong>Errors are the product</strong>: <code>str(exc)</code> is <code>domain_text()</code> ("heartRate 1280 exceeds horis:max 300 (bpm) on :Patient"); the structured attributes are the machine contract; stubs pass <code>mypy --strict</code>.</li>
+        <li><strong>Decisions on evidence</strong>: dict-like construction beat generated proxies against the quickstart; textual SPARQL deferred behind core's pattern query; Hypothesis pins atomicity/determinism/round-trip — 70 pytest + ~248 Rust tests, <code>make verify</code> green.</li>
       </ul>
     </div>
     <div class="hl hl-next">
       <p class="hl-label">Next · The immediate goal</p>
-      <h3>PRP-002 — the reasoning substrate</h3>
+      <h3>PRP-004 — the agent loop (PRP-005 startable in parallel)</h3>
       <ul>
-        <li><strong>Port the proven designs</strong>: forward chaining (Rete-lite), backward <code>prove</code>/<code>explain</code>, proof trees, training-grade traces.</li>
-        <li><strong>Inherited [DECIDE]s from PRP-001</strong>: retraction vs <code>horis:immutable</code>, sameAs-canonical class lookup, stored fact provenance, rule-side unit checks.</li>
-        <li><strong>Human side quests</strong>: register <code>horismos.dev</code>; file the <code>w3id.org/horismos</code> PR; reserve registry names; merge PR #1.</li>
+        <li><strong>Runtime track</strong>: workflow engine, perception/narration boundaries, tools contract, Bridge implementations; inherits the pinned 003/004 subscription split and the <code>Ontology.version</code> deferral (trace stamping is its consumer).</li>
+        <li><strong>Open captain hold</strong>: derived-fact truth maintenance (plan review, finding 2) — held above the PRPs; 003 binds current behavior without endorsing it.</li>
+        <li><strong>Human side quests</strong>: register <code>horismos.dev</code>; file the <code>w3id.org/horismos</code> PR; reserve registry names; merge PR #3; decide the truth-maintenance hold.</li>
       </ul>
     </div>
     <div class="hl hl-end">
@@ -153,8 +153,8 @@
   <section class="recap">
     <div class="re"><h4>The spec (docs 00–14)</h4>
       <p>Concepts, RDFS-plus profile, World + gate, reasoning, workflows, LLM boundaries, tools, Bridge, traces, verification, both APIs, authoring, architecture.</p></div>
-    <div class="re"><h4>Engine (PRP-001)</h4>
-      <p><code>horismos-core::ontology</code> (terms, Turtle, profile, schema, imports/anchoring) + <code>horismos-core::world</code> (store, five-check gate, provenance, snapshots, queries); <code>horismos-bridges</code> (mock + gated providers), <code>horismos-py</code> (version roundtrip works).</p></div>
+    <div class="re"><h4>Engine (PRP-001 + PRP-002)</h4>
+      <p><code>horismos-core::ontology</code> (terms, Turtle, profile, schema, imports/anchoring) + <code>horismos-core::world</code> (store, five-check gate, provenance, snapshots, queries) + <code>horismos-core::reason</code> (rules, matchers, chaining, proofs) + <code>horismos-core::trace</code>; <code>horismos-bridges</code> (mock + gated providers), <code>horismos-py</code> (version roundtrip works).</p></div>
     <div class="re"><h4>Tooling</h4>
       <p>Cargo workspace (edition 2024, clippy -D warnings), uv + maturin abi3 wheel, ruff + mypy strict, Makefile as single entry point.</p></div>
     <div class="re"><h4>Conventions</h4>
@@ -180,17 +180,17 @@
             <td>PRP-001 · Ontology core<span class="why">Load/validate ontology, typed World, five-check gate, snapshots, queries — U1–U11 shipped</span></td>
             <td><span class="chip chip-done">Done · 2026-07-29</span></td></tr>
         <tr><td class="track-cell">Engine</td>
-            <td>PRP-002 · Reasoning substrate<span class="why">Chaining, subsumption, proof trees, training-grade traces</span></td>
-            <td><span class="chip chip-next">Next up</span></td></tr>
+            <td>PRP-002 · Reasoning substrate<span class="why">Chaining, subsumption, proof trees, training-grade traces — U1–U12 shipped</span></td>
+            <td><span class="chip chip-done">Done · 2026-08-05</span></td></tr>
         <tr><td class="track-cell">Engine</td>
             <td>PRP-005 · Guarantees &amp; verification<span class="why">BDD checks + domain-term witnesses — needs only 001+002</span></td>
             <td><span class="chip chip-draft">Draft</span></td></tr>
         <tr><td class="track-cell">Surface</td>
-            <td>PRP-003 · Python bindings<span class="why"><code>pip install horismos</code> — the Pythonic front door</span></td>
-            <td><span class="chip chip-draft">Draft</span></td></tr>
+            <td>PRP-003 · Python bindings<span class="why"><code>pip install horismos</code> — the Pythonic front door — U1–U10 shipped</span></td>
+            <td><span class="chip chip-done">Done · 2026-08-18</span></td></tr>
         <tr><td class="track-cell">Runtime</td>
             <td>PRP-004 · Agent loop<span class="why">Workflow engine, perception/narration boundaries, tools, Bridge</span></td>
-            <td><span class="chip chip-draft">Draft</span></td></tr>
+            <td><span class="chip chip-next">Next up</span></td></tr>
         <tr><td class="track-cell">Ship &amp; Author</td>
             <td>PRP-006 · Packaging &amp; docs<span class="why">crates.io + PyPI + docs site + zero-key CI gates</span></td>
             <td><span class="chip chip-draft">Draft</span></td></tr>
