@@ -8,7 +8,7 @@ spec sections — Intent, Scope, Non-goals, Key decisions, Definition of done �
 phase contract, unchanged in meaning from the original one-pager. Around them sit
 background, worked examples, Python-parallel notes, and a glossary, written for a
 reader who knows Python well but is new to symbolic reasoning and to Rust. Teaching
-sections cite `docs/framework/` (especially [doc 04 · Reasoning](../docs/framework/04-reasoning.md))
+sections cite `docs/framework/` (especially [doc 04 · Reasoning](../../docs/framework/04-reasoning.md))
 rather than restating it; where they summarize, the doc is the authority.
 
 ## Intent
@@ -20,7 +20,7 @@ designed as a training corpus from day one.
 ## What PRP-001 already provides
 
 Everything in this PRP builds on the ontology core that is already Done
-([PRP-001](PRP-001-ontology-core/01-objective.md)):
+([PRP-001](../PRP-001-ontology-core/01-objective.md)):
 
 - An `Ontology` loaded from Turtle (`examples/triage/triage.ttl` plus a ~50-concept
   SNOMED chest-pain subset), validated against the RDFS-plus profile, with a
