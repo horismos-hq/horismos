@@ -70,9 +70,11 @@ Pinned at activation; sharpened 2026-08-18 per the independent plan review
 - [x] D3. **GIL release policy** (decided 2026-08-18, prescribed by the
       task brief; spike waived): the interpreter is detached
       (`Python::detach`) around ontology load/with_import,
-      assert-with-chaining, retract, prove, and the snapshot byte codecs;
-      nothing touches Python while detached (all marshaling happens
-      before/after — pyo3's `Ungil` bound enforces it at compile time).
+      assert-with-chaining (including `assert_with_diff`, added for the
+      subscription-dispatch fix below), retract, query_pattern, prove,
+      and the snapshot byte codecs; nothing touches Python while detached
+      (all marshaling happens before/after — pyo3's `Ungil` bound
+      enforces it at compile time).
       **Amended after the batch review found a lock-order deadlock**: the
       world mutex is acquired GIL-safely (try_lock + detached-yield loop) —
       never block on the lock while holding the GIL (ledger pin P3,
@@ -167,12 +169,17 @@ Pinned at activation; sharpened 2026-08-18 per the independent plan review
 ## Unit completion evidence (2026-08-18)
 
 All ten units complete on branch `fm/horismos-prp003-a1`; `make verify`
-green at every unit commit. 69 pytest cases in total, 5 of them
-Hypothesis properties (finishing commit; 67 before its two added tests);
-batch review (senior-reviewer) over U1–U5 returned "changes required" —
-every finding fixed in-branch (see the D3 amendment and the gap notes),
-including a reproduced GIL/mutex deadlock now pinned by a two-thread
-stress test. DoD wheel proof: `maturin build --release` →
+green at every unit commit. 70 pytest cases in total, 5 of them
+Hypothesis properties (finishing commit; 67 before its two added tests,
+plus one more from the post-finish subscription-dispatch race fixes
+below); batch review (senior-reviewer) over U1–U5 returned "changes
+required" — every finding fixed in-branch (see the D3 amendment and the
+gap notes), including a reproduced GIL/mutex deadlock now pinned by a
+two-thread stress test, and two further whole-branch review passes
+fixed a same-thread and a cross-thread subscription-dispatch race (the
+diff crossing in `assert_with_diff` and the per-thread dispatch state
+in `_world.py`), each pinned by its own regression test in
+`test_subscribe.py`. DoD wheel proof: `maturin build --release` →
 `pip install` into a fresh stdlib venv (ran on CPython 3.14 against the
 abi3-py311 wheel) → the doc-11 symbolic quickstart executed **verbatim**
 (extracted from the markdown) and printed the pinned r1 proof.

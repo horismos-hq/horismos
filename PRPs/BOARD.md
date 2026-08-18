@@ -21,7 +21,7 @@ textual SPARQL deferred), post-commit subscriptions (003/004 split pinned),
 structured attributes are the machine contract, proof trees rendering
 byte-identically to the Rust suite, snapshots/diffs/wire form, stubs
 `mypy --strict` clean, Hypothesis boundary invariants, CI wheel-matrix
-config (execution is PRP-006's). 69 pytest + ~248 Rust tests, `make verify`
+config (execution is PRP-006's). 70 pytest + ~248 Rust tests, `make verify`
 green. Branch: `fm/horismos-prp003-a1`. PRP-002 was recorded Done here
 2026-08-18 (merged 2026-08-05 as PR #4; folder record in PR #3, open).
 **Open captain hold**: derived-fact truth maintenance (plan review, finding
