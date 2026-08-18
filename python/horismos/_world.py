@@ -111,6 +111,14 @@ class World:
         """Every value of ``(subject, property)``, in assertion order."""
         return self._native.values(subject, self._property_iri(property))
 
+    def query(self, class_: str, **patterns: Any) -> list[Ref]:
+        """The tier-2 pattern query (doc 03 § Queries): every instance of
+        ``class_`` (subsumption-aware) holding, for each keyword, a value
+        equal to the given one — conjunction only, deterministic order.
+        Undeclared classes or properties are domain-term errors, never
+        silently empty results."""
+        return self._native.query(self._onto.expand(class_), self._pairs(patterns))
+
     # -- reasoning queries (doc 04) ------------------------------------------
 
     def explain(self, subject: Ref, property: str) -> ProofNode | None:

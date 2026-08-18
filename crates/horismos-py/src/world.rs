@@ -213,6 +213,34 @@ impl PyWorld {
         values.iter().map(|v| from_value(py, v, &world)).collect()
     }
 
+    /// The tier-2 pattern query (core `World::query_pattern`, D2): the
+    /// whole conjunction in, the whole row set out. Undeclared terms are
+    /// core-worded errors, never silently empty results.
+    fn query(
+        &self,
+        py: Python<'_>,
+        class_term: &str,
+        patterns: Vec<(String, Bound<'_, PyAny>)>,
+    ) -> PyResult<Vec<PyNodeRef>> {
+        let mut world = self.lock(py)?;
+        let class = expand_intern(py, &mut world, class_term)?;
+        let mut typed: Vec<(Iri, Value)> = Vec::with_capacity(patterns.len());
+        for (term, ob) in &patterns {
+            let property = expand_intern(py, &mut world, term)?;
+            let range = world
+                .ontology()
+                .schema()
+                .property(property)
+                .and_then(|decl| decl.range);
+            let value = to_value(py, ob, range.as_ref(), &mut world)?;
+            typed.push((property, value));
+        }
+        let rows = world
+            .query_pattern(class, &typed)
+            .map_err(|e| to_py_err(py, e))?;
+        Ok(rows.into_iter().map(|r| node(&world, r)).collect())
+    }
+
     /// The recorded derivation of an existing rule-derived fact, rendered
     /// in the same call (doc 04's "why *is* this established?").
     fn explain(

@@ -58,14 +58,14 @@ Pinned at activation; sharpened 2026-08-18 per the independent plan review
       `03-decision-instances.md`. Doc 11's stubgen marker struck in the
       same commit (§ Typed instance construction rewritten in shipped
       voice); stubgen codegen deferred with a dated gap note below.
-- [ ] D2. **Query surface: SPARQL subset vs. Pythonic builder** (owns doc
-      03's `[DECIDE: exact subset grammar]`). Ship the minimal surface
-      Example 1 needs; everything further is an **explicit deferral** in
-      doc 03 naming the owning unit — either the exact shipped grammar is
-      stated, or the SPARQL-subset text is rewritten as deferred with a
-      dated note. Per B6, the evaluator is a named core unit inside U7 —
-      no query logic in the bindings. Blocks U7. Recorded here; doc 03's
-      marker struck (its § Queries rewritten in shipped voice) in the same
+- [x] D2. **Query surface: SPARQL subset vs. Pythonic builder** (decided
+      2026-08-18): v1 ships a **class-scoped conjunctive pattern query**
+      whose evaluator is the named core unit `World::query_pattern`
+      (`horismos-core::world`, B6) — exact grammar stated in
+      `03-decision-query.md`; undeclared terms are domain-term errors,
+      never empty results. The **textual SPARQL subset is deferred beyond
+      v1** (dated note below); if built, it compiles to this tier. Doc
+      03's marker struck, § Queries rewritten in shipped voice, same
       commit.
 - [ ] D3. **GIL release policy**. Which native calls detach from the
       interpreter (load / assert-with-chaining / prove / snapshot codecs)
@@ -156,6 +156,12 @@ Pinned at activation; sharpened 2026-08-18 per the independent plan review
 
 (append dated notes here; scope changes go back into `01-objective.md` by explicit edit)
 
+- 2026-08-18 (D2 deferral): the textual SPARQL SELECT/ASK subset (FILTER,
+  OPTIONAL, ORDER BY/LIMIT over basic graph patterns) is deferred beyond
+  v1 — no v1 consumer needs a SPARQL string (evidence in
+  `03-decision-query.md`). If a later phase wants it, it is a front-end
+  compiling to `World::query_pattern`, owned by whichever PRP claims it
+  then; doc 03 § Queries records the same.
 - 2026-08-18 (D1 deferral): `horismos stubgen` codegen for IDE/mypy
   support of ontology-derived names is deferred — no v1 unit ships it.
   Revisit when PRP-007's authoring tooling generates ontology artifacts;

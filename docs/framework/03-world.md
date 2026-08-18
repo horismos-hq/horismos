@@ -58,20 +58,26 @@ Three tiers, all read-only:
 
 ```python
 # 1. Pattern lookup (fast path)
-world.instances(Patient)
-world.value(p, "heartRate")                  # 128.0
+world.instances(":Patient")
+world.value(p, "heart_rate")                     # 128
 
-# 2. SPARQL subset (SELECT / ASK over basic graph patterns + FILTER)
-world.query("SELECT ?p WHERE { ?p :acuity :Immediate }")
+# 2. Pattern query (class scan + conjunctive value filters)
+world.query(":Patient", acuity=":Immediate")
 
 # 3. Reasoning queries (delegate to the Reasoner, doc 04)
-world.prove(":acuity :Immediate", subject=p)     # goal-directed, returns proof or None
-world.explain(p, "acuity")                       # proof tree for an existing fact
+world.prove(p, ":acuity", ":Immediate")          # goal-directed, proof or None
+world.explain(p, ":acuity")                      # proof tree for an existing fact
 ```
 
-The SPARQL subset is deliberately small: basic graph patterns, `FILTER` comparisons,
-`OPTIONAL`, `LIMIT/ORDER BY`. No property paths, no federation, no updates.
-**[DECIDE: exact subset grammar — PRP-003]**
+Tier 2's grammar is deliberately small (decided 2026-08-18, PRP-003 —
+`PRPs/PRP-003-python-bindings/03-decision-query.md`): one subject class per
+query, subsumption-aware; conjunctive property = value equality filters
+(any value of a multi-valued property); results in the store's
+deterministic order; an undeclared class or property is a domain-term
+error, never a silently empty result. A textual SPARQL front-end
+(SELECT/ASK, FILTER, OPTIONAL, ORDER BY/LIMIT) is deferred beyond v1 and,
+if built, compiles to this tier. No property paths, no federation, no
+updates — permanently.
 
 ## Snapshots
 
