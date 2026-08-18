@@ -10,6 +10,8 @@ private native module behind it — never import it directly.
 
 from horismos._horismos import (
     PROFILE_VERSION,
+    Diff,
+    Fact,
     HorismosBridgeError,
     HorismosError,
     HorismosOntologyError,
@@ -17,14 +19,18 @@ from horismos._horismos import (
     HorismosValidationError,
     HorismosVerificationError,
     HorismosWorkflowError,
+    ProofNode,
     Ref,
     Rule,
     __version__,
 )
 from horismos._ontology import Ontology, VerificationReport
+from horismos._world import Snapshot, World
 
 __all__ = [
     "PROFILE_VERSION",
+    "Diff",
+    "Fact",
     "HorismosBridgeError",
     "HorismosError",
     "HorismosOntologyError",
@@ -33,8 +39,11 @@ __all__ = [
     "HorismosVerificationError",
     "HorismosWorkflowError",
     "Ontology",
+    "ProofNode",
     "Ref",
     "Rule",
+    "Snapshot",
     "VerificationReport",
+    "World",
     "__version__",
 ]

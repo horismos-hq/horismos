@@ -128,6 +128,44 @@ impl PyOntology {
         Ok(PyNodeRef { iri, compact })
     }
 
+    /// One-crossing bulk dump of every declared property — what the
+    /// pure-Python layer builds its keyword/name maps from (ledger P9).
+    /// Rows: `(iri, local name, is_object, domain iri or None)`.
+    fn property_table(&self) -> Vec<(String, String, bool, Option<String>)> {
+        use horismos_core::ontology::schema::PropertyRange;
+        self.inner
+            .schema()
+            .properties()
+            .map(|decl| {
+                let iri = self.inner.resolve(decl.iri).to_owned();
+                let local = self.inner.local_name(&iri);
+                let is_object = matches!(decl.range, Some(PropertyRange::Class(_)));
+                let domain = decl.domain.map(|d| self.inner.resolve(d).to_owned());
+                (iri, local, is_object, domain)
+            })
+            .collect()
+    }
+
+    /// One-crossing bulk dump of every declared class:
+    /// `(iri, local name, oneOf member IRIs or None)`.
+    fn class_table(&self) -> Vec<(String, String, Option<Vec<String>>)> {
+        self.inner
+            .schema()
+            .classes()
+            .map(|decl| {
+                let iri = self.inner.resolve(decl.iri).to_owned();
+                let local = self.inner.local_name(&iri);
+                let one_of = decl.one_of.as_ref().map(|members| {
+                    members
+                        .iter()
+                        .map(|m| self.inner.resolve(*m).to_owned())
+                        .collect()
+                });
+                (iri, local, one_of)
+            })
+            .collect()
+    }
+
     /// Every parsed rule, in the engine's firing order (priority desc,
     /// rule IRI lexicographic).
     fn rules(&self) -> Vec<PyRule> {

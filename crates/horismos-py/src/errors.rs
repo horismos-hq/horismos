@@ -115,6 +115,13 @@ fn ontology_err_with(py: Python<'_>, text: String, _err: &OntologyError) -> PyEr
     plain(py, py.get_type::<HorismosOntologyError>(), text)
 }
 
+/// A boundary-side naming/typing problem (an argument that cannot be
+/// marshaled at all) — the one error family the binding words itself, still
+/// carrying the shared `domain_text`/`suggestion` attributes.
+pub(crate) fn naming_err(py: Python<'_>, text: String) -> PyErr {
+    plain(py, py.get_type::<HorismosOntologyError>(), text)
+}
+
 /// Builds an exception instance with the shared attributes every Horismos
 /// error carries (`domain_text`, `suggestion`), raises-ready.
 fn plain(py: Python<'_>, class: Bound<'_, pyo3::types::PyType>, text: String) -> PyErr {
@@ -134,7 +141,17 @@ fn validation_err(py: Python<'_>, text: String, witness: &Witness) -> PyErr {
         inst.setattr("class_", witness.class.clone())?;
         inst.setattr("property", witness.property.clone())?;
         inst.setattr("value", witness.value.clone())?;
-        inst.setattr("provenance", witness.provenance.as_str())?;
+        // The machine token (matching the trace schema's serde form), not
+        // the domain-prose word `Provenance::as_str` renders into sentences.
+        inst.setattr(
+            "provenance",
+            match witness.provenance {
+                horismos_core::Provenance::Perception => "perception",
+                horismos_core::Provenance::Rule => "rule",
+                horismos_core::Provenance::Tool => "tool",
+                horismos_core::Provenance::Api => "api",
+            },
+        )?;
         inst.setattr(
             "operation",
             match witness.operation {

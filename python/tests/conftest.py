@@ -13,3 +13,8 @@ SNOMED = REPO / "examples" / "triage" / "snomed-ct-subset.ttl"
 @pytest.fixture(scope="session")
 def onto() -> horismos.Ontology:
     return horismos.Ontology.load(TRIAGE, imports=[SNOMED])
+
+
+@pytest.fixture()
+def world(onto: horismos.Ontology) -> horismos.World:
+    return horismos.World(onto)
