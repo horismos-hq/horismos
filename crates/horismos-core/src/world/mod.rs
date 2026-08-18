@@ -435,6 +435,13 @@ impl World {
             self.next_skolem += 1;
         }
 
+        // Truth maintenance (doc 03 § Truth maintenance, decided per
+        // `tm-derived-facts.md`): reset every currently-standing rule-derived
+        // value before chaining, so the fixed point below is recomputed from
+        // this transaction's *final* base facts alone — never left standing
+        // from whatever an earlier transaction happened to derive.
+        self.retract_all_derived();
+
         // Forward chain to the fixed point (PRP-002 U4, doc 03's transaction
         // stage between gate and commit-visibility). Every conclusion passes
         // the same gate with Provenance::Rule; a refused conclusion is a
@@ -489,6 +496,76 @@ impl World {
         self.instances.insert(subject.iri(), instance);
         self.update_fact_meta(subject.iri(), old.as_ref(), &properties, Provenance::Rule);
         Ok(())
+    }
+
+    /// Truth maintenance (doc 03 § Truth maintenance): strips every
+    /// currently-standing rule-derived value from every instance.
+    ///
+    /// The (subject, property) pairs to reset come from `derivations`, not
+    /// from scanning `fact_meta` for a `Provenance::Rule` tag: `derivations`
+    /// is the gate's own definition of "derived" ([`gate::check_retraction`]
+    /// keys its refusal off it too), and the two are *not* interchangeable —
+    /// [`World::assert_instance_as`] and [`World::apply_rule_conclusion`]
+    /// both admit [`Provenance::Rule`] as a stated provenance on a direct
+    /// call, without that call being the reasoner's own write path, so a
+    /// fact can carry the Rule tag without ever being recorded as a
+    /// derivation. Once a (subject, property) pair *is* in `derivations`,
+    /// every value fact_meta tags `Rule` at that pair is stripped — not just
+    /// the one value `derivations` last recorded — so a multi-valued
+    /// `horis:RulesOnly` property does not leave earlier conclusions behind
+    /// just because a later one overwrote the single recorded explanation.
+    ///
+    /// Called at the top of every external transaction's chaining stage
+    /// (both [`World::assert_instance_as`] and [`World::retract_as`]) so the
+    /// `forward::chain` call that follows rebuilds the fixed point from this
+    /// transaction's final base facts alone. This is the "retract-derived +
+    /// rechain" approach: a full reset, not incremental invalidation — see
+    /// the PRP-002 decision record for the cost tradeoff.
+    ///
+    /// This does not go through [`gate::check_retraction`] — not a back
+    /// door, because every value it removes was itself only ever admitted
+    /// by an earlier gate-checked `Provenance::Rule` conclusion, removal
+    /// alone cannot violate a domain/range/pattern/oneOf/cardinality-maximum
+    /// constraint (`check_retraction`'s own doc makes the same argument for
+    /// the public retraction path), and every value that lands afterward —
+    /// via `forward::chain` → `apply_rule_conclusion` — passes the full gate
+    /// again before it is visible. The transient, mid-transaction state in
+    /// between is not observable outside this method, same as the
+    /// checkpoint/rollback pattern above it.
+    fn retract_all_derived(&mut self) {
+        for (subject, property) in self.derivations.keys().copied().collect::<Vec<_>>() {
+            let Some(instance) = self.instances.get(&subject).cloned() else {
+                continue;
+            };
+            let values: Vec<Value> = instance.values(property).cloned().collect();
+            let provenances: Vector<Provenance> = self
+                .fact_meta
+                .get(&subject)
+                .and_then(|props| props.get(&property))
+                .cloned()
+                .unwrap_or_default();
+            let mut kept_values = Vector::new();
+            let mut kept_meta = Vector::new();
+            for (index, value) in values.into_iter().enumerate() {
+                let prov = provenances.get(index).copied().unwrap_or(Provenance::Api);
+                if prov != Provenance::Rule {
+                    kept_values.push_back(value);
+                    kept_meta.push_back(prov);
+                }
+            }
+            let mut new_instance = instance;
+            if kept_values.is_empty() {
+                new_instance.properties.remove(&property);
+            } else {
+                new_instance.properties.insert(property, kept_values);
+            }
+            self.instances.insert(subject, new_instance);
+            self.fact_meta
+                .entry(subject)
+                .or_default()
+                .insert(property, kept_meta);
+        }
+        self.derivations = OrdMap::new();
     }
 
     /// Records the derivation behind a standing rule-derived fact — what
@@ -625,9 +702,12 @@ impl World {
     ///    immutable fact can be neither re-asserted differently nor
     ///    retracted — the two-step bypass is closed);
     /// 5. the fact is not rule-derived, unless `provenance` is
-    ///    [`Provenance::Rule`] (decided, PRP-002: derived facts change only
-    ///    by re-running inference after base-fact changes; the rule path
-    ///    itself remains admitted per PRP-001 U7's pinned semantics);
+    ///    [`Provenance::Rule`] (decided, PRP-002: a caller cannot retract a
+    ///    derived fact directly — the rule path itself remains admitted per
+    ///    PRP-001 U7's pinned semantics; the remedy for every other
+    ///    provenance is to change the *base* facts the derivation rests on,
+    ///    which now genuinely does invalidate it — see the truth-maintenance
+    ///    paragraph below);
     /// 6. removing it would not leave `subject` below `property`'s
     ///    `horis:cardinality` minimum;
     /// 7. `property`'s `horis:assignedBy` policy admits `provenance` — the
@@ -641,6 +721,17 @@ impl World {
     /// The unit of retraction is one *fact*, deliberately: whole-instance
     /// retraction would have to answer what happens to facts referencing
     /// the removed instance, and nothing yet needs it.
+    ///
+    /// **Truth maintenance** (doc 03 § Truth maintenance, decided per
+    /// `tm-derived-facts.md`): once the requested fact is gone, this method
+    /// resets every currently-standing rule-derived value and re-chains to
+    /// the resulting base-fact set's fixed point — precisely what
+    /// [`World::assert_instance_as`] does after committing an assertion. A
+    /// retracted `heartRate` that alone supported a derived `:Immediate`
+    /// takes that derivation with it, cascading through anything derived
+    /// from *it* in turn; the iteration cap is a tripwire here exactly as it
+    /// is on assertion, and rolls back the whole transaction, requested
+    /// retraction included.
     pub fn retract_as(
         &mut self,
         provenance: Provenance,
@@ -648,6 +739,16 @@ impl World {
         property: Iri,
         value: &Value,
     ) -> Result<(), HorismosError> {
+        // The transaction checkpoint (doc 03 § Transactions): truth
+        // maintenance now re-chains after every retraction, so a retraction
+        // can trip the iteration cap exactly as an assertion can, and the
+        // whole transaction — the requested retraction included — must roll
+        // back together (mirrors `assert_instance_as`'s checkpoint).
+        let checkpoint_instances = self.instances.clone();
+        let checkpoint_meta = self.fact_meta.clone();
+        let checkpoint_derivations = self.derivations.clone();
+        let interner_len_before = self.interner.len();
+
         let instance = gate::check_retraction(self, provenance, subject, property, value)
             .map_err(|witness| HorismosError::ValidationRejected { witness })?;
         let old = self.instances.get(&subject.iri()).cloned();
@@ -660,15 +761,26 @@ impl World {
             &[(property, value.clone())],
             provenance,
         );
-        // A retracted rule-derived fact would leave a dangling explanation;
-        // the standing-value check in `explain` already refuses it, and the
-        // record itself goes with the fact.
-        if self
-            .derivations
-            .get(&(subject.iri(), property))
-            .is_some_and(|d| &d.value == value)
-        {
-            self.derivations.remove(&(subject.iri(), property));
+
+        // Truth maintenance (doc 03 § Truth maintenance): the retracted fact
+        // may have been the sole support for any number of standing
+        // derivations, directly or several rules removed (chained support).
+        // Reset every rule-derived value and re-chain to this transaction's
+        // correct fixed point, exactly as `assert_instance_as` does.
+        self.retract_all_derived();
+        let ontology = self.ontology.clone();
+        let mut matcher = self.matcher_kind.build(self, ontology.rules());
+        match forward::chain(self, matcher.as_mut()) {
+            Ok(record) => self.last_reasoning = Some(record),
+            Err(err) => {
+                self.instances = checkpoint_instances;
+                self.fact_meta = checkpoint_meta;
+                self.derivations = checkpoint_derivations;
+                if self.interner.len() > interner_len_before {
+                    Arc::make_mut(&mut self.interner).truncate_to(interner_len_before);
+                }
+                return Err(err);
+            }
         }
         Ok(())
     }

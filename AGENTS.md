@@ -41,6 +41,18 @@ proof → NL). Delete the LLM and the framework still runs.
   machine-readable structure.
 - **The validation gate has no back door**: every World mutation passes it,
   regardless of provenance (perception | rule | tool | api).
+- **Truth maintenance**: derived facts are recomputed, never left stale — every
+  external transaction (`assert_`, replace, `retract`) resets all standing
+  derivations and re-chains to the fixed point of the resulting base facts, even
+  through chained (derived-from-derived) support. A world built through the public
+  API is therefore *always* at its fixed point — there is no way to construct one
+  where a rule's conditions hold but its conclusion doesn't also stand. This
+  means the old "derive a fact, then manually retract it with `Provenance::Rule`"
+  trick for building an open goal to test `prove`/backward chaining no longer works
+  (retraction re-derives it right back); use a higher-priority "spoiler" rule for
+  the same property instead (see `reason/backward.rs`'s `spoiled_world` for the
+  pattern). Spec: `docs/framework/03-world.md` § Truth maintenance; decision
+  record: `PRPs/PRP-002-reasoning-substrate/03-decisions.md`.
 
 ## Commands
 
