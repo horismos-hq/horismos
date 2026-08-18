@@ -83,7 +83,7 @@ Pinned at activation; sharpened 2026-08-18 per the independent plan review
 
 ## Units of work
 
-- [ ] U1. **Native handles: `Ontology` across the boundary.** `_horismos`
+- [x] U1. **Native handles: `Ontology` across the boundary.** `_horismos`
       exposes an ontology handle: `load(path, imports)` (core `load` +
       `with_import`, whole call one crossing), `namespaces`, `ref`,
       rule introspection (IRI, priority, explain). (`version`/`hash` were
@@ -93,7 +93,7 @@ Pinned at activation; sharpened 2026-08-18 per the independent plan review
       `examples/triage/triage.ttl` + SNOMED import, sees the `triage`
       prefix, `ref("triage:Immediate")` round-trips, and a malformed TTL
       path raises (mapped in U2).
-- [ ] U2. **The `HorismosError` hierarchy.** Exception types per doc 11
+- [x] U2. **The `HorismosError` hierarchy.** Exception types per doc 11
       § Errors defined in the native module, raised from every fallible
       binding; `str(exc)` == `domain_text()`, witness fields
       (`constraint`, `subject`, `property`, `value`, `provenance`,
@@ -103,7 +103,7 @@ Pinned at activation; sharpened 2026-08-18 per the independent plan review
       Example 2's exact message for `heart_rate=1280` and the RulesOnly
       rejection, and asserts `except HorismosValidationError` catches as
       `HorismosError` too.
-- [ ] U3. **`World` mutations: whole-transaction `assert_` / `retract`.**
+- [x] U3. **`World` mutations: whole-transaction `assert_` / `retract`.**
       World handle over core: `assert_` (class + properties in one crossing
       → `Ref` out; gate + chaining inside core), `retract`. Value
       marshaling both directions for the full `Value` enum (int, decimal,
@@ -112,32 +112,32 @@ Pinned at activation; sharpened 2026-08-18 per the independent plan review
       the transaction), a rejected assert leaves the world unchanged
       (atomicity observable from Python), retraction of a derived fact
       raises with the PRP-002 ruling's message.
-- [ ] U4. **Read surface + proofs.** `instances(class)` (subsumption-aware),
+- [x] U4. **Read surface + proofs.** `instances(class)` (subsumption-aware),
       `value`/`values`, `explain(subject, prop)`, `prove(subject, prop,
       value)`, proof trees as Python objects with `.render()` passing
       through the Rust rendering. Test target: `test_reasoning.py` pins
       Example 1's rendered r1 proof byte-identically to
       `crates/horismos-core/tests/reasoning_dod.rs`' expectation, and
       `prove` returns `None` for an unprovable goal.
-- [ ] U5. **Snapshots.** `snapshot()` / `World.from_snapshot()` / `diff()`
+- [x] U5. **Snapshots.** `snapshot()` / `World.from_snapshot()` / `diff()`
       + `to_bytes`/`from_bytes` (bytes cross whole). Test target:
       `test_snapshots.py` — mutate-after-snapshot diff shows exactly the
       added facts; a corrupted byte-string raises the snapshot-format error;
       restoring under a different ontology raises the mismatch error.
-- [ ] U6. **Typed instance construction per D1** — both prototypes live in
+- [x] U6. **Typed instance construction per D1** — both prototypes live in
       the D1 spike, the winner ships (the loser's prototype stays in
       `03-decision-instances.md` as evidence, not in the package). Test
       target: `test_instances.py` — the quickstart spelling constructs the
       same world state as the raw U3 form, snake_case↔camelCase mapping
       pinned (`heart_rate` ↔ `heartRate`), unknown property/class fails
       with a domain-term error.
-- [ ] U7. **Query surface per D2.** Whatever D2 picks, the evaluator is a
+- [x] U7. **Query surface per D2.** Whatever D2 picks, the evaluator is a
       named `horismos-core::world` unit (B6) with its own Rust tests;
       results cross as Python objects, whole outcome in one crossing. Test
       target: `test_query.py` — "patients whose acuity is Immediate"
       returns exactly the asserted patient; unknown terms are domain-term
       errors, not empty results — plus the core unit's own Rust test.
-- [ ] U8. **Subscriptions (per B2) + GIL policy (D3).** `subscribe(pattern,
+- [x] U8. **Subscriptions (per B2) + GIL policy (D3).** `subscribe(pattern,
       callback)` as B2 scopes it: pure-Python registration + post-commit
       dispatch over the core-computed transaction diff (callbacks fire
       after commit, never mid-chaining; a mutation from a callback is a
@@ -147,14 +147,14 @@ Pinned at activation; sharpened 2026-08-18 per the independent plan review
       callback fires once per matching commit with the bound subject, not
       at all on a rejected transaction; a chaining call started in one
       thread does not block a second Python thread (release observable).
-- [ ] U9. **Stubs, strictness, property tests.** `_horismos.pyi` + public
+- [x] U9. **Stubs, strictness, property tests.** `_horismos.pyi` + public
       package stubs complete; `mypy --strict` green over `python/`;
       Hypothesis suites: gate atomicity from Python (any rejected payload
       leaves state byte-identical — snapshot-diff empty), determinism (two
       identically built worlds render identical proofs / snapshots
       byte-identically), value round-trip (marshal in → read back equal).
       Test target: `make lint` + `test_properties.py`.
-- [ ] U10. **Wheel + CI matrix config + the DoD run.** `maturin build`
+- [x] U10. **Wheel + CI matrix config + the DoD run.** `maturin build`
       wheel installs into a fresh venv; `.github/workflows` matrix config
       (Linux/macOS/Windows × 3.11–3.14) checked in with a dated deferral
       note (full-matrix proof → PRP-006); `test_quickstart.py` runs
@@ -162,6 +162,20 @@ Pinned at activation; sharpened 2026-08-18 per the independent plan review
       kept in sync by the test itself). pytest imports and exercises every
       public symbol (`test_public_surface.py` walks `horismos.__all__`).
       `make verify` green — the PRP's DoD.
+
+## Unit completion evidence (2026-08-18)
+
+All ten units complete on branch `fm/horismos-prp003-a1`; `make verify`
+green at every unit commit. 67 pytest cases + 5 Hypothesis properties;
+batch review (senior-reviewer) over U1–U5 returned "changes required" —
+every finding fixed in-branch (see the D3 amendment and the gap notes),
+including a reproduced GIL/mutex deadlock now pinned by a two-thread
+stress test. DoD wheel proof: `maturin build --release` →
+`pip install` into a fresh stdlib venv (ran on CPython 3.14 against the
+abi3-py311 wheel) → the doc-11 symbolic quickstart executed **verbatim**
+(extracted from the markdown) and printed the pinned r1 proof.
+`test_quickstart.py` keeps the doc-11 and Example-1 quickstarts executing
+verbatim in-suite.
 
 ## Gaps discovered during implementation
 
@@ -180,6 +194,12 @@ Pinned at activation; sharpened 2026-08-18 per the independent plan review
   `NotACurie`, `UndeclaredTerm`); the rest are authoring-time errors whose
   product is the prose. Full structured surfacing deferred until a
   programmatic consumer (the PRP-007 authoring loop) exists.
+- 2026-08-18 (U10, B5): the CI wheel matrix (Linux/macOS/Windows x
+  3.11-3.14) is checked in as configuration only
+  (`.github/workflows/wheels.yml`, manual trigger); matrix execution,
+  publication, and CI gating are PRP-006's - full-matrix proof deferred
+  there. Local proof: abi3 wheel built and quickstart-verified in a fresh
+  venv on CPython 3.14.
 - 2026-08-18 (D2 deferral): the textual SPARQL SELECT/ASK subset (FILTER,
   OPTIONAL, ORDER BY/LIMIT over basic graph patterns) is deferred beyond
   v1 — no v1 consumer needs a SPARQL string (evidence in
@@ -190,6 +210,14 @@ Pinned at activation; sharpened 2026-08-18 per the independent plan review
   support of ontology-derived names is deferred — no v1 unit ships it.
   Revisit when PRP-007's authoring tooling generates ontology artifacts;
   the decision record (`03-decision-instances.md`) carries the context.
+- 2026-08-18 (U9, found by Hypothesis): `xsd:decimal` is `rust_decimal`
+  in core — at most 28 decimal places — so a float whose shortest decimal
+  form needs more fractional digits is truncated at the boundary
+  (extremes below ~1e-28 quantize to zero). Inherited from core's
+  `Value::Decimal` representation (PRP-001), not a boundary defect; the
+  float round-trip property is pinned exact on ≥1e-10, where every f64
+  fits. If exactness at extreme scales ever matters, that is a core
+  representation question, not a bindings one.
 - 2026-08-18 (U3): `xsd:duration` values cross the boundary *outbound* as
   their lexical form (`"PT2H"` as `str`), not a dedicated handle — inbound
   strings parse through core for duration-ranged properties, so the
