@@ -83,3 +83,4 @@ def test_an_unknown_kwarg_property_is_a_domain_error_with_a_suggestion(
     assert "heart_rat" in str(e.value)
     assert e.value.suggestion is not None
     assert "heart_rate" in e.value.suggestion
+    assert e.value.data == {}  # the machine slot exists on every error (B3)

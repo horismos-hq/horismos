@@ -30,8 +30,9 @@ def _run_verbatim(blocks: list[str]) -> None:
     os.chdir(REPO)  # the quickstarts use repo-relative fixture paths
     try:
         namespace: dict[str, Any] = {}
+        out = io.StringIO()
         for block in blocks:
-            with contextlib.redirect_stdout(io.StringIO()) as out:
+            with contextlib.redirect_stdout(out):
                 exec(compile(block, "<quickstart>", "exec"), namespace)
         rendered = out.getvalue()
         assert "via r1" in rendered, "the quickstart prints the r1 proof"

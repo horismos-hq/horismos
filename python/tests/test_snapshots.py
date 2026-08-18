@@ -55,8 +55,9 @@ def test_the_wire_form_round_trips(onto: Ontology, world: World) -> None:
 
 
 def test_a_corrupted_wire_form_raises_the_format_error(onto: Ontology) -> None:
-    with pytest.raises(horismos.HorismosValidationError):
+    with pytest.raises(horismos.HorismosValidationError) as e:
         horismos.Snapshot.from_bytes(onto, b"not a snapshot")
+    assert e.value.constraint == "snapshot_format"
 
 
 def test_restoring_under_a_different_ontology_is_refused(onto: Ontology, world: World) -> None:

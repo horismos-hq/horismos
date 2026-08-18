@@ -56,7 +56,7 @@ print(world.explain(p, ":acuity").render())
 | `ns` | `NamespaceMap` | `onto.ns.triage.Patient` → IRI |
 | `schema_for` | `(class_or_step) -> dict` | The derived JSON Schema (doc 06) — inspectable |
 | `diff` | `(other) -> OntologyDiff` | Domain-term rendered diff |
-| `version` / `hash` | `str` | Deployment identity, stamped into traces |
+| `version` / `hash` | `str` | Deployment identity, stamped into traces — deferred (2026-08-18): no ontology-level version vocabulary exists to bind yet; PRP-004's trace stamping is the consumer (gap note in `PRPs/PRP-003-python-bindings/02-tasks-and-gaps.md`) |
 
 ## Typed instance construction
 
@@ -91,15 +91,15 @@ tooling generates ontology artifacts anyway.
 
 | Member | Signature | Notes |
 |--------|-----------|-------|
-| `assert_` | `(instance \| triple, *, provenance="api") -> Ref` | Full gate; atomic transaction incl. chaining |
-| `retract` | `(ref_or_triple)` | Policy-checked (doc 03) |
-| `instances` | `(cls) -> list[Ref]` | Subsumption-aware |
-| `value` / `values` | `(ref, prop)` | Single / multi-valued |
-| `query` | `(sparql: str) -> Rows` | The SELECT/ASK subset |
-| `prove` | `(goal, *, subject=None) -> ProofNode \| None` | Backward chaining |
-| `explain` | `(ref, prop) -> ProofNode` | Derivation of an existing fact |
+| `assert_` | `(class_, *, subject=None, **properties) -> Ref` | One crossing: full gate + chaining, atomic transaction |
+| `retract` | `(ref, property, value)` | Policy-checked (doc 03) |
+| `instances` | `(class_) -> list[Ref]` | Subsumption-aware |
+| `value` / `values` | `(ref, property)` | Single / multi-valued |
+| `query` | `(class_, **patterns) -> list[Ref]` | Class-scoped conjunctive patterns (doc 03 § Queries); a textual SPARQL front end is deferred beyond v1 (2026-08-18, `PRPs/PRP-003-python-bindings/03-decision-query.md`) |
+| `prove` | `(ref, property, value) -> ProofNode \| None` | Backward chaining |
+| `explain` | `(ref, property) -> ProofNode \| None` | Derivation of an existing fact |
 | `snapshot` / `from_snapshot` / `diff` | | Persistent snapshots |
-| `subscribe` | `(pattern, callback) -> Subscription` | Post-commit notification |
+| `subscribe` | `(property, callback, *, value=ANY) -> Subscription` | Post-commit dispatch over the committed diff; the runtime's transactional notification stage is PRP-004's |
 
 ## `Agent`
 

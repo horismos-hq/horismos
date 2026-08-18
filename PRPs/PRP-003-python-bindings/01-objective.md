@@ -1,6 +1,6 @@
 # PRP-003 — Python Bindings & API
 
-**Status**: **Active** (2026-08-18)
+**Status**: Done (2026-08-18)
 **Depends on**: PRP-001, PRP-002
 
 ## Intent

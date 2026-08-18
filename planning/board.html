@@ -121,20 +121,20 @@
   <section class="highlights" aria-label="Highlights">
     <div class="hl hl-now">
       <p class="hl-label">Now · Where we are</p>
-      <h3>PRP-002 Done — the symbolic engine is complete</h3>
+      <h3>PRP-003 Done — the Python front door is real</h3>
       <ul>
-        <li><strong>Deterministic reasoning substrate</strong>: typed rule model, 11 operators + combinators, subsumption-aware matching across <code>owl:sameAs</code>-anchored imports, forward chaining to fixed point (naive oracle + Rete-lite), backward <code>prove</code>, recorded <code>explain</code> proof trees rendered byte-identically.</li>
-        <li><strong>Traces are output, not logging</strong>: <code>horismos.trace/1</code> versioned traces — the audit log and the training corpus are the same object; trace equality is a test assertion.</li>
-        <li><strong>Every derived fact passes the same five-check gate</strong> (provenance <code>rule</code>); retraction rulings enforced — ~235 tests, <code>make verify</code> green, zero LLM (PR #4; record reconciled 2026-08-18).</li>
+        <li><strong><code>pip install</code> works</strong>: the abi3 wheel runs the symbolic triage quickstart verbatim in a fresh venv — <code>Ontology.load</code>, whole-transaction <code>assert_</code> (gate + chaining in one crossing, GIL released), pattern query, subscriptions, snapshots, proof trees byte-identical to the Rust rendering.</li>
+        <li><strong>Errors are the product</strong>: <code>str(exc)</code> is <code>domain_text()</code> ("heartRate 1280 exceeds horis:max 300 (bpm) on :Patient"); the structured attributes are the machine contract; stubs pass <code>mypy --strict</code>.</li>
+        <li><strong>Decisions on evidence</strong>: dict-like construction beat generated proxies against the quickstart; textual SPARQL deferred behind core's pattern query; Hypothesis pins atomicity/determinism/round-trip — 69 pytest + ~248 Rust tests, <code>make verify</code> green.</li>
       </ul>
     </div>
     <div class="hl hl-next">
       <p class="hl-label">Next · The immediate goal</p>
-      <h3>PRP-003 Active — the Pythonic front door</h3>
+      <h3>PRP-004 — the agent loop (PRP-005 startable in parallel)</h3>
       <ul>
-        <li><strong><code>pip install horismos</code></strong>: <code>Ontology</code>/<code>World</code>/proof handles via PyO3 (abi3, maturin), whole-transaction marshaling, <code>HorismosError</code> hierarchy carrying <code>domain_text()</code>.</li>
-        <li><strong>Open decisions</strong>: proxy classes vs dict-like instances (prototype both), minimal query surface, GIL release around chaining — <code>PRP-003-python-bindings/02-tasks-and-gaps.md</code>.</li>
-        <li><strong>Human side quests</strong>: register <code>horismos.dev</code>; file the <code>w3id.org/horismos</code> PR; reserve registry names; merge PR #3 (PRP-002 folder record).</li>
+        <li><strong>Runtime track</strong>: workflow engine, perception/narration boundaries, tools contract, Bridge implementations; inherits the pinned 003/004 subscription split and the <code>Ontology.version</code> deferral (trace stamping is its consumer).</li>
+        <li><strong>Open captain hold</strong>: derived-fact truth maintenance (plan review, finding 2) — held above the PRPs; 003 binds current behavior without endorsing it.</li>
+        <li><strong>Human side quests</strong>: register <code>horismos.dev</code>; file the <code>w3id.org/horismos</code> PR; reserve registry names; merge PR #3; decide the truth-maintenance hold.</li>
       </ul>
     </div>
     <div class="hl hl-end">
@@ -186,11 +186,11 @@
             <td>PRP-005 · Guarantees &amp; verification<span class="why">BDD checks + domain-term witnesses — needs only 001+002</span></td>
             <td><span class="chip chip-draft">Draft</span></td></tr>
         <tr><td class="track-cell">Surface</td>
-            <td>PRP-003 · Python bindings<span class="why"><code>pip install horismos</code> — the Pythonic front door</span></td>
-            <td><span class="chip chip-next">Active · 2026-08-18</span></td></tr>
+            <td>PRP-003 · Python bindings<span class="why"><code>pip install horismos</code> — the Pythonic front door — U1–U10 shipped</span></td>
+            <td><span class="chip chip-done">Done · 2026-08-18</span></td></tr>
         <tr><td class="track-cell">Runtime</td>
             <td>PRP-004 · Agent loop<span class="why">Workflow engine, perception/narration boundaries, tools, Bridge</span></td>
-            <td><span class="chip chip-draft">Draft</span></td></tr>
+            <td><span class="chip chip-next">Next up</span></td></tr>
         <tr><td class="track-cell">Ship &amp; Author</td>
             <td>PRP-006 · Packaging &amp; docs<span class="why">crates.io + PyPI + docs site + zero-key CI gates</span></td>
             <td><span class="chip chip-draft">Draft</span></td></tr>

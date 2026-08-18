@@ -261,4 +261,5 @@ def _naming_error(text: str, suggestion: str | None = None) -> Exception:
     err = _horismos.HorismosOntologyError(text)
     err.domain_text = text
     err.suggestion = suggestion
+    err.data = {}  # every Horismos error carries the machine slot (B3)
     return err

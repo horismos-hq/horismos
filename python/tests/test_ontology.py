@@ -14,7 +14,8 @@ def test_load_with_imports_sees_the_triage_prefix(onto: Ontology) -> None:
     assert onto.namespaces["sct"] == "http://snomed.info/id/"
 
 
-def test_load_accepts_path_objects_and_strings() -> None:
+def test_load_accepts_string_paths() -> None:
+    # Path objects are covered by the session fixture (conftest passes Paths).
     a = Ontology.load(str(TRIAGE), imports=[str(SNOMED)])
     assert a.namespaces[""] == "https://example.org/triage#"
 
@@ -46,6 +47,25 @@ def test_rules_are_introspectable(onto: Ontology) -> None:
     (r1,) = rules
     assert r1.priority == 10
     assert r1.explain == "Tachycardia with chest pain — immediate track"
+
+
+def test_compact_inverts_expand(onto: Ontology) -> None:
+    assert onto.expand(":Patient") == "https://example.org/triage#Patient"
+    assert onto.compact("https://example.org/triage#Patient") == ":Patient"
+
+
+def test_the_introspection_tables_cover_the_declared_schema(onto: Ontology) -> None:
+    props = {local: (iri, is_object) for iri, local, is_object, _ in onto._handle.property_table()}
+    assert props["heartRate"] == ("https://example.org/triage#heartRate", False)
+    assert props["hasSymptom"] == ("https://example.org/triage#hasSymptom", True)
+
+    classes = {local: one_of for _, local, one_of in onto._handle.class_table()}
+    assert "Patient" in classes
+    assert classes["AcuityLevel"] == [
+        "https://example.org/triage#Immediate",
+        "https://example.org/triage#Urgent",
+        "https://example.org/triage#Standard",
+    ]
 
 
 def test_verify_is_a_stub_until_prp_005(onto: Ontology) -> None:

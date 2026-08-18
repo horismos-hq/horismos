@@ -90,8 +90,9 @@ Pinned at activation; sharpened 2026-08-18 per the independent plan review
       in this unit's first cut — deferred 2026-08-18, see the dated gap
       note: no ontology-level version vocabulary exists to bind.)
       Test target: `python/tests/test_ontology.py` loads
-      `examples/triage/triage.ttl` + SNOMED import, sees the `triage`
-      prefix, `ref("triage:Immediate")` round-trips, and a malformed TTL
+      `examples/triage/triage.ttl` + SNOMED import, sees the fixture's
+      declared prefixes (the empty prefix `:` and `sct`),
+      `ref(":Immediate")` round-trips, and a malformed TTL
       path raises (mapped in U2).
 - [x] U2. **The `HorismosError` hierarchy.** Exception types per doc 11
       § Errors defined in the native module, raised from every fallible
@@ -166,7 +167,8 @@ Pinned at activation; sharpened 2026-08-18 per the independent plan review
 ## Unit completion evidence (2026-08-18)
 
 All ten units complete on branch `fm/horismos-prp003-a1`; `make verify`
-green at every unit commit. 67 pytest cases + 5 Hypothesis properties;
+green at every unit commit. 69 pytest cases in total, 5 of them
+Hypothesis properties (finishing commit; 67 before its two added tests);
 batch review (senior-reviewer) over U1–U5 returned "changes required" —
 every finding fixed in-branch (see the D3 amendment and the gap notes),
 including a reproduced GIL/mutex deadlock now pinned by a two-thread
@@ -236,3 +238,9 @@ verbatim in-suite.
   `[DECIDE]`-owning PRP for the ruling is assigned by the captain, not
   here. Tests that pin the merged retraction gate (a derived fact cannot
   be api-retracted) remain — that rule survives either resolution.
+- 2026-08-18 (final review, carried to PRP-004): the GIL-safe lock acquire
+  (`crates/horismos-py/src/world.rs::lock`, try_lock + detached-yield) is
+  a busy spin — deadlock-free and correct, but a contended waiter burns a
+  core. Fine while Python-side concurrency is a test scenario; revisit
+  with a real wait primitive when PRP-004's runtime makes multi-threaded
+  worlds a primary path.
