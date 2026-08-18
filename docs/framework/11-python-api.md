@@ -23,6 +23,29 @@ print(result.decision)          # triage:Immediate
 print(result.proof.render())
 ```
 
+## Quickstart (symbolic — structured input, no LLM)
+
+The engine beneath the agent, exercised directly (PRP-003's shipped
+surface; this snippet runs verbatim against `examples/triage/`, and the
+test suite holds it to that):
+
+```python
+from horismos import Ontology, World
+
+onto = Ontology.load("examples/triage/triage.ttl",
+                     imports=["examples/triage/snomed-ct-subset.ttl"])
+assert onto.verify().ok            # stub until PRP-005: load-time checks only
+assert onto.namespaces[""] == "https://example.org/triage#"   # the : prefix
+
+world = World(onto)
+p = world.assert_(":Patient",
+                  heart_rate=128,
+                  has_symptom=[":CrushingChestPain"])
+
+assert world.value(p, ":acuity") == onto.ref(":Immediate")   # derived by :r1
+print(world.explain(p, ":acuity").render())
+```
+
 ## `Ontology`
 
 | Member | Signature | Notes |
@@ -35,20 +58,34 @@ print(result.proof.render())
 | `diff` | `(other) -> OntologyDiff` | Domain-term rendered diff |
 | `version` / `hash` | `str` | Deployment identity, stamped into traces |
 
-## Typed instance proxies
+## Typed instance construction
 
-Loading an ontology generates proxy classes (also available dynamically):
+Instances are constructed in the ontology's own vocabulary — the class as
+the CURIE it was authored as, properties as `snake_case` keywords (the
+snake_case ↔ ontology camelCase mapping is automatic and stable; list
+values fan out over a multi-valued property):
 
 ```python
-from horismos import proxies
-T = proxies(onto)                       # namespace object
-p = T.Patient(heart_rate=128, systolic=92, diastolic=60,
-              symptoms=[T.CrushingChestPain, T.Diaphoresis])
+p = world.assert_(":Patient", heart_rate=128,
+                  has_symptom=[":CrushingChestPain"])
 ```
 
-Property names snake_case ↔ ontology camelCase mapping is automatic and stable.
-Proxies are *builders*: nothing exists until `world.assert_(p)` passes the gate.
-**[DECIDE: codegen for IDE/mypy support (`horismos stubgen triage.ttl`) — PRP-003]**
+One vocabulary end to end: these are the same CURIEs the author wrote in
+the Turtle and the same rendering every domain-term error and proof tree
+prints. A misspelled keyword fails on the one boundary crossing with a
+domain-term error and a fix suggestion (`no property named "heart_rat" is
+declared by the ontology` · `did you mean 'heart_rate'?`); a name two
+namespaces share must be written as a CURIE.
+
+Generated proxy classes (`T.Patient(...)`) were prototyped against this
+exact quickstart and deliberately not shipped: imported vocabularies flood
+the proxy namespace (the SNOMED subset alone contributes ~50 numeric
+locals, which are not even legal Python attribute names), and a second
+Python-side naming system would diverge from what errors and proofs
+render. Decision record and evidence:
+`PRPs/PRP-003-python-bindings/03-decision-instances.md` (2026-08-18) —
+revisit alongside `horismos stubgen` codegen when PRP-007's authoring
+tooling generates ontology artifacts anyway.
 
 ## `World`
 

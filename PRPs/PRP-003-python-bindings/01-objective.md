@@ -257,11 +257,14 @@ world.assert_(":Patient", acuity=":Immediate")
 # provenance api may not assert it
 ```
 
-### Example 3 — the two D1 candidate spellings (not yet decided)
+### Example 3 — the two D1 candidate spellings (decided 2026-08-18: B ships)
 
 Both construct the *same* (class, properties) payload and cross the boundary
-identically; the gate cannot tell them apart. Neither is shipped semantics
-until D1 is resolved.
+identically; the gate cannot tell them apart. Both were prototyped against
+this quickstart; **candidate B is the shipped spelling** — the SNOMED import
+floods A's namespace with numeric locals, and B keeps one vocabulary across
+Turtle, errors, proofs, and code (`03-decision-instances.md` has the
+evidence; A's prototype is preserved there).
 
 ```python
 # Candidate A — generated proxy namespace (doc 11's lean):

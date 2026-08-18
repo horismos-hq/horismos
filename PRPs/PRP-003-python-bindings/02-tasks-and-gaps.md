@@ -45,14 +45,19 @@ Pinned at activation; sharpened 2026-08-18 per the independent plan review
 
 ## Decisions to resolve (before implementation)
 
-- [ ] D1. **Generated proxy classes vs. dict-like generic instances** (owns
-      doc 11's `[DECIDE: codegen for IDE/mypy support (horismos stubgen)]`).
-      Prototype both spellings against the triage quickstart (Example 3 of
-      `01-objective.md`); criterion: ergonomics of the quickstart a newcomer
-      types first. Blocks U6. Recorded here + `03-decision-instances.md`
-      (evidence: both prototypes runnable), and doc 11's marker struck in the
-      same commit. If the prototypes leave it a genuine coin-flip, escalate
-      rather than coin-flip.
+- [x] D1. **Generated proxy classes vs. dict-like generic instances**
+      (decided 2026-08-18): the **dict-like generic form ships** — CURIE
+      class term + snake_case keyword properties; generated proxies are
+      deliberately not shipped in v1. Both candidates were prototyped and
+      run against the triage quickstart; the decider on the stated
+      criterion (quickstart ergonomics) was that imported vocabularies
+      flood the proxy namespace (~50 numeric SNOMED locals, not legal
+      Python attribute names), while the generic form keeps one vocabulary
+      end to end (Turtle = errors = proofs = code). Not a coin-flip; no
+      escalation. Evidence + preserved prototype:
+      `03-decision-instances.md`. Doc 11's stubgen marker struck in the
+      same commit (§ Typed instance construction rewritten in shipped
+      voice); stubgen codegen deferred with a dated gap note below.
 - [ ] D2. **Query surface: SPARQL subset vs. Pythonic builder** (owns doc
       03's `[DECIDE: exact subset grammar]`). Ship the minimal surface
       Example 1 needs; everything further is an **explicit deferral** in
@@ -151,6 +156,15 @@ Pinned at activation; sharpened 2026-08-18 per the independent plan review
 
 (append dated notes here; scope changes go back into `01-objective.md` by explicit edit)
 
+- 2026-08-18 (D1 deferral): `horismos stubgen` codegen for IDE/mypy
+  support of ontology-derived names is deferred — no v1 unit ships it.
+  Revisit when PRP-007's authoring tooling generates ontology artifacts;
+  the decision record (`03-decision-instances.md`) carries the context.
+- 2026-08-18 (U3): `xsd:duration` values cross the boundary *outbound* as
+  their lexical form (`"PT2H"` as `str`), not a dedicated handle — inbound
+  strings parse through core for duration-ranged properties, so the
+  round-trip is lossless but type-asymmetric. A dedicated wrapper type is
+  deferred until something needs arithmetic on it.
 - **2026-08-18 — OPEN CAPTAIN HOLD: truth maintenance for derived facts.**
   The independent plan review (top finding 2) confirmed PRP-002 shipped no
   invalidation of derived facts when their supporting base facts are later
