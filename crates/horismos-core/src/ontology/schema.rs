@@ -245,6 +245,40 @@ impl Schema {
         self.same_as.get(&iri).copied().unwrap_or(iri)
     }
 
+    /// `iri`'s `owl:sameAs` canonical representative — public face of the
+    /// equivalence map (PRP-002 D-7), for *individual* identity questions
+    /// ("is `:Immediate` the same individual as its anchored twin?") where
+    /// no class declaration is involved. Returns `iri` itself when it never
+    /// appeared in a `sameAs` triple.
+    pub fn canonical_iri(&self, iri: Iri) -> Iri {
+        self.canonical(iri)
+    }
+
+    /// The *declared* class `iri` names, looked up `owl:sameAs`-canonically
+    /// (PRP-002 D-7): an exact declaration wins; otherwise any member of
+    /// `iri`'s `sameAs` equivalence class that *is* declared answers for it,
+    /// lowest-token member first (deterministic — `BTreeMap` order). `None`
+    /// when neither `iri` nor any of its twins is a declared class.
+    ///
+    /// This is how an anchored external IRI (`sct:29857009`) becomes
+    /// first-class wherever its local twin (`:ChestPain`) is: rule
+    /// conditions, gate range/oneOf checks, and reasoner class positions all
+    /// resolve through here rather than through exact-IRI [`Schema::class`].
+    pub fn class_declared(&self, iri: Iri) -> Option<Iri> {
+        if self.classes.contains_key(&iri) {
+            return Some(iri);
+        }
+        let canonical = self.canonical(iri);
+        if self.classes.contains_key(&canonical) {
+            return Some(canonical);
+        }
+        self.same_as
+            .iter()
+            .filter(|&(_, &c)| c == canonical)
+            .map(|(&member, _)| member)
+            .find(|member| self.classes.contains_key(member))
+    }
+
     /// Builds a [`Schema`] from `document`. Callers are expected to have
     /// already run [`crate::ontology::profile::validate`] — an
     /// out-of-profile document (a bad datatype in `rdfs:range`, say) simply
@@ -679,10 +713,13 @@ fn walk_rdf_list(
     interner: &Interner,
 ) -> Vec<Iri> {
     let mut out = Vec::new();
+    let mut visited = BTreeSet::new();
     let mut cursor = head;
     loop {
         let cell = node_iri(cursor);
-        if interner.resolve(cell) == RDF_NIL {
+        // The visited check keeps a hand-authored cyclic list
+        // (`_:l rdf:rest _:l`) from hanging the load (PRP-002 review).
+        if interner.resolve(cell) == RDF_NIL || !visited.insert(cell) {
             break;
         }
         match first.get(&cell) {

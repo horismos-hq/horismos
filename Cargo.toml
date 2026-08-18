@@ -21,6 +21,10 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 async-trait = "0.1"
 proptest = "1"
+# Matching benchmarks (PRP-002 U8, decision D-1: naive vs Rete-lite is
+# data-driven — doc 14 "Benchmarks (criterion) are CI-tracked from PRP-002
+# onward"). Dev-dependency only; never in the library dependency tree.
+criterion = "0.7"
 # no "clock" feature: horis:now is transaction-stamped, never wall-clock
 # (CLAUDE.md determinism rule) — keeping "clock" out of the dependency
 # closure makes that a compile-time guarantee, not just a convention.

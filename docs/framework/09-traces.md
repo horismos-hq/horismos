@@ -94,7 +94,7 @@ run2 = replay(trace, ontology_dir="…")
 ```python
 from horismos.export import to_training_jsonl
 to_training_jsonl(traces, out="corpus.jsonl",
-                  format="tagged",          # <perceive>/<observe>-style tags [DECIDE: exact tag set — PRP-002]
+                  format="tagged",          # <perceive>/<reason>/<act>/<narrate>, executor output in <observe> (decided, PRP-002 — trace::migrate::EXPORT_TAGS)
                   min_outcome={"workflow_completed": True})
 ```
 

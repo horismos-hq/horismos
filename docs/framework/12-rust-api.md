@@ -31,7 +31,7 @@ println!("{}", outcome.proof().render());
 |------|------|-------|
 | `Ontology` | Immutable, loaded+verified schema/rules/workflows | Cheap to clone (`Arc` internals) |
 | `World` | Mutable instance store | `&mut` for transactions; `Snapshot` is an immutable value |
-| `Reasoner` | Usually internal; public for direct symbolic use | `reasoner.prove(&world, goal)` |
+| `reason` (module) | Deterministic inference; driven through `World` | `world.prove(subject, prop, &value)`, `world.explain(subject, prop)` |
 | `Agent` | Workflow interpreter | Built per-(ontology, bindings); `run` borrows a `World` |
 | `Trace` | The trajectory | `serde` to/from `horismos.trace/1` |
 | `Iri`, `Ref`, `Value` | Interned identifiers and typed values | `Value` mirrors the XSD subset + IRIs |

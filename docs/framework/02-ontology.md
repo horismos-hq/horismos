@@ -78,10 +78,10 @@ decides": the validation gate rejects any perception output that tries to set it
 | `horis:assignedBy` | property | `horis:RulesOnly` \| `horis:PerceptionAllowed` (default) \| `horis:ToolsOnly` |
 | `horis:immutable` | property | Once set, cannot be re-asserted with a different value |
 
-`horis:immutable` binds assertion. Whether it also binds **retraction** — today
-`world.retract` does not consult it, so retract-then-assert replaces an immutable
-value in two steps — is open: **[DECIDE: retraction vs `horis:immutable` — PRP-002]**,
-which owns retraction semantics (doc 03).
+`horis:immutable` binds assertion **and retraction** (decided, PRP-002): once set,
+an immutable fact can be neither re-asserted with a different value nor retracted —
+the two-step retract-then-assert bypass is closed at the gate, from every
+provenance.
 
 Constraints are enforced at two moments: at the **gate** (every assertion, doc 03) and
 at **verification** (they bound the BDD variable domains, doc 10).
@@ -110,7 +110,9 @@ Two semantics notes (full detail in doc 04):
 - `horis:is :ChestPain` matches **any subclass** via subsumption — that is the point
   of having an ontology.
 - Conditions over unassigned properties are false (`horis:isNot` true) — Horismos's
-  pragmatic closed-world stance, inherited and re-validated **[DECIDE: PRP-002]**.
+  pragmatic closed-world stance, inherited from sigil-lang and re-validated for the
+  graph world (decided, PRP-002): `isNot` is the ∀ negation of `is`, including over
+  multi-valued properties (doc 04's table).
 
 ## Workflow vocabulary
 

@@ -50,6 +50,9 @@ pub use snapshot::{Diff, Fact, Snapshot};
 use crate::error::HorismosError;
 use crate::ontology::Ontology;
 use crate::ontology::term::{Interner, Iri, Ref, Value};
+use crate::reason::forward::{self, ReasoningRecord};
+use crate::reason::matcher::MatcherKind;
+use crate::reason::proof::ProofNode;
 
 /// The namespace anonymous instances are skolemized into: RDF 1.1's
 /// well-known `genid` space, under the `horis:` authority. Ids come from a
@@ -72,7 +75,14 @@ pub(crate) const SKOLEM_NAMESPACE: &str = "https://w3id.org/horismos/.well-known
 /// [`World::retract`]) state [`Provenance::Api`] — a direct API call is
 /// exactly what they are; the `_as` forms take it explicitly, and are what
 /// the perception, rule, and tool paths will call.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+///
+/// Serialization: JSON forms (traces, doc 09) write the doc-03 lowercase
+/// name (`"perception" | "rule" | "tool" | "api"`). The postcard snapshot
+/// wire form (v2) instead encodes the **variant index** — variant order is
+/// part of that wire contract, so reordering variants is a snapshot-format
+/// break (bump `SNAPSHOT_VERSION`), not a refactor.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "lowercase")]
 pub enum Provenance {
     /// A transducer's typed output (doc 06). Never trusted with
     /// `horis:RulesOnly` properties.
@@ -161,6 +171,35 @@ pub struct World {
     instances: OrdMap<Iri, Instance>,
     /// The next skolem id. Advances only on a committed anonymous assertion.
     next_skolem: u64,
+    /// Per-fact provenance (PRP-002 U4, adopting PRP-001's "stored fact
+    /// provenance" gap for the in-memory world): subject → property → one
+    /// [`Provenance`] per stored value, positionally parallel to the
+    /// instance's value [`Vector`]. Proof-tree leaves read it ("asserted by
+    /// perception" — doc 04's visible neuro-symbolic seam). Deliberately
+    /// NOT part of the snapshot wire form yet — that half of the gap stays
+    /// recorded (see the ledger's gap notes).
+    fact_meta: OrdMap<Iri, OrdMap<Iri, Vector<Provenance>>>,
+    /// (subject, property) → the recorded derivation of the standing
+    /// rule-derived value (PRP-002 U4/U5): what `World::explain` replays.
+    /// Base facts have no entry here.
+    derivations: OrdMap<(Iri, Iri), Derivation>,
+    /// The most recent transaction's chaining record — the reasoning-step
+    /// payload traces consume (doc 09). `None` before the first assertion.
+    last_reasoning: Option<ReasoningRecord>,
+    /// The matching strategy chaining uses (PRP-002 Key decision 1's
+    /// benchmark fixes the default; see [`MatcherKind`]). A pure
+    /// performance choice — both strategies produce byte-identical records,
+    /// and the differential tests pin that.
+    matcher_kind: MatcherKind,
+}
+
+/// The recorded derivation of one standing rule-derived fact.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Derivation {
+    pub value: Value,
+    /// The rule that concluded it — named by the D-5 retraction refusal.
+    pub rule: Iri,
+    pub proof: ProofNode,
 }
 
 impl World {
@@ -171,7 +210,18 @@ impl World {
             interner: Arc::new(ontology.interner().clone()),
             instances: OrdMap::new(),
             next_skolem: 0,
+            fact_meta: OrdMap::new(),
+            derivations: OrdMap::new(),
+            last_reasoning: None,
+            matcher_kind: MatcherKind::default(),
         }
+    }
+
+    /// Selects the matching strategy for this world's chaining
+    /// ([`MatcherKind`]) — the D-1 escape valve and the differential tests'
+    /// lever. Semantics are identical either way; only cost differs.
+    pub fn use_matcher(&mut self, kind: MatcherKind) {
+        self.matcher_kind = kind;
     }
 
     /// The ontology this world is bound to.
@@ -299,6 +349,14 @@ impl World {
         properties: impl IntoIterator<Item = (Iri, Value)>,
     ) -> Result<Ref, HorismosError> {
         let properties: Vec<(Iri, Value)> = properties.into_iter().collect();
+        // The transaction checkpoint (all O(1) — persistent maps + counters):
+        // the iteration-cap tripwire below must roll the WHOLE transaction
+        // back, base facts included, so a caller never observes a
+        // half-chained world (doc 03 § Transactions).
+        let checkpoint_instances = self.instances.clone();
+        let checkpoint_meta = self.fact_meta.clone();
+        let checkpoint_derivations = self.derivations.clone();
+        let checkpoint_skolem = self.next_skolem;
         // The gate needs a token for the candidate subject, so an anonymous
         // assertion interns its skolem IRI *before* the checks run — and
         // must un-intern it on rejection: token order is observable through
@@ -328,15 +386,177 @@ impl World {
             }
         };
 
-        // Commit. Forward chaining to a fixed point, constraint re-check on
-        // derived facts, subscriber notification, and the trace append (doc
-        // 03 § Transactions) slot in here, between the gate and the return —
-        // PRP-002/004.
+        // Commit the base facts.
+        let old = self.instances.get(&subject_iri).cloned();
         self.instances.insert(subject_iri, instance);
+        self.update_fact_meta(subject_iri, old.as_ref(), &properties, provenance);
         if matches!(subject, gate::Subject::Skolem(_)) {
             self.next_skolem += 1;
         }
+
+        // Forward chain to the fixed point (PRP-002 U4, doc 03's transaction
+        // stage between gate and commit-visibility). Every conclusion passes
+        // the same gate with Provenance::Rule; a refused conclusion is a
+        // recorded diagnostic, not a rollback — but the iteration-cap
+        // tripwire rolls the whole transaction back. Subscriber notification
+        // and the runtime trace append remain PRP-004's slots.
+        let ontology = self.ontology.clone();
+        let mut matcher = self.matcher_kind.build(self, ontology.rules());
+        match forward::chain(self, matcher.as_mut()) {
+            Ok(record) => self.last_reasoning = Some(record),
+            Err(err) => {
+                self.instances = checkpoint_instances;
+                self.fact_meta = checkpoint_meta;
+                self.derivations = checkpoint_derivations;
+                self.next_skolem = checkpoint_skolem;
+                if self.interner.len() > interner_len_before {
+                    Arc::make_mut(&mut self.interner).truncate_to(interner_len_before);
+                }
+                return Err(err);
+            }
+        }
         Ok(Ref::new(subject_iri))
+    }
+
+    // -- The reasoner's write path (PRP-002 U4) -----------------------------
+
+    /// Asserts one rule conclusion on an *existing* instance through the
+    /// full five-check gate with [`Provenance::Rule`] — the reasoner's only
+    /// write path; there is no back door. Does NOT re-enter chaining (the
+    /// caller *is* the chaining loop).
+    pub(crate) fn apply_rule_conclusion(
+        &mut self,
+        subject: Ref,
+        property: Iri,
+        value: Value,
+    ) -> Result<(), Box<gate::Witness>> {
+        let class = self
+            .instance(subject)
+            .map(Instance::class)
+            .expect("chaining only ever matches instances the world holds");
+        // A skolem-space subject is the world's own anonymous instance — tag
+        // it as such so check 1's caller-may-not-squat rule (which exists to
+        // keep *callers* out) does not refuse the world's own conclusion.
+        let kind = if self.resolve(subject.iri()).starts_with(SKOLEM_NAMESPACE) {
+            gate::Subject::Skolem(subject.iri())
+        } else {
+            gate::Subject::Named(subject.iri())
+        };
+        let properties = vec![(property, value)];
+        let instance = gate::check_assertion(self, Provenance::Rule, kind, class, &properties)?;
+        let old = self.instances.get(&subject.iri()).cloned();
+        self.instances.insert(subject.iri(), instance);
+        self.update_fact_meta(subject.iri(), old.as_ref(), &properties, Provenance::Rule);
+        Ok(())
+    }
+
+    /// Records the derivation behind a standing rule-derived fact — what
+    /// [`World::explain`] replays. A later derivation for the same
+    /// (subject, property) replaces the record, mirroring the value it
+    /// explains.
+    pub(crate) fn record_derivation(
+        &mut self,
+        subject: Ref,
+        property: Iri,
+        value: Value,
+        rule: Iri,
+        proof: ProofNode,
+    ) {
+        self.derivations
+            .insert((subject.iri(), property), Derivation { value, rule, proof });
+    }
+
+    /// Rebuilds the per-value provenance vector for every property touched
+    /// by a mutation, position-matching kept values so their recorded
+    /// provenance survives replaces, extends, and retractions.
+    fn update_fact_meta(
+        &mut self,
+        subject: Iri,
+        old: Option<&Instance>,
+        touched: &[(Iri, Value)],
+        provenance: Provenance,
+    ) {
+        let new_instance = match self.instances.get(&subject) {
+            Some(instance) => instance.clone(),
+            None => return,
+        };
+        let mut properties: Vec<Iri> = touched.iter().map(|(p, _)| *p).collect();
+        properties.dedup();
+        for property in properties {
+            let old_values: Vec<Value> = old
+                .map(|i| i.values(property).cloned().collect())
+                .unwrap_or_default();
+            let old_meta = self
+                .fact_meta
+                .get(&subject)
+                .and_then(|m| m.get(&property))
+                .cloned()
+                .unwrap_or_default();
+            let mut new_meta = Vector::new();
+            for value in new_instance.values(property) {
+                let kept = old_values
+                    .iter()
+                    .position(|o| o == value)
+                    .and_then(|idx| old_meta.get(idx).copied());
+                new_meta.push_back(kept.unwrap_or(provenance));
+            }
+            self.fact_meta
+                .entry(subject)
+                .or_default()
+                .insert(property, new_meta);
+        }
+    }
+
+    // -- Reasoning read surface (PRP-002 U4/U5) -----------------------------
+
+    /// The recorded provenance of one stored fact, if the world holds it and
+    /// its provenance was recorded (facts restored from a snapshot's wire
+    /// form have none — the PRP-001 gap that remains open there).
+    pub fn fact_provenance(
+        &self,
+        subject: Ref,
+        property: Iri,
+        value: &Value,
+    ) -> Option<Provenance> {
+        let index = self
+            .instance(subject)?
+            .values(property)
+            .position(|v| v == value)?;
+        self.fact_meta
+            .get(&subject.iri())?
+            .get(&property)?
+            .get(index)
+            .copied()
+    }
+
+    /// The most recent transaction's chaining record (fired rules with
+    /// proofs, suppressed conclusions, gate diagnostics, pass count) — the
+    /// reasoning-step payload of the trace (doc 09). `None` before the
+    /// first assertion.
+    pub fn last_reasoning(&self) -> Option<&ReasoningRecord> {
+        self.last_reasoning.as_ref()
+    }
+
+    /// Goal-directed proving (doc 04, U6): searches for a derivation that
+    /// *would* establish `(subject, property, value)` — from the facts, or
+    /// through rules, recursively — without mutating this world. `None`
+    /// when the goal is not establishable within the cycle/depth caps.
+    pub fn prove(&self, subject: Ref, property: Iri, value: &Value) -> Option<ProofNode> {
+        crate::reason::backward::prove(self, subject, property, value)
+    }
+
+    /// The recorded derivation of an existing rule-derived fact (doc 04:
+    /// "why *is* this established?") — from the forward-chaining record,
+    /// not a fresh search. `None` for base facts and unset properties;
+    /// `prove` (U6) answers the "could it be?" question instead.
+    pub fn explain(&self, subject: Ref, property: Iri) -> Option<&ProofNode> {
+        let derivation = self.derivations.get(&(subject.iri(), property))?;
+        // The record explains the *standing* value; a base re-assertion may
+        // have replaced it since. Only answer when the fact still holds.
+        let held = self
+            .values(subject, property)
+            .any(|v| v == &derivation.value);
+        held.then_some(&derivation.proof)
     }
 
     // -- Retraction --------------------------------------------------------
@@ -360,22 +580,26 @@ impl World {
     /// 1. the world holds `subject`;
     /// 2. `property` is declared by the ontology;
     /// 3. `subject` actually holds `value` for `property`;
-    /// 4. removing it would not leave `subject` below `property`'s
+    /// 4. `property` is not `horis:immutable` (decided, PRP-002: an
+    ///    immutable fact can be neither re-asserted differently nor
+    ///    retracted — the two-step bypass is closed);
+    /// 5. the fact is not rule-derived, unless `provenance` is
+    ///    [`Provenance::Rule`] (decided, PRP-002: derived facts change only
+    ///    by re-running inference after base-fact changes; the rule path
+    ///    itself remains admitted per PRP-001 U7's pinned semantics);
+    /// 6. removing it would not leave `subject` below `property`'s
     ///    `horis:cardinality` minimum;
-    /// 5. `property`'s `horis:assignedBy` policy admits `provenance` — the
+    /// 7. `property`'s `horis:assignedBy` policy admits `provenance` — the
     ///    same check 5, and the same errors, as an assertion.
     ///
     /// It is **not** the full assertion gate. `rdfs:domain`/`rdfs:range`,
     /// `horis:min`/`max`/`pattern`/`oneOf`, and cardinality *maxima* all
     /// constrain what may enter the world and cannot be violated by removal,
-    /// so they do not run. `horis:immutable` does not run either, which means
-    /// retract-then-assert can today replace an immutable value — see
-    /// [`gate::check_retraction`] for that **[DECIDE: PRP-002]**.
+    /// so they do not run.
     ///
     /// The unit of retraction is one *fact*, deliberately: whole-instance
-    /// retraction would have to answer what happens to facts referencing the
-    /// removed instance, and retraction of rule-derived facts is
-    /// **[DECIDE: PRP-002]** — every fact a U6 world holds is a base fact.
+    /// retraction would have to answer what happens to facts referencing
+    /// the removed instance, and nothing yet needs it.
     pub fn retract_as(
         &mut self,
         provenance: Provenance,
@@ -385,7 +609,26 @@ impl World {
     ) -> Result<(), HorismosError> {
         let instance = gate::check_retraction(self, provenance, subject, property, value)
             .map_err(|witness| HorismosError::ValidationRejected { witness })?;
+        let old = self.instances.get(&subject.iri()).cloned();
         self.instances.insert(subject.iri(), instance);
+        // Position-matching drops the removed value's provenance and keeps
+        // the rest; `provenance` itself tags nothing (nothing was added).
+        self.update_fact_meta(
+            subject.iri(),
+            old.as_ref(),
+            &[(property, value.clone())],
+            provenance,
+        );
+        // A retracted rule-derived fact would leave a dangling explanation;
+        // the standing-value check in `explain` already refuses it, and the
+        // record itself goes with the fact.
+        if self
+            .derivations
+            .get(&(subject.iri(), property))
+            .is_some_and(|d| &d.value == value)
+        {
+            self.derivations.remove(&(subject.iri(), property));
+        }
         Ok(())
     }
 }
@@ -1532,5 +1775,165 @@ mod tests {
             )
             .expect("accepted");
         assert_eq!(world.value(p, has_symptom), Some(&crushing));
+    }
+}
+
+#[cfg(test)]
+mod retraction_ruling_tests {
+    use super::*;
+    use crate::reason::testing::example_world;
+    use crate::world::gate::ConstraintKind;
+
+    fn t(world: &mut World, local: &str) -> Iri {
+        world.intern(&format!("https://example.org/t#{local}"))
+    }
+
+    fn witness_of(err: &HorismosError) -> &gate::Witness {
+        err.witness().expect("a gate rejection carries a witness")
+    }
+
+    /// D-6: horis:immutable binds retraction — from every provenance — so
+    /// the retract-then-assert bypass is closed.
+    #[test]
+    fn an_immutable_fact_refuses_retraction_in_the_documented_wording() {
+        let onto = Ontology::load_from_str(
+            "@prefix : <https://example.org/t#> .\n\
+             @prefix horis: <https://w3id.org/horismos#> .\n\
+             @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .\n\
+             @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .\n\
+             @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .\n\
+             :Patient a rdfs:Class .\n\
+             :mrn a rdf:Property ; rdfs:domain :Patient ; rdfs:range xsd:string ;\n\
+             \x20   horis:cardinality \"0..1\" ; horis:immutable true .\n",
+            |_| None,
+        )
+        .expect("loads");
+        let mut world = World::new(&onto);
+        let patient = t(&mut world, "Patient");
+        let mrn = t(&mut world, "mrn");
+        let value = Value::String("AB-1".to_owned());
+
+        let p1 = t(&mut world, "p1");
+        let p = world
+            .assert_named_instance(p1, patient, [(mrn, value.clone())])
+            .expect("first assignment");
+
+        for provenance in [
+            Provenance::Api,
+            Provenance::Perception,
+            Provenance::Rule,
+            Provenance::Tool,
+        ] {
+            let err = world
+                .retract_as(provenance, p, mrn, &value)
+                .expect_err("immutable binds retraction, whatever the provenance");
+            assert_eq!(witness_of(&err).kind, ConstraintKind::ImmutableRetraction);
+        }
+
+        let err = world.retract(p, mrn, &value).expect_err("refused");
+        assert_eq!(
+            err.domain_text(),
+            "mrn is horis:immutable and holds \"AB-1\"; an immutable fact can be neither re-asserted differently nor retracted on :Patient"
+        );
+
+        // The two-step bypass is closed: the value cannot be replaced.
+        let err = world
+            .assert_named_instance(p.iri(), patient, [(mrn, Value::String("CD-2".to_owned()))])
+            .expect_err("re-assertion path was already closed in PRP-001");
+        assert!(matches!(
+            witness_of(&err).kind,
+            ConstraintKind::Immutable { .. }
+        ));
+        assert_eq!(
+            world.values(p, mrn).cloned().collect::<Vec<_>>(),
+            vec![value],
+            "the original value stands"
+        );
+    }
+
+    /// D-5: a rule-derived fact refuses retraction from the api, naming the
+    /// deriving rule; the rule path itself remains admitted.
+    #[test]
+    fn a_derived_fact_refuses_api_retraction_but_admits_the_rule_path() {
+        let mut world = example_world();
+        let patient = t(&mut world, "Patient");
+        let heart_rate = t(&mut world, "heartRate");
+        let has_symptom = t(&mut world, "hasSymptom");
+        let crushing = t(&mut world, "CrushingChestPain");
+        let acuity = t(&mut world, "acuity");
+        let immediate = t(&mut world, "Immediate");
+        let monitor = t(&mut world, "needsCardiacMonitor");
+
+        let p7 = world
+            .assert_instance(
+                patient,
+                [
+                    (heart_rate, Value::Integer(128)),
+                    (has_symptom, Value::Ref(Ref::new(crushing))),
+                ],
+            )
+            .expect("accepted; chaining derives acuity and the monitor flag");
+
+        let derived = Value::Ref(Ref::new(immediate));
+        let err = world
+            .retract(p7, acuity, &derived)
+            .expect_err("the api may not retract what a rule derived");
+        let w = witness_of(&err);
+        assert_eq!(
+            w.kind,
+            ConstraintKind::DerivedFactRetraction {
+                rule: ":r1".to_owned()
+            }
+        );
+        assert_eq!(
+            err.domain_text(),
+            "acuity :Immediate was derived by :r1; derived facts change only by re-running inference after base-fact changes; retraction came from the api"
+        );
+        assert_eq!(world.values(p7, acuity).count(), 1, "the fact stands");
+
+        // Tool/perception are refused the same way; the rule path is not.
+        for refused in [Provenance::Perception, Provenance::Tool] {
+            let err = world
+                .retract_as(refused, p7, acuity, &derived)
+                .expect_err("only the rule path may unwind a derivation");
+            assert!(matches!(
+                witness_of(&err).kind,
+                ConstraintKind::DerivedFactRetraction { .. }
+            ));
+        }
+        world
+            .retract_as(Provenance::Rule, p7, monitor, &Value::Boolean(true))
+            .expect("the rule path retracts what rules derived (PRP-001 U7 pin)");
+    }
+
+    /// D-7 at the gate: an owl:sameAs-anchored enum member is accepted where
+    /// its local twin is enumerated — the PRP-001 spurious reject is gone.
+    #[test]
+    fn one_of_accepts_a_same_as_anchored_member() {
+        let onto = Ontology::load_from_str(
+            "@prefix : <https://example.org/t#> .\n\
+             @prefix horis: <https://w3id.org/horismos#> .\n\
+             @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .\n\
+             @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .\n\
+             @prefix owl: <http://www.w3.org/2002/07/owl#> .\n\
+             @prefix sct: <http://snomed.info/id/> .\n\
+             @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .\n\
+             :Patient a rdfs:Class .\n\
+             :AcuityLevel a rdfs:Class ; horis:oneOf ( :Immediate :Urgent ) .\n\
+             :Immediate owl:sameAs sct:14816004 .\n\
+             :acuity a rdf:Property ; rdfs:domain :Patient ; rdfs:range :AcuityLevel ;\n\
+             \x20   horis:cardinality \"0..1\" .\n",
+            |_| None,
+        )
+        .expect("loads");
+        let mut world = World::new(&onto);
+        let patient = t(&mut world, "Patient");
+        let acuity = t(&mut world, "acuity");
+        let anchored = world.intern("http://snomed.info/id/14816004");
+
+        let p = world
+            .assert_instance(patient, [(acuity, Value::Ref(Ref::new(anchored)))])
+            .expect("the anchored twin is the same individual as :Immediate");
+        assert_eq!(world.values(p, acuity).count(), 1);
     }
 }

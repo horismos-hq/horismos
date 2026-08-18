@@ -27,6 +27,7 @@ use crate::error::OntologyError;
 use crate::ontology::imports::OntologySet;
 use crate::ontology::schema::Schema;
 use crate::ontology::term::{Interner, Iri};
+use crate::reason::rule::{Rule, parse_rules};
 
 /// A loaded ontology: graphs, schema, interner. Construct with
 /// [`Ontology::load`] (filesystem) or [`Ontology::load_from_str`] (pure);
@@ -55,6 +56,10 @@ struct Inner {
     /// at load so the gate is a lookup, and an unparseable pattern surfaces
     /// as [`OntologyError::InvalidPattern`] before any world exists.
     patterns: BTreeMap<Iri, Regex>,
+    /// Every `horis:Rule` across the graph set, parsed and validated at load
+    /// (PRP-002 U1) and pre-sorted by (priority desc, rule IRI lexicographic)
+    /// — the order forward chaining consumes them in (doc 04's tie-break).
+    rules: Vec<Rule>,
 }
 
 impl Ontology {
@@ -90,6 +95,7 @@ impl Ontology {
             interner: shared.interner.clone(),
             compaction: shared.compaction.clone(),
             patterns: shared.patterns.clone(),
+            rules: shared.rules.clone(),
         });
         let mut interner = inner.interner;
         let set = inner.set.with_import(path, &mut interner)?;
@@ -102,6 +108,7 @@ impl Ontology {
         set.validate(&interner)?;
         let schema = Schema::build_all(set.documents(), &interner)?;
         let patterns = compile_patterns(&schema, &interner)?;
+        let rules = parse_rules(set.documents(), &schema, &interner)?;
 
         let mut compaction = set.prefixes.clone();
         compaction.sort_by(|(a_name, a_ns), (b_name, b_ns)| {
@@ -115,6 +122,7 @@ impl Ontology {
                 interner,
                 compaction,
                 patterns,
+                rules,
             }),
         })
     }
@@ -153,6 +161,14 @@ impl Ontology {
     /// The compiled `horis:pattern` for `property`, if it declares one.
     pub fn pattern(&self, property: Iri) -> Option<&Regex> {
         self.inner.patterns.get(&property)
+    }
+
+    /// Every `horis:Rule` this ontology declares (PRP-002 U1), pre-sorted by
+    /// (priority desc, rule IRI lexicographic) — never load order (doc 04).
+    /// Parsed and validated at load: an `Ontology` value never holds a
+    /// malformed rule.
+    pub fn rules(&self) -> &[Rule] {
+        &self.inner.rules
     }
 
     /// Resolves an `Iri` token interned by *this* ontology back to its text.

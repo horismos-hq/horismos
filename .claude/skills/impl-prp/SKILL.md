@@ -10,8 +10,7 @@ Plan authority: `PRPs/PRP-NNN-slug/02-tasks-and-gaps.md`. Lifecycle:
 `.claude/skills/self-review`. Reviewer: the `senior-reviewer` agent
 (`.claude/agents/senior-reviewer.md`).
 
-This is distilled from the PRP-001 run; its artifacts under
-`.superpowers/sdd/02-tasks-and-gaps/` are the worked example.
+This is distilled from the PRP-001 run.
 
 ## Preconditions (do not start a unit until all are true)
 
@@ -23,11 +22,15 @@ This is distilled from the PRP-001 run; its artifacts under
 3. `make verify` is green on the baseline commit. Record that commit SHA.
 4. You are on a `prp-NNN-slug` branch in `.claude/worktrees/prp-NNN-slug/`, not main.
 
-## The ledger — `.superpowers/sdd/<plan-basename>/progress.md`
+## The working record — the PRP's own `02-tasks-and-gaps.md`, plus local scratch
 
-`<plan-basename>` is the plan file's stem: for `02-tasks-and-gaps.md` the directory is
-`.superpowers/sdd/02-tasks-and-gaps/`. The ledger is written to survive context loss —
-a fresh session must be able to read it and continue. It holds:
+The **durable** record is the owning PRP's `02-tasks-and-gaps.md` (D-item
+resolutions, U-item check-offs, rulings, gap notes) and the shipped-voice text left
+where each `[DECIDE]` marker was struck — never a parallel tracker (the
+`.superpowers/` process directory is gitignored scratch: use it for in-flight notes
+if helpful, but nothing lives only there). In-flight state must still survive
+context loss — a fresh session must be able to read the PRP folder plus the branch
+and continue. Track during a run:
 
 - header: plan path, branch, worktree, baseline SHA;
 - **controller resolutions** — interfaces pinned across units (dep choices, type
@@ -38,8 +41,9 @@ a fresh session must be able to read it and continue. It holds:
 - `Task UN: parked — <finding> — ruling: <where it is handled instead>`;
 - pacing changes, with who approved them.
 
-Companion files in the same directory (same naming, don't invent new ones):
-`task-U6-U7-brief.md`, `task-U6-U7-report.md`, `review-<base>..<head>.diff`.
+Briefs and implementer reports are local scratch files (same naming, don't invent
+new ones): `task-U6-U7-brief.md`, `task-U6-U7-report.md` — anything in them worth
+keeping (rulings, deferred minors, gaps) is copied into `02-tasks-and-gaps.md`.
 
 ## Batching
 
@@ -93,7 +97,7 @@ the unit: `Add the World instance store and its five-check validation gate (U6)`
 ## Review, per batch
 
 Hand the `senior-reviewer` agent: the brief, the implementer report, and a diff file
-(`git diff <base>..<head> > .superpowers/sdd/<plan>/review-<base>..<head>.diff`) or the
+(a `git diff <base>..<head>` file in local scratch, regenerable — never committed) or the
 range. The report must **name its risks** — the places the implementer is least sure
 of — and the reviewer checks each one specifically. Severity calibration and output
 format live in the agent definition.

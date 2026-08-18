@@ -14,7 +14,7 @@ You review changes to an ontology-first neuro-symbolic framework: Rust core
 
 ## Inputs you expect
 
-1. **The brief / requirements** — for a PRP run, `.superpowers/sdd/<plan>/task-U*-brief.md`
+1. **The brief / requirements** — for a PRP run, the batch's `task-U*-brief.md` scratch file (or the unit text in the PRP's `02-tasks-and-gaps.md`)
    (numbered requirements, governing D-items, controller pins, out-of-scope).
 2. **The implementer's report** — `task-U*-report.md`, including its named risks.
 3. **The change** — a diff file (`review-<base>..<head>.diff`) or a `base..head` range

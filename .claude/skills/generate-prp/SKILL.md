@@ -62,7 +62,7 @@ Three sections, exactly these headings (CONVENTIONS.md template):
 ### D-items (decisions)
 
 - One D-item per `[DECIDE]` marker this PRP owns, plus any decision the units block on.
-- Resolve with `superpowers:brainstorming`'s repo variant → `.claude/skills/brainstorming`.
+- Resolve with the repo's own protocol → `.claude/skills/brainstorming`.
   Never decide in a code comment, a commit message, or a report.
 - Resolved form is a checked box with a **dated resolution line** and the downstream
   pins, e.g.:

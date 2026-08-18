@@ -198,6 +198,17 @@ pub enum ConstraintKind {
     SubjectNotPresent,
     /// The retraction named a fact the subject does not hold.
     FactNotPresent,
+    /// The fact belongs to a `horis:immutable` property — once set it can
+    /// be neither re-asserted differently nor retracted (decided, PRP-002:
+    /// the two-step retract-then-assert bypass is closed).
+    ImmutableRetraction,
+    /// The fact is rule-derived and the retraction did not come from the
+    /// rule path itself (decided, PRP-002: derived facts change only by
+    /// re-running inference after base-fact changes).
+    DerivedFactRetraction {
+        /// The deriving rule, in prefixed form.
+        rule: String,
+    },
 }
 
 /// Why the gate refused a mutation: the failing constraint stated in domain
@@ -282,20 +293,27 @@ pub(crate) struct DeferredRef {
 
 /// [`check_assertion`], in restoration mode: identical checks, except that an
 /// object reference whose referent is not (yet) in the store is *deferred*
-/// rather than refused. The caller must settle every returned [`DeferredRef`]
-/// with [`check_restored_reference`] once all instances are restored — until
-/// then the gate's guarantee is not yet re-established.
+/// rather than refused, and check 5 runs **per fact**, against each restored
+/// fact's own recorded provenance (PRP-002: provenance travels with the wire
+/// form, so a `horis:RulesOnly` fact a rule legitimately derived restores as
+/// `Provenance::Rule`, exactly as it was admitted live). The caller must
+/// settle every returned [`DeferredRef`] with [`check_restored_reference`]
+/// once all instances are restored — until then the gate's guarantee is not
+/// yet re-established.
 pub(crate) fn check_assertion_restoring(
     world: &World,
-    provenance: Provenance,
     subject: Subject,
     class: Iri,
-    properties: &[(Iri, Value)],
+    facts: &[(Iri, Value, Provenance)],
 ) -> Result<(Instance, Vec<DeferredRef>), Box<Witness>> {
+    let properties: Vec<(Iri, Value)> = facts
+        .iter()
+        .map(|(property, value, _)| (*property, value.clone()))
+        .collect();
     let deferred = std::cell::RefCell::new(Vec::new());
     let gate = Gate {
         world,
-        provenance,
+        provenance: Provenance::Api,
         operation: Operation::Assert,
         subject: subject.iri(),
         class,
@@ -303,10 +321,27 @@ pub(crate) fn check_assertion_restoring(
     };
 
     gate.check_class(subject)?;
-    gate.check_domain_and_range(properties)?;
-    gate.check_constraints(properties)?;
-    let candidate = gate.check_cardinality(properties)?;
-    gate.check_assertion_provenance(properties)?;
+    gate.check_domain_and_range(&properties)?;
+    gate.check_constraints(&properties)?;
+    let candidate = gate.check_cardinality(&properties)?;
+    // Check 5, per fact: the recorded provenance is the one the policy
+    // judges — and the one a refusal's witness names.
+    for (property, value, provenance) in facts {
+        let decl = gate
+            .schema()
+            .property(*property)
+            .expect("check 2 established that every asserted property is declared");
+        let fact_gate = Gate {
+            world,
+            provenance: *provenance,
+            operation: Operation::Assert,
+            subject: subject.iri(),
+            class,
+            deferred: None,
+        };
+        check_provenance(decl, *provenance)
+            .map_err(|kind| fact_gate.reject(Some(*property), Some(value), kind))?;
+    }
     Ok((candidate, deferred.into_inner()))
 }
 
@@ -337,25 +372,29 @@ pub(crate) fn check_restored_reference(
 /// [`Instance`] the caller should store in the subject's place.
 ///
 /// The checks, in order: the subject is in the world; the property is
-/// declared; the fact is actually held; removing it would not break the
-/// property's `horis:cardinality` minimum; and the `horis:assignedBy` policy
-/// admits this provenance (check 5, shared with assertion).
+/// declared; the fact is actually held; the property is not
+/// `horis:immutable`; the fact is not rule-derived (unless the retraction
+/// *is* the rule path); removing it would not break the property's
+/// `horis:cardinality` minimum; and the `horis:assignedBy` policy admits
+/// this provenance (check 5, shared with assertion).
 ///
 /// The assertion-only checks do *not* re-run, and cannot: `rdfs:range`,
 /// `horis:min`/`max`/`pattern`/`oneOf`, and cardinality *maxima* all constrain
 /// what may enter the world, and removal cannot violate them.
 ///
-/// `horis:immutable` is the one that is arguably not in that category.
-/// Retraction does not consult it today, so a caller with adequate provenance
-/// can retract an immutable fact and assert a different value in its place —
-/// defeating "once set, cannot be re-asserted with a different value"
-/// (`docs/framework/02-ontology.md`) in two steps. Whether retraction should
-/// refuse immutable facts is **[DECIDE: retraction vs `horis:immutable` —
-/// PRP-002]**, which already owns retraction semantics per doc 03; it is not
-/// settled here.
+/// Two rulings decided by PRP-002 (doc 02/03, markers struck there):
 ///
-/// Retraction is per *fact*, and every fact a U6 world holds is a base fact:
-/// retraction of rule-derived facts is likewise **[DECIDE: PRP-002]**.
+/// - **`horis:immutable` binds retraction.** "Once set, cannot be
+///   re-asserted with a different value" would be vacuous if
+///   retract-then-assert replaced the value in two steps; an immutable
+///   fact is refused retraction outright, from every provenance.
+/// - **Derived facts are not retracted, they are re-derived.** A fact the
+///   reasoner concluded (it has a recorded derivation) refuses retraction
+///   from perception/tool/api — the witness names the deriving rule and
+///   the remedy (change the base facts, re-run inference).
+///   [`Provenance::Rule`] remains admitted: it is the inference side's own
+///   mechanism, and PRP-001 U7 pinned "a rule may retract what a rule
+///   asserted".
 pub fn check_retraction(
     world: &World,
     provenance: Provenance,
@@ -405,6 +444,29 @@ pub fn check_retraction(
         .unwrap_or_default();
     if !held.contains(value) {
         return Err(gate.reject(Some(property), Some(value), ConstraintKind::FactNotPresent));
+    }
+
+    // PRP-002's retraction rulings (see the function doc): immutability
+    // binds retraction, and a rule-derived fact only the rule path may
+    // touch.
+    if decl.immutable {
+        return Err(gate.reject(
+            Some(property),
+            Some(value),
+            ConstraintKind::ImmutableRetraction,
+        ));
+    }
+    if provenance != Provenance::Rule
+        && let Some(derivation) = world.derivations.get(&(subject.iri(), property))
+        && &derivation.value == value
+    {
+        return Err(gate.reject(
+            Some(property),
+            Some(value),
+            ConstraintKind::DerivedFactRetraction {
+                rule: gate.iri_text(derivation.rule),
+            },
+        ));
     }
 
     let remaining: Vector<Value> = held.into_iter().filter(|v| v != value).collect();
@@ -644,10 +706,10 @@ impl Gate<'_> {
             Some(self.class)
         } else if let Some(instance) = self.world.instances.get(&referent.iri()) {
             Some(instance.class)
-        } else if self.schema().class(referent.iri()).is_some() {
-            Some(referent.iri())
         } else {
-            None
+            // `owl:sameAs`-canonical (PRP-002 D-7): an anchored external
+            // IRI is as good a class-value as its local twin.
+            self.schema().class_declared(referent.iri())
         };
 
         match referent_class {
@@ -758,8 +820,10 @@ impl Gate<'_> {
         };
 
         let member = members.iter().any(|&m| {
-            m == referent.iri()
-                || (self.schema().class(referent.iri()).is_some()
+            // Identity is sameAs-canonical (PRP-002 D-7): an anchored
+            // member and its anchor are the same individual.
+            self.schema().canonical_iri(m) == self.schema().canonical_iri(referent.iri())
+                || (self.schema().class_declared(referent.iri()).is_some()
                     && self.schema().is_subclass_of(referent.iri(), m))
         });
         if member {
@@ -986,6 +1050,13 @@ impl Gate<'_> {
             ConstraintKind::FactNotPresent => {
                 format!("{subject} does not hold {name} {shown}")
             }
+            ConstraintKind::ImmutableRetraction => format!(
+                "{name} is horis:immutable and holds {shown}; an immutable fact can be neither re-asserted differently nor retracted on {class}"
+            ),
+            ConstraintKind::DerivedFactRetraction { rule } => format!(
+                "{name} {shown} was derived by {rule}; derived facts change only by re-running inference after base-fact changes; retraction came from {}",
+                self.provenance.as_str()
+            ),
         };
 
         Box::new(Witness {

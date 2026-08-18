@@ -52,11 +52,16 @@ The 11 operators evaluate over the graph with these edge semantics:
 | Property unassigned, `horis:isNot` | `true` |
 | Property unassigned, `horis:isAssigned` | `false` |
 | Multi-valued property (`hasSymptom`), `horis:is X` | `true` if **any** value matches (∃) |
+| Multi-valued property, `horis:isNot X` | `true` iff **no** value matches (∀) — `isNot` ≡ ¬`is`, always |
 | Unit mismatch in comparison | Load-time verification error, not a runtime surprise |
 
 This is a pragmatic closed-world reading of an open-world data model. It is a
 deliberate, documented divergence from RDF semantics — Horismos worlds are operational
-state, not the open web. **[DECIDE: confirm ∃ vs. ∀ for multi-valued `isNot` — PRP-002]**
+state, not the open web. `isNot` takes the ∀ reading (decided, PRP-002): it is the
+negation of `is` in every world state — the only reading consistent with the
+unassigned row above (no value exists to witness an ∃), with sigil-lang's `_UNBOUND`
+precedent, and with `horis:none` (¬∨) composing as `none(is X)` ≡ `isNot X`. Pinned
+by the `is_not_is_the_negation_of_is` property test.
 
 ## Backward chaining
 
