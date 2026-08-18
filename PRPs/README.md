@@ -25,6 +25,13 @@ symbolic runtime decides. See `../docs/framework/` for the full framework defini
 Full rules in [CONVENTIONS.md](CONVENTIONS.md) (lifecycle, folder form for active
 PRPs, tracks). At-a-glance state: [BOARD.md](BOARD.md).
 
+- The v1 security/trust workstream (captain-authorized 2026-08-18, per independent-
+  review findings R2/D4) is cross-cutting, not a new PRP number:
+  [`docs/framework/15-security.md`](../docs/framework/15-security.md) is the v1
+  threat model; PRP-004, PRP-006, and PRP-007 each carry a **Security acceptance
+  surface** subsection stating what their DoD must prove, plus owned **[DECIDE]**
+  markers for the genuinely open mechanism choices.
+
 - PRPs are **very high level** — intent, scope, non-goals, key decisions, definition
   of done. Far-future Drafts are one page each; from PRP-002 onward the next-up/Active
   PRP is teaching-grade (background, worked triage examples, Python-parallel notes,

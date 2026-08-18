@@ -88,9 +88,11 @@ concern, outside the runtime.
 - **Untrusted**: NL input, LLM output, tool return values → all pass gates.
 - **Trusted after sign-off**: the ontology (it *is* the program — its supply chain is
   git + SME sign-off + verification, doc 13).
-- **Sandboxing tools** is the deployer's concern (bindings run with process
-  privileges); MCP bindings inherit MCP's isolation. `horis:redactInput` for
-  sensitive NL (doc 09).
+- **Sandboxing tool-execution processes** (including MCP servers and the authoring
+  agent) is the deployer's concern; `horis:redactInput` bounds sensitive NL retention
+  (doc 09). This is the deployer-process-isolation boundary specifically — for the v1
+  threat model in full (assets, all four trust boundaries, per-boundary mitigations
+  vs. what stays deployer-owned), see doc 15.
 
 ## Definition → build mapping
 
@@ -103,6 +105,7 @@ concern, outside the runtime.
 | 10 Verification | PRP-005 |
 | 12 Rust API surface polish, packaging, docs site | PRP-006 |
 | 13 Authoring | PRP-007 |
+| 15 Security & Trust | PRP-004, PRP-006, PRP-007 (per boundary — see doc 15) |
 
 Every **[DECIDE]** marker in these docs is owned by exactly one PRP; activating a PRP
 begins by resolving its markers.

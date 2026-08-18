@@ -44,6 +44,10 @@ by the model). This is the phase where "the loop is ontology data" becomes real.
 3. Interruption/human-in-the-loop step type in v1 or deferred.
 4. Structured-output mechanics per provider (forced tool_choice vs. native JSON modes) —
    hide behind the Bridge.
+5. **[DECIDE, doc 15 §2]** URL allowlist configuration surface for `http:`/`https:`
+   tool bindings — per-tool vs. per-Agent, glob vs. exact host match.
+6. **[DECIDE, doc 15 §2]** Whether v1 adds an MCP-server allowlist analogous to the
+   HTTP one, once there's a concrete MCP threat scenario to design against.
 
 ## Definition of done
 
@@ -51,3 +55,30 @@ by the model). This is the phase where "the loop is ontology data" becomes real.
 dissected in the plan's Technical Outline: mock Bridge in CI (zero keys), real Anthropic
 Bridge behind a flag; fallback path tested (low confidence → `:EscalateToNurse`);
 tool-effect validation tested; full-run trajectory serializes and replays.
+
+## Security acceptance surface (doc 15)
+
+PRP-004 owns the perception, tool-binding, and Bridge/credential trust boundaries.
+Its DoD is not met until it also proves, alongside the functional DoD above:
+
+- **Perception injection containment** (doc 15 §1): an adversarial NL fixture set
+  showing injected instructions never fire a tool or transition, never populate a
+  `RulesOnly` property, and never leak into narration; a fixture exercising
+  ProposalStep's `rankBy` the same way; a fixture demonstrating the residual
+  wrong-but-schema-valid-fact risk is measured, not merely assumed bounded.
+- **Closed binding-scheme allowlist**: an ontology naming an unrecognized
+  `horis:binding` scheme fails at load time with a domain-term error, not at
+  invocation.
+- **`python:` bindings resolve only via a deployer-supplied callable registry** — no
+  dotted-path import of an ontology string, ever. A test asserting a binding absent
+  from the registry fails at `Agent` construction.
+- **`http:`/`https:` bindings default-deny**: no HTTP tool is constructible without an
+  explicit deployer allowlist; a test asserting requests to private/loopback/
+  link-local address ranges are rejected even for an allowlisted hostname (DNS-
+  rebinding case included).
+- **Secret non-serialization**: a Bridge constructed with a real-looking credential
+  never has that credential appear in any emitted trace, snapshot, or log line, on
+  both success *and* error paths.
+
+Deployer-owned and stated in the DoD's docs, not silently assumed: OS-level
+sandboxing of tool-execution and MCP-server processes (doc 15 §2).

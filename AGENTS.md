@@ -17,8 +17,9 @@ proof → NL). Delete the LLM and the framework still runs.
 - `PRPs/BOARD.md`: at-a-glance state — current / next / end goal. Visual version:
   the [Horismos Board artifact](https://claude.ai/code/artifact/dc7ee691-4c9f-40a7-b235-0760de8ff17d)
   (regenerate from `planning/board.html`, republish to the same URL on status changes).
-- `docs/framework/00-index.md` → docs 01–14: the framework definition, written in
-  shipped voice. **Read the relevant doc before implementing anything.**
+- `docs/framework/00-index.md` → docs 01–15: the framework definition, written in
+  shipped voice (15 is the v1 security/trust threat model). **Read the relevant doc
+  before implementing anything.**
 - `PRPs/README.md`: phase plans. Open design questions are marked **[DECIDE]** in the
   docs, each owned by exactly one PRP — resolve them in the owning PRP, never ad hoc.
 - `PRPs/foundational-skeleton.md`: this skeleton — layout, tooling, skills roster.

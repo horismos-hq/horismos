@@ -35,11 +35,13 @@ is deterministic, traced, and replayable. Delete the LLM and the framework still
 | 12 | [Rust API](12-rust-api.md) | The `horismos-core` crate reference, feature flags, WASM |
 | 13 | [Authoring](13-authoring.md) | The authoring agent: SMEs converse, Claude drafts, the verifier gatekeeps |
 | 14 | [Architecture](14-architecture.md) | Internals: crate layout, PyO3 boundary, performance, PRP mapping |
+| 15 | [Security & Trust](15-security.md) | The v1 threat model: assets, trust boundaries, threats, mitigations vs. deployer-owned concerns |
 
 ## Reading paths
 
 - **"Show me the product"** → 01 → 05 → 06 → the quickstarts in 11.
-- **"I'm reviewing before we build"** → in order, 01–14; argue with every **[DECIDE]**.
+- **"I'm reviewing before we build"** → in order, 01–15; argue with every **[DECIDE]**.
+- **"I'm reviewing trust/deployment risk"** → 15, then 06/07/08/09/13 for the boundaries it cites.
 - **"I build agents today"** → 01 (the comparison table), 07 (tools inversion), 06.
 - **"I'm the SME"** → 13 only. You will never read Turtle unless you want to.
 
