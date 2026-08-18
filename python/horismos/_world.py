@@ -132,10 +132,14 @@ class World:
             return self._native.assert_(self._onto.expand(class_), self._pairs(properties), subject)
         # Post-commit subscription dispatch (B2): callbacks fire after the
         # transaction committed, matched against the core-computed diff —
-        # a rejected transaction raised above and notifies nobody.
-        before = self._native.snapshot()
-        ref = self._native.assert_(self._onto.expand(class_), self._pairs(properties), subject)
-        self._dispatch(self._native.diff(before))
+        # a rejected transaction raised above and notifies nobody. The
+        # transaction and its diff are one native crossing under one lock
+        # acquisition, so a concurrent writer on another thread can never
+        # land between the commit and the diff it is dispatched from.
+        ref, diff = self._native.assert_with_diff(
+            self._onto.expand(class_), self._pairs(properties), subject
+        )
+        self._dispatch(diff)
         return ref
 
     def retract(self, subject: Ref, property: str, value: object) -> None:

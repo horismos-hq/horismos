@@ -160,30 +160,32 @@ impl PyWorld {
         subject: Option<String>,
     ) -> PyResult<PyNodeRef> {
         let mut world = self.lock(py)?;
-        let class = expand_intern(py, &mut world, class_term)?;
-        let subject_token = subject
-            .map(|s| expand_intern(py, &mut world, &s))
-            .transpose()?;
-
-        let mut typed: Vec<(Iri, Value)> = Vec::with_capacity(properties.len());
-        for (term, ob) in &properties {
-            let property = expand_intern(py, &mut world, term)?;
-            let range = world
-                .ontology()
-                .schema()
-                .property(property)
-                .and_then(|decl| decl.range);
-            let value = to_value(py, ob, range.as_ref(), &mut world)?;
-            typed.push((property, value));
-        }
-
-        let core: &mut horismos_core::World = &mut world;
-        let result = py.detach(move || match subject_token {
-            Some(iri) => core.assert_named_instance(iri, class, typed),
-            None => core.assert_instance(class, typed),
-        });
-        let subject_ref = result.map_err(|e| to_py_err(py, e))?;
+        let subject_ref = perform_assert(py, &mut world, class_term, properties, subject)?;
         Ok(node(&world, subject_ref))
+    }
+
+    /// Same transaction as `assert_`, plus the core-computed diff against
+    /// the pre-transaction state — snapshot, assert, and diff all under one
+    /// `lock()` acquisition, so a concurrent writer on another thread can
+    /// never land between the snapshot and the diff (the subscription
+    /// dispatch path in `_world.py` needs this single crossing to keep
+    /// "one committed transaction, one dispatch, on the mutating thread"
+    /// true under real concurrent writers).
+    #[pyo3(signature = (class_term, properties, subject = None))]
+    fn assert_with_diff(
+        &self,
+        py: Python<'_>,
+        class_term: &str,
+        properties: Vec<(String, Bound<'_, PyAny>)>,
+        subject: Option<String>,
+    ) -> PyResult<(PyNodeRef, PyDiff)> {
+        let mut world = self.lock(py)?;
+        let before = world.snapshot();
+        let subject_ref = perform_assert(py, &mut world, class_term, properties, subject)?;
+        let subject_node = node(&world, subject_ref);
+        let diff: Diff = world.diff(&before);
+        let py_diff = marshal_diff(py, &world, &diff)?;
+        Ok((subject_node, py_diff))
     }
 
     /// Retracts one fact (doc 03's retraction gate runs in core).
@@ -263,8 +265,8 @@ impl PyWorld {
             let value = to_value(py, ob, range.as_ref(), &mut world)?;
             typed.push((property, value));
         }
-        let rows = world
-            .query_pattern(class, &typed)
+        let rows = py
+            .detach(|| world.query_pattern(class, &typed))
             .map_err(|e| to_py_err(py, e))?;
         Ok(rows.into_iter().map(|r| node(&world, r)).collect())
     }
@@ -331,15 +333,53 @@ impl PyWorld {
     fn diff(&self, py: Python<'_>, snapshot: &PySnapshot) -> PyResult<PyDiff> {
         let world = self.lock(py)?;
         let diff: Diff = world.diff(&snapshot.inner);
-        let marshal = |facts: &[Fact]| -> PyResult<Py<PyAny>> {
-            let out: PyResult<Vec<PyFact>> = facts.iter().map(|f| fact(py, &world, f)).collect();
-            Ok(out?.into_pyobject(py)?.into_any().unbind())
-        };
-        Ok(PyDiff {
-            added: marshal(diff.added())?,
-            removed: marshal(diff.removed())?,
-        })
+        marshal_diff(py, &world, &diff)
     }
+}
+
+/// The shared body of `assert_` and `assert_with_diff`: expand terms, type
+/// the property values, and run the gated core transaction detached from
+/// the interpreter.
+fn perform_assert(
+    py: Python<'_>,
+    world: &mut horismos_core::World,
+    class_term: &str,
+    properties: Vec<(String, Bound<'_, PyAny>)>,
+    subject: Option<String>,
+) -> PyResult<Ref> {
+    let class = expand_intern(py, world, class_term)?;
+    let subject_token = subject.map(|s| expand_intern(py, world, &s)).transpose()?;
+
+    let mut typed: Vec<(Iri, Value)> = Vec::with_capacity(properties.len());
+    for (term, ob) in &properties {
+        let property = expand_intern(py, world, term)?;
+        let range = world
+            .ontology()
+            .schema()
+            .property(property)
+            .and_then(|decl| decl.range);
+        let value = to_value(py, ob, range.as_ref(), world)?;
+        typed.push((property, value));
+    }
+
+    let core: &mut horismos_core::World = world;
+    let result = py.detach(move || match subject_token {
+        Some(iri) => core.assert_named_instance(iri, class, typed),
+        None => core.assert_instance(class, typed),
+    });
+    result.map_err(|e| to_py_err(py, e))
+}
+
+/// Marshals a core [`Diff`] whole, as `assert_with_diff` and `diff` both do.
+fn marshal_diff(py: Python<'_>, world: &horismos_core::World, diff: &Diff) -> PyResult<PyDiff> {
+    let marshal = |facts: &[Fact]| -> PyResult<Py<PyAny>> {
+        let out: PyResult<Vec<PyFact>> = facts.iter().map(|f| fact(py, world, f)).collect();
+        Ok(out?.into_pyobject(py)?.into_any().unbind())
+    };
+    Ok(PyDiff {
+        added: marshal(diff.added())?,
+        removed: marshal(diff.removed())?,
+    })
 }
 
 /// Expands a CURIE/IRI term against the world's ontology and interns it
