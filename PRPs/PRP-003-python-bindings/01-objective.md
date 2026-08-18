@@ -157,11 +157,17 @@ D1 changes what the gate accepts; it changes only how the same
     already checked, `ok=True` on any loaded ontology); `.namespaces` (the
     prefix table); `.ref(curie_or_iri)` (a node handle for a declared term —
     what query results compare equal to); rule introspection.
-  - `World(onto)`: `.assert_()`, `.retract()`, `.query()` (per D2),
-    `.explain(subject, property)`, `.prove(goal)`, `.instances()`,
-    `.value()`/`.values()`, `.snapshot()` / `World.from_snapshot()` /
-    `.diff()`, `.subscribe(pattern, callback)` (post-commit notification,
-    doc 03 § Subscriptions; the runtime slot stays with PRP-004).
+  - `World(onto)`: `.assert_()`, `.retract()`, `.query()` (per D2 — any
+    query *evaluation* is a named `horismos-core::world` unit; the
+    bindings only marshal), `.explain(subject, property)`, `.prove(goal)`,
+    `.instances()`, `.value()`/`.values()`, `.snapshot()` /
+    `World.from_snapshot()` / `.diff()`, `.subscribe(pattern, callback)` —
+    ownership split decided at activation: PRP-003 ships registration +
+    post-commit dispatch over the core-computed diff; the core-side
+    transactional notification stage and runtime re-entrancy queueing stay
+    with PRP-004 (`02-tasks-and-gaps.md` § Boundary contracts, B2/B6).
+  - Boundary safety: interner tokens never cross — `Ref` is a frozen
+    IRI-string handle, re-interned per receiving world (B1).
   - Proof trees as Python objects with `.render()` producing doc 04's
     indented form, byte-identical to the Rust rendering.
   - Query results as Python objects; whole inputs in, whole outcomes out.
@@ -169,10 +175,13 @@ D1 changes what the gate accepts; it changes only how the same
   prototyped against the triage quickstart, one shipped.
 - **Errors**: the `HorismosError` hierarchy (doc 11 § Errors), every
   exception carrying `domain_text` as `str(exc)`, machine-readable fields,
-  and `suggestion` where available.
+  and `suggestion` where available. The structured attributes are the
+  stable machine contract; `domain_text` is human-facing prose, not an API
+  to parse (B3).
 - **Wheels**: maturin + abi3 as configured; a local wheel build proven; the
-  CI matrix *configuration* (Linux/macOS/Windows × 3.11–3.14) checked in,
-  with full-matrix proof deferred to PRP-006 (dated gap note).
+  CI matrix *configuration* (Linux/macOS/Windows × 3.11–3.14) checked in.
+  Matrix execution, publication, and CI gating are PRP-006's half of the
+  split (B5) — deferred with a dated note, not silently.
 - **Stubs & tests**: `.pyi` in sync, `mypy --strict` clean; pytest exercising
   every public symbol; Hypothesis property tests mirroring the Rust
   proptest invariants at the boundary (gate atomicity, determinism).
@@ -308,10 +317,14 @@ loads `triage.ttl` + the SNOMED subset, asserts the tachycardic chest-pain
 patient, `acuity == Immediate` derived by `:r1` through the gate,
 `explain(...).render()` produces the pinned proof text, the `heartRate 1280`
 rejection raises `HorismosValidationError` with the domain-term sentence.
-pytest exercises every public symbol; Hypothesis pins boundary invariants
-(atomic rejection, determinism of two identically built worlds); stubs pass
-`mypy --strict`; the wheel builds locally and the CI matrix config is checked
-in (full-matrix proof deferred to PRP-006, dated). `make verify` green.
+pytest exercises every public symbol; **parity is fixture-anchored** — the
+proof rendering and rejection sentences are asserted byte-identical to the
+Rust suite's own expectations, and the structured error attributes (not
+just messages) are asserted; Hypothesis pins boundary invariants (atomic
+rejection, determinism of two identically built worlds, value round-trip)
+as a mandatory part of this DoD; stubs pass `mypy --strict`; the wheel
+builds locally and the CI matrix config is checked in (matrix execution and
+publication are PRP-006's, per the B5 split). `make verify` green.
 
 ## Glossary
 

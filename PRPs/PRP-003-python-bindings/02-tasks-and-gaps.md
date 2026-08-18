@@ -6,6 +6,43 @@ D-item is resolved (via `.claude/skills/brainstorming`, never ad hoc) before
 the unit it blocks; the boundary-plumbing units it does not block may land
 first — the D1/D2 prototypes need a working boundary to prototype against.
 
+## Boundary contracts
+
+Pinned at activation; sharpened 2026-08-18 per the independent plan review
+(lens 2 S2, lens 5 Q3, top finding 2).
+
+- **B1 — no `Iri` tokens across the boundary.** Interner tokens are
+  world-relative; only full IRI *strings* cross. `Ref` is a frozen string
+  handle (full IRI + compacted form), re-interned against whichever world
+  receives it — a `Ref` minted from one world is safe against another by
+  construction.
+- **B2 — subscriptions ownership (003 vs 004), decided.** PRP-003 ships the
+  *registration surface and post-commit dispatch*: `subscribe(pattern,
+  callback)` lives in the pure-Python layer, matches against the
+  **core-computed diff** of each committed transaction, and fires strictly
+  after commit on the mutating thread — no transaction semantics in Python,
+  no core hooks. The core-side transactional notification slot (doc 03's
+  "notify subscribers" stage, re-entrant mutation queueing inside the
+  runtime loop) remains **PRP-004**, as `world/mod.rs` already records.
+- **B3 — the structured error contract is the machine API.** The exception
+  attributes (`constraint` tag, per-tag `data` fields, `subject`, `class_`,
+  `property`, `value`, `provenance`, `operation`, `suggestion`) are the
+  versioned machine-readable surface, documented in the stubs and doc 11.
+  `domain_text` / `str(exc)` is for humans and is **not** a stability
+  surface — tests may pin it, programs must not parse it.
+- **B4 — parity is tested from the same fixtures.** The triage fixture pins
+  both APIs: the r1 proof rendering and the gate rejection sentences are
+  asserted byte-identical to the Rust suite's expectations, and Hypothesis
+  boundary invariants (atomic rejection, determinism, value round-trip) are
+  DoD-mandatory, not optional hardening.
+- **B5 — CI ownership split with PRP-006.** PRP-003 owns the local wheel
+  build proof and the matrix workflow *configuration file*
+  (Linux/macOS/Windows × 3.11–3.14). PRP-006 owns matrix *execution*,
+  publication, and CI gating. Neither claims the other's half.
+- **B6 — any query evaluation lives in core.** Whatever D2 picks, the
+  evaluator is a named `horismos-core::world` unit; `horismos-py` and the
+  pure-Python layer only marshal the question and the rows.
+
 ## Decisions to resolve (before implementation)
 
 - [ ] D1. **Generated proxy classes vs. dict-like generic instances** (owns
@@ -18,9 +55,13 @@ first — the D1/D2 prototypes need a working boundary to prototype against.
       rather than coin-flip.
 - [ ] D2. **Query surface: SPARQL subset vs. Pythonic builder** (owns doc
       03's `[DECIDE: exact subset grammar]`). Ship the minimal surface
-      Example 1 needs; everything further deferred with a dated gap note.
-      Blocks U7. Recorded here; doc 03's marker struck (its § Queries
-      rewritten in shipped voice) in the same commit.
+      Example 1 needs; everything further is an **explicit deferral** in
+      doc 03 naming the owning unit — either the exact shipped grammar is
+      stated, or the SPARQL-subset text is rewritten as deferred with a
+      dated note. Per B6, the evaluator is a named core unit inside U7 —
+      no query logic in the bindings. Blocks U7. Recorded here; doc 03's
+      marker struck (its § Queries rewritten in shipped voice) in the same
+      commit.
 - [ ] D3. **GIL release policy**. Which native calls detach from the
       interpreter (load / assert-with-chaining / prove / snapshot codecs)
       and the proof that none touches Python while detached. Blocks U8.
@@ -74,18 +115,22 @@ first — the D1/D2 prototypes need a working boundary to prototype against.
       same world state as the raw U3 form, snake_case↔camelCase mapping
       pinned (`heart_rate` ↔ `heartRate`), unknown property/class fails
       with a domain-term error.
-- [ ] U7. **Query surface per D2.** Whatever D2 picks, results as Python
-      objects, whole outcome in one crossing. Test target: `test_query.py`
-      — "patients whose acuity is Immediate" returns exactly the asserted
-      patient; unknown terms are domain-term errors, not empty results.
-- [ ] U8. **Subscriptions + GIL policy (D3).** `subscribe(pattern,
-      callback)`: post-commit notification per doc 03 § Subscriptions
-      (callbacks fire after commit, never mid-chaining; re-entrant
-      mutations queue as new transactions); GIL released per D3 around the
-      long native calls. Test target: `test_subscribe.py` — callback fires
-      once per matching commit with the bound subject, not at all on a
-      rejected transaction; a chaining call started in one thread does not
-      block a second Python thread (release observable).
+- [ ] U7. **Query surface per D2.** Whatever D2 picks, the evaluator is a
+      named `horismos-core::world` unit (B6) with its own Rust tests;
+      results cross as Python objects, whole outcome in one crossing. Test
+      target: `test_query.py` — "patients whose acuity is Immediate"
+      returns exactly the asserted patient; unknown terms are domain-term
+      errors, not empty results — plus the core unit's own Rust test.
+- [ ] U8. **Subscriptions (per B2) + GIL policy (D3).** `subscribe(pattern,
+      callback)` as B2 scopes it: pure-Python registration + post-commit
+      dispatch over the core-computed transaction diff (callbacks fire
+      after commit, never mid-chaining; a mutation from a callback is a
+      new transaction — it runs after the dispatching one completed).
+      Core-side transactional hooks stay with PRP-004. GIL released per D3
+      around the long native calls. Test target: `test_subscribe.py` —
+      callback fires once per matching commit with the bound subject, not
+      at all on a rejected transaction; a chaining call started in one
+      thread does not block a second Python thread (release observable).
 - [ ] U9. **Stubs, strictness, property tests.** `_horismos.pyi` + public
       package stubs complete; `mypy --strict` green over `python/`;
       Hypothesis suites: gate atomicity from Python (any rejected payload
@@ -105,3 +150,17 @@ first — the D1/D2 prototypes need a working boundary to prototype against.
 ## Gaps discovered during implementation
 
 (append dated notes here; scope changes go back into `01-objective.md` by explicit edit)
+
+- **2026-08-18 — OPEN CAPTAIN HOLD: truth maintenance for derived facts.**
+  The independent plan review (top finding 2) confirmed PRP-002 shipped no
+  invalidation of derived facts when their supporting base facts are later
+  replaced or retracted (a derived `:Immediate` acuity can outlive the
+  heart rate that justified it). Whether that is the intended semantics
+  (derived facts as historical events) or a defect (recompute/cascade) is
+  an **open captain decision, held above this PRP**. PRP-003 therefore
+  binds current core behavior *without endorsing it*: the Python surface
+  and its docs stay silent on the fate of derived facts after base-fact
+  mutations, no test pins post-mutation derived-fact persistence, and the
+  `[DECIDE]`-owning PRP for the ruling is assigned by the captain, not
+  here. Tests that pin the merged retraction gate (a derived fact cannot
+  be api-retracted) remain — that rule survives either resolution.
