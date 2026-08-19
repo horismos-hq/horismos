@@ -87,3 +87,30 @@
 :EscalateToNurse a horis:ActionStep ;
     horis:tool :paging.notify_nurse ;
     horis:terminal true .
+
+## Tools (doc 07)
+
+:ehr.assign_queue a horis:Tool ;
+    horis:takes [
+        horis:arg [ horis:name "patient" ; horis:type :Patient ] ;
+        horis:arg [ horis:name "queue"   ; horis:type :AcuityLevel ]
+    ] ;
+    horis:effect [
+        horis:asserts [ horis:property :queuedAt ; horis:value horis:now ] ;
+        horis:asserts [ horis:property :queueRef ; horis:type xsd:string ]
+    ] ;
+    horis:binding "python:ehr_client.assign_queue" ;
+    horis:timeout "5s" ;
+    horis:idempotent false .
+
+:paging.notify_nurse a horis:Tool ;
+    horis:takes [
+        horis:arg [ horis:name "patient" ; horis:type :Patient ]
+    ] ;
+    horis:effect [
+        horis:asserts [ horis:property :notifiedAt ; horis:value horis:now ] ;
+        horis:asserts [ horis:property :pagedTo    ; horis:type xsd:string ]
+    ] ;
+    horis:binding "python:paging_client.notify_nurse" ;
+    horis:timeout "5s" ;
+    horis:idempotent false .
