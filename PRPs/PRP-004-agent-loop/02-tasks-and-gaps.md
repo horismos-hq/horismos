@@ -201,11 +201,18 @@ the same commit as this file.
       load-time variants U2/U3 already added — `StepMissingOperator` and friends —
       which are a different enum for a different failure class: malformed ontology
       vs. a failed run.)
-- [ ] U6. **`MockBridge`** (`horismos-bridges::mock`) — scripted perceive/narrate/
+- [x] U6. **`MockBridge`** (`horismos-bridges::mock`) — scripted perceive/narrate/
       rank by input pattern, deterministic, records invocations, default
       low-confidence response for unscripted input. Test target: scripted responses
       round-trip exactly; unscripted input yields the documented low-confidence
-      default. Blocked on U4 (needs the `Bridge` trait to implement against).
+      default. **Done 2026-08-19**: exact-match scripting per call kind
+      (`perceive`/`narrate`/`rank`, each keyed by its own input text —
+      `PerceiveRequest::text`/`NarrateRequest::proof_text`/`RankRequest::context`)
+      with a `"*"` wildcard, matching doc 08's own Python illustration; unscripted
+      calls fall through to each result type's `Default` (perceive: confidence
+      `0.0`, empty instances — D9's fail-safe). `MockBridge::invocations()` returns
+      every call in order for a test to assert against. 6 tests green
+      (`mock::tests::*`).
 - [ ] U7. **Agent interpreter** (`workflow::agent`) — `Agent::builder(&onto)
       .workflow(name).bridge(prefix, bridge).tool(name, impl).build()`;
       `agent.run(&mut world, RunInput)` executing Perception → Reasoning → Action →
@@ -213,9 +220,9 @@ the same commit as this file.
       `horis:now` transaction-stamping (once per `run`, never re-read). Deployment
       model override per D8. Test target: a mock-bridge run of the full triage
       workflow reaches `:Done` with `acuity :Immediate`, matching PRP-002's Example 1
-      hand-computed proof exactly. Blocked on U4/U6 landing; mine to drive once they
-      integrate (`workflow::mod`'s `agent` submodule is deliberately not yet declared
-      — see its module doc).
+      hand-computed proof exactly. Unblocked now that U4/U6 exist; mine to drive next
+      (`workflow::mod`'s `agent` submodule is deliberately not yet declared — see its
+      module doc).
 - [ ] U8. **Fallback path** — `MockBridge` scripted to a low-confidence response;
       test target: the run takes `:Intake`'s `horis:fallback` edge to
       `:EscalateToNurse`, fires `:paging.notify_nurse`, and
