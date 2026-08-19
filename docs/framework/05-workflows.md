@@ -20,6 +20,7 @@ may execute — comes from the ontology. Changing the loop means editing `.ttl`,
 ```turtle
 :Triage a horis:Workflow ;
     horis:startsAt :Intake ;
+    horis:decides  :acuity ;
     horis:version "1.2.0" .
 
 :Intake a horis:PerceptionStep ;
