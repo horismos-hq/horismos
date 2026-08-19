@@ -43,9 +43,37 @@ structure (used by the perception retry loop, doc 06).
 `world.retract(fact)` exists and passes the same policy checks, plus two retraction
 rulings (decided, PRP-002): a `horis:immutable` fact refuses retraction outright,
 and a **rule-derived** fact refuses retraction from perception/tool/api — the error
-names the deriving rule; derived facts change only by re-running inference after
-base-fact changes (rule provenance, the inference side's own mechanism, remains
-admitted). There is no cascade in v1.
+names the deriving rule; the remedy is to change the *base* facts the derivation
+rests on (see Truth maintenance, next) — the rule path itself remains admitted (a
+rule may retract what a rule asserted).
+
+## Truth maintenance
+
+**Derived facts are recomputed, never left stale.** Every external mutation —
+`assert_`, a base-fact replacement, or `retract` — ends with the world at the
+forward-chained fixed point of its *final* base facts, exactly as if that fact set
+had been asserted into a fresh world. A derived `:Immediate` acuity that rests on
+`heartRate` 128 cannot survive that `heartRate` being replaced by 96 or retracted:
+the transaction that changes the support also invalidates and, where the new base
+facts still warrant it, re-derives the conclusion — through however many rules the
+support was chained (a fact derived from a derived fact is invalidated too).
+
+This closes a decision doc 03 previously left ambiguous ("derived facts change only
+by re-running inference after base-fact changes" did not specify that re-running
+inference *invalidates* what no longer holds). The captain's ruling
+(`tm-derived-facts.md`) and PRP-002's decision record (`03-decisions.md`) make it
+concrete: **recompute-on-base-mutation**, not derivations-as-immutable-history. A
+derivation is a claim about the *current* world, not a logged event — the trace is
+where history lives (doc 09); the world is where the current fixed point lives.
+
+Implementation note (v1): the current approach resets every standing derived fact
+and re-chains to the new fixed point on every external transaction, rather than
+tracking per-fact dependency edges and invalidating only what a change actually
+touches. This is simple and provably correct — the property test suite pins
+equivalence with fresh-world reconstruction — at the cost of doing full-graph work
+on every transaction, not just ones near the change. Incremental truth maintenance
+(a real TMS) is a possible future optimization, not built here; see the PRP-002
+decision record for the measured cost on the triage fixture.
 
 One modeling ruling made at the gate in PRP-001 and recorded here: **instances are
 single-typed** — a subject asserted as a second `rdf:type` is refused
@@ -107,7 +135,11 @@ a callback are queued as new transactions).
 
 ## Transactions
 
-Every externally-triggered mutation (perception batch, tool effect, API `assert_`)
-is a transaction: gate → assert base facts → forward-chain to fixed point (doc 04) →
+Every externally-triggered mutation (perception batch, tool effect, API `assert_`,
+`retract`) is a transaction: gate → change the requested base fact(s) → truth
+maintenance re-chains to the fixed point of the resulting base-fact set (doc 04) →
 constraint re-check on derived facts → commit (or roll back entirely) → notify
-subscribers → append to trace. Partial states are never observable.
+subscribers → append to trace. Partial states are never observable. A retraction
+transaction chains too — it is not merely "remove one fact" — so it is subject to
+the same iteration-cap tripwire as an assertion, and rolls back the whole
+transaction, requested retraction included, if that cap trips.

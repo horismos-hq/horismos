@@ -278,28 +278,77 @@ mod tests {
         world.intern(&format!("https://example.org/t#{local}"))
     }
 
-    /// PRP Example 2, the provable case: before any acuity exists, could
-    /// `:p7 :acuity :Immediate` be established? Yes, via r1 — with the
-    /// subsumption hop explicit, and the world left unmutated.
+    /// A variant of Example 1 with an added spoiler rule `:r0` (priority 20,
+    /// outranking `:r1`'s 10): whenever `heartRate` is asserted at all,
+    /// `:r0` claims the single-valued `acuity` slot with `:Standard` before
+    /// the conflict policy ever gets to `:r1`, so `:r1`'s `:Immediate`
+    /// conclusion — though its own conditions genuinely hold — never
+    /// actually stands in a *real*, forward-chained world.
+    ///
+    /// Truth maintenance (doc 03 § Truth maintenance) means a world built
+    /// through the public API is always already at its fixed point, so a
+    /// goal that *did* stand can only be re-proved as a same-value leaf,
+    /// never walked through [`ProofKind::Conclusion`] — the "derive then
+    /// manually retract the conclusion" setup these tests used before is no
+    /// longer reachable (retraction now re-chains too). Spoiling the real
+    /// winner is what keeps `:r1`/`:r3` individually provable by backward
+    /// search while their conclusions stay genuinely absent from the real
+    /// world.
+    fn spoiled_world() -> World {
+        let source = format!(
+            "{PRELUDE}\
+             :Patient a rdfs:Class .\n\
+             :Symptom a rdfs:Class .\n\
+             :ChestPain rdfs:subClassOf :Symptom .\n\
+             :CrushingChestPain rdfs:subClassOf :ChestPain .\n\
+             :AcuityLevel a rdfs:Class ; horis:oneOf ( :Immediate :Urgent :Standard ) .\n\
+             :heartRate a rdf:Property ; rdfs:domain :Patient ; rdfs:range xsd:decimal ;\n\
+             \x20   horis:unit \"bpm\" ; horis:min 0 ; horis:max 300 ; horis:cardinality \"0..1\" .\n\
+             :hasSymptom a rdf:Property ; rdfs:domain :Patient ; rdfs:range :Symptom ;\n\
+             \x20   horis:cardinality \"0..*\" .\n\
+             :acuity a rdf:Property ; rdfs:domain :Patient ; rdfs:range :AcuityLevel ;\n\
+             \x20   horis:cardinality \"0..1\" ; horis:assignedBy horis:RulesOnly .\n\
+             :needsCardiacMonitor a rdf:Property ; rdfs:domain :Patient ;\n\
+             \x20   rdfs:range xsd:boolean ; horis:cardinality \"0..1\" ;\n\
+             \x20   horis:assignedBy horis:RulesOnly .\n\
+             :r0 a horis:Rule ; horis:priority 20 ;\n\
+             \x20 horis:when [ horis:all (\n\
+             \x20   [ horis:subject :Patient ; horis:property :heartRate ; horis:isAssigned true ]\n\
+             \x20 ) ] ;\n\
+             \x20 horis:then [ horis:property :acuity ; horis:value :Standard ] ;\n\
+             \x20 horis:explain \"Baseline — outranks r1 so the real world never settles on :Immediate\" .\n\
+             :r1 a horis:Rule ; horis:priority 10 ;\n\
+             \x20 horis:when [ horis:all (\n\
+             \x20   [ horis:subject :Patient ; horis:property :heartRate ; horis:exceeds 120 ]\n\
+             \x20   [ horis:subject :Patient ; horis:property :hasSymptom ; horis:is :ChestPain ]\n\
+             \x20 ) ] ;\n\
+             \x20 horis:then [ horis:property :acuity ; horis:value :Immediate ] ;\n\
+             \x20 horis:explain \"Tachycardia with chest pain — immediate track\" .\n\
+             :r3 a horis:Rule ; horis:priority 8 ;\n\
+             \x20 horis:when [ horis:all (\n\
+             \x20   [ horis:subject :Patient ; horis:property :acuity ; horis:is :Immediate ]\n\
+             \x20 ) ] ;\n\
+             \x20 horis:then [ horis:property :needsCardiacMonitor ; horis:value true ] ;\n\
+             \x20 horis:explain \"Immediate track — continuous cardiac monitoring\" .\n"
+        );
+        let onto = Ontology::load_from_str(&source, |_| None).expect("valid");
+        World::new(&onto)
+    }
+
+    /// PRP Example 2, the provable case: could `:p7 :acuity :Immediate` be
+    /// established? Yes, via r1 — with the subsumption hop explicit, and
+    /// the world left unmutated — even though the *real* world settled on
+    /// r0's `:Standard` (see [`spoiled_world`]).
     #[test]
     fn prove_finds_the_r1_derivation_without_mutating_the_world() {
-        // Build the world *without* triggering r1: no rules fire for a
-        // patient with neither tachycardia nor symptoms recorded... but
-        // Example 2 wants exactly p7's facts. Rules fire on assert (U4), so
-        // the closest faithful setup is a world whose acuity was derived
-        // and then retracted — instead, prove is exercised on a fresh goal
-        // r1 does establish: the *hypothetical* question for a patient
-        // whose facts arrived without chaining is PRP-004's perception
-        // stage; here we retract the derived acuity first (Rule provenance
-        // may retract what a rule asserted — PRP-001 U7 semantics).
-        let mut world = example_world();
+        let mut world = spoiled_world();
         let patient = t(&mut world, "Patient");
         let heart_rate = t(&mut world, "heartRate");
         let has_symptom = t(&mut world, "hasSymptom");
         let crushing = t(&mut world, "CrushingChestPain");
         let acuity = t(&mut world, "acuity");
         let immediate = t(&mut world, "Immediate");
-        let monitor = t(&mut world, "needsCardiacMonitor");
+        let standard = t(&mut world, "Standard");
 
         let p7 = world
             .assert_instance(
@@ -310,31 +359,21 @@ mod tests {
                 ],
             )
             .expect("accepted");
-        // Strip the chained conclusions so the goal is genuinely open.
-        world
-            .retract_as(
-                crate::world::Provenance::Rule,
-                p7,
-                acuity,
-                &Value::Ref(Ref::new(immediate)),
-            )
-            .expect("a rule may retract a rule-derived fact");
-        world
-            .retract_as(
-                crate::world::Provenance::Rule,
-                p7,
-                monitor,
-                &Value::Boolean(true),
-            )
-            .expect("retract the monitor too");
-        assert_eq!(world.value(p7, acuity), None, "the goal must be open");
+        assert_eq!(
+            world.value(p7, acuity),
+            Some(&Value::Ref(Ref::new(standard))),
+            "sanity: r0 must win the real slot, not r1"
+        );
 
         let before = world.clone();
         let proof = prove(&world, p7, acuity, &Value::Ref(Ref::new(immediate)))
-            .expect("r1 establishes the goal");
+            .expect("r1 establishes the goal hypothetically");
 
         // The world was not touched.
-        assert_eq!(world.value(p7, acuity), None);
+        assert_eq!(
+            world.value(p7, acuity),
+            Some(&Value::Ref(Ref::new(standard)))
+        );
         assert_eq!(
             world.instance(p7),
             before.instance(p7),
@@ -406,16 +445,17 @@ mod tests {
 
     /// A chained goal: proving r3's conclusion requires first proving r1's —
     /// the nested derivation appears as a Derived condition with the
-    /// sub-proof as its child.
+    /// sub-proof as its child. Both stay off the *real* fixed point (r0
+    /// spoils `acuity`, see [`spoiled_world`]), so this also exercises
+    /// derived-from-derived truth maintenance: neither goal can be answered
+    /// by the top-level leaf shortcut.
     #[test]
     fn prove_chains_through_intermediate_rules() {
-        let mut world = example_world();
+        let mut world = spoiled_world();
         let patient = t(&mut world, "Patient");
         let heart_rate = t(&mut world, "heartRate");
         let has_symptom = t(&mut world, "hasSymptom");
         let crushing = t(&mut world, "CrushingChestPain");
-        let acuity = t(&mut world, "acuity");
-        let immediate = t(&mut world, "Immediate");
         let monitor = t(&mut world, "needsCardiacMonitor");
 
         let p7 = world
@@ -427,23 +467,11 @@ mod tests {
                 ],
             )
             .expect("accepted");
-        // Open both goals again.
-        world
-            .retract_as(
-                crate::world::Provenance::Rule,
-                p7,
-                monitor,
-                &Value::Boolean(true),
-            )
-            .expect("retract monitor");
-        world
-            .retract_as(
-                crate::world::Provenance::Rule,
-                p7,
-                acuity,
-                &Value::Ref(Ref::new(immediate)),
-            )
-            .expect("retract acuity");
+        assert_eq!(
+            world.value(p7, monitor),
+            None,
+            "sanity: r3 never fires for real — acuity is r0's :Standard, not :Immediate"
+        );
 
         let proof =
             prove(&world, p7, monitor, &Value::Boolean(true)).expect("r3 via r1 establishes it");
@@ -461,6 +489,9 @@ mod tests {
             panic!("the nested derivation roots at r1");
         };
         assert_eq!(world.resolve(*rule), "https://example.org/t#r1");
+
+        // prove is read-only: the real world never saw either conclusion.
+        assert_eq!(world.value(p7, monitor), None);
     }
 
     /// Mutually recursive rules terminate via the in-progress goal set —
@@ -545,26 +576,46 @@ mod branch_rollback_tests {
 
     /// The abandoned-branches contract (PRP-002 review finding): a rule
     /// attempt that fails after deriving intermediate facts must roll them
-    /// back — here, rA's derivation would otherwise falsify rB's `isEmpty`
+    /// back — here, rA's derivation would otherwise falsify rB's `isNot`
     /// condition, making a provable goal unprovable.
+    ///
+    /// Under truth maintenance (doc 03 § Truth maintenance) the "assert,
+    /// then manually retract-as-Rule the chained conclusions" setup this
+    /// test used before no longer produces an open goal — retraction now
+    /// re-chains and simply re-derives them. Two spoilers keep the *real*
+    /// world settled somewhere `prove`'s rule search must still walk past:
+    /// `rSpoiler` outranks both `rA`/`rB` for `verdict`, and `rSuppress`
+    /// outranks `rM` for `marker`, so the real world settles on
+    /// `marker = false`, never `:marker`'s absence — which is exactly what
+    /// lets `rB`'s `isNot true` (true whenever unset *or* assigned a
+    /// different value) stand in for the old `isEmpty` check.
     #[test]
     fn a_failed_branch_rolls_back_and_cannot_poison_a_negation() {
         // Goal: :verdict = :Ok. Two deriving rules, tried in priority order:
         //   rA (priority 9): needs :marker = true (derivable via rM) AND
         //       heartRate exceeds 999 (false — the branch fails late,
         //       after rM's marker fact landed in the hypothesis).
-        //   rB (priority 5): needs :marker isEmpty — true in the real
-        //       world, and true again only if rA's attempt rolled back.
+        //   rB (priority 5): needs :marker isNot true — true for real
+        //       (rSuppress won it as false), and true again only if rA's
+        //       attempt rolled back its hypothetical marker = true.
         let source = format!(
             "{PRELUDE}\
              :Patient a rdfs:Class .\n\
-             :Verdict a rdfs:Class ; horis:oneOf ( :Ok ) .\n\
+             :Verdict a rdfs:Class ; horis:oneOf ( :Ok :Other ) .\n\
              :heartRate a rdf:Property ; rdfs:domain :Patient ; rdfs:range xsd:decimal ;\n\
              \x20   horis:cardinality \"0..1\" .\n\
              :marker a rdf:Property ; rdfs:domain :Patient ; rdfs:range xsd:boolean ;\n\
              \x20   horis:cardinality \"0..1\" ; horis:assignedBy horis:RulesOnly .\n\
              :verdict a rdf:Property ; rdfs:domain :Patient ; rdfs:range :Verdict ;\n\
              \x20   horis:cardinality \"0..1\" ; horis:assignedBy horis:RulesOnly .\n\
+             :rSpoiler a horis:Rule ; horis:priority 99 ;\n\
+             \x20 horis:when [ horis:all (\n\
+             \x20   [ horis:subject :Patient ; horis:property :heartRate ; horis:isAssigned true ] ) ] ;\n\
+             \x20 horis:then [ horis:property :verdict ; horis:value :Other ] .\n\
+             :rSuppress a horis:Rule ; horis:priority 50 ;\n\
+             \x20 horis:when [ horis:all (\n\
+             \x20   [ horis:subject :Patient ; horis:property :heartRate ; horis:isAssigned true ] ) ] ;\n\
+             \x20 horis:then [ horis:property :marker ; horis:value false ] .\n\
              :rM a horis:Rule ; horis:priority 1 ;\n\
              \x20 horis:when [ horis:all (\n\
              \x20   [ horis:subject :Patient ; horis:property :heartRate ; horis:isAssigned true ] ) ] ;\n\
@@ -576,7 +627,7 @@ mod branch_rollback_tests {
              \x20 horis:then [ horis:property :verdict ; horis:value :Ok ] .\n\
              :rB a horis:Rule ; horis:priority 5 ;\n\
              \x20 horis:when [ horis:all (\n\
-             \x20   [ horis:subject :Patient ; horis:property :marker ; horis:isEmpty true ] ) ] ;\n\
+             \x20   [ horis:subject :Patient ; horis:property :marker ; horis:isNot true ] ) ] ;\n\
              \x20 horis:then [ horis:property :verdict ; horis:value :Ok ] .\n"
         );
         let onto = Ontology::load_from_str(&source, |_| None).expect("valid");
@@ -585,38 +636,29 @@ mod branch_rollback_tests {
         let heart_rate = t(&mut world, "heartRate");
         let verdict = t(&mut world, "verdict");
         let ok = t(&mut world, "Ok");
+        let other = t(&mut world, "Other");
         let marker = t(&mut world, "marker");
 
-        // The assertion chains: rB fires first (marker still empty at pass
-        // 1) deriving the verdict, then rM sets the marker. Unwind both
-        // through the rule path so the world is clean and the goal
-        // genuinely open.
         let p = world
             .assert_instance(patient, [(heart_rate, Value::Integer(80))])
             .expect("accepted");
-        world
-            .retract_as(
-                crate::world::Provenance::Rule,
-                p,
-                verdict,
-                &Value::Ref(Ref::new(ok)),
-            )
-            .expect("unwind the chained verdict");
-        world
-            .retract_as(
-                crate::world::Provenance::Rule,
-                p,
-                marker,
-                &Value::Boolean(true),
-            )
-            .expect("unwind the chained marker");
-        assert_eq!(world.value(p, marker), None, "marker must be open");
-        assert_eq!(world.value(p, verdict), None, "the goal must be open");
+        // Sanity: the real fixed point never reaches :Ok — rSpoiler and
+        // rSuppress win their slots, so rA/rB/rM are suppressed for real.
+        assert_eq!(
+            world.value(p, verdict),
+            Some(&Value::Ref(Ref::new(other))),
+            "rSpoiler must win the real verdict slot"
+        );
+        assert_eq!(
+            world.value(p, marker),
+            Some(&Value::Boolean(false)),
+            "rSuppress must win the real marker slot"
+        );
 
         // prove tries rA first (priority 9): rM re-derives marker into the
         // hypothesis, then `exceeds 999` fails. Without rollback, that
-        // leftover marker falsifies rB's isEmpty and the goal is wrongly
-        // unprovable; with rollback, rB proves it.
+        // leftover marker falsifies rB's `isNot true` and the goal is
+        // wrongly unprovable; with rollback, rB proves it.
         let proof = prove(&world, p, verdict, &Value::Ref(Ref::new(ok)))
             .expect("rB must prove the goal after rA's branch rolls back");
         let ProofKind::Conclusion { rule, .. } = &proof.kind else {
@@ -627,5 +669,9 @@ mod branch_rollback_tests {
             "https://example.org/t#rB",
             "the proof must come from rB, on a hypothesis rA did not pollute"
         );
+
+        // prove is read-only: the real world's suppressed slots are untouched.
+        assert_eq!(world.value(p, verdict), Some(&Value::Ref(Ref::new(other))));
+        assert_eq!(world.value(p, marker), Some(&Value::Boolean(false)));
     }
 }

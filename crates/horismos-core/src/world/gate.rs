@@ -203,8 +203,9 @@ pub enum ConstraintKind {
     /// the two-step retract-then-assert bypass is closed).
     ImmutableRetraction,
     /// The fact is rule-derived and the retraction did not come from the
-    /// rule path itself (decided, PRP-002: derived facts change only by
-    /// re-running inference after base-fact changes).
+    /// rule path itself (decided, PRP-002: a derived fact is changed by
+    /// changing the base facts it rests on, not by retracting it directly;
+    /// see doc 03 § Truth maintenance).
     DerivedFactRetraction {
         /// The deriving rule, in prefixed form.
         rule: String,

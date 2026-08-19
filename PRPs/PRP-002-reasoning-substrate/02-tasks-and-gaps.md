@@ -30,10 +30,20 @@ them. Expanded context for D1–D4 lives in `01-objective.md` § Key decisions.
       Owns doc 04's `[DECIDE: confirm ∃ vs. ∀ …]` and doc 02's
       `[DECIDE: PRP-002]` closed-world marker — both deleted and rewritten in
       shipped voice on resolution; semantics pinned by U2's test matrix.
-- [ ] D5. **Retraction semantics for rule-derived facts**: cascade vs. forbid;
-      doc 03's lean is forbid (derived facts are retracted only by re-running
-      inference after base-fact changes). Owns doc 03's marker; recorded in
-      doc 03 § Assertion and the validation gate.
+- [x] D5. **Retraction semantics for rule-derived facts**: resolved two ways.
+      A caller still cannot retract a derived fact *directly* from non-rule
+      provenance (forbid, as originally leaned) — but the base-fact side was
+      previously ambiguous ("change only by re-running inference" did not
+      specify that re-running inference *invalidates* what no longer holds,
+      and the shipped code didn't). Captain's ruling, 2026-08-18
+      (`data/horismos-prp-review-s1/decisions/tm-derived-facts.md`, prompted
+      by the independent review's top finding 2): **recompute-on-base-
+      mutation** — every external transaction resets and re-chains derived
+      facts to the fixed point of its final base facts, cascading through
+      chained (derived-from-derived) support. Not chosen:
+      derivations-as-immutable-history. Recorded in doc 03 § Truth
+      maintenance and `03-decisions.md` (full rationale, options considered,
+      benchmark pointer).
 - [ ] D6. **Retraction vs. `horis:immutable`**: retract-then-assert currently
       replaces an immutable value in two steps (PRP-001 gap, 2026-07-29). Owns
       the markers in doc 02 and `world/gate.rs`; recorded in doc 02's
@@ -100,3 +110,25 @@ them. Expanded context for D1–D4 lives in `01-objective.md` § Key decisions.
 ## Gaps discovered during implementation
 
 (append dated notes here; scope changes go back into `01-objective.md` by explicit edit)
+
+- 2026-08-19 (truth maintenance, D5): full detail in `03-decisions.md` §
+  Gaps. Summary: (1) `World::from_snapshot` doesn't restore `derivations`
+  (rule identity/proof aren't in the wire form), so a resumed world won't
+  truth-maintain a fact that was rule-derived before serialization until
+  something else re-derives it — would need a v3 snapshot wire form, a
+  separate decision, not implied by this ruling. (2) A multi-valued
+  `horis:RulesOnly` property with several distinct standing rule-derived
+  values only has its *last* one explained by `World::explain`
+  (`derivations` overwrites per (subject, property)) — pre-existing, not a
+  truth-maintenance correctness gap (removal still catches every rule-
+  tagged value via `fact_meta`). (3) PRP-004's runtime/trace loop should
+  call `reasoning_step` after retraction transactions too, now that
+  `retract_as` populates `World::last_reasoning` — no new trace-schema
+  surface needed, `Step::Reasoning` already covers it generically.
+- 2026-08-19: the retract-derived-and-rechain approach does full-graph work
+  on every external transaction (not just ones touching a derivation), by
+  design — see `03-decisions.md` § Options considered. If
+  `benches/matching.rs`'s `triage_replace_transaction` numbers show this is
+  heavy at a scale the project cares about, the fix is dependency-tracked
+  incremental invalidation (a real TMS), deliberately not built in this
+  task — future-optimization gap, not a defect.

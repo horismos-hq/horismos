@@ -34,6 +34,33 @@ fn load() -> Ontology {
         .expect("the SNOMED subset must import")
 }
 
+/// triage.ttl (plus its SNOMED import) with one added spoiler rule that
+/// outranks r1 for `acuity` — appended in memory, kept local to this test:
+/// the shipped fixture stays untouched.
+///
+/// Truth maintenance (doc 03 § Truth maintenance) means a world built
+/// through the public API is always at its forward-chained fixed point, so
+/// section (f) below — proving r1's `:Immediate` by rule search rather than
+/// reading the standing value — needs a real world where r1's own
+/// conditions hold but its conclusion does not actually stand. The old
+/// "assert, then manually retract-as-Rule the derived acuity" technique no
+/// longer produces that (retraction re-chains and simply re-derives it);
+/// the spoiler does.
+fn load_with_spoiler() -> Ontology {
+    let triage_source = std::fs::read_to_string(TRIAGE).expect("triage.ttl reads");
+    let spoiler = "\n:r0 a horis:Rule ;\n\
+         \x20   horis:priority 20 ;\n\
+         \x20   horis:when [ horis:all (\n\
+         \x20       [ horis:subject :Patient ; horis:property :heartRate ; horis:isAssigned true ]\n\
+         \x20   ) ] ;\n\
+         \x20   horis:then [ horis:property :acuity ; horis:value :Standard ] ;\n\
+         \x20   horis:explain \"Baseline — local to this test only, outranks r1\" .\n";
+    Ontology::load_from_str(&format!("{triage_source}{spoiler}"), |_| None)
+        .expect("triage.ttl plus the local spoiler rule must load")
+        .with_import(SNOMED)
+        .expect("the SNOMED subset must import")
+}
+
 fn triage(world: &mut World, local: &str) -> Iri {
     world.intern(&format!("https://example.org/triage#{local}"))
 }
@@ -140,26 +167,47 @@ fn the_definition_of_done_run() {
         "prove must refuse: r1's heartRate condition is false and nothing else concludes :Immediate"
     );
 
-    // (f) prove finds the derivation for an open goal (PRP Example 2's
-    // provable case): unwind the derived facts through the rule path (the
-    // one retraction D-5 admits), then ask again.
-    use horismos_core::Provenance;
-    world
-        .retract_as(
-            Provenance::Rule,
-            p7,
-            acuity,
-            &Value::Ref(Ref::new(immediate)),
+    // (f) prove finds the derivation for a goal that is genuinely provable
+    // but not the real fixed point's standing value (PRP Example 2's
+    // provable case) — a spoiler rule local to this test (see
+    // `load_with_spoiler`) outranks r1 for `acuity`, so r1's own conditions
+    // hold for real without its conclusion ever landing for real; truth
+    // maintenance is exactly what makes any other technique for reopening
+    // an already-derived goal (e.g. retracting it) immediately re-derive it
+    // instead.
+    let spoiled = load_with_spoiler();
+    let mut world2 = World::new(&spoiled);
+    let patient2 = triage(&mut world2, "Patient");
+    let heart_rate2 = triage(&mut world2, "heartRate");
+    let has_symptom2 = triage(&mut world2, "hasSymptom");
+    let acuity2 = triage(&mut world2, "acuity");
+    let immediate2 = triage(&mut world2, "Immediate");
+    let standard2 = triage(&mut world2, "Standard");
+    let unstable_angina2 = world2.intern("http://snomed.info/id/4557003");
+    let p10 = world2
+        .assert_instance(
+            patient2,
+            [
+                (heart_rate2, Value::Integer(128)),
+                (has_symptom2, Value::Ref(Ref::new(unstable_angina2))),
+            ],
         )
-        .expect("the rule path may unwind its own derivation");
-    let proof = world
-        .prove(p7, acuity, &Value::Ref(Ref::new(immediate)))
+        .expect("the base facts pass the gate");
+    assert_eq!(
+        world2.value(p10, acuity2),
+        Some(&Value::Ref(Ref::new(standard2))),
+        "sanity: the local spoiler must win the real acuity slot, not r1"
+    );
+
+    let proof = world2
+        .prove(p10, acuity2, &Value::Ref(Ref::new(immediate2)))
         .expect("r1 establishes the goal hypothetically");
-    let rendered = proof.render(&world);
+    let rendered = proof.render(&world2);
     assert!(rendered.contains("via r1"), "{rendered}");
-    assert!(
-        world.value(p7, acuity).is_none(),
-        "prove is read-only — the goal stays open in the real world"
+    assert_eq!(
+        world2.value(p10, acuity2),
+        Some(&Value::Ref(Ref::new(standard2))),
+        "prove is read-only — the real world keeps the spoiler's standing value"
     );
 
     // (g) Zero LLM: see the module doc — `make no-model-gate` builds and
