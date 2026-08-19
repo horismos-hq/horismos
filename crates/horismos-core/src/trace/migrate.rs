@@ -217,6 +217,8 @@ mod tests {
 
     #[test]
     fn convert_v1_to_v2_round_trips_a_full_doc_09_shaped_v1_trace() {
+        // Every one of the four kinds a v1 trace can ever contain by
+        // construction (U9): perception, reasoning, action, narration.
         let v1 = json!({
             "schema": "horismos.trace/1",
             "run_id": "run_01",
@@ -228,8 +230,18 @@ mod tests {
                     "asserted": [], "loss_mask": false
                 },
                 {
+                    "kind": "reasoning", "step": "triage:Assess",
+                    "fired": [], "suppressed": [], "passes": 1,
+                    "goal_reached": true, "loss_mask": true
+                },
+                {
                     "kind": "action", "step": "triage:Route", "tool": ":ehr.assign_queue",
                     "effects_asserted": [], "loss_mask": true
+                },
+                {
+                    "kind": "narration", "step": "triage:Explain",
+                    "audience": "charge-nurse", "text": "Acuity is Immediate.",
+                    "loss_mask": false
                 }
             ],
             "outcome": {"terminal": "triage:Done", "goal_reached": true}

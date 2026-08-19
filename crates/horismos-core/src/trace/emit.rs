@@ -1,14 +1,25 @@
-//! Emission (U7): converting a transaction's [`ReasoningRecord`] into a
-//! `horismos.trace/1` reasoning [`Step`] — the one place interned tokens
-//! become trace strings (compacted IRIs, lexical values).
+//! Emission (U7/U9): converting a transaction's typed results into trace
+//! [`Step`]s — the one place interned tokens become trace strings (compacted
+//! IRIs, lexical values). `reasoning_step` is PRP-002's; `perception_step`/
+//! `action_step`/`narration_step`/`proposal_step` are PRP-004's (U9),
+//! mirroring its pattern for the four kinds a real run can actually
+//! produce today. `Choice`/`Subflow`/`Wait` (v2-only, doc 09/`trace::schema`)
+//! have no builder yet — nothing in this PRP executes those kinds (U12), so
+//! there is no typed input to build one from; `trace::schema::Step`'s own
+//! variants are the schema's complete word on their shape in the meantime.
 //!
-//! Emission is a pure function of (world, record): no wall-clock, no ids
-//! minted, no iteration over unordered state — so two identical
-//! transactions emit byte-identical steps, and trace equality stays a valid
-//! test assertion (CLAUDE.md). Timing fields exist in the schema but are
-//! stamped by the runtime (PRP-004), never here.
+//! Emission is a pure function of (world, typed inputs): no wall-clock, no
+//! ids minted, no iteration over unordered state — so two identical calls
+//! emit byte-identical steps, and trace equality stays a valid test
+//! assertion (CLAUDE.md). Timing and step-specific derived flags
+//! (`latency_ms`; `reasoning_step`'s `goal_reached`) exist in the schema but
+//! are stamped by the runtime (PRP-004) after the call, via direct field
+//! assignment on the returned `Step` — never computed here, since that
+//! needs context (elapsed time; the workflow's own `horis:goal`) this
+//! module does not have.
 //!
-//! Spec: `docs/framework/09-traces.md` · Owner: PRP-002
+//! Spec: `docs/framework/09-traces.md` · Owner: PRP-002 (reasoning_step),
+//! PRP-004 (perception_step/action_step/narration_step/proposal_step, U9)
 
 use std::collections::BTreeMap;
 
@@ -59,6 +70,172 @@ pub fn reasoning_step(world: &World, step_name: Option<&str>, record: &Reasoning
         latency_ms: None,
         // Design rule 2 (doc 09): executor output is masked in training.
         loss_mask: true,
+    }
+}
+
+/// One fact a `PerceptionStep` asserted into the World, in interned form —
+/// [`perception_step`]'s input. Per-fact `confidence` mirrors doc 09's
+/// `asserted[].conf` (`PerceiveResult::fact_confidence`, falling back to the
+/// call's overall confidence when the provider does not support it, doc 06
+/// § Confidence).
+#[derive(Debug, Clone)]
+pub struct PerceivedFact {
+    pub subject: Ref,
+    pub property: Iri,
+    pub value: Value,
+    pub confidence: Option<f64>,
+}
+
+/// One effect a `Tool` asserted back into the World, in interned form —
+/// [`action_step`]'s input (doc 07: only what passed `horis:effect`
+/// validation through the gate is ever in this list).
+#[derive(Debug, Clone)]
+pub struct AssertedEffect {
+    pub subject: Ref,
+    pub property: Iri,
+    pub value: Value,
+}
+
+/// Builds the [`Step::Perception`] for one transducer call (doc 06, U9).
+/// `accepted` is the confidence gate's own verdict — `confidence >=
+/// threshold` — computed here whenever both are known, since (unlike
+/// `reasoning_step`'s `goal_reached`) it needs no context beyond the two
+/// values already passed in.
+pub fn perception_step(
+    world: &World,
+    step_name: Option<&str>,
+    model: Option<String>,
+    confidence: Option<f64>,
+    threshold: Option<f64>,
+    asserted: &[PerceivedFact],
+) -> Step {
+    let accepted = match (confidence, threshold) {
+        (Some(c), Some(t)) => Some(c >= t),
+        _ => None,
+    };
+    Step::Perception {
+        step: step_name.map(str::to_owned),
+        model,
+        confidence,
+        threshold,
+        accepted,
+        latency_ms: None,
+        asserted: asserted
+            .iter()
+            .map(|f| {
+                trace_fact(
+                    world,
+                    f.subject,
+                    f.property,
+                    &f.value,
+                    Provenance::Perception,
+                    f.confidence,
+                )
+            })
+            .collect(),
+        // Design rule 2 (doc 09): a transducer's output is model-generated,
+        // trainable.
+        loss_mask: false,
+    }
+}
+
+/// Builds the [`Step::Action`] for one tool invocation (doc 07, U9).
+pub fn action_step(
+    world: &World,
+    step_name: Option<&str>,
+    tool: Option<&str>,
+    effects_asserted: &[AssertedEffect],
+) -> Step {
+    Step::Action {
+        step: step_name.map(str::to_owned),
+        tool: tool.map(str::to_owned),
+        latency_ms: None,
+        effects_asserted: effects_asserted
+            .iter()
+            .map(|f| {
+                trace_fact(
+                    world,
+                    f.subject,
+                    f.property,
+                    &f.value,
+                    Provenance::Tool,
+                    None,
+                )
+            })
+            .collect(),
+        // Design rule 2: a tool's effect is executor output, masked.
+        loss_mask: true,
+    }
+}
+
+/// Builds the [`Step::Narration`] for one `Bridge::narrate` call (doc 06,
+/// U9). No `World` needed: narration renders a proof tree already resolved
+/// to text (`proof.render()`'s output, or the model's rendering of it) and
+/// asserts nothing.
+pub fn narration_step(
+    step_name: Option<&str>,
+    audience: Option<String>,
+    text: Option<String>,
+) -> Step {
+    Step::Narration {
+        step: step_name.map(str::to_owned),
+        audience,
+        text,
+        // Design rule 2: the rendered prose is model-generated, trainable
+        // (the mechanical `proof.render()` fallback is also captured here —
+        // it is still the step's recorded output — but D7's non-fatal
+        // narration failure means this builder only ever sees text that
+        // exists, mechanical or modeled).
+        loss_mask: false,
+    }
+}
+
+/// Builds the [`Step::Proposal`] for one `Bridge::rank` call (doc 07, U9).
+/// `candidates` is the precondition-satisfied set the *runtime* computed —
+/// never more than that, per doc 07 ("the LLM ranks; it cannot add
+/// options") — in the order presented to the model.
+pub fn proposal_step(
+    world: &World,
+    step_name: Option<&str>,
+    model: Option<String>,
+    candidates: &[Ref],
+    confidence: Option<f64>,
+    threshold: Option<f64>,
+    chosen: Option<Ref>,
+) -> Step {
+    let accepted = match (confidence, threshold) {
+        (Some(c), Some(t)) => Some(c >= t),
+        _ => None,
+    };
+    Step::Proposal {
+        step: step_name.map(str::to_owned),
+        model,
+        candidates: candidates.iter().map(|r| compact(world, r.iri())).collect(),
+        confidence,
+        threshold,
+        accepted,
+        chosen: chosen.map(|r| compact(world, r.iri())),
+        latency_ms: None,
+        // Design rule 2: the ranking is model-generated, trainable — same
+        // posture as perception (schema doc comment on `Step::Proposal`).
+        loss_mask: false,
+    }
+}
+
+fn trace_fact(
+    world: &World,
+    subject: Ref,
+    property: Iri,
+    value: &Value,
+    provenance: Provenance,
+    conf: Option<f64>,
+) -> TraceFact {
+    TraceFact {
+        s: compact(world, subject.iri()),
+        p: compact(world, property),
+        o: value_json(world, value),
+        provenance: Some(provenance),
+        conf,
     }
 }
 
