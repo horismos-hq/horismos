@@ -1,0 +1,504 @@
+# PRP-004 — Tasks & Gaps
+
+## [DECIDE] marker inventory (independent-review finding D1: the PRP's original
+four-item list omitted all eight framework markers this PRP owns — closed by this
+table)
+
+| # | Marker | Location | Blocks | Resolved at |
+|---|--------|----------|--------|-------------|
+| D5 | `horis:decides` modeling | `docs/framework/05-workflows.md:115-116` | U2 (outcome computation) | this doc, below |
+| D6 | Subflow recursion policy | `docs/framework/05-workflows.md:120-123` | U12 (deferred) | this doc, below |
+| D7 | Narration failure default | `docs/framework/06-llm-boundaries.md:86-88` | U-Narration | this doc, below |
+| D8 | Deployment-level model override | `docs/framework/08-bridge.md:53-56` | U7 (Agent builder) | this doc, below |
+| D9 | Confidence calibration strategy | `docs/framework/08-bridge.md:70-75` | U4/U13 (Bridge, OpenRouter) | this doc, below |
+| D10 | Budget semantics | `docs/framework/08-bridge.md:84-87` | (none — deferred) | this doc, below |
+| D11 | Sync/async tool story | `docs/framework/12-rust-api.md:41-45` | U3/U10 (Tool trait) | this doc, below |
+| D12 | Multi-world manager utility | `docs/framework/12-rust-api.md:83-88` | (none — deferred) | this doc, below |
+| D14 | URL allowlist configuration surface for http:/https: bindings | `docs/framework/15-security.md:133-134` | a future http:/https: tool-binding unit (not yet built in this PRP) | this doc, below (open) |
+| D15 | MCP-server allowlist policy | `docs/framework/15-security.md:139-140` | a future mcp: tool-binding unit (not yet built in this PRP) | this doc, below (open) |
+
+All eight markers above are struck from their docs (rewritten in shipped voice) in
+the same commit as this file.
+
+## Decisions to resolve (before implementation)
+
+- [x] D1. **Loop residence** (decided 2026-08-18): Rust-resident. The `Agent`
+      interpreter lives in `horismos-core::workflow` as a generic Rust step
+      interpreter (doc 12's `Agent::builder(...)` API), matching the PRP's original
+      lean. Risk considered: Python-tool ergonomics. Resolution: a `python:`-bound
+      tool is still one Rust `Tool` impl that marshals in/out at invocation only — no
+      cross-language chatter inside a transaction (doc 14) — so residence in Rust does
+      not force awkward Python tool authoring; it only defers *building* the
+      `python:` binding scheme itself (see D-Python-Bindings gap, below), which is a
+      separate question from where the loop lives. No full spike was run; the
+      architectural read above is the evidence, and the risk is bounded because the
+      `Tool` trait boundary was designed to absorb it either way.
+- [x] D2. **Integration adapters priority** (decided 2026-08-18): batteries-included
+      loop ships first; a LangGraph node / Claude Agent SDK tool adapter is deferred
+      past v1 (gap, dated below). No adapter code in this PRP.
+- [x] D3. **Human-in-the-loop step (`horis:WaitStep`)** (decided 2026-08-18):
+      deferred to v1.1, not shipped as trivially cheap. Pausing a run and resuming it
+      later — across a process boundary, in the general case — needs persisted
+      in-flight run state that nothing in the engine yet provides; that is not a
+      cheap add. `horis:WaitStep` parses (already-allowed profile vocabulary);
+      executing one returns `WorkflowError::StepDeferred { step: "WaitStep" }` naming
+      the step in domain terms. Gap, dated below.
+- [x] D4. **Structured-output mechanics per provider** (decided 2026-08-18): hidden
+      behind `Bridge`. `PerceiveRequest` carries a JSON Schema (derived from
+      `horis:extracts`, doc 06's mapping table) plus the input text; each `Bridge`
+      decides how to force conformance — `MockBridge` matches scripted responses by
+      input pattern; `OpenRouterBridge` forces `tool_choice` on an OpenAI-compatible
+      `assert_facts` tool (OpenRouter's own API reference documents
+      `tool_choice: {"type":"function","function":{"name":...}}` as OpenAI-compatible
+      forcing). **Not live-verified**: `OPENROUTER_API_KEY` was not present in this
+      environment (checked — no env var, no local key file), so this is verified
+      against OpenRouter's published API reference, not a live call. The captain can
+      verify live: `export OPENROUTER_API_KEY=sk-... && make demo-live`. Dated gap:
+      confirm live tool_choice forcing across at least one real OpenRouter-proxied
+      model once a key is available; if a specific model ignores forcing, the
+      documented behavior here needs a per-model note.
+- [x] D5. **`horis:decides` modeling** (decided 2026-08-18, closes
+      `docs/framework/05-workflows.md:115-116`): single decision property per
+      workflow, not a per-terminal-step outcome map. `horis:decides` names exactly
+      one property (`:Triage horis:decides :acuity`); `result.decision` is
+      `Some({property, value})` when the run ends holding a value for that property,
+      `None` otherwise. This matches the trace schema already shipped in PRP-002
+      (`outcome.decision` is one `{"property", "value"}` pair, not a list,
+      `docs/framework/09-traces.md:53-56`) — the simpler reading is also the one
+      already committed to on the wire.
+- [x] D6. **Subflow recursion policy** (decided 2026-08-18, closes
+      `docs/framework/05-workflows.md:120-123`): depth cap of exactly one, matching
+      the doc's own "one level of nesting… in v1" — a workflow reachable via a
+      `horis:SubflowStep` may not itself declare a `horis:SubflowStep`; checked at
+      `Ontology::assemble` (a load error, never a runtime surprise, same posture as
+      PRP-002's rule-load checks). Execution itself is deferred (D13/U12) — the
+      *policy* is decided independently of whether the runtime executes it yet.
+- [x] D7. **Narration failure default** (decided 2026-08-18, closes
+      `docs/framework/06-llm-boundaries.md:86-88`): confirmed non-fatal by default —
+      the doc's own preceding sentences already stated this; the marker was only
+      asking for sign-off. `NarrationStep` failure (Bridge error, timeout, refusal)
+      falls back to the mechanical `proof.render()` text and the run continues;
+      `horis:required true` makes it fatal (`WorkflowError`).
+- [x] D8. **Deployment-level model override** (decided 2026-08-18, closes
+      `docs/framework/08-bridge.md:53-56`): yes, with trace annotation, per the
+      doc's own lean. `Agent::builder().bridge(prefix, bridge_instance)` may bind a
+      different concrete model than the ontology's `horis:model` string names for
+      the same prefix (a cheaper model, or `mock:` in tests); every perception/
+      narration/proposal trace step's `model` field records `Bridge::id()` — the
+      model **actually invoked** — not merely the ontology's declared string, so an
+      override is visible after the fact without a new trace field.
+- [x] D9. **Confidence calibration strategy** (decided 2026-08-18, closes
+      `docs/framework/08-bridge.md:70-75`): one strategy for every provider in v1 —
+      calibrated self-report. The `assert_facts` tool's JSON Schema carries a
+      `confidence` number field the model must fill in; a `PerceiveResult` that omits
+      it is treated as confidence `0.0` (fails safe into the fallback edge rather
+      than false-accepting). Logprob-derived confidence, where a provider exposes it,
+      is a future per-backend enhancement layered on top of the same
+      `PerceiveResult.confidence` field — not required for any backend to ship in v1.
+      `MockBridge`'s scripted confidence makes every test independent of either.
+- [x] D10. **Budget semantics** (decided 2026-08-18, closes
+      `docs/framework/08-bridge.md:84-87`): defer past v1. Per-call accounting
+      (model, latency, tokens, cost estimate) ships in v1 and lands in every trace
+      step and in `Totals` — `horis:budget` as a workflow-level fallback-triggering
+      threshold is not implemented; the accounting the feature would consume already
+      exists, so adding the threshold check later is additive, not a redesign.
+- [x] D11. **Sync/async tool story** (decided 2026-08-18, closes
+      `docs/framework/12-rust-api.md:41-45`): v1 ships `Tool::invoke` as a plain sync
+      call, per doc 12's primary declaration. An async variant behind a future
+      `async-tools` feature is deferred — nothing in this PRP needs it (Rust-fn
+      bindings are fast and synchronous by construction; a tool binding that blocks
+      the executor is the deployer's concern, `docs/framework/14-architecture.md`'s
+      existing security-and-trust posture).
+- [x] D12. **Multi-world manager utility** (decided 2026-08-18, closes
+      `docs/framework/12-rust-api.md:83-88`): defer past v1. One `Agent` + one
+      `World` per case is the documented pattern (doc 12); a registry/manager utility
+      (spawn/reap worlds keyed by case id) is straightforward for a caller to write
+      directly and is deferred until a real deployment needs one built in.
+- [x] D13. **Trace representation of `ChoiceStep`/`ProposalStep`/`WaitStep`/
+      `SubflowStep`** (decided 2026-08-19, captain decision, option (b) of the two
+      below). Per the independent review (`data/horismos-prp-review-s1/report.md`, top
+      finding 3) and interim orders on this branch: `horismos.trace/1`'s `Step` enum
+      had exactly four kinds (perception/reasoning/action/narration,
+      `crates/horismos-core/src/trace/schema.rs:108-172`); the compatibility policy
+      (`trace/migrate.rs`) requires a new step kind to be `horismos.trace/2`, not an
+      additive v1 change. The two options considered:
+      (a) map each of the four remaining step kinds losslessly into the existing four
+      trace kinds via annotated fields (e.g. a `ChoiceStep` firing recorded as a
+      `reasoning`-kind step with a `branch_taken` field) — cheap, no version bump, but
+      needs a specification of the lossless mapping for each kind before it is
+      trustworthy training data; or
+      (b) **mint `horismos.trace/2` now**, before any real corpus depends on v1's exact
+      four kinds — chosen. `trace::schema` now declares `SCHEMA_V2` and four new `Step`
+      variants (`Choice`, `Proposal`, `Subflow`, `Wait`) alongside the original four,
+      each documented with its `loss_mask` semantics; `Trace::new` still emits v1
+      unchanged (byte-for-byte, every PRP-002 test untouched) and a parallel
+      `Trace::new_v2` emits v2 for the Agent's code path. `trace::migrate` gained
+      `convert_v1_to_v2` (pure, purely additive — rewrites only the `"schema"` tag,
+      since a v1 trace can only ever contain the original four kinds by construction)
+      with round-trip tests per kind, including a hand-built `Step::Wait` fixture since
+      execution never produces one (D3). **resolved: trace/2 minted and absorbed** —
+      `trace::schema`/`trace::migrate` land in this commit; wiring `trace::emit`
+      builders for the four new kinds and the Agent's use of `Trace::new_v2` is U9/U7,
+      tracked below, not blocked by this decision any longer.
+- [ ] D14. **URL allowlist configuration surface for `http:`/`https:` tool
+      bindings** (open, closes `docs/framework/15-security.md:133-134`): per-tool
+      vs. per-Agent scoping, glob vs. exact host match — undecided. Does not block
+      anything already shipped: this PRP ships only `rust:`-fn tool bindings (see
+      Scope); no `http:`/`https:` binding scheme exists yet for this decision to
+      gate. Blocks whichever future unit adds one.
+- [ ] D15. **MCP-server allowlist policy** (open, closes
+      `docs/framework/15-security.md:139-140`): whether v1 adds an MCP-server
+      allowlist analogous to the HTTP one, once there is a concrete MCP threat
+      scenario to design against — undecided. Same scoping rationale as D14: no
+      `mcp:` binding scheme exists yet in this PRP.
+
+## Units of work
+
+- [x] U1. **Ontology vocabulary extension for Tool contracts** — extend
+      `ontology::profile::ALLOWED_HORIS` with the doc-07 Tool vocabulary (`Tool`,
+      `takes`, `arg`, `name`, `type`, `effect`, `asserts`, `binding`, `timeout`,
+      `idempotent`, `retries`, `now`) and the doc-07 `ProposalStep` vocabulary
+      (`candidates`, `rankBy`) plus `decides` for D5 (already present) and
+      `StepDeferred`-relevant terms already in the list (`WaitStep`, `ChoiceStep`,
+      `SubflowStep` — already allowed). Test target:
+      `examples/triage/triage.ttl`, extended with `:ehr.assign_queue` and
+      `:paging.notify_nurse` `horis:Tool` declarations (doc 07's own example plus a
+      matching second tool — both are currently *referenced* by the workflow's
+      `ActionStep`s but never *declared*, a fixture gap this PRP closes), still
+      passes `ontology::profile::validate`.
+- [x] U2. **Workflow + Step model parsing** (`workflow::model`) — parse
+      `horis:Workflow`/`horis:*Step` into typed Rust structs at `Ontology::assemble`,
+      mirroring `reason::rule`'s pattern (load-time errors, never runtime surprises).
+      `Ontology::workflow(name)` accessor. `horis:decides` per D5. Depth-1 check for
+      `SubflowStep` per D6. Test target: `triage.ttl`'s `:Triage` workflow parses into
+      the exact documented step graph (`:Intake` → `:Assess` → `:Route` → `:Explain`
+      → `:Done`, `:EscalateToNurse` terminal), with every edge (`next`/`fallback`/
+      `onUnreachable`/`onError`) resolved to the right step. **Done 2026-08-19**:
+      `workflow::model::tests::triage_workflow_parses_into_the_documented_step_graph`
+      green; the fixture also needed `:Route`/`:EscalateToNurse` `horis:onError` edges
+      and a new terminal `:PagingFailed` step (a fixture gap, not a model gap — noted
+      below).
+- [x] U3. **Tool model parsing** (`workflow::tool`) — `horis:Tool`
+      (`takes`/`effect`/`binding`) parsed at load, sync-only per D11. Test target:
+      `:ehr.assign_queue` parses with two args (`patient: :Patient`, `queue:
+      :AcuityLevel`) and two declared effects (`:queuedAt` = `horis:now` sentinel,
+      `:queueRef`: `xsd:string`-typed placeholder). **Done 2026-08-19**:
+      `workflow::tool::tests::ehr_assign_queue_parses_with_two_args_and_two_effects`
+      green; the fixture was missing the four effect properties'
+      (`:queuedAt`/`:queueRef`/`:notifiedAt`/`:pagedTo`) schema declarations
+      (`horis:assignedBy horis:ToolsOnly`), also closed here.
+- [ ] U4. **`Bridge` trait finalization** (`horismos-core::bridge`) — `perceive`/
+      `narrate`/`rank`/`id()`, request/result types, `BridgeError`. Confidence field
+      on `PerceiveResult` per D9. No network dependency. Test target: a trivial
+      in-crate test double implements `Bridge` and the crate still builds/tests under
+      `--no-default-features --features verify` (no-model-gate). In progress on the
+      contractor branch `fm/horismos-prp004-u4-u13`; not yet integrated — the
+      `horismos-core::bridge` module today is still the PRP-000-era doc-only stub.
+- [ ] U5. **`HorismosError` extension** — `WorkflowError`, `ToolError`,
+      `BridgeError` variants (the three the error module's own comment already
+      names as pending), each `domain_text()`'d. In progress alongside U4 on
+      `fm/horismos-prp004-u4-u13`. (Not to be confused with the `OntologyError`
+      load-time variants U2/U3 already added — `StepMissingOperator` and friends —
+      which are a different enum for a different failure class: malformed ontology
+      vs. a failed run.)
+- [x] U6. **`MockBridge`** (`horismos-bridges::mock`) — scripted perceive/narrate/
+      rank by input pattern, deterministic, records invocations, default
+      low-confidence response for unscripted input. Test target: scripted responses
+      round-trip exactly; unscripted input yields the documented low-confidence
+      default. **Done 2026-08-19**: exact-match scripting per call kind
+      (`perceive`/`narrate`/`rank`, each keyed by its own input text —
+      `PerceiveRequest::text`/`NarrateRequest::proof_text`/`RankRequest::context`)
+      with a `"*"` wildcard, matching doc 08's own Python illustration; unscripted
+      calls fall through to each result type's `Default` (perceive: confidence
+      `0.0`, empty instances — D9's fail-safe). `MockBridge::invocations()` returns
+      every call in order for a test to assert against. 6 tests green
+      (`mock::tests::*`).
+- [x] U7. **Agent interpreter** (`workflow::agent`) — `Agent::builder(&onto)
+      .workflow(name).bridge(prefix, bridge).tool(name, impl).build()`;
+      `agent.run(&mut world, RunInput)` executing Perception → Reasoning → Action →
+      Narration, `horis:requires` gating, fallback/`onUnreachable`/`onError` edges,
+      `horis:now` transaction-stamping (once per `run`, never re-read). Deployment
+      model override per D8. Test target: a mock-bridge run of the full triage
+      workflow reaches `:Done` with `acuity :Immediate`, matching PRP-002's Example 1
+      hand-computed proof exactly. **Done 2026-08-19**:
+      `workflow::agent::tests::the_immediate_track_reaches_done_with_acuity_immediate`
+      green (a stub bridge + stub tools drive the full `:Intake → :Route →
+      :AssignQueue → :NotifyNurse → :Done` path). Case-subject identity and
+      type-directed tool-argument resolution are documented as implementation
+      notes in the module doc (no `[DECIDE]` marker asks for either — same
+      posture as `workflow::model`'s `ProposalStep` simplification).
+      `execute_step`'s `StepBody` dispatch already covers
+      Choice/Proposal/Wait/Subflow as `WorkflowError::StepDeferred`, so U12's
+      parse-and-defer plumbing exists; U12 itself stays unchecked below since
+      its own test coverage is separately scoped. Found and fixed a
+      PRP-001-owned bug along the way: `World::assert_instance_as` tagged
+      *every* caller-supplied subject as `gate::Subject::Named`, so a Tool
+      merging effects back onto the case instance perception minted (a
+      legitimate merge onto an *existing* skolem-space instance) tripped
+      check 1's caller-may-not-squat rule meant for *unminted* skolem ids.
+      Fixed by adding `World::assert_on(provenance, subject: Ref, properties)`
+      — a `pub(crate)` merge-onto-existing-instance path that tags an
+      existing skolem subject as `Skolem` (mirroring
+      `apply_rule_conclusion`'s established precedent) without reopening the
+      squat hole for external callers going through `assert_instance_as`/
+      `assert_named_instance` (`gate_properties.rs`'s
+      `a_rejected_operation_leaves_no_trace` still pins that a caller naming
+      an *existing* skolem IRI directly is refused). `invoke_tool` now calls
+      `assert_on`.
+- [ ] U8. **Fallback path** — `MockBridge` scripted to a low-confidence response;
+      test target: the run takes `:Intake`'s `horis:fallback` edge to
+      `:EscalateToNurse`, fires `:paging.notify_nurse`, and
+      `outcome.labels.fallback_taken == true`. A second script returns a
+      schema-valid-but-gate-rejected payload to exercise the bounded-retry loop
+      (`horis:retries`, default 2) before falling back. **Revised 2026-08-19**: the
+      first half of this target is unreachable as originally written — see the gap
+      note below and
+      `horismos-bridges/tests/agent_loop_dod.rs`'s
+      `the_fallback_track_on_low_confidence_perception_refuses_rather_than_guessing`
+      (U15), which covers the *actual* correct behavior (a domain-term refusal, not a
+      silent guess) for this edge. The bounded-retry-loop half is still open.
+- [x] U9. **Trace emission extension** (`trace::emit`) — `perception_step`/
+      `action_step`/`narration_step` builders mirroring `reasoning_step`; run-level
+      `Trace` fields (`ontology`, `workflow`, `input`, `outcome`, `totals`)
+      populated by the Agent. Test target: a full run's trajectory matches doc 09's
+      documented shape field-for-field; `Trace::from_json(t.to_json()) == t`; two
+      identical mock runs against fresh `World`s produce byte-identical trajectories.
+      **Partially done 2026-08-19** (D13's prerequisite): `trace::schema` ships
+      `SCHEMA_V2`/`Trace::new_v2` and the four new `Step` variants; `trace::migrate`
+      ships `convert_v1_to_v2` with per-kind round-trip tests.
+      **Builders done 2026-08-19** (contractor branch `fm/horismos-prp004-u9-u12`):
+      `trace::emit::{perception_step, action_step, narration_step, proposal_step}`
+      land, mirroring `reasoning_step`'s pattern (pure functions of `(&World,
+      typed inputs)`; `latency_ms` left `None`, stamped by the caller after the
+      call — same convention `reasoning_step` already uses for its own timing
+      field, so U7 stamps it identically for every kind). `proposal_step` is a
+      real builder ("Proposal as a real kind" — trace/2 represents it fully even
+      though `ProposalStep` ranking execution is still deferred, U12);
+      Choice/Subflow/Wait get no builder yet (nothing executes them, so there is
+      no typed input to build one from — `Step`'s own variants are the schema's
+      complete word on their shape). Round-trip
+      (`Trace::from_json(t.to_json()) == t`) tests land for all eight declared
+      kinds (`crates/horismos-core/src/trace/mod.rs` tests), plus a
+      byte-determinism test for the new v2 kinds. **Done 2026-08-19**:
+      `Agent::run` now builds a `Trace` (`RunOutcome.trace`, replacing the
+      narrower `RunOutcome.narrations`/`StepOutcome.narration` fields from U7),
+      calling these builders once per executed Perception/Reasoning/Action/
+      Narration step and populating the run-level `ontology`/`workflow`/`input`/
+      `outcome` fields (`outcome.decision`'s `TraceFact` resolved through
+      `world`, not `self.onto` — see the interner-crossing gap note below);
+      `totals`/per-step `latency_ms` stay `None` (`horismos-core` has no clock
+      feature by design — a caller with one may stamp them post-hoc). `RunInput`
+      gained a caller-supplied `run_id: String` (same determinism rationale as
+      `now`) threaded straight into `Trace::new_v2`. Round-trip
+      (`Trace::from_json(t.to_json()) == t`) and two-fresh-`World`s
+      byte-determinism are both covered by `agent_loop_dod.rs`'s
+      `the_trajectory_serializes_and_replays_deterministically` (U15).
+- [x] U10. **Tool-effect validation** — `ActionStep` resolves args from the graph,
+      invokes the bound `Tool`, validates the returned effect against
+      `horis:effect` (type/class match for typed placeholders; `horis:now` resolved
+      to the transaction stamp) through the gate with `Provenance::Tool`;
+      `horis:onError` on gate rejection, invocation error, or timeout. Test target:
+      an out-of-contract tool return (wrong type; an undeclared property) is
+      rejected with a domain-term witness and the step follows `onError`; a
+      well-formed return's effects are visible to the next step. **Done
+      2026-08-19**: `workflow::agent::tests::a_gate_rejected_tool_effect_follows_on_error_and_still_pages_the_nurse`
+      (wrong-typed `:queueRef` refused at the gate, `:Route` follows
+      `horis:onError` to `:EscalateToNurse`), the sibling
+      `..._carries_a_domain_term_witness` (asserts the witness text names
+      the offending property), and an added assertion in U7's happy-path
+      test (`:queueRef` still visible on the case after `:Explain`/`:Done`
+      ran). Found and fixed a real gap while writing the rejection-path
+      test: `model.rs` explicitly allows a terminal step to be an
+      `ActionStep` ("only horis:Step and horis:ActionStep may be terminal in
+      v1") specifically so `:EscalateToNurse` still fires
+      `:paging.notify_nurse` on the way out, but `Agent::run`'s loop checked
+      `current.terminal` *before* dispatch, so a terminal `ActionStep` never
+      actually executed. Fixed: the loop now short-circuits only on a bare
+      `horis:Step` body (a pure endpoint marker, always terminal by
+      load-time validation) and otherwise always dispatches the step,
+      stopping *after* execution when `current.terminal` — extracted into a
+      small `Agent::finish` helper to keep the two return points in sync.
+- [ ] U11. **`horis:now` transaction stamping** — `Agent::run` (or `Tool`'s
+      invocation context) carries one timestamp, supplied by the caller (defaults to
+      the host clock read exactly once, at transaction open — never inside chaining),
+      never re-read; deterministic tests pass a fixed instant. This is the "no
+      wall-clock in inference" rule (CLAUDE.md) made concrete for tool effects.
+- [ ] U12. **Deferred step kinds** (`ChoiceStep`/`ProposalStep`/`WaitStep`/
+      `SubflowStep`) — parse (already-allowed profile vocabulary; `SubflowStep`'s
+      depth-1 check per D6), execute as `WorkflowError::StepDeferred { step }` naming
+      the concrete step and kind in domain terms. Explicitly does **not** touch trace
+      emission — D13 is resolved (trace/2 exists), but wiring these four kinds'
+      *execution* traces is still future work past this PRP's DoD; parsing (U2) is
+      already done. Test target: a workflow using one of these step kinds loads
+      cleanly and fails at `run()` with the named, domain-term error — not a panic,
+      not a silent no-op.
+      **Stubs done 2026-08-19** (contractor branch `fm/horismos-prp004-u9-u12`):
+      `workflow::deferred::{choice_deferred, proposal_deferred, wait_deferred,
+      subflow_deferred}` land as free functions, each returning the documented
+      `WorkflowError::StepDeferred` with the step's compacted IRI and its concrete
+      kind. `workflow::agent` (U7) already dispatches all four kinds inline to
+      `WorkflowError::StepDeferred`; the next unit rewires it to call these
+      functions instead of duplicating that logic inline (mechanical
+      integration, matching U9's coordinate-by-interface plan). Each kind has an
+      ontology-parses-cleanly-then-defers test (`workflow::deferred::tests`),
+      including a genuine two-workflow `SubflowStep` fixture.
+      **Also fixed while writing that SubflowStep test**: a real defect in
+      already-"Done" U2 parsing, discovered because every previous
+      `SubflowStep`-adjacent test used a single-workflow document (see gap note
+      below, dated 2026-08-19).
+- [x] U13. **`OpenRouterBridge`** (`horismos-bridges::openrouter`, feature
+      `bridges-openrouter`) — **Done 2026-08-19**, delivered on the same contractor
+      branch as U4/U5 per the captain's litellm-rust directive: `litellm-rust` 0.3.0
+      (avivsinai), exact-pinned, lives only inside `horismos-bridges` behind `Bridge`.
+      Base URL `https://openrouter.ai/api/v1`, model from `OPENROUTER_MODEL` env,
+      forced `tool_choice` on `assert_facts`/`narrate`/`rank`-shaped calls verified
+      empirically against the crate's source (`ChatRequest::tool_choice` is forwarded
+      verbatim) — a passing unit test asserts the exact request body. The crate's own
+      response adapter was verified to drop `model`/`finish_reason`/OpenRouter's
+      `provider` field (confirmed, not assumed — its response struct doesn't
+      deserialize them and `raw` is always `None`); recovered via the crate's own
+      public transport primitive (`litellm_rust::http::send_json_once`) called
+      directly with `T = serde_json::Value`, not a second duplicate call. Reads
+      `OPENROUTER_API_KEY` from env or a gitignored local file only — never logged,
+      never committed, never in a trace. Test target: request-shape unit tests against
+      a local mock HTTP listener (no network, no key, still runs in CI) verifying the
+      forced-tool-choice request body — met; a `#[ignore]`d live test gated on the
+      key's presence is left for the captain to run by hand (D4's live-verification
+      gap; key was not present in this environment, checked).
+- [x] U14. **Live demo** (`crates/horismos-bridges/examples/triage_agent_demo.rs` +
+      `make demo` / `make demo-live`) — loads `triage.ttl` + the SNOMED subset, runs
+      "58M, crushing chest pain, heart rate 128" through `MockBridge` (CI/`make demo`)
+      or `OpenRouterBridge` (`make demo-live`, needs `OPENROUTER_API_KEY`), prints the
+      proof tree and narration, writes the full trajectory JSON. **Done 2026-08-19**:
+      lives in `horismos-bridges` (not the workspace-root `examples/` dir, which only
+      holds fixtures — the only crate allowed to depend on both `horismos-core` and a
+      `Bridge` implementation). `make demo` and `make demo-live` both build and run;
+      the live path falls back to `MockBridge` with a warning when built without
+      `bridges-openrouter` or without `OPENROUTER_API_KEY` set. Prints the terminal
+      step, decision, `:acuity`'s proof tree (`world.explain`), narration text
+      (filtered from `outcome.trace.steps`' `Step::Narration` variants — the earlier
+      standalone `RunOutcome.narrations` field was removed once U9's wiring made
+      `outcome.trace` the one place narration prose lives), and writes
+      `outcome.trace.to_json_pretty()` to a temp file, printing the step count and
+      path. **Test target revised**: no committed golden-file byte comparison ships —
+      determinism is instead verified in U15's
+      `the_trajectory_serializes_and_replays_deterministically` (two independent runs
+      of the same fixed input produce byte-identical `to_json()`/`to_json_pretty()`),
+      which is the assertion that actually matters and doesn't require maintaining a
+      golden fixture in lockstep with schema changes. Along the way, found and fixed a
+      real fixture gap: `triage.ttl`'s `:Triage` workflow never declared
+      `horis:decides :acuity` (D5's mechanism was decided but never actually wired
+      into the fixture), so `outcome.decision` was silently `None` on every demo run
+      until this was added.
+- [x] U15. **The DoD run** (`crates/horismos-bridges/tests/agent_loop_dod.rs`) — the
+      final unit: one test module reproducing the whole Definition of Done
+      (immediate track, fallback track, tool-effect validation, trajectory
+      serialize+replay) against `MockBridge`, independent of `bridges-openrouter`.
+      **Location corrected 2026-08-19**: lives in `horismos-bridges`, not
+      `horismos-core/tests/` as originally written — `horismos-core` may not depend
+      on `horismos-bridges` even as a dev-dependency (the anti-wrapper boundary), and
+      this unit needs the real `MockBridge` driving the real `Agent` together (U8's
+      test coverage folds in here too, see its entry). **Done 2026-08-19**: four
+      tests green — immediate track (asserts the full 4-step trajectory, the
+      narration step's text, `outcome.trace.run_id`, and a
+      `Trace::from_json`/`to_json` round-trip); the fallback-track refusal (see U8's
+      revised note); tool-effect validation's rejection branch; and
+      `the_trajectory_serializes_and_replays_deterministically`, closing the unit's
+      last open target — an internal `run()` helper builds a fresh `Agent`/`World`
+      and runs the same fixed input twice under the same `run_id`, asserting
+      `to_json()`/`to_json_pretty()` equality plus round-trip parse for both forms.
+- [ ] U-Python. **Python `agent.run(...)` wiring** — deferred: PRP-003 is
+      unmerged on a sibling branch (see `01-objective.md` § Coordination with
+      PRP-003). Dated 2026-08-18: pick this up once PRP-003 merges; until then the
+      Rust demo binary (U14) is the entry point of record.
+
+## Gaps discovered during implementation
+
+- **2026-08-18 — inherited defect, not fixed here: PRP-002 truth maintenance
+  (RESOLVED 2026-08-19).** Independent review `data/horismos-prp-review-s1/report.md`
+  top finding 2 (CONFIRMED · Critical): `World::assert_instance_as` re-chains on every
+  assertion, but neither it nor `World::retract_as` invalidates or recomputes a
+  standing rule-derived conclusion when the base fact that supported it is later
+  replaced or retracted (`crates/horismos-core/src/world/mod.rs:340-419,603-632`).
+  Concretely: if a patient's `heartRate` is asserted at 128 (deriving
+  `acuity :Immediate` via `:r1`), then later re-asserted at 96 or retracted, `acuity`
+  stayed `:Immediate` — stale, silently. This was a PRP-002 defect (truth-maintenance
+  policy was unresolved there, not a PRP-004 question), and this PRP did not attempt a
+  fix directly — **the captain ruled recompute/invalidate and it landed on `main` as
+  PR #7 (2026-08-19)**; this branch rebased onto it (`fm/horismos-prp004-a1`), so the
+  fix is now present. PRP-004's own perception/tool-effect assertion paths were kept
+  rebase-friendly for exactly this landing, per the interim FYI on this branch (the
+  triage happy path still never re-asserts a rule-supporting property mid-run, so the
+  demo's proof shape is unaffected either way).
+- **2026-08-19 — D13 above, resolved**: trace representation for Choice/Proposal/
+  Wait/Subflow was the captain's open decision; resolved as option (b), mint
+  `horismos.trace/2` now — see the D-item for what landed.
+- **2026-08-19 — `:EscalateToNurse` is unreachable-and-satisfiable via `:Intake`'s
+  `horis:fallback` edge, found writing U15's fallback-track test.** Doc06's
+  algorithm runs the confidence gate before asserting anything, so a low-confidence
+  perceive never creates a case subject (correct, documented behavior — "the LLM
+  never guesses"). But `:paging.notify_nurse`'s effects (`:notifiedAt`/`:pagedTo`)
+  are `rdfs:domain :Patient`, so invoking it needs *some* `:Patient` instance to
+  attach them to, and this edge never creates one. `Agent::run` correctly refuses
+  with `WorkflowError::NoCaseSubject` rather than guessing a subject or silently
+  skipping the tool — this is the right runtime behavior, not a bug in `agent.rs`.
+  The bug is in the fixture/workflow design: `:EscalateToNurse` is only actually
+  reachable-and-satisfiable via `:Route`'s `horis:onError` edge (where a case
+  already exists), not via `:Intake`'s fallback as U8's original test target
+  assumed. Not fixed here — needs a design decision (a future PRP or a D-item on
+  this one): either a case-independent escalation tool/effect shape, or
+  runtime-minted-anonymous-instance semantics for exactly this "couldn't identify a
+  patient, still need to escalate" scenario. `WorkflowError::NoCaseSubject`'s own
+  doc comment already anticipated this class of gap ("a malformed workflow
+  verification (PRP-005) should catch statically; this is the runtime backstop").
+- **2026-08-19 — security acceptance surface ported forward from PR #6.** PR #6
+  (security threat model, `docs/framework/15-security.md`) added a Security
+  acceptance surface subsection and two `[DECIDE]` markers (D14/D15 above) to the
+  old single-file `PRP-004-agent-loop.md` draft, after this branch had already
+  converted that file to folder form at activation. This rebase ports that content
+  forward rather than losing it on conflict. This PRP's already-shipped DoD
+  (`rust:`-only tool bindings, U1–U15) does not claim to meet the
+  `http:`/`https:`/`python:`/`mcp:`-binding-specific bullets of the security
+  acceptance surface, since those binding schemes are not built here (see
+  Non-goals) — D14/D15 and the adversarial-fixture-set requirement stay open for
+  whichever future PRP/unit adds those binding schemes.
+- **2026-08-19 — found and fixed while building U12's SubflowStep test: a U2
+  defect (multi-workflow documents), untouched until now because every prior
+  workflow-parsing test used a single-workflow document.**
+  `workflow::model::parse_one_workflow` built each `Workflow.steps` from the
+  *entire* document's `step_ids` map (`crates/horismos-core/src/workflow/model.rs`,
+  the `parse_workflows`/`parse_one_workflow` pair) — every step declared
+  anywhere in the document, not just the steps that workflow's own `starts_at`
+  reaches. Invisible for a single-workflow document (the two sets coincide, as
+  in `triage.ttl`), but D6's depth-1 check (`target.steps.values().any(is a
+  SubflowStep)`) then fires unconditionally on *any* multi-workflow document
+  containing a `SubflowStep` at all, since the target's polluted map always
+  contains it too — even with zero real nesting. This made legitimate one-level
+  `SubflowStep` usage (the exact shape U12's own test target calls for: "a
+  workflow using one of these step kinds loads cleanly") unparseable under any
+  code path that actually declares two workflows in one document. Fixed by
+  scoping `Workflow.steps` to what `starts_at` reaches (BFS over the same edges
+  `check_step_edges` already validates), applied *after* the existing
+  full-document edge validation so no error-message behavior for any existing
+  test changed. Regression tests added:
+  `workflow::model::tests::a_workflows_steps_are_scoped_to_what_it_reaches_not_the_whole_document`
+  and `…::genuine_two_level_subflow_nesting_is_still_rejected` (confirms D6's
+  cap still fires for real nesting after the fix). All prior U2 tests
+  (`triage_workflow_parses_into_the_documented_step_graph`,
+  `a_dangling_next_edge_is_a_domain_term_error`) still pass unchanged.
+- **2026-08-19 — interner-crossing panic found and fixed while wiring U9's trace
+  emission into `Agent::run`.** `Agent::finish`'s `decision_fact` construction
+  called `self.onto.resolve(c.iri())` on `c: Ref`, the run's case subject — but a
+  case subject is minted at runtime (a skolem `Iri` interned into `world`'s
+  interner, which starts as a copy of `self.onto`'s static load-time interner and
+  grows independently as perception/rule/tool provenance intern new terms). Once
+  `world`'s interner had grown past `self.onto`'s length, this panicked
+  (`index out of bounds`) — exactly the class of bug `Interner::resolve`'s own doc
+  comment warns about ("tokens are only meaningful relative to the interner that
+  minted them; carrying one across worlds is a caller bug"). Fixed by resolving
+  through `world` (`world.ontology().compact(world.resolve(c.iri()))`, and
+  `world.resolve(*property)` for the decision property) instead of `self.onto`.
+  Audited every other `self.onto.resolve`/`self.onto.compact` call site in
+  `agent.rs`: all others operate only on load-time-declared IRIs (workflow/step/
+  tool/property IRIs, present in both interners by construction), never on a
+  runtime `Ref` — no further instances of this bug in the file.

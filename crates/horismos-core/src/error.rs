@@ -8,12 +8,14 @@
 //! profile violations; U4 adds schema-build errors (subclass cycles,
 //! min>max, oneOf/domain/range misuse); U5 adds named-graph import errors
 //! (missing/cyclic imports, duplicate graph names, prefix conflicts) and
-//! attributes a profile violation to the graph it came from. The remaining
-//! variants (`VerificationFailed`, `WorkflowError`, `BridgeError`,
-//! `ToolError`) are added by their owning units/PRPs as those pieces land —
-//! see `.claude/skills/pyo3-boundary`. U6 adds `ValidationRejected`, whose
+//! attributes a profile violation to the graph it came from. `VerificationFailed`
+//! is added by its owning PRP as that piece lands — see
+//! `.claude/skills/pyo3-boundary`. U6 adds `ValidationRejected`, whose
 //! witness type lives with the gate that produces it
-//! (`crate::world::gate`).
+//! (`crate::world::gate`). PRP-004 U5 adds `WorkflowError`, `BridgeError`,
+//! `ToolError`, each wrapping its owning module's error enum
+//! (`crate::workflow::WorkflowError`, `crate::bridge::BridgeError`,
+//! `crate::workflow::tool::ToolError`).
 //!
 //! Spec: `docs/framework/12-rust-api.md` (§ Errors) · Owner: PRP-001
 
@@ -65,6 +67,29 @@ pub enum HorismosError {
         "forward chaining exceeded {cap} iterations without reaching a fixed point (last fired rule {last_rule}); the transaction was rolled back"
     )]
     IterationCapExceeded { cap: usize, last_rule: String },
+
+    /// A workflow step could not execute as declared
+    /// (`docs/framework/05-workflows.md`–`07-tools.md`; PRP-004). See
+    /// [`crate::workflow::WorkflowError`] for the specific causes.
+    #[error(transparent)]
+    WorkflowError(#[from] crate::workflow::WorkflowError),
+
+    /// A `Bridge` call failed (`docs/framework/08-bridge.md`; PRP-004).
+    /// The runtime treats every cause the same way — the step's
+    /// `horis:fallback` edge — so this exists for trace/log fidelity, not
+    /// differentiated handling. See [`crate::bridge::BridgeError`] for the
+    /// specific causes.
+    #[error(transparent)]
+    BridgeError(#[from] crate::bridge::BridgeError),
+
+    /// A tool binding invocation failed before any effect reached the
+    /// validation gate (`docs/framework/07-tools.md`; PRP-004). An
+    /// out-of-contract *effect* a binding does produce is
+    /// [`HorismosError::ValidationRejected`] instead, like any other World
+    /// mutation. See [`crate::workflow::tool::ToolError`] for the specific
+    /// causes.
+    #[error(transparent)]
+    ToolError(#[from] crate::workflow::tool::ToolError),
 }
 
 impl HorismosError {
@@ -76,6 +101,9 @@ impl HorismosError {
             Self::SnapshotFormat { reason } => reason.clone(),
             Self::SnapshotMismatch { reason } => reason.clone(),
             Self::IterationCapExceeded { .. } => self.to_string(),
+            Self::WorkflowError(e) => e.domain_text(),
+            Self::BridgeError(e) => e.domain_text(),
+            Self::ToolError(e) => e.domain_text(),
         }
     }
 
@@ -338,6 +366,117 @@ pub enum OntologyError {
         pattern: String,
         reason: String,
     },
+
+    // -- PRP-004 U2/U3: workflow/step/tool parse+validation at load --------
+    /// A `horis:Workflow` or `horis:*Step` is missing a required part
+    /// (`horis:startsAt`, `horis:fallback` on a `PerceptionStep`,
+    /// `horis:onError` on an `ActionStep`, …) — the load-time posture doc 05
+    /// documents ("Required" column) made mechanical, the same shape as
+    /// [`OntologyError::RuleMissingPart`].
+    #[error("{subject} is missing {part}")]
+    WorkflowMissingPart { subject: String, part: String },
+
+    /// `horis:startsAt`/`next`/`fallback`/`onError`/`onUnreachable`/
+    /// `onUnsatisfied`/`otherwise`/`workflow` (subflow) named a step or
+    /// workflow IRI nothing in the loaded graphs declares.
+    #[error("{subject} {edge} names {target}, which is not a declared step in this workflow")]
+    WorkflowUndeclaredStep {
+        subject: String,
+        edge: String,
+        target: String,
+    },
+
+    /// A `horis:Workflow` or a `horis:*Step` was declared on an anonymous
+    /// (blank) subject — refused for the same reason as
+    /// [`OntologyError::RuleAnonymous`]: blank ids are minted per parse, so
+    /// identity (and therefore edges naming it) would differ on every load.
+    #[error(
+        "a {kind} is declared on an anonymous subject; workflows and steps must be named (a blank node's identity differs on every load)"
+    )]
+    WorkflowAnonymous { kind: String },
+
+    /// One subject was typed as more than one step kind
+    /// (`a horis:PerceptionStep, horis:ActionStep`) — a step is exactly one
+    /// kind.
+    #[error("{step} is declared as both {a} and {b}; a step is exactly one kind")]
+    StepAmbiguousKind { step: String, a: String, b: String },
+
+    /// A `horis:goal`/`horis:requires`/`horis:when`(-shaped) condition on a
+    /// step names a property the schema does not declare.
+    #[error("{subject} names {property}, which is not a declared property in the ontology")]
+    StepUndeclaredProperty { subject: String, property: String },
+
+    /// A `horis:PerceptionStep`'s `horis:extracts` names a class the schema
+    /// does not declare.
+    #[error("{step} horis:extracts names {class}, which is not a declared class in the ontology")]
+    StepUndeclaredClass { step: String, class: String },
+
+    /// A step condition (goal/requires/branch `horis:when`) states no
+    /// recognized operator — the step-scoped sibling of
+    /// [`OntologyError::RuleMissingOperator`].
+    #[error(
+        "{subject} condition on {property} states no operator (expected one of the 11 horis: condition operators)"
+    )]
+    StepMissingOperator { subject: String, property: String },
+
+    /// A step condition states more than one operator.
+    #[error(
+        "{subject} condition on {property} states both horis:{a} and horis:{b}; a condition tests one operator"
+    )]
+    StepMultipleOperators {
+        subject: String,
+        property: String,
+        a: String,
+        b: String,
+    },
+
+    /// A step condition node states more than one combinator.
+    #[error(
+        "{subject} a condition node states both horis:{a} and horis:{b}; a node is one combinator or one leaf condition"
+    )]
+    StepMultipleCombinators {
+        subject: String,
+        a: String,
+        b: String,
+    },
+
+    /// A step condition operator was given an operand of the wrong shape.
+    #[error("{subject} {operator} {value} is not usable here (expected {expected})")]
+    StepInvalidOperand {
+        subject: String,
+        operator: String,
+        value: String,
+        expected: String,
+    },
+
+    /// `horis:between` on a step condition did not receive a list of
+    /// exactly two values.
+    #[error("{subject} horis:between expects a list of exactly two values, found {found}")]
+    StepBetweenArity { subject: String, found: usize },
+
+    /// `horis:confidence` on a `PerceptionStep`/`ProposalStep` is not an
+    /// `xsd:decimal` in `[0, 1]`.
+    #[error("{step} horis:confidence {value} is not a decimal in [0, 1]")]
+    StepInvalidConfidence { step: String, value: String },
+
+    /// A `horis:SubflowStep`'s target workflow itself declares a
+    /// `horis:SubflowStep` — D6 (`PRP-004-agent-loop/02-tasks-and-gaps.md`):
+    /// one level of nesting only, checked at load.
+    #[error(
+        "{step} horis:workflow {target} itself declares a horis:SubflowStep; subflow nesting is capped at one level"
+    )]
+    SubflowNestingTooDeep { step: String, target: String },
+
+    /// A `horis:Tool`'s `horis:takes`/`horis:effect`/`horis:binding` is
+    /// structurally incomplete or malformed — the same load-time posture as
+    /// rule/step parsing.
+    #[error("{tool} is missing {part}")]
+    ToolMissingPart { tool: String, part: String },
+
+    /// A `horis:Tool` argument or effect names a property/class the schema
+    /// does not declare.
+    #[error("{tool} names {name}, which is not declared in the ontology")]
+    ToolUndeclaredReference { tool: String, name: String },
 }
 
 impl OntologyError {

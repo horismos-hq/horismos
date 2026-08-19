@@ -40,16 +40,49 @@
 //!
 //! Spec: `docs/framework/09-traces.md` · Owner: PRP-002
 
-/// The doc-09 training-export tag set (decided, PRP-002 — see module doc):
-/// one tag per step kind, in doc-09 kind order, plus the executor-output
-/// wrapper.
-pub const EXPORT_TAGS: [(&str, &str); 5] = [
+/// The doc-09 training-export tag set (decided, PRP-002 — see module doc),
+/// extended for the four v2 step kinds (PRP-004): one tag per step kind, in
+/// schema-declaration order, plus the executor-output wrapper. The four v1
+/// tags are pinned exactly as PRP-002 decided them — this is an additive
+/// extension, not a revision, so a corpus already trained on the v1 tags
+/// stays valid.
+pub const EXPORT_TAGS: [(&str, &str); 9] = [
     ("perception", "perceive"),
     ("reasoning", "reason"),
     ("action", "act"),
     ("narration", "narrate"),
+    ("choice", "choose"),
+    ("proposal", "propose"),
+    ("subflow", "subflow"),
+    ("wait", "wait"),
     ("executor-output", "observe"),
 ];
+
+/// Migrates a `horismos.trace/1` document to `horismos.trace/2` (PRP-004,
+/// captain decision 2026-08-19 — see module doc for the policy this
+/// follows). Unlike the hypothetical dry run below, the real v1→v2 change is
+/// **purely additive at the schema level**: v2 adds four new possible step
+/// `kind`s (`choice`/`proposal`/`subflow`/`wait`); it changes no existing
+/// field's meaning or type, and adds no new *required* field anywhere. A v1
+/// trace's `steps` can only ever contain the original four kinds — that
+/// invariant is enforced by the Rust `Step` enum every v1-era producer built
+/// against — so converting one is exactly the version-tag rewrite below: no
+/// field is touched, no default is invented, because none is needed.
+///
+/// Refuses (returns `None`) anything not tagged `horismos.trace/1` — a
+/// converter that "converts" a v2 (or non-)trace by silently relabeling it
+/// would corrupt data instead of migrating it.
+pub fn convert_v1_to_v2(mut trace: serde_json::Value) -> Option<serde_json::Value> {
+    if schema_version(&trace) != Some(1) {
+        return None;
+    }
+    let obj = trace.as_object_mut()?;
+    obj.insert(
+        "schema".into(),
+        serde_json::Value::from(crate::trace::schema::SCHEMA_V2),
+    );
+    Some(trace)
+}
 
 /// Parses the `N` out of a trace's `"schema": "horismos.trace/N"` tag.
 /// `None` for a non-trace or malformed value — callers refuse, never guess.
@@ -131,8 +164,9 @@ mod tests {
 
     #[test]
     fn the_export_tag_set_is_the_decided_vocabulary() {
-        // Pins D-3's tag-set resolution so a drive-by rename shows up as a
-        // failing test, not a silent corpus break.
+        // Pins D-3's (PRP-002) original four tags plus PRP-004's four
+        // additions, so a drive-by rename shows up as a failing test, not a
+        // silent corpus break.
         assert_eq!(
             EXPORT_TAGS,
             [
@@ -140,8 +174,81 @@ mod tests {
                 ("reasoning", "reason"),
                 ("action", "act"),
                 ("narration", "narrate"),
+                ("choice", "choose"),
+                ("proposal", "propose"),
+                ("subflow", "subflow"),
+                ("wait", "wait"),
                 ("executor-output", "observe"),
             ]
         );
+    }
+
+    // -- The real v1→v2 migration (PRP-004) ---------------------------------
+
+    #[test]
+    fn convert_v1_to_v2_only_rewrites_the_schema_tag() {
+        let v1 = json!({
+            "schema": "horismos.trace/1",
+            "run_id": "run_test",
+            "steps": [{
+                "kind": "reasoning",
+                "fired": [], "suppressed": [], "passes": 1, "loss_mask": true
+            }]
+        });
+        let v2 = convert_v1_to_v2(v1.clone()).expect("a v1 trace converts");
+        assert_eq!(schema_version(&v2), Some(2));
+        assert_eq!(v2["run_id"], v1["run_id"]);
+        assert_eq!(
+            v2["steps"], v1["steps"],
+            "no field is touched, none invented"
+        );
+        // The source value is untouched — `convert_v1_to_v2` takes ownership
+        // of its argument rather than mutating through a shared reference,
+        // so there is nothing here to assert about `v1` surviving; the
+        // owned-value round trip above is the meaningful check.
+    }
+
+    #[test]
+    fn convert_v1_to_v2_refuses_a_trace_that_is_not_v1() {
+        assert!(convert_v1_to_v2(json!({"schema": "horismos.trace/2"})).is_none());
+        assert!(convert_v1_to_v2(json!({"schema": "sigil.trace/1"})).is_none());
+        assert!(convert_v1_to_v2(json!({"run_id": "x"})).is_none());
+    }
+
+    #[test]
+    fn convert_v1_to_v2_round_trips_a_full_doc_09_shaped_v1_trace() {
+        // Every one of the four kinds a v1 trace can ever contain by
+        // construction (U9): perception, reasoning, action, narration.
+        let v1 = json!({
+            "schema": "horismos.trace/1",
+            "run_id": "run_01",
+            "workflow": "triage:Triage",
+            "steps": [
+                {
+                    "kind": "perception", "step": "triage:Intake",
+                    "confidence": 0.94, "threshold": 0.85, "accepted": true,
+                    "asserted": [], "loss_mask": false
+                },
+                {
+                    "kind": "reasoning", "step": "triage:Assess",
+                    "fired": [], "suppressed": [], "passes": 1,
+                    "goal_reached": true, "loss_mask": true
+                },
+                {
+                    "kind": "action", "step": "triage:Route", "tool": ":ehr.assign_queue",
+                    "effects_asserted": [], "loss_mask": true
+                },
+                {
+                    "kind": "narration", "step": "triage:Explain",
+                    "audience": "charge-nurse", "text": "Acuity is Immediate.",
+                    "loss_mask": false
+                }
+            ],
+            "outcome": {"terminal": "triage:Done", "goal_reached": true}
+        });
+        let v2 = convert_v1_to_v2(v1.clone()).expect("converts");
+        let mut expected = v1;
+        expected["schema"] = Value::from("horismos.trace/2");
+        assert_eq!(v2, expected);
     }
 }

@@ -41,6 +41,25 @@
     horis:cardinality "0..1" ;
     horis:assignedBy horis:RulesOnly .   # perception may NEVER set this field
 
+# Tool-effect properties (doc 07) — asserted only by :ehr.assign_queue and
+# :paging.notify_nurse below, never by perception or a rule.
+:queuedAt a rdf:Property ;
+    rdfs:domain :Patient ; rdfs:range xsd:dateTime ;
+    horis:cardinality "0..1" ;
+    horis:assignedBy horis:ToolsOnly .
+:queueRef a rdf:Property ;
+    rdfs:domain :Patient ; rdfs:range xsd:string ;
+    horis:cardinality "0..1" ;
+    horis:assignedBy horis:ToolsOnly .
+:notifiedAt a rdf:Property ;
+    rdfs:domain :Patient ; rdfs:range xsd:dateTime ;
+    horis:cardinality "0..1" ;
+    horis:assignedBy horis:ToolsOnly .
+:pagedTo a rdf:Property ;
+    rdfs:domain :Patient ; rdfs:range xsd:string ;
+    horis:cardinality "0..1" ;
+    horis:assignedBy horis:ToolsOnly .
+
 ## Rules (doc 02 / 04)
 
 :r1 a horis:Rule ;
@@ -58,6 +77,7 @@
 
 :Triage a horis:Workflow ;
     horis:startsAt :Intake ;
+    horis:decides  :acuity ;
     horis:version "1.2.0" .
 
 :Intake a horis:PerceptionStep ;
@@ -75,6 +95,7 @@
 :Route a horis:ActionStep ;
     horis:tool :ehr.assign_queue ;
     horis:requires [ horis:property :acuity ; horis:isAssigned true ] ;
+    horis:onError :EscalateToNurse ;
     horis:next :Explain .
 
 :Explain a horis:NarrationStep ;
@@ -86,4 +107,34 @@
 
 :EscalateToNurse a horis:ActionStep ;
     horis:tool :paging.notify_nurse ;
+    horis:onError :PagingFailed ;
     horis:terminal true .
+
+:PagingFailed a horis:Step ; horis:terminal true .
+
+## Tools (doc 07)
+
+:ehr.assign_queue a horis:Tool ;
+    horis:takes [
+        horis:arg [ horis:name "patient" ; horis:type :Patient ] ;
+        horis:arg [ horis:name "queue"   ; horis:type :AcuityLevel ]
+    ] ;
+    horis:effect [
+        horis:asserts [ horis:property :queuedAt ; horis:value horis:now ] ;
+        horis:asserts [ horis:property :queueRef ; horis:type xsd:string ]
+    ] ;
+    horis:binding "rust:assign_queue" ;
+    horis:timeout "5s" ;
+    horis:idempotent false .
+
+:paging.notify_nurse a horis:Tool ;
+    horis:takes [
+        horis:arg [ horis:name "patient" ; horis:type :Patient ]
+    ] ;
+    horis:effect [
+        horis:asserts [ horis:property :notifiedAt ; horis:value horis:now ] ;
+        horis:asserts [ horis:property :pagedTo    ; horis:type xsd:string ]
+    ] ;
+    horis:binding "rust:notify_nurse" ;
+    horis:timeout "5s" ;
+    horis:idempotent false .

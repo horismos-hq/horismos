@@ -389,15 +389,6 @@ impl World {
         class: Iri,
         properties: impl IntoIterator<Item = (Iri, Value)>,
     ) -> Result<Ref, HorismosError> {
-        let properties: Vec<(Iri, Value)> = properties.into_iter().collect();
-        // The transaction checkpoint (all O(1) — persistent maps + counters):
-        // the iteration-cap tripwire below must roll the WHOLE transaction
-        // back, base facts included, so a caller never observes a
-        // half-chained world (doc 03 § Transactions).
-        let checkpoint_instances = self.instances.clone();
-        let checkpoint_meta = self.fact_meta.clone();
-        let checkpoint_derivations = self.derivations.clone();
-        let checkpoint_skolem = self.next_skolem;
         // The gate needs a token for the candidate subject, so an anonymous
         // assertion interns its skolem IRI *before* the checks run — and
         // must un-intern it on rejection: token order is observable through
@@ -415,6 +406,69 @@ impl World {
                 gate::Subject::Skolem(self.intern(&text))
             }
         };
+        self.assert_as(provenance, subject, class, properties, interner_len_before)
+    }
+
+    /// Merges `properties` onto `subject`, an instance already in the world,
+    /// through the same transactional five-check gate `assert_instance_as`
+    /// uses — the write path for a provenance (`Provenance::Tool`) that adds
+    /// facts back onto an instance the caller already holds a [`Ref`] to
+    /// (returned by an earlier assertion in *this* `World`), rather than
+    /// naming a new or anonymous one.
+    ///
+    /// `horismos-core`-internal only (`workflow::agent`'s tool-effect merge
+    /// onto the case subject perception minted): unlike
+    /// [`World::assert_instance_as`], this is never a public naming path, so
+    /// it may safely re-tag an existing skolem-space subject as
+    /// [`gate::Subject::Skolem`] — mirroring [`World::apply_rule_conclusion`]'s
+    /// precedent — without reopening the squat hole check 1 exists to close
+    /// for *external* callers (`gate_properties.rs`'s
+    /// `a_rejected_operation_leaves_no_trace` pins that a caller naming a
+    /// skolem IRI through `assert_named_instance` is refused regardless of
+    /// whether it already exists). Panics if `subject` is not yet in the
+    /// world — every call site holds a `Ref` this same `World` minted.
+    pub(crate) fn assert_on(
+        &mut self,
+        provenance: Provenance,
+        subject: Ref,
+        properties: impl IntoIterator<Item = (Iri, Value)>,
+    ) -> Result<Ref, HorismosError> {
+        let interner_len_before = self.interner.len();
+        let class = self
+            .instance(subject)
+            .map(Instance::class)
+            .expect("assert_on's caller holds a Ref this World returned from an earlier assertion");
+        let kind = if self.resolve(subject.iri()).starts_with(SKOLEM_NAMESPACE) {
+            gate::Subject::Skolem(subject.iri())
+        } else {
+            gate::Subject::Named(subject.iri())
+        };
+        self.assert_as(provenance, kind, class, properties, interner_len_before)
+    }
+
+    /// The shared transactional body behind [`World::assert_instance_as`]
+    /// and [`World::assert_on`]: gate check, commit, truth maintenance,
+    /// chain to the fixed point. `interner_len_before` is captured by the
+    /// caller, before it computes `subject` — an anonymous mint interns its
+    /// skolem text as part of that computation, and a rejection must roll
+    /// that back too.
+    fn assert_as(
+        &mut self,
+        provenance: Provenance,
+        subject: gate::Subject,
+        class: Iri,
+        properties: impl IntoIterator<Item = (Iri, Value)>,
+        interner_len_before: usize,
+    ) -> Result<Ref, HorismosError> {
+        let properties: Vec<(Iri, Value)> = properties.into_iter().collect();
+        // The transaction checkpoint (all O(1) — persistent maps + counters):
+        // the iteration-cap tripwire below must roll the WHOLE transaction
+        // back, base facts included, so a caller never observes a
+        // half-chained world (doc 03 § Transactions).
+        let checkpoint_instances = self.instances.clone();
+        let checkpoint_meta = self.fact_meta.clone();
+        let checkpoint_derivations = self.derivations.clone();
+        let checkpoint_skolem = self.next_skolem;
         let subject_iri = subject.iri();
 
         let instance = match gate::check_assertion(self, provenance, subject, class, &properties) {
@@ -431,7 +485,10 @@ impl World {
         let old = self.instances.get(&subject_iri).cloned();
         self.instances.insert(subject_iri, instance);
         self.update_fact_meta(subject_iri, old.as_ref(), &properties, provenance);
-        if matches!(subject, gate::Subject::Skolem(_)) {
+        // Only a genuinely new mint (never a merge onto an already-existing
+        // subject — `assert_on`'s Skolem-tagged merges included, `old` is
+        // always `Some` there) advances the counter.
+        if matches!(subject, gate::Subject::Skolem(_)) && old.is_none() {
             self.next_skolem += 1;
         }
 

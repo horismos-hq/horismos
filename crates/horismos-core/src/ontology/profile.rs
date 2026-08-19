@@ -43,10 +43,11 @@ const ALLOWED_XSD: &[&str] = &[
 
 /// The exact `horis:` vocabulary the RDFS-plus profile accepts
 /// (`docs/framework/02-ontology.md` §Constraint/Rule vocabulary,
-/// `docs/framework/05-workflows.md` for the workflow terms — doc 02's own
-/// workflow list is an explicit summary of doc 05's fuller vocabulary, and
-/// `examples/triage/triage.ttl`'s Workflow section exercises every term
-/// listed here).
+/// `docs/framework/05-workflows.md` for the workflow terms, `docs/framework/
+/// 07-tools.md` for the `horis:Tool` contract and `ProposalStep` terms — doc
+/// 02's own workflow list is an explicit summary of doc 05's fuller
+/// vocabulary, and `examples/triage/triage.ttl`'s Workflow and Tool sections
+/// exercise every term listed here).
 const ALLOWED_HORIS: &[&str] = &[
     // Constraints
     "min",
@@ -114,6 +115,23 @@ const ALLOWED_HORIS: &[&str] = &[
     "otherwise",
     "workflow",
     "decides",
+    "required",
+    // Tool contracts (doc 07)
+    "Tool",
+    "takes",
+    "arg",
+    "name",
+    "type",
+    "effect",
+    "asserts",
+    "binding",
+    "timeout",
+    "idempotent",
+    "retries",
+    "now",
+    // ProposalStep (doc 05/07)
+    "candidates",
+    "rankBy",
     // Imports/versioning
     "imports",
     "version",
@@ -453,6 +471,48 @@ mod tests {
             ":Foo a owl:Restriction .\n:Bar horis:frobnicate 1 .\n:Baz :p \"x\"@fr .",
         );
         assert_eq!(violations.len(), 3, "{violations:?}");
+    }
+
+    #[test]
+    fn accepts_tool_contract_vocabulary() {
+        let violations = violations_of(
+            ":ehr.assign_queue a horis:Tool ;\n\
+             \x20   horis:takes [\n\
+             \x20       horis:arg [ horis:name \"patient\" ; horis:type :Patient ] ;\n\
+             \x20       horis:arg [ horis:name \"queue\" ; horis:type :AcuityLevel ]\n\
+             \x20   ] ;\n\
+             \x20   horis:effect [\n\
+             \x20       horis:asserts [ horis:property :queuedAt ; horis:value horis:now ] ;\n\
+             \x20       horis:asserts [ horis:property :queueRef ; horis:type xsd:string ]\n\
+             \x20   ] ;\n\
+             \x20   horis:binding \"python:ehr_client.assign_queue\" ;\n\
+             \x20   horis:timeout \"5s\" ;\n\
+             \x20   horis:retries 2 ;\n\
+             \x20   horis:idempotent false .",
+        );
+        assert!(violations.is_empty(), "{violations:?}");
+    }
+
+    #[test]
+    fn accepts_proposal_step_vocabulary() {
+        let violations = violations_of(
+            ":PickOption a horis:ProposalStep ;\n\
+             \x20   horis:candidates [ horis:property :option ] ;\n\
+             \x20   horis:rankBy \"customer preference\" ;\n\
+             \x20   horis:model \"claude:claude-fable-5\" ;\n\
+             \x20   horis:confidence 0.8 ;\n\
+             \x20   horis:fallback :AskHuman ;\n\
+             \x20   horis:next :ExecuteOption .",
+        );
+        assert!(violations.is_empty(), "{violations:?}");
+    }
+
+    #[test]
+    fn rejects_tool_vocabulary_term_not_in_profile() {
+        let violations = violations_of(":Foo horis:query \"…\" .");
+        assert_eq!(violations.len(), 1, "{violations:?}");
+        let text = violations[0].domain_text();
+        assert!(text.contains("horis:query"), "{text}");
     }
 
     #[test]

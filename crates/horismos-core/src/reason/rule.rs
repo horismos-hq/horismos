@@ -198,7 +198,7 @@ pub fn parse_rules<'a>(
 /// All triples regrouped subject-major, plus the set of `a horis:Rule`
 /// subjects — the shape rule parsing walks. Predicate/object pairs stay in
 /// source order per subject, so parsing is deterministic.
-struct SubjectGraph {
+pub(crate) struct SubjectGraph {
     by_subject: BTreeMap<Iri, Vec<(Iri, Object)>>,
     rule_ids: Vec<Iri>,
     /// True when some rule was declared on an anonymous (blank) subject —
@@ -210,7 +210,10 @@ struct SubjectGraph {
 }
 
 impl SubjectGraph {
-    fn collect<'a>(documents: impl IntoIterator<Item = &'a Document>, interner: &Interner) -> Self {
+    pub(crate) fn collect<'a>(
+        documents: impl IntoIterator<Item = &'a Document>,
+        interner: &Interner,
+    ) -> Self {
         let mut by_subject: BTreeMap<Iri, Vec<(Iri, Object)>> = BTreeMap::new();
         let mut rule_ids = Vec::new();
         let mut anonymous_rule = false;
@@ -249,7 +252,7 @@ impl SubjectGraph {
         }
     }
 
-    fn pairs(&self, subject: Iri) -> &[(Iri, Object)] {
+    pub(crate) fn pairs(&self, subject: Iri) -> &[(Iri, Object)] {
         self.by_subject
             .get(&subject)
             .map(Vec::as_slice)
@@ -257,7 +260,7 @@ impl SubjectGraph {
     }
 
     /// The first object for `predicate` on `subject`, in source order.
-    fn object<'a>(
+    pub(crate) fn object<'a>(
         &'a self,
         subject: Iri,
         predicate: &str,
@@ -274,7 +277,7 @@ impl SubjectGraph {
     /// cyclic list — `_:l rdf:rest _:l`) ends the walk instead of hanging
     /// the load; the truncation surfaces downstream as the arity/operand
     /// error the malformed list deserves.
-    fn list(&self, head: Node, interner: &Interner) -> Vec<Object> {
+    pub(crate) fn list(&self, head: Node, interner: &Interner) -> Vec<Object> {
         let mut out = Vec::new();
         let mut visited = std::collections::BTreeSet::new();
         let mut cursor = head;
@@ -695,7 +698,7 @@ fn literal_operand(
     }
 }
 
-fn term_operand(object: &Object) -> Term {
+pub(crate) fn term_operand(object: &Object) -> Term {
     match object {
         Object::Node(node) => Term::Iri(node_iri(*node)),
         Object::Literal(Literal::Typed(v)) => Term::Literal(v.clone()),
@@ -706,7 +709,7 @@ fn term_operand(object: &Object) -> Term {
     }
 }
 
-fn object_text(object: &Object, interner: &Interner) -> String {
+pub(crate) fn object_text(object: &Object, interner: &Interner) -> String {
     match object {
         Object::Node(node) => interner.resolve(node_iri(*node)).to_owned(),
         Object::Literal(Literal::Typed(v)) => v.lexical_form().unwrap_or_default(),
@@ -715,7 +718,7 @@ fn object_text(object: &Object, interner: &Interner) -> String {
     }
 }
 
-fn node_iri(node: Node) -> Iri {
+pub(crate) fn node_iri(node: Node) -> Iri {
     match node {
         Node::Named(iri) | Node::Blank(iri) => iri,
     }

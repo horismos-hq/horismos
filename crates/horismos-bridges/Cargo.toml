@@ -12,6 +12,7 @@ default = []
 bridges-anthropic = []
 bridges-openai = []
 bridges-onnx = []
+bridges-openrouter = ["dep:litellm-rust", "dep:reqwest"]
 
 [dependencies]
 horismos-core.workspace = true
@@ -19,6 +20,19 @@ thiserror.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 async-trait.workspace = true
+litellm-rust = { workspace = true, optional = true }
+reqwest = { workspace = true, optional = true }
+
+[dev-dependencies]
+# Test-only: drives the OpenRouterBridge's async reqwest calls against a
+# local mock listener (bridges-openrouter tests). Never a production
+# dependency — the Bridge trait's async methods run inside whatever
+# runtime the caller (e.g. the demo binary, PRP-004 U14) already owns.
+tokio = { workspace = true, features = ["rt-multi-thread", "macros", "net", "io-util", "time"] }
+# Demo-only (PRP-004 U14, examples/triage_agent_demo.rs): a fixed
+# horis:now instant for the transaction stamp — never a production
+# dependency, and still built with no "clock" feature (CLAUDE.md).
+chrono.workspace = true
 
 [lints]
 workspace = true

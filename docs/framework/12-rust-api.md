@@ -8,7 +8,7 @@ direct use). MSRV: latest stable minus 2.
 
 ```rust
 use horismos_core::{Ontology, World, Agent, RunInput};
-use horismos_bridges::AnthropicBridge;
+use horismos_bridges::OpenRouterBridge;
 
 let onto = Ontology::load("triage.ttl")?
     .with_import("snomed-ct-subset.ttl")?;
@@ -17,12 +17,14 @@ onto.verify()?.assert_ok()?;                     // refuse to run unverified
 let mut world = World::new(&onto);
 let agent = Agent::builder(&onto)
     .workflow("triage:Triage")
-    .bridge("claude:claude-fable-5", AnthropicBridge::from_env()?)
+    .bridge("claude", OpenRouterBridge::from_env())
     .tool("ehr.assign_queue", assign_queue)      // impl Tool
     .build()?;                                   // unbound declarations = build error
 
-let outcome = agent.run(&mut world, RunInput::text("58M, crushing chest pain…")).await?;
-println!("{}", outcome.proof().render());
+let outcome = agent
+    .run(&mut world, RunInput::new("run_01J…", "58M, crushing chest pain…", now))
+    .await?;
+println!("{}", outcome.trace.to_json_pretty());
 ```
 
 ## Core types
@@ -32,25 +34,25 @@ println!("{}", outcome.proof().render());
 | `Ontology` | Immutable, loaded+verified schema/rules/workflows | Cheap to clone (`Arc` internals) |
 | `World` | Mutable instance store | `&mut` for transactions; `Snapshot` is an immutable value |
 | `reason` (module) | Deterministic inference; driven through `World` | `world.prove(subject, prop, &value)`, `world.explain(subject, prop)` |
-| `Agent` | Workflow interpreter | Built per-(ontology, bindings); `run` borrows a `World` |
-| `Trace` | The trajectory | `serde` to/from `horismos.trace/1` |
+| `Agent` | Workflow interpreter | Built per-(ontology, bindings); `run` borrows a `World`, returns `RunOutcome` |
+| `Trace` | The trajectory | `serde` to/from `horismos.trace/1` or `/2`; `RunOutcome.trace` is always a `/2` |
 | `Iri`, `Ref`, `Value` | Interned identifiers and typed values | `Value` mirrors the XSD subset + IRIs |
 
 ## Key traits
 
 ```rust
 pub trait Tool: Send + Sync {
-    fn invoke(&self, args: ToolArgs, cx: &ToolCx) -> Result<ToolOutput, ToolError>;
-    // async variant behind the `async-tools` feature  [DECIDE: sync+async story — PRP-004]
+    fn call(&self, args: &BTreeMap<String, Value>) -> Result<BTreeMap<Iri, Value>, String>;
+    // v1 ships sync only; an async variant behind a future `async-tools` feature is deferred
 }
 
 #[async_trait]
 pub trait Bridge: Send + Sync { /* perceive / narrate / rank — doc 08 */ }
 ```
 
-Tool arguments arrive typed (`ToolArgs::get::<f64>("queue")` resolves from graph
-values); outputs are validated against the declared `horis:effect` before assertion —
-implementors cannot bypass the gate.
+Tool arguments arrive resolved from the `horis:takes` declaration; the returned
+property→value map is validated against the declared `horis:effect` before
+assertion — implementors cannot bypass the gate.
 
 ## Feature flags
 
@@ -58,7 +60,7 @@ implementors cannot bypass the gate.
 |---------|---------|----------|
 | `verify` | on | BDD verification (biodivine-lib-bdd) |
 | `sparql` | on | The query subset |
-| `bridges-anthropic` / `-openai` / `-onnx` | off | Provider clients (in `horismos-bridges`) |
+| `bridges-anthropic` / `-openai` / `-onnx` / `-openrouter` | off | Provider clients (in `horismos-bridges`); `-openrouter` ships `OpenRouterBridge` |
 | `mock` | on (dev) | MockBridge + testing utilities |
 | `wasm` | off | wasm-bindgen surface; mutually exclusive with `pyo3` |
 | `pyo3` | off | Only `horismos-py` enables this |
@@ -85,7 +87,10 @@ perception (the structured-input pattern, doc 06).
 - `Ontology` is `Send + Sync`; share one across threads.
 - `World` is single-writer by design (transactions are serial per world). Parallelism
   pattern: many worlds (one per case/session), one ontology — triage runs are
-  independent by nature. **[DECIDE: multi-world manager utility — PRP-004]**
+  independent by nature. A multi-world manager utility (a registry keyed by case or
+  session id, spawning and reaping worlds) is deferred past v1 — the pattern above is
+  simple enough for a caller to implement directly until a deployment needs one built
+  in.
 - All inference is deterministic (doc 04); `Trace` equality is a meaningful test
   assertion and CI uses it.
 
