@@ -114,29 +114,32 @@ the same commit as this file.
       `World` per case is the documented pattern (doc 12); a registry/manager utility
       (spawn/reap worlds keyed by case id) is straightforward for a caller to write
       directly and is deferred until a real deployment needs one built in.
-- [ ] D13. **Trace representation of `ChoiceStep`/`ProposalStep`/`WaitStep`/
-      `SubflowStep`** — **OPEN, captain decision, not resolved by this PRP.** Per the
-      independent review (`data/horismos-prp-review-s1/report.md`, top finding 3) and
-      interim orders on this branch: `horismos.trace/1`'s `Step` enum has exactly four
-      kinds (perception/reasoning/action/narration,
+- [x] D13. **Trace representation of `ChoiceStep`/`ProposalStep`/`WaitStep`/
+      `SubflowStep`** (decided 2026-08-19, captain decision, option (b) of the two
+      below). Per the independent review (`data/horismos-prp-review-s1/report.md`, top
+      finding 3) and interim orders on this branch: `horismos.trace/1`'s `Step` enum
+      had exactly four kinds (perception/reasoning/action/narration,
       `crates/horismos-core/src/trace/schema.rs:108-172`); the compatibility policy
       (`trace/migrate.rs`) requires a new step kind to be `horismos.trace/2`, not an
-      additive v1 change. Options, deliberately not chosen here:
+      additive v1 change. The two options considered:
       (a) map each of the four remaining step kinds losslessly into the existing four
       trace kinds via annotated fields (e.g. a `ChoiceStep` firing recorded as a
       `reasoning`-kind step with a `branch_taken` field) — cheap, no version bump, but
       needs a specification of the lossless mapping for each kind before it is
       trustworthy training data; or
-      (b) mint `horismos.trace/2` now, before any real corpus depends on v1's exact
-      four kinds. **Status**: `needs-decision` appended to the firstmate status
-      ledger on this branch. **Not blocking**: this PRP's DoD exercises only
-      Perception/Reasoning/Action/Narration, which already have a settled trace
-      representation (PRP-002, untouched by this question) — so U7 (the Agent
-      interpreter) and the DoD run proceed without touching this. U12 (Choice/
-      Proposal/Wait/Subflow) is scoped to *parsing* and a documented
-      `WorkflowError::StepDeferred` at execution, specifically so it never has to
-      answer this question. Blocks: any future unit that executes and traces one of
-      these four step kinds.
+      (b) **mint `horismos.trace/2` now**, before any real corpus depends on v1's exact
+      four kinds — chosen. `trace::schema` now declares `SCHEMA_V2` and four new `Step`
+      variants (`Choice`, `Proposal`, `Subflow`, `Wait`) alongside the original four,
+      each documented with its `loss_mask` semantics; `Trace::new` still emits v1
+      unchanged (byte-for-byte, every PRP-002 test untouched) and a parallel
+      `Trace::new_v2` emits v2 for the Agent's code path. `trace::migrate` gained
+      `convert_v1_to_v2` (pure, purely additive — rewrites only the `"schema"` tag,
+      since a v1 trace can only ever contain the original four kinds by construction)
+      with round-trip tests per kind, including a hand-built `Step::Wait` fixture since
+      execution never produces one (D3). **resolved: trace/2 minted and absorbed** —
+      `trace::schema`/`trace::migrate` land in this commit; wiring `trace::emit`
+      builders for the four new kinds and the Agent's use of `Trace::new_v2` is U9/U7,
+      tracked below, not blocked by this decision any longer.
 - [ ] D14. **URL allowlist configuration surface for `http:`/`https:` tool
       bindings** (open, closes `docs/framework/15-security.md:133-134`): per-tool
       vs. per-Agent scoping, glob vs. exact host match — undecided. Does not block
@@ -170,46 +173,67 @@ the same commit as this file.
       `SubflowStep` per D6. Test target: `triage.ttl`'s `:Triage` workflow parses into
       the exact documented step graph (`:Intake` → `:Assess` → `:Route` → `:Explain`
       → `:Done`, `:EscalateToNurse` terminal), with every edge (`next`/`fallback`/
-      `onUnreachable`/`onError`) resolved to the right step.
+      `onUnreachable`/`onError`) resolved to the right step. **Done 2026-08-19**:
+      `workflow::model::tests::triage_workflow_parses_into_the_documented_step_graph`
+      green; the fixture also needed `:Route`/`:EscalateToNurse` `horis:onError` edges
+      and a new terminal `:PagingFailed` step (a fixture gap, not a model gap — noted
+      below).
 - [x] U3. **Tool model parsing** (`workflow::tool`) — `horis:Tool`
       (`takes`/`effect`/`binding`) parsed at load, sync-only per D11. Test target:
       `:ehr.assign_queue` parses with two args (`patient: :Patient`, `queue:
       :AcuityLevel`) and two declared effects (`:queuedAt` = `horis:now` sentinel,
-      `:queueRef`: `xsd:string`-typed placeholder).
-- [x] U4. **`Bridge` trait finalization** (`horismos-core::bridge`) — `perceive`/
+      `:queueRef`: `xsd:string`-typed placeholder). **Done 2026-08-19**:
+      `workflow::tool::tests::ehr_assign_queue_parses_with_two_args_and_two_effects`
+      green; the fixture was missing the four effect properties'
+      (`:queuedAt`/`:queueRef`/`:notifiedAt`/`:pagedTo`) schema declarations
+      (`horis:assignedBy horis:ToolsOnly`), also closed here.
+- [ ] U4. **`Bridge` trait finalization** (`horismos-core::bridge`) — `perceive`/
       `narrate`/`rank`/`id()`, request/result types, `BridgeError`. Confidence field
       on `PerceiveResult` per D9. No network dependency. Test target: a trivial
       in-crate test double implements `Bridge` and the crate still builds/tests under
-      `--no-default-features --features verify` (no-model-gate).
-- [x] U5. **`HorismosError` extension** — `WorkflowError`, `ToolError`,
+      `--no-default-features --features verify` (no-model-gate). In progress on the
+      contractor branch `fm/horismos-prp004-u4-u13`; not yet integrated — the
+      `horismos-core::bridge` module today is still the PRP-000-era doc-only stub.
+- [ ] U5. **`HorismosError` extension** — `WorkflowError`, `ToolError`,
       `BridgeError` variants (the three the error module's own comment already
-      names as pending), each `domain_text()`'d.
-- [x] U6. **`MockBridge`** (`horismos-bridges::mock`) — scripted perceive/narrate/
+      names as pending), each `domain_text()`'d. In progress alongside U4 on
+      `fm/horismos-prp004-u4-u13`. (Not to be confused with the `OntologyError`
+      load-time variants U2/U3 already added — `StepMissingOperator` and friends —
+      which are a different enum for a different failure class: malformed ontology
+      vs. a failed run.)
+- [ ] U6. **`MockBridge`** (`horismos-bridges::mock`) — scripted perceive/narrate/
       rank by input pattern, deterministic, records invocations, default
       low-confidence response for unscripted input. Test target: scripted responses
       round-trip exactly; unscripted input yields the documented low-confidence
-      default.
-- [x] U7. **Agent interpreter** (`workflow::agent`) — `Agent::builder(&onto)
+      default. Blocked on U4 (needs the `Bridge` trait to implement against).
+- [ ] U7. **Agent interpreter** (`workflow::agent`) — `Agent::builder(&onto)
       .workflow(name).bridge(prefix, bridge).tool(name, impl).build()`;
       `agent.run(&mut world, RunInput)` executing Perception → Reasoning → Action →
       Narration, `horis:requires` gating, fallback/`onUnreachable`/`onError` edges,
       `horis:now` transaction-stamping (once per `run`, never re-read). Deployment
       model override per D8. Test target: a mock-bridge run of the full triage
       workflow reaches `:Done` with `acuity :Immediate`, matching PRP-002's Example 1
-      hand-computed proof exactly.
-- [x] U8. **Fallback path** — `MockBridge` scripted to a low-confidence response;
+      hand-computed proof exactly. Blocked on U4/U6 landing; mine to drive once they
+      integrate (`workflow::mod`'s `agent` submodule is deliberately not yet declared
+      — see its module doc).
+- [ ] U8. **Fallback path** — `MockBridge` scripted to a low-confidence response;
       test target: the run takes `:Intake`'s `horis:fallback` edge to
       `:EscalateToNurse`, fires `:paging.notify_nurse`, and
       `outcome.labels.fallback_taken == true`. A second script returns a
       schema-valid-but-gate-rejected payload to exercise the bounded-retry loop
       (`horis:retries`, default 2) before falling back.
-- [x] U9. **Trace emission extension** (`trace::emit`) — `perception_step`/
+- [ ] U9. **Trace emission extension** (`trace::emit`) — `perception_step`/
       `action_step`/`narration_step` builders mirroring `reasoning_step`; run-level
       `Trace` fields (`ontology`, `workflow`, `input`, `outcome`, `totals`)
       populated by the Agent. Test target: a full run's trajectory matches doc 09's
       documented shape field-for-field; `Trace::from_json(t.to_json()) == t`; two
       identical mock runs against fresh `World`s produce byte-identical trajectories.
-- [x] U10. **Tool-effect validation** — `ActionStep` resolves args from the graph,
+      **Partially done 2026-08-19** (D13's prerequisite): `trace::schema` ships
+      `SCHEMA_V2`/`Trace::new_v2` and the four new `Step` variants; `trace::migrate`
+      ships `convert_v1_to_v2` with per-kind round-trip tests. The `trace::emit`
+      builder functions and the Agent's population of run-level fields remain —
+      blocked on U7.
+- [ ] U10. **Tool-effect validation** — `ActionStep` resolves args from the graph,
       invokes the bound `Tool`, validates the returned effect against
       `horis:effect` (type/class match for typed placeholders; `horis:now` resolved
       to the transaction stamp) through the gate with `Provenance::Tool`;
@@ -217,36 +241,49 @@ the same commit as this file.
       an out-of-contract tool return (wrong type; an undeclared property) is
       rejected with a domain-term witness and the step follows `onError`; a
       well-formed return's effects are visible to the next step.
-- [x] U11. **`horis:now` transaction stamping** — `Agent::run` (or `Tool`'s
+- [ ] U11. **`horis:now` transaction stamping** — `Agent::run` (or `Tool`'s
       invocation context) carries one timestamp, supplied by the caller (defaults to
       the host clock read exactly once, at transaction open — never inside chaining),
       never re-read; deterministic tests pass a fixed instant. This is the "no
       wall-clock in inference" rule (CLAUDE.md) made concrete for tool effects.
-- [x] U12. **Deferred step kinds** (`ChoiceStep`/`ProposalStep`/`WaitStep`/
+- [ ] U12. **Deferred step kinds** (`ChoiceStep`/`ProposalStep`/`WaitStep`/
       `SubflowStep`) — parse (already-allowed profile vocabulary; `SubflowStep`'s
       depth-1 check per D6), execute as `WorkflowError::StepDeferred { step }` naming
       the concrete step and kind in domain terms. Explicitly does **not** touch trace
-      emission (D13). Test target: a workflow using one of these step kinds loads
+      emission — D13 is resolved (trace/2 exists), but wiring these four kinds'
+      *execution* traces is still future work past this PRP's DoD; parsing (U2) is
+      already done. Test target: a workflow using one of these step kinds loads
       cleanly and fails at `run()` with the named, domain-term error — not a panic,
       not a silent no-op.
-- [x] U13. **`OpenRouterBridge`** (`horismos-bridges::openrouter`, feature
-      `bridges-openrouter`) — OpenAI-compatible chat completions client (`reqwest`),
-      base URL `https://openrouter.ai/api/v1`, model from `OPENROUTER_MODEL` env
-      (default an inexpensive model), forced `tool_choice` on `assert_facts`/
-      `narrate`/`rank`-shaped calls. Reads `OPENROUTER_API_KEY` from env or a
-      gitignored local file only — never logged, never committed, never in a trace.
-      Test target: request-shape unit tests against a mocked HTTP layer (no network,
-      no key, still runs in CI) verifying the forced-tool-choice request body; a
-      `#[ignore]`d live test gated on the key's presence for the captain to run by
-      hand (D4's live-verification gap).
-- [x] U14. **Live demo** (`examples/triage_agent_demo.rs` + `make demo` /
+- [ ] U13. **`OpenRouterBridge`** (`horismos-bridges::openrouter`, feature
+      `bridges-openrouter`) — OpenAI-compatible chat completions client, base URL
+      `https://openrouter.ai/api/v1`, model from `OPENROUTER_MODEL` env (default an
+      inexpensive model), forced `tool_choice` on `assert_facts`/`narrate`/
+      `rank`-shaped calls. Reads `OPENROUTER_API_KEY` from env or a gitignored local
+      file only — never logged, never committed, never in a trace. Test target:
+      request-shape unit tests against a mocked HTTP layer (no network, no key, still
+      runs in CI) verifying the forced-tool-choice request body; a `#[ignore]`d live
+      test gated on the key's presence for the captain to run by hand (D4's
+      live-verification gap). **Superseding note (2026-08-19, captain directive)**:
+      the text above describes the original thin-`reqwest` shape; the captain has
+      since directed this to use the `litellm-rust` SDK crate as the provider layer
+      instead, under strict containment — exact-pinned version, lives only inside
+      `horismos-bridges` behind `Bridge` (nothing above the trait may know it exists),
+      its response adapter's discarding of `model`/`finish_reason`/OpenRouter routing
+      metadata must be verified against the pinned version and those trace-audit
+      fields recovered if so, forced `tool_choice` for `assert_facts` must work
+      through it (empirically verified, `needs-decision` if it cannot), and
+      `MockBridge` (U6) stays crate-free. In progress on `fm/horismos-prp004-u4-u13`;
+      reconcile this entry's text with whatever that branch actually ships when
+      integrated.
+- [ ] U14. **Live demo** (`examples/triage_agent_demo.rs` + `make demo` /
       `make demo-live`) — loads `triage.ttl` + the SNOMED subset, runs "58M, crushing
       chest pain, heart rate 128" through `MockBridge` (CI/`make demo`) or
       `OpenRouterBridge` (`make demo-live`, needs `OPENROUTER_API_KEY`), prints the
       proof tree and narration, writes the full trajectory JSON. Test target: the
       mock run's trajectory matches a committed golden JSON exactly (byte-for-byte,
       determinism).
-- [x] U15. **The DoD run** (`crates/horismos-core/tests/agent_loop_dod.rs`) — the
+- [ ] U15. **The DoD run** (`crates/horismos-core/tests/agent_loop_dod.rs`) — the
       final unit: one test module reproducing the whole Definition of Done
       (immediate track, fallback track, tool-effect validation, trajectory
       serialize+replay) against `MockBridge`, independent of `bridges-openrouter`.

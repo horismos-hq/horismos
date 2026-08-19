@@ -115,6 +115,7 @@ const ALLOWED_HORIS: &[&str] = &[
     "otherwise",
     "workflow",
     "decides",
+    "required",
     // Tool contracts (doc 07)
     "Tool",
     "takes",

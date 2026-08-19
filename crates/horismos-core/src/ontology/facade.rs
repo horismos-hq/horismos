@@ -28,6 +28,8 @@ use crate::ontology::imports::OntologySet;
 use crate::ontology::schema::Schema;
 use crate::ontology::term::{Interner, Iri};
 use crate::reason::rule::{Rule, parse_rules};
+use crate::workflow::model::{Workflow, parse_workflows};
+use crate::workflow::tool::{Tool, parse_tools};
 
 /// A loaded ontology: graphs, schema, interner. Construct with
 /// [`Ontology::load`] (filesystem) or [`Ontology::load_from_str`] (pure);
@@ -60,6 +62,13 @@ struct Inner {
     /// (PRP-002 U1) and pre-sorted by (priority desc, rule IRI lexicographic)
     /// — the order forward chaining consumes them in (doc 04's tie-break).
     rules: Vec<Rule>,
+    /// Every `horis:Tool` contract, parsed and validated at load (PRP-004
+    /// U3) — before `workflows`, whose `ActionStep.tool` cross-validates
+    /// against this set.
+    tools: BTreeMap<Iri, Tool>,
+    /// Every `horis:Workflow`, parsed and validated at load (PRP-004 U2),
+    /// keyed by workflow IRI.
+    workflows: BTreeMap<Iri, Workflow>,
 }
 
 impl Ontology {
@@ -96,6 +105,8 @@ impl Ontology {
             compaction: shared.compaction.clone(),
             patterns: shared.patterns.clone(),
             rules: shared.rules.clone(),
+            tools: shared.tools.clone(),
+            workflows: shared.workflows.clone(),
         });
         let mut interner = inner.interner;
         let set = inner.set.with_import(path, &mut interner)?;
@@ -109,6 +120,9 @@ impl Ontology {
         let schema = Schema::build_all(set.documents(), &interner)?;
         let patterns = compile_patterns(&schema, &interner)?;
         let rules = parse_rules(set.documents(), &schema, &interner)?;
+        let docs: Vec<&crate::ontology::turtle::Document> = set.documents().collect();
+        let tools = parse_tools(&docs, &schema, &interner)?;
+        let workflows = parse_workflows(&docs, &schema, &tools, &interner)?;
 
         let mut compaction = set.prefixes.clone();
         compaction.sort_by(|(a_name, a_ns), (b_name, b_ns)| {
@@ -123,6 +137,8 @@ impl Ontology {
                 compaction,
                 patterns,
                 rules,
+                tools,
+                workflows,
             }),
         })
     }
@@ -216,6 +232,31 @@ impl Ontology {
     /// malformed rule.
     pub fn rules(&self) -> &[Rule] {
         &self.inner.rules
+    }
+
+    /// Every `horis:Tool` this ontology declares (PRP-004 U3), keyed by tool
+    /// IRI. Parsed and validated at load: an `Ontology` value never holds a
+    /// malformed tool contract.
+    pub fn tools(&self) -> &BTreeMap<Iri, Tool> {
+        &self.inner.tools
+    }
+
+    /// The `horis:Tool` named `iri`, if this ontology declares one.
+    pub fn tool(&self, iri: Iri) -> Option<&Tool> {
+        self.inner.tools.get(&iri)
+    }
+
+    /// Every `horis:Workflow` this ontology declares (PRP-004 U2), keyed by
+    /// workflow IRI.
+    pub fn workflows(&self) -> &BTreeMap<Iri, Workflow> {
+        &self.inner.workflows
+    }
+
+    /// The `horis:Workflow` named `iri`, if this ontology declares one —
+    /// what [`crate::workflow::agent::AgentBuilder::workflow`] resolves
+    /// against.
+    pub fn workflow(&self, iri: Iri) -> Option<&Workflow> {
+        self.inner.workflows.get(&iri)
     }
 
     /// Resolves an `Iri` token interned by *this* ontology back to its text.

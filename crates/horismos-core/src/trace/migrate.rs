@@ -198,7 +198,10 @@ mod tests {
         let v2 = convert_v1_to_v2(v1.clone()).expect("a v1 trace converts");
         assert_eq!(schema_version(&v2), Some(2));
         assert_eq!(v2["run_id"], v1["run_id"]);
-        assert_eq!(v2["steps"], v1["steps"], "no field is touched, none invented");
+        assert_eq!(
+            v2["steps"], v1["steps"],
+            "no field is touched, none invented"
+        );
         // The source value is untouched — `convert_v1_to_v2` takes ownership
         // of its argument rather than mutating through a shared reference,
         // so there is nothing here to assert about `v1` surviving; the
