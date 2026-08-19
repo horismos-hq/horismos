@@ -69,6 +69,7 @@ use crate::ontology::schema::{Cardinality, PropertyDecl, PropertyRange, Schema};
 use crate::ontology::term::{Datatype, Iri, Ref, Value};
 use crate::reason::eval::holds;
 use crate::workflow::WorkflowError;
+use crate::workflow::deferred;
 use crate::workflow::model::{
     ActionStep, NarrationStep, PerceptionStep, ReasoningStep, Step, StepBody, Workflow,
 };
@@ -367,26 +368,19 @@ impl<'a> Agent<'a> {
                 self.execute_narration(world, step.iri, &step_name, case, n)
                     .await
             }
+            // Never actually reached: `run()`'s loop short-circuits on a
+            // Bare body before ever dispatching here (see its own doc
+            // comment). Kept as an explicit, still-domain-term arm rather
+            // than `unreachable!()` so a direct `execute_step` call (a
+            // future test, say) fails safely instead of panicking.
             StepBody::Bare => Err(WorkflowError::StepDeferred {
                 step: step_name,
                 kind: "horis:Step (non-terminal, no body)".to_owned(),
             }),
-            StepBody::Choice(_) => Err(WorkflowError::StepDeferred {
-                step: step_name,
-                kind: "horis:ChoiceStep".to_owned(),
-            }),
-            StepBody::Proposal(_) => Err(WorkflowError::StepDeferred {
-                step: step_name,
-                kind: "horis:ProposalStep".to_owned(),
-            }),
-            StepBody::Wait(_) => Err(WorkflowError::StepDeferred {
-                step: step_name,
-                kind: "horis:WaitStep".to_owned(),
-            }),
-            StepBody::Subflow(_) => Err(WorkflowError::StepDeferred {
-                step: step_name,
-                kind: "horis:SubflowStep".to_owned(),
-            }),
+            StepBody::Choice(_) => Err(deferred::choice_deferred(world, step.iri)),
+            StepBody::Proposal(_) => Err(deferred::proposal_deferred(world, step.iri)),
+            StepBody::Wait(_) => Err(deferred::wait_deferred(world, step.iri)),
+            StepBody::Subflow(_) => Err(deferred::subflow_deferred(world, step.iri)),
         }
     }
 
