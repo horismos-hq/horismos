@@ -145,7 +145,7 @@ async fn main() {
     let now = chrono::DateTime::parse_from_rfc3339("2026-08-19T00:00:00Z")
         .expect("a fixed RFC3339 literal parses");
     let outcome = agent
-        .run(&mut world, RunInput::new(INPUT, now))
+        .run(&mut world, RunInput::new("triage_demo_run", INPUT, now))
         .await
         .expect("the demo's fixed input reaches a terminal step");
 
@@ -167,12 +167,34 @@ async fn main() {
         }
     }
 
-    if !outcome.narrations.is_empty() {
+    let narrations: Vec<_> = outcome
+        .trace
+        .steps
+        .iter()
+        .filter_map(|s| match s {
+            horismos_core::trace::Step::Narration {
+                step,
+                text: Some(t),
+                ..
+            } => Some((step.clone(), t.clone())),
+            _ => None,
+        })
+        .collect();
+    if !narrations.is_empty() {
         println!("\nnarration:");
-        for (step, text) in &outcome.narrations {
-            println!("  [{}] {text}", onto.compact(onto.resolve(*step)));
+        for (step, text) in &narrations {
+            println!("  [{}] {text}", step.as_deref().unwrap_or("(unnamed step)"));
         }
     }
+
+    let trajectory_path = std::env::temp_dir().join("horismos_triage_demo_trajectory.json");
+    std::fs::write(&trajectory_path, outcome.trace.to_json_pretty())
+        .expect("the trajectory file must be writable");
+    println!(
+        "\ntrajectory ({} steps) written to {}",
+        outcome.trace.steps.len(),
+        trajectory_path.display()
+    );
 }
 
 fn render_value(onto: &Ontology, value: &Value) -> String {

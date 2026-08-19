@@ -9,11 +9,8 @@
 //! and runs with default features, matching `make no-model-gate`'s sibling
 //! guarantee for `horismos-core` itself.
 //!
-//! **Not yet covered**: trajectory serialize+replay. That needs U9's
-//! `trace::emit` wired into `Agent::run`, which is still landing on
-//! `fm/horismos-prp004-u9-u12` — see this PRP's `02-tasks-and-gaps.md`
-//! (U9, U15). The three tracks below are everything `RunOutcome` already
-//! exposes without it.
+//! DoD track 4 (trajectory serialize+replay) is
+//! `the_trajectory_serializes_and_replays_deterministically`, below.
 //!
 //! Spec: `PRPs/PRP-004-agent-loop/01-objective.md` § Definition of done ·
 //! Owner: PRP-004
@@ -122,9 +119,11 @@ fn the_immediate_track_reaches_done_with_acuity_immediate() {
         .expect("every binding is registered");
 
     let mut world = World::new(&onto);
-    let outcome =
-        tokio_test_block_on(agent.run(&mut world, RunInput::new(IMMEDIATE_INPUT, fixed_now())))
-            .expect("the immediate track must complete");
+    let outcome = tokio_test_block_on(agent.run(
+        &mut world,
+        RunInput::new("run_dod_immediate", IMMEDIATE_INPUT, fixed_now()),
+    ))
+    .expect("the immediate track must complete");
 
     assert_eq!(
         onto.resolve(outcome.terminal),
@@ -139,7 +138,14 @@ fn the_immediate_track_reaches_done_with_acuity_immediate() {
             onto.node_ref(":Immediate").expect(":Immediate is declared")
         )))
     );
-    assert_eq!(outcome.narrations.len(), 1);
+    assert_eq!(outcome.trace.steps.len(), 4, "{:?}", outcome.trace.steps);
+    let narrations = outcome
+        .trace
+        .steps
+        .iter()
+        .filter(|s| matches!(s, horismos_core::trace::Step::Narration { .. }))
+        .count();
+    assert_eq!(narrations, 1);
 }
 
 /// DoD track 2 (fallback): a below-threshold `PerceiveResult` (`:Intake`
@@ -199,8 +205,11 @@ fn the_fallback_track_on_low_confidence_perception_refuses_rather_than_guessing(
         .expect("every binding is registered");
 
     let mut world = World::new(&onto);
-    let err = tokio_test_block_on(agent.run(&mut world, RunInput::new(VAGUE_INPUT, fixed_now())))
-        .expect_err("no case subject exists to page a nurse about");
+    let err = tokio_test_block_on(agent.run(
+        &mut world,
+        RunInput::new("run_dod_fallback", VAGUE_INPUT, fixed_now()),
+    ))
+    .expect_err("no case subject exists to page a nurse about");
 
     assert!(matches!(
         err,
@@ -259,9 +268,15 @@ fn tool_effect_validation_rejects_a_wrong_typed_return_and_follows_on_error() {
         .expect("every binding is registered");
 
     let mut world = World::new(&onto);
-    let outcome =
-        tokio_test_block_on(agent.run(&mut world, RunInput::new(IMMEDIATE_INPUT, fixed_now())))
-            .expect("the run completes via the onError edge, not a WorkflowError");
+    let outcome = tokio_test_block_on(agent.run(
+        &mut world,
+        RunInput::new(
+            "run_dod_tool_effect_validation",
+            IMMEDIATE_INPUT,
+            fixed_now(),
+        ),
+    ))
+    .expect("the run completes via the onError edge, not a WorkflowError");
 
     assert_eq!(
         onto.resolve(outcome.terminal),
@@ -281,6 +296,77 @@ fn tool_effect_validation_rejects_a_wrong_typed_return_and_follows_on_error() {
         Some(&Value::String("stub".to_owned())),
         "the terminal ActionStep's own tool must still have fired"
     );
+}
+
+/// DoD track 4 (trajectory serialize+replay): a full run's trajectory
+/// round-trips through JSON exactly (`Trace::from_json(t.to_json()) == t`,
+/// pretty form too), and two independent runs of the same workflow against
+/// fresh `World`s, given the same `run_id`/input/`now`, produce
+/// byte-identical `to_json()` output — determinism (CLAUDE.md) extended to
+/// the full trajectory, not just the final `World` state.
+#[test]
+fn the_trajectory_serializes_and_replays_deterministically() {
+    fn run() -> horismos_core::trace::Trace {
+        let onto = load_ontology();
+        let bridge = MockBridge::new()
+            .script_perceive(
+                IMMEDIATE_INPUT,
+                PerceiveResult {
+                    instances: vec![serde_json::json!({
+                        "class": ":Patient",
+                        "heartRate": 128,
+                        "hasSymptom": ":CrushingChestPain"
+                    })],
+                    confidence: 0.94,
+                    fact_confidence: BTreeMap::new(),
+                    accounting: Default::default(),
+                },
+            )
+            .script_narrate(
+                "*",
+                NarrateResult {
+                    text: "immediate acuity".to_owned(),
+                    accounting: Default::default(),
+                },
+            );
+        let agent = Agent::builder(&onto)
+            .workflow(":Triage")
+            .expect("Triage is declared")
+            .bridge("claude", bridge)
+            .tool(
+                "assign_queue",
+                StubTool(vec![
+                    onto.node_ref(":queueRef").expect(":queueRef is declared"),
+                ]),
+            )
+            .tool(
+                "notify_nurse",
+                StubTool(vec![
+                    onto.node_ref(":pagedTo").expect(":pagedTo is declared"),
+                ]),
+            )
+            .build()
+            .expect("every binding is registered");
+        let mut world = World::new(&onto);
+        tokio_test_block_on(agent.run(
+            &mut world,
+            RunInput::new("run_dod_replay", IMMEDIATE_INPUT, fixed_now()),
+        ))
+        .expect("the immediate track must complete")
+        .trace
+    }
+
+    let first = run();
+    let second = run();
+    assert_eq!(first.to_json(), second.to_json());
+    assert_eq!(first.to_json_pretty(), second.to_json_pretty());
+
+    let round_tripped =
+        horismos_core::trace::Trace::from_json(&first.to_json()).expect("compact form parses");
+    assert_eq!(round_tripped, first);
+    let round_tripped_pretty = horismos_core::trace::Trace::from_json(&first.to_json_pretty())
+        .expect("pretty form parses");
+    assert_eq!(round_tripped_pretty, first);
 }
 
 /// A hand-rolled single-threaded executor — `Agent::run`'s `Bridge`/`Tool`

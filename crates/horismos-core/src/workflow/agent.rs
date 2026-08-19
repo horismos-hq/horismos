@@ -49,13 +49,16 @@
 //! [`WorkflowError::StepDeferred`] naming the concrete step and kind —
 //! never a panic, never a silent no-op (D3, D6).
 //!
-//! ## What this unit does not yet do
+//! ## Trace emission (U9)
 //!
-//! Trace emission (U9: `trace::emit` builders for the six new step kinds,
-//! wired into `run`) is a tracked follow-up, not part of this unit —
-//! `RunOutcome` exposes the final `World` state, the terminal step, the
-//! computed `horis:decides` value, and whether a fallback edge fired, which
-//! is everything the DoD's world-state assertions need.
+//! Every executed Perception/Reasoning/Action/Narration step builds its
+//! `trace::emit` `Step` inline (see each `execute_*` method) and `run`
+//! accumulates them into `RunOutcome.trace`, a `horismos.trace/2` `Trace`
+//! with `ontology`/`workflow`/`input`/`outcome` populated. Timing fields
+//! (`latency_ms`, `Totals`) stay `None` — `horismos-core` has no clock
+//! feature by design (CLAUDE.md), so a caller with one stamps them post-hoc.
+//! A run touching a deferred kind (`Choice`/`Proposal`/`Wait`/`Subflow`)
+//! ends in `Err` before a `Step` for it could exist.
 //!
 //! Spec: `docs/framework/05-workflows.md`, `06-llm-boundaries.md`,
 //! `07-tools.md`, `12-rust-api.md` · Owner: PRP-004
@@ -91,6 +94,12 @@ pub trait Tool: Send + Sync {
 /// One `agent.run(...)` call's input (doc 12).
 #[derive(Debug, Clone)]
 pub struct RunInput {
+    /// This run's trace `run_id` (doc 09) — caller-supplied for the same
+    /// reason `now` is: `horismos-core` mints neither randomness nor a
+    /// clock reading by design (CLAUDE.md), so a unique id is the caller's
+    /// job (a demo binary, `horismos-py`), and a fixed string in tests
+    /// keeps trajectory-determinism assertions meaningful.
+    pub run_id: String,
     /// The natural-language input the run's `PerceptionStep`s consume.
     pub text: String,
     /// The transaction-stamped `horis:now` (U11) every `ActionStep`'s
@@ -100,12 +109,18 @@ pub struct RunInput {
     /// tool effects). `horismos-core` has no clock feature to read one
     /// itself by design; a caller with one (a demo binary, `horismos-py`)
     /// supplies `chrono::Utc::now().into()` or a fixed instant in tests.
+    /// Also stamps the trace's `started_at` (doc 09).
     pub now: chrono::DateTime<chrono::FixedOffset>,
 }
 
 impl RunInput {
-    pub fn new(text: impl Into<String>, now: chrono::DateTime<chrono::FixedOffset>) -> Self {
+    pub fn new(
+        run_id: impl Into<String>,
+        text: impl Into<String>,
+        now: chrono::DateTime<chrono::FixedOffset>,
+    ) -> Self {
         RunInput {
+            run_id: run_id.into(),
             text: text.into(),
             now,
         }
@@ -113,9 +128,9 @@ impl RunInput {
 }
 
 /// One `agent.run(...)` call's result: the terminal step reached, the
-/// computed decision (D5), and whether any step's fallback/error edge
-/// fired — everything the caller needs without re-deriving it from the
-/// final `World` state.
+/// computed decision (D5), whether any step's fallback/error edge fired,
+/// and the full trajectory — everything the caller needs without
+/// re-deriving it from the final `World` state.
 #[derive(Debug, Clone)]
 pub struct RunOutcome {
     pub terminal: Iri,
@@ -132,12 +147,13 @@ pub struct RunOutcome {
     /// perception ever ran. `None` for a workflow whose `startsAt` step is
     /// not a `PerceptionStep` and never reaches one.
     pub case: Option<Ref>,
-    /// Every successful `NarrationStep`'s `(step, text)`, in the order the
-    /// run reached them — the one output this run produces that `World`
-    /// never holds (a rejected/non-required narration failure leaves no
-    /// entry). Full step-by-step trajectory capture is U9's `trace::emit`;
-    /// this is the caller-facing summary in the meantime (U14's demo).
-    pub narrations: Vec<(Iri, String)>,
+    /// The full trajectory (doc 09, U9): one `horismos.trace/2` `Trace`,
+    /// one step per executed Perception/Reasoning/Action/Narration
+    /// (`Choice`/`Proposal`/`Wait`/`Subflow` never execute in v1, so a
+    /// run touching one ends in `Err` before a `Step` for it could exist).
+    /// `trace.to_json()`/`to_json_pretty()` serialize it; the audit log and
+    /// the training corpus are the same object (CLAUDE.md).
+    pub trace: crate::trace::Trace,
 }
 
 /// Builds an [`Agent`]: the ontology, which of its workflows to run, and
@@ -290,7 +306,20 @@ impl<'a> Agent<'a> {
             .clone();
         let mut case: Option<Ref> = None;
         let mut fallback_taken = false;
-        let mut narrations = Vec::new();
+        let mut goal_reached = true;
+
+        let mut trace = crate::trace::Trace::new_v2(input.run_id.clone());
+        trace.ontology = Some(crate::trace::schema::OntologyRef {
+            iri: ontology_namespace(self.onto, self.workflow.iri),
+            version: self.workflow.version.clone(),
+            hash: None,
+        });
+        trace.workflow = Some(self.onto.compact(self.onto.resolve(self.workflow.iri)));
+        trace.started_at = Some(input.now.to_rfc3339());
+        trace.input = Some(crate::trace::schema::Input {
+            kind: "nl".to_owned(),
+            text: Some(input.text.clone()),
+        });
 
         loop {
             // A bare `horis:Step` (`:Done`, `:PagingFailed`) is a pure
@@ -304,21 +333,38 @@ impl<'a> Agent<'a> {
             // `current.terminal` check after dispatch is what stops the run
             // from following its `horis:onError`/`horis:next` edge further.
             if matches!(current.body, StepBody::Bare) {
-                return Ok(self.finish(current.iri, case, fallback_taken, narrations, world));
+                return Ok(self.finish(
+                    current.iri,
+                    case,
+                    fallback_taken,
+                    goal_reached,
+                    trace,
+                    world,
+                ));
             }
 
             let outcome = self.execute_step(world, &current, case, &input).await?;
             if outcome.is_fallback {
                 fallback_taken = true;
+                if matches!(current.body, StepBody::Reasoning(_)) {
+                    goal_reached = false;
+                }
             }
             if let Some(resolved_case) = outcome.case {
                 case = Some(resolved_case);
             }
-            if let Some(narration) = outcome.narration {
-                narrations.push(narration);
+            if let Some(step) = outcome.trace_step {
+                trace.steps.push(step);
             }
             if current.terminal {
-                return Ok(self.finish(current.iri, case, fallback_taken, narrations, world));
+                return Ok(self.finish(
+                    current.iri,
+                    case,
+                    fallback_taken,
+                    goal_reached,
+                    trace,
+                    world,
+                ));
             }
             current = self
                 .workflow
@@ -329,13 +375,15 @@ impl<'a> Agent<'a> {
     }
 
     /// Builds the `RunOutcome` for reaching terminal step `terminal` (D5's
-    /// `horis:decides` lookup against the final case-subject state).
+    /// `horis:decides` lookup against the final case-subject state), and
+    /// closes out `trace.outcome` (doc 09) with the same values.
     fn finish(
         &self,
         terminal: Iri,
         case: Option<Ref>,
         fallback_taken: bool,
-        narrations: Vec<(Iri, String)>,
+        goal_reached: bool,
+        mut trace: crate::trace::Trace,
         world: &World,
     ) -> RunOutcome {
         let decision = self.workflow.decides.and_then(|property| {
@@ -343,12 +391,36 @@ impl<'a> Agent<'a> {
                 .cloned()
                 .map(|v| (property, v))
         });
+        let decision_fact = decision.as_ref().zip(case).map(|((property, value), c)| {
+            crate::trace::schema::TraceFact {
+                // `c` (the case subject) is very likely a runtime-minted
+                // skolem instance, never in `self.onto`'s load-time-only
+                // interner — resolve it through `world`'s (a strict
+                // superset: it starts as `self.onto`'s and only ever grows).
+                // `property` is safe through either, being load-time
+                // declared, but `world` keeps both call sites uniform.
+                s: world.ontology().compact(world.resolve(c.iri())),
+                p: world.ontology().compact(world.resolve(*property)),
+                o: crate::trace::emit::value_json(world, value),
+                provenance: None,
+                conf: None,
+            }
+        });
+        trace.outcome = Some(crate::trace::schema::Outcome {
+            terminal: Some(self.onto.compact(self.onto.resolve(terminal))),
+            goal_reached: Some(goal_reached),
+            decision: decision_fact,
+            labels: BTreeMap::from([(
+                "fallback_taken".to_owned(),
+                serde_json::Value::Bool(fallback_taken),
+            )]),
+        });
         RunOutcome {
             terminal,
             decision,
             fallback_taken,
             case,
-            narrations,
+            trace,
         }
     }
 
@@ -359,15 +431,15 @@ impl<'a> Agent<'a> {
         case: Option<Ref>,
         input: &RunInput,
     ) -> Result<StepOutcome, WorkflowError> {
-        let step_name = self.onto.resolve(step.iri).to_owned();
+        // Compacted CURIE — matches `workflow::deferred`'s convention
+        // (domain-term errors and trace step names read the same way
+        // whether a step executed or deferred).
+        let step_name = self.onto.compact(self.onto.resolve(step.iri));
         match &step.body {
-            StepBody::Perception(p) => self.execute_perception(world, p, input).await,
-            StepBody::Reasoning(r) => self.execute_reasoning(world, case, r),
+            StepBody::Perception(p) => self.execute_perception(world, &step_name, p, input).await,
+            StepBody::Reasoning(r) => self.execute_reasoning(world, &step_name, case, r),
             StepBody::Action(a) => self.execute_action(world, &step_name, case, a, input.now),
-            StepBody::Narration(n) => {
-                self.execute_narration(world, step.iri, &step_name, case, n)
-                    .await
-            }
+            StepBody::Narration(n) => self.execute_narration(world, &step_name, case, n).await,
             // Never actually reached: `run()`'s loop short-circuits on a
             // Bare body before ever dispatching here (see its own doc
             // comment). Kept as an explicit, still-domain-term arm rather
@@ -387,11 +459,13 @@ impl<'a> Agent<'a> {
     async fn execute_perception(
         &self,
         world: &mut World,
+        step_name: &str,
         p: &PerceptionStep,
         input: &RunInput,
     ) -> Result<StepOutcome, WorkflowError> {
         let bridge = self.bridge_for(p.model.as_deref())?;
         let schema = derive_extract_schema(self.onto, world.ontology().schema(), &p.extracts);
+        let model = Some(bridge.id().to_owned());
 
         let mut attempt = 0;
         loop {
@@ -403,14 +477,36 @@ impl<'a> Agent<'a> {
                 .await;
             let result = match result {
                 Ok(r) => r,
+                // A transport-level failure carries no confidence/instance
+                // data worth recording — the fallback edge is the whole
+                // trace-visible signal for this case.
                 Err(_) => return Ok(self.fallback_outcome(p.fallback)),
             };
-            if result.confidence < p.confidence {
-                return Ok(self.fallback_outcome(p.fallback));
+            let accepted = result.confidence >= p.confidence;
+            if !accepted {
+                let mut outcome = self.fallback_outcome(p.fallback);
+                outcome.trace_step = Some(crate::trace::perception_step(
+                    world,
+                    Some(step_name),
+                    model.clone(),
+                    Some(result.confidence),
+                    Some(p.confidence),
+                    &[],
+                ));
+                return Ok(outcome);
             }
             match self.assert_perceived(world, &result) {
-                Ok(primary) => {
-                    return Ok(StepOutcome::new(p.next, false, primary));
+                Ok((primary, asserted)) => {
+                    let mut outcome = StepOutcome::new(p.next, false, primary);
+                    outcome.trace_step = Some(crate::trace::perception_step(
+                        world,
+                        Some(step_name),
+                        model,
+                        Some(result.confidence),
+                        Some(p.confidence),
+                        &asserted,
+                    ));
+                    return Ok(outcome);
                 }
                 Err(_) if attempt < p.retries => attempt += 1,
                 Err(_) => return Ok(self.fallback_outcome(p.fallback)),
@@ -420,13 +516,15 @@ impl<'a> Agent<'a> {
 
     /// Asserts every proposed instance (provenance `perception`); returns
     /// the case subject (the first-extracted class's asserted instance, if
-    /// any — see the module doc).
+    /// any — see the module doc) plus every fact asserted, in interned form,
+    /// for [`crate::trace::perception_step`].
     fn assert_perceived(
         &self,
         world: &mut World,
         result: &PerceiveResult,
-    ) -> Result<Option<Ref>, WorkflowError> {
+    ) -> Result<(Option<Ref>, Vec<crate::trace::PerceivedFact>), WorkflowError> {
         let mut primary = None;
+        let mut asserted_facts = Vec::new();
         for (index, instance) in result.instances.iter().enumerate() {
             let obj = instance
                 .as_object()
@@ -467,30 +565,63 @@ impl<'a> Agent<'a> {
                     properties.push((property, value));
                 }
             }
+            let fact_confidence = result
+                .fact_confidence
+                .get(&index)
+                .copied()
+                .unwrap_or(result.confidence);
             let asserted = world
-                .assert_instance_as(Provenance::Perception, None, class, properties)
+                .assert_instance_as(Provenance::Perception, None, class, properties.clone())
                 .map_err(|e| WorkflowError::PerceptionRejected {
                     reason: e.domain_text(),
                 })?;
+            for (property, value) in properties {
+                asserted_facts.push(crate::trace::PerceivedFact {
+                    subject: asserted,
+                    property,
+                    value,
+                    confidence: Some(fact_confidence),
+                });
+            }
             if primary.is_none() {
                 primary = Some(asserted);
             }
         }
-        Ok(primary)
+        Ok((primary, asserted_facts))
     }
 
     fn execute_reasoning(
         &self,
         world: &World,
+        step_name: &str,
         case: Option<Ref>,
         r: &ReasoningStep,
     ) -> Result<StepOutcome, WorkflowError> {
         let case = case.ok_or(WorkflowError::NoCaseSubject)?;
-        if holds(world, case, &r.goal) {
-            Ok(StepOutcome::new(r.next, false, Some(case)))
+        let reached = holds(world, case, &r.goal);
+        // The goal check itself mutates nothing (doc 05: a ReasoningStep
+        // asserts nothing), so there is no fresh `ReasoningRecord` of its
+        // own — `world.last_reasoning()` is whatever the most recent
+        // transaction (typically the preceding PerceptionStep's assert)
+        // chained, which is exactly what made this goal reachable or not.
+        // `goal_reached` isn't part of that record (it belongs to *this*
+        // step, not the chaining pass), so it's stamped after the call —
+        // `trace::emit`'s own documented convention for runtime-derived
+        // fields.
+        let trace_step = world.last_reasoning().map(|record| {
+            let mut step = crate::trace::reasoning_step(world, Some(step_name), record);
+            if let crate::trace::Step::Reasoning { goal_reached, .. } = &mut step {
+                *goal_reached = Some(reached);
+            }
+            step
+        });
+        let mut outcome = if reached {
+            StepOutcome::new(r.next, false, Some(case))
         } else {
-            Ok(StepOutcome::new(r.on_unreachable, true, Some(case)))
-        }
+            StepOutcome::new(r.on_unreachable, true, Some(case))
+        };
+        outcome.trace_step = trace_step;
+        Ok(outcome)
     }
 
     fn execute_action(
@@ -516,11 +647,27 @@ impl<'a> Agent<'a> {
 
         let outcome = self.invoke_tool(world, case, a.tool, now);
         match outcome {
-            Ok(()) => Ok(StepOutcome::new(
-                a.next.unwrap_or(a.on_error),
-                false,
-                Some(case),
-            )),
+            Ok(effects) => {
+                let mut outcome = StepOutcome::new(a.next.unwrap_or(a.on_error), false, Some(case));
+                let effects: Vec<crate::trace::AssertedEffect> = effects
+                    .into_iter()
+                    .map(|(property, value)| crate::trace::AssertedEffect {
+                        subject: case,
+                        property,
+                        value,
+                    })
+                    .collect();
+                outcome.trace_step = Some(crate::trace::action_step(
+                    world,
+                    Some(step_name),
+                    Some(&self.onto.compact(self.onto.resolve(a.tool))),
+                    &effects,
+                ));
+                Ok(outcome)
+            }
+            // A rejected/failed invocation has no confirmed effect to
+            // record — `horis:onError` is the whole trace-visible signal,
+            // same posture as perception's transport-failure branch.
             Err(_) => Ok(StepOutcome::new(a.on_error, true, Some(case))),
         }
     }
@@ -531,7 +678,7 @@ impl<'a> Agent<'a> {
         case: Ref,
         tool_iri: Iri,
         now: chrono::DateTime<chrono::FixedOffset>,
-    ) -> Result<(), ToolError> {
+    ) -> Result<Vec<(Iri, Value)>, ToolError> {
         let tool_decl = self
             .onto
             .tool(tool_iri)
@@ -585,18 +732,17 @@ impl<'a> Agent<'a> {
         }
 
         world
-            .assert_on(Provenance::Tool, case, properties)
+            .assert_on(Provenance::Tool, case, properties.clone())
             .map_err(|e| ToolError::InvocationFailed {
                 tool: self.onto.resolve(tool_iri).to_owned(),
                 reason: e.domain_text(),
             })?;
-        Ok(())
+        Ok(properties)
     }
 
     async fn execute_narration(
         &self,
         world: &World,
-        step_iri: Iri,
         step_name: &str,
         case: Option<Ref>,
         n: &NarrationStep,
@@ -610,18 +756,27 @@ impl<'a> Agent<'a> {
                 audience: n.audience.clone().unwrap_or_default(),
             })
             .await;
-        match result {
-            Ok(r) => {
-                let mut outcome = StepOutcome::new(n.next, false, Some(case));
-                outcome.narration = Some((step_iri, r.text));
-                Ok(outcome)
+        let text = match result {
+            Ok(r) => r.text,
+            Err(e) if n.required => {
+                return Err(WorkflowError::NarrationFailed {
+                    step: step_name.to_owned(),
+                    reason: e.domain_text(),
+                });
             }
-            Err(e) if n.required => Err(WorkflowError::NarrationFailed {
-                step: step_name.to_owned(),
-                reason: e.domain_text(),
-            }),
-            Err(_) => Ok(StepOutcome::new(n.next, false, Some(case))),
-        }
+            // D7: non-fatal by default — the mechanical proof.render()
+            // fallback stands in, and it is still this step's recorded
+            // output (emit.rs's own doc: "this builder only ever sees text
+            // that exists, mechanical or modeled").
+            Err(_) => proof_text,
+        };
+        let mut outcome = StepOutcome::new(n.next, false, Some(case));
+        outcome.trace_step = Some(crate::trace::narration_step(
+            Some(step_name),
+            n.audience.clone(),
+            Some(text),
+        ));
+        Ok(outcome)
     }
 
     fn fallback_outcome(&self, fallback: Iri) -> StepOutcome {
@@ -633,11 +788,11 @@ struct StepOutcome {
     next: Iri,
     is_fallback: bool,
     case: Option<Ref>,
-    /// `Some((step, text))` when this step was a `NarrationStep` whose
-    /// bridge call returned successfully — threaded up into
-    /// [`RunOutcome::narrations`] since narration prose, unlike a `Value`
-    /// asserted into `World`, has nowhere else to persist (D7).
-    narration: Option<(Iri, String)>,
+    /// `Some(step)` for every step kind that actually executed (U9) —
+    /// `None` for a fallback edge with no call worth recording (a
+    /// transport-level Bridge error, a rejected tool invocation) and for
+    /// the deferred/Bare kinds, which never reach a `StepOutcome` at all.
+    trace_step: Option<crate::trace::Step>,
 }
 
 impl StepOutcome {
@@ -646,7 +801,7 @@ impl StepOutcome {
             next,
             is_fallback,
             case,
-            narration: None,
+            trace_step: None,
         }
     }
 }
@@ -760,6 +915,20 @@ fn term_in_namespace_of(onto: &Ontology, reference: Iri, local_name: &str) -> Op
     let cut = reference_text.rfind(['#', '/'])? + 1;
     let candidate = format!("{}{}", &reference_text[..cut], local_name);
     onto.iri(&candidate)
+}
+
+/// The workflow's own namespace (the part of its IRI before the last `#`
+/// or `/`) — used as `trace.ontology.iri` (doc 09: `"…/triage"`).
+/// `Ontology::load` takes a filesystem path, not a document IRI, so there
+/// is no dedicated "ontology IRI" to read; the workflow's namespace is the
+/// nearest available proxy (every triage.ttl term, workflow included,
+/// shares one `@prefix : <...#>`).
+fn ontology_namespace(onto: &Ontology, workflow_iri: Iri) -> String {
+    let resolved = onto.resolve(workflow_iri);
+    match resolved.rfind(['#', '/']) {
+        Some(cut) => resolved[..cut].to_owned(),
+        None => resolved.to_owned(),
+    }
 }
 
 /// Turns one JSON scalar from a perceived instance into a typed [`Value`],
@@ -1027,7 +1196,11 @@ mod tests {
             .expect("a fixed RFC3339 literal parses");
         let outcome = block_on(agent.run(
             &mut world,
-            RunInput::new("58M, crushing chest pain, heart rate 128", now),
+            RunInput::new(
+                "run_immediate",
+                "58M, crushing chest pain, heart rate 128",
+                now,
+            ),
         ))
         .expect("the immediate track must complete");
 
@@ -1052,11 +1225,24 @@ mod tests {
             world.value(case, queue_ref),
             Some(&Value::String("stub".to_owned()))
         );
-        // `:Explain`'s narration text is captured on RunOutcome — the run
-        // never persists it into World (D7), so this is its only home
-        // until U9's trace emission lands.
-        let explain = onto.node_ref(":Explain").expect(":Explain is declared");
-        assert_eq!(outcome.narrations, vec![(explain, "narrated".to_owned())]);
+        // U9 test target: the trajectory records one step per executed
+        // Perception/Reasoning/Action/Narration, and round-trips exactly.
+        assert_eq!(outcome.trace.steps.len(), 4, "{:?}", outcome.trace.steps);
+        let narration = outcome
+            .trace
+            .steps
+            .iter()
+            .find(|s| matches!(s, crate::trace::Step::Narration { .. }))
+            .expect("the trace records :Explain's narration");
+        assert!(matches!(
+            narration,
+            crate::trace::Step::Narration { text: Some(t), .. } if t == "narrated"
+        ));
+        assert_eq!(outcome.trace.run_id, "run_immediate");
+        assert_eq!(
+            crate::trace::Trace::from_json(&outcome.trace.to_json()).expect("trace round-trips"),
+            outcome.trace
+        );
     }
 
     /// A stub `Tool` that returns a wrong-typed value (an integer where the
@@ -1114,7 +1300,11 @@ mod tests {
             .expect("a fixed RFC3339 literal parses");
         let outcome = block_on(agent.run(
             &mut world,
-            RunInput::new("58M, crushing chest pain, heart rate 128", now),
+            RunInput::new(
+                "run_rejected_effect",
+                "58M, crushing chest pain, heart rate 128",
+                now,
+            ),
         ))
         .expect("the run completes via the onError edge, not a WorkflowError");
 

@@ -374,7 +374,10 @@ fn compact(world: &World, iri: Iri) -> String {
 /// A stored value in trace form: integers and booleans as JSON natives,
 /// everything else (decimals included — JSON numbers are lossy floats) in
 /// its lexical form; node references as compacted IRIs.
-fn value_json(world: &World, value: &Value) -> serde_json::Value {
+///
+/// `pub(crate)`: also used by `workflow::agent` to build the run-level
+/// `Outcome.decision` fact (U9 wiring) — not part of the public API.
+pub(crate) fn value_json(world: &World, value: &Value) -> serde_json::Value {
     match value {
         Value::Integer(i) => serde_json::Value::from(*i),
         Value::Boolean(b) => serde_json::Value::from(*b),

@@ -1198,7 +1198,7 @@ mod tests {
 
         assert_eq!(wf.starts_at, iri(&onto, "Intake"));
         assert_eq!(wf.version.as_deref(), Some("1.2.0"));
-        assert_eq!(wf.decides, None);
+        assert_eq!(wf.decides, Some(iri(&onto, "acuity")));
         assert_eq!(wf.steps.len(), 7);
 
         let intake = match &wf.step(iri(&onto, "Intake")).expect(":Intake").body {

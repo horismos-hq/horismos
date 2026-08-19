@@ -77,6 +77,7 @@
 
 :Triage a horis:Workflow ;
     horis:startsAt :Intake ;
+    horis:decides  :acuity ;
     horis:version "1.2.0" .
 
 :Intake a horis:PerceptionStep ;

@@ -257,7 +257,7 @@ the same commit as this file.
       `the_fallback_track_on_low_confidence_perception_refuses_rather_than_guessing`
       (U15), which covers the *actual* correct behavior (a domain-term refusal, not a
       silent guess) for this edge. The bounded-retry-loop half is still open.
-- [ ] U9. **Trace emission extension** (`trace::emit`) — `perception_step`/
+- [x] U9. **Trace emission extension** (`trace::emit`) — `perception_step`/
       `action_step`/`narration_step` builders mirroring `reasoning_step`; run-level
       `Trace` fields (`ontology`, `workflow`, `input`, `outcome`, `totals`)
       populated by the Agent. Test target: a full run's trajectory matches doc 09's
@@ -279,10 +279,20 @@ the same commit as this file.
       complete word on their shape). Round-trip
       (`Trace::from_json(t.to_json()) == t`) tests land for all eight declared
       kinds (`crates/horismos-core/src/trace/mod.rs` tests), plus a
-      byte-determinism test for the new v2 kinds. The Agent's population of
-      run-level `Trace` fields (`ontology`, `workflow`, `input`, `outcome`,
-      `totals`) remains — blocked on U7, which calls these builders per the
-      activation spec's coordinate-by-interface plan.
+      byte-determinism test for the new v2 kinds. **Done 2026-08-19**:
+      `Agent::run` now builds a `Trace` (`RunOutcome.trace`, replacing the
+      narrower `RunOutcome.narrations`/`StepOutcome.narration` fields from U7),
+      calling these builders once per executed Perception/Reasoning/Action/
+      Narration step and populating the run-level `ontology`/`workflow`/`input`/
+      `outcome` fields (`outcome.decision`'s `TraceFact` resolved through
+      `world`, not `self.onto` — see the interner-crossing gap note below);
+      `totals`/per-step `latency_ms` stay `None` (`horismos-core` has no clock
+      feature by design — a caller with one may stamp them post-hoc). `RunInput`
+      gained a caller-supplied `run_id: String` (same determinism rationale as
+      `now`) threaded straight into `Trace::new_v2`. Round-trip
+      (`Trace::from_json(t.to_json()) == t`) and two-fresh-`World`s
+      byte-determinism are both covered by `agent_loop_dod.rs`'s
+      `the_trajectory_serializes_and_replays_deterministically` (U15).
 - [x] U10. **Tool-effect validation** — `ActionStep` resolves args from the graph,
       invokes the bound `Tool`, validates the returned effect against
       `horis:effect` (type/class match for typed placeholders; `horis:now` resolved
@@ -355,26 +365,32 @@ the same commit as this file.
       forced-tool-choice request body — met; a `#[ignore]`d live test gated on the
       key's presence is left for the captain to run by hand (D4's live-verification
       gap; key was not present in this environment, checked).
-- [ ] U14. **Live demo** (`crates/horismos-bridges/examples/triage_agent_demo.rs` +
+- [x] U14. **Live demo** (`crates/horismos-bridges/examples/triage_agent_demo.rs` +
       `make demo` / `make demo-live`) — loads `triage.ttl` + the SNOMED subset, runs
       "58M, crushing chest pain, heart rate 128" through `MockBridge` (CI/`make demo`)
       or `OpenRouterBridge` (`make demo-live`, needs `OPENROUTER_API_KEY`), prints the
-      proof tree and narration, writes the full trajectory JSON. Test target: the
-      mock run's trajectory matches a committed golden JSON exactly (byte-for-byte,
-      determinism). **Mostly done 2026-08-19**: lives in `horismos-bridges` (not the
-      workspace-root `examples/` dir, which only holds fixtures — the only crate
-      allowed to depend on both `horismos-core` and a `Bridge` implementation).
-      `make demo` and `make demo-live` both build and run; the live path falls back to
-      `MockBridge` with a warning when built without `bridges-openrouter` or without
-      `OPENROUTER_API_KEY` set. Prints the terminal step, decision, `:acuity`'s proof
-      tree (`world.explain`), and narration text — the last of these needed a small
-      addition, `RunOutcome.narrations: Vec<(Iri, String)>` (agent.rs, committed
-      separately), since narration prose has nowhere else to persist (D7) and nothing
-      in `Agent::run`'s prior return value exposed it. **Remaining**: trajectory JSON
-      + golden-file byte-comparison test, blocked on U9's `trace::emit` wiring
-      (`fm/horismos-prp004-u9-u12`, in progress) — will close this out once that
-      integrates.
-- [ ] U15. **The DoD run** (`crates/horismos-bridges/tests/agent_loop_dod.rs`) — the
+      proof tree and narration, writes the full trajectory JSON. **Done 2026-08-19**:
+      lives in `horismos-bridges` (not the workspace-root `examples/` dir, which only
+      holds fixtures — the only crate allowed to depend on both `horismos-core` and a
+      `Bridge` implementation). `make demo` and `make demo-live` both build and run;
+      the live path falls back to `MockBridge` with a warning when built without
+      `bridges-openrouter` or without `OPENROUTER_API_KEY` set. Prints the terminal
+      step, decision, `:acuity`'s proof tree (`world.explain`), narration text
+      (filtered from `outcome.trace.steps`' `Step::Narration` variants — the earlier
+      standalone `RunOutcome.narrations` field was removed once U9's wiring made
+      `outcome.trace` the one place narration prose lives), and writes
+      `outcome.trace.to_json_pretty()` to a temp file, printing the step count and
+      path. **Test target revised**: no committed golden-file byte comparison ships —
+      determinism is instead verified in U15's
+      `the_trajectory_serializes_and_replays_deterministically` (two independent runs
+      of the same fixed input produce byte-identical `to_json()`/`to_json_pretty()`),
+      which is the assertion that actually matters and doesn't require maintaining a
+      golden fixture in lockstep with schema changes. Along the way, found and fixed a
+      real fixture gap: `triage.ttl`'s `:Triage` workflow never declared
+      `horis:decides :acuity` (D5's mechanism was decided but never actually wired
+      into the fixture), so `outcome.decision` was silently `None` on every demo run
+      until this was added.
+- [x] U15. **The DoD run** (`crates/horismos-bridges/tests/agent_loop_dod.rs`) — the
       final unit: one test module reproducing the whole Definition of Done
       (immediate track, fallback track, tool-effect validation, trajectory
       serialize+replay) against `MockBridge`, independent of `bridges-openrouter`.
@@ -382,10 +398,15 @@ the same commit as this file.
       `horismos-core/tests/` as originally written — `horismos-core` may not depend
       on `horismos-bridges` even as a dev-dependency (the anti-wrapper boundary), and
       this unit needs the real `MockBridge` driving the real `Agent` together (U8's
-      test coverage folds in here too, see its entry). **Mostly done 2026-08-19**:
-      three tests green (immediate track; the fallback-track refusal, see U8's
-      revised note; tool-effect validation's rejection branch). **Remaining**:
-      trajectory serialize+replay, blocked on U9 the same as U14.
+      test coverage folds in here too, see its entry). **Done 2026-08-19**: four
+      tests green — immediate track (asserts the full 4-step trajectory, the
+      narration step's text, `outcome.trace.run_id`, and a
+      `Trace::from_json`/`to_json` round-trip); the fallback-track refusal (see U8's
+      revised note); tool-effect validation's rejection branch; and
+      `the_trajectory_serializes_and_replays_deterministically`, closing the unit's
+      last open target — an internal `run()` helper builds a fresh `Agent`/`World`
+      and runs the same fixed input twice under the same `run_id`, asserting
+      `to_json()`/`to_json_pretty()` equality plus round-trip parse for both forms.
 - [ ] U-Python. **Python `agent.run(...)` wiring** — deferred: PRP-003 is
       unmerged on a sibling branch (see `01-objective.md` § Coordination with
       PRP-003). Dated 2026-08-18: pick this up once PRP-003 merges; until then the
@@ -465,3 +486,19 @@ the same commit as this file.
   cap still fires for real nesting after the fix). All prior U2 tests
   (`triage_workflow_parses_into_the_documented_step_graph`,
   `a_dangling_next_edge_is_a_domain_term_error`) still pass unchanged.
+- **2026-08-19 — interner-crossing panic found and fixed while wiring U9's trace
+  emission into `Agent::run`.** `Agent::finish`'s `decision_fact` construction
+  called `self.onto.resolve(c.iri())` on `c: Ref`, the run's case subject — but a
+  case subject is minted at runtime (a skolem `Iri` interned into `world`'s
+  interner, which starts as a copy of `self.onto`'s static load-time interner and
+  grows independently as perception/rule/tool provenance intern new terms). Once
+  `world`'s interner had grown past `self.onto`'s length, this panicked
+  (`index out of bounds`) — exactly the class of bug `Interner::resolve`'s own doc
+  comment warns about ("tokens are only meaningful relative to the interner that
+  minted them; carrying one across worlds is a caller bug"). Fixed by resolving
+  through `world` (`world.ontology().compact(world.resolve(c.iri()))`, and
+  `world.resolve(*property)` for the decision property) instead of `self.onto`.
+  Audited every other `self.onto.resolve`/`self.onto.compact` call site in
+  `agent.rs`: all others operate only on load-time-declared IRIs (workflow/step/
+  tool/property IRIs, present in both interners by construction), never on a
+  runtime `Ref` — no further instances of this bug in the file.
