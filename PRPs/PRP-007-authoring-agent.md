@@ -43,6 +43,8 @@ time: neural proposes, symbolic decides.
    partial ontology + witnesses rather than loop forever).
 3. Prompt strategy: full RDFS-plus vocabulary reference in system prompt (sigil-lang's
    syntax-reference-in-prompt approach) vs. constrained generation against a grammar.
+4. **[DECIDE, doc 15 §3]** Exact resource limits on drafted/ingested Turtle (max file
+   size, max triple count, load timeout) before it reaches parse/profile validation.
 
 ## Definition of done
 
@@ -50,3 +52,26 @@ A clinician-roleplay transcript produces a verified `triage.ttl` from scratch th
 conversation alone; seeded incompleteness in the SME's description is caught by the
 verifier and resolved in-loop via a domain-term question back to the SME; the session
 corpus exports NL→Turtle pairs with outcome labels.
+
+## Security acceptance surface (doc 15)
+
+PRP-007 owns the authoring-file-write trust boundary. Its DoD is not met until it
+also proves:
+
+- **Path jail**: `write_draft` rejects any target path that canonicalizes outside the
+  configured drafts root (`../` traversal, absolute paths, symlink escapes), recorded
+  as a rejected tool call in the session trace — never a write to the resolved
+  out-of-root location.
+- **Atomic writes**: a fixture that interrupts a draft write mid-flight and asserts no
+  partial file is ever observable at the target path.
+- **The signed-off path is never agent-written**: a test asserting no tool in the
+  agent's surface can write to the path a deployment would load as trusted — only the
+  distinct, human-gated sign-off step can.
+- **Resource limits on adversarial Turtle** (per D4 above): an oversized or
+  cyclic-import draft is rejected before it reaches downstream verification, bounded
+  by an explicit timeout — a fixture proving the authoring loop can't be hung by a
+  malicious or degenerate draft.
+- **Prompt-injection resistance in the SME conversation**: an adversarial transcript
+  fixture (SME-role text attempting to steer `write_draft`/`write_file` outside
+  declared drafts, or to skip verification) proving the agent's tool surface — not the
+  model's judgment — is what prevents it.

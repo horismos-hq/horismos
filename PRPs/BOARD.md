@@ -44,6 +44,18 @@ decide the truth-maintenance hold.
 Also closed 2026-07-28 (in PRP-000): rebrand **Sigil → Horismos**, proving ground
 both-track (τ-Bench number, triage narrative), license MIT OR Apache-2.0 dual.
 
+**Security/trust workstream authorized 2026-08-18** (captain decision, per
+independent-review findings R2/D4: security posture existed only as a disclaimer,
+and several v1 trust-boundary decisions had no PRP owner). Not a new PRP number —
+cross-cutting: `docs/framework/15-security.md` records the v1 threat model (assets,
+trust boundaries, threats, mitigations vs. explicitly deployer-owned concerns); each
+of PRP-004, PRP-006, PRP-007 gained a **Security acceptance surface** subsection
+naming what its DoD must prove, plus new owned **[DECIDE]** markers for the
+genuinely open mechanism choices (URL allowlist config, MCP-server isolation, trace
+retention/encryption hooks, redaction default, SBOM policy, authoring resource
+limits). No existing hard rule weakened; no decision owned by another PRP resolved
+ad hoc.
+
 ## End goal
 
 The chained definitions of done, PRP-000 → 007:
@@ -80,9 +92,9 @@ after 002 (it deliberately doesn't need the agent loop).
 
 ## Quick recap — what exists today
 
-- **Spec**: docs/framework 00–14 — concepts, ontology profile, world/gate, reasoning,
+- **Spec**: docs/framework 00–15 — concepts, ontology profile, world/gate, reasoning,
   workflows, LLM boundaries, tools, bridge, traces, verification, both APIs,
-  authoring, architecture.
+  authoring, architecture, security & trust.
 - **Engine (PRP-001 + PRP-002)**: `horismos-core::ontology` (terms/interning,
   Turtle, profile validation, schema + subsumption, imports/anchoring),
   `horismos-core::world` (store, five-check gate, provenance, snapshots/diff/
