@@ -5,7 +5,8 @@ At-a-glance project state. Updated in the same commit as any PRP status change
 [Horismos Board artifact](https://claude.ai/code/artifact/dc7ee691-4c9f-40a7-b235-0760de8ff17d)
 (source: `planning/board.html`, republished to the same URL on updates).
 
-_Last updated: 2026-08-18_
+_Last updated: 2026-08-19 (PRP-004 activated and Active; PRP-002 truth-maintenance
+defect fixed on `main` (PR #7) — no longer an open captain hold)_
 
 ## Current state
 
@@ -24,22 +25,29 @@ byte-identically to the Rust suite, snapshots/diffs/wire form, stubs
 config (execution is PRP-006's). 70 pytest + ~248 Rust tests, `make verify`
 green. Branch: `fm/horismos-prp003-a1`. PRP-002 was recorded Done here
 2026-08-18 (merged 2026-08-05 as PR #4; folder record in PR #3, open).
-**Open captain hold**: derived-fact truth maintenance (plan review, finding
-2) — held above the PRPs; PRP-003 binds current behavior without endorsing
-it.
+**Former captain hold, now resolved**: derived-fact truth maintenance (plan
+review, finding 2) — fixed on `main` (PR #7, 2026-08-19, recompute/invalidate
+on retraction); PRP-003 already bound current behavior without endorsing it,
+so nothing there needed to change.
 
 ## Next goal
 
-**PRP-004 (agent loop) is next** — workflows, perception/narration
-boundaries, tools, the Bridge implementations — with **PRP-005
-(verification) startable in parallel** (it needs only 001+002). PRP-004
-inherits the pinned 003/004 subscription split (core transactional
-notification stage), the `Ontology.version`/`hash` deferral (trace
-stamping is its consumer), and doc 11's Agent surface.
+**PRP-004 (agent loop) is Active** (2026-08-18, branch `fm/horismos-prp004-a1`),
+implementing the workflow engine, Bridge, and tools against merged `main`
+directly (not against PRP-003's now-Done Python surface, per its own
+coordination note) — with **PRP-005 (verification) startable in parallel**
+(it needs only 001+002). PRP-004 inherits the pinned 003/004 subscription
+split (core transactional notification stage), the `Ontology.version`/`hash`
+deferral (trace stamping is its consumer), and doc 11's Agent surface. An
+independent review (`data/horismos-prp-review-s1/report.md`) found the
+planning surface a phase behind merged code at the time and flagged the
+truth-maintenance defect above (since fixed) and an open trace-schema
+question for workflow step kinds beyond perception/reasoning/action/
+narration (since resolved as D13 in PRP-004's `02-tasks-and-gaps.md` — mint
+`horismos.trace/2`) — both tracked there rather than fixed ad hoc.
 
 Human side quests: register `horismos.dev`; file the w3id.org/horismos PR;
-reserve crates.io/PyPI names early; merge PR #3 (PRP-002 folder record);
-decide the truth-maintenance hold.
+reserve crates.io/PyPI names early; merge PR #3 (PRP-002 folder record).
 
 Also closed 2026-07-28 (in PRP-000): rebrand **Sigil → Horismos**, proving ground
 both-track (τ-Bench number, triage narrative), license MIT OR Apache-2.0 dual.
@@ -83,7 +91,7 @@ provenance semirings over the Datalog-shaped subset (Type 5), GNN guidance.
 | Engine | [PRP-002 reasoning](PRP-002-reasoning-substrate/01-objective.md) | ✅ Done (2026-08-05, PR #4; recorded 2026-08-18) | Chaining, subsumption, proof trees, training-grade traces |
 | Engine | [PRP-005 verification](PRP-005-guarantees-verification.md) | ⬜ Draft | BDD checks + domain-term witnesses (needs only 001+002) |
 | Surface | [PRP-003 python bindings](PRP-003-python-bindings/01-objective.md) | ✅ Done (2026-08-18) | `pip install horismos`; the Pythonic front door |
-| Runtime | [PRP-004 agent loop](PRP-004-agent-loop.md) | ⬜ Draft — **next up** | Workflow engine, perception/narration boundaries, tools, Bridge |
+| Runtime | [PRP-004 agent loop](PRP-004-agent-loop/01-objective.md) | 🟦 Active (2026-08-18) | Workflow engine, perception/narration boundaries, tools, Bridge |
 | Ship & Author | [PRP-006 packaging](PRP-006-packaging-distribution.md) | ⬜ Draft | crates.io + PyPI + docs site + CI gates |
 | Ship & Author | [PRP-007 authoring agent](PRP-007-authoring-agent.md) | ⬜ Draft | SMEs converse; Claude drafts Turtle; verifier gatekeeps |
 

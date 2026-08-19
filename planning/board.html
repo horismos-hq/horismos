@@ -130,11 +130,11 @@
     </div>
     <div class="hl hl-next">
       <p class="hl-label">Next · The immediate goal</p>
-      <h3>PRP-004 — the agent loop (PRP-005 startable in parallel)</h3>
+      <h3>PRP-004 Active — the agent loop (PRP-005 startable in parallel)</h3>
       <ul>
-        <li><strong>Runtime track</strong>: workflow engine, perception/narration boundaries, tools contract, Bridge implementations; inherits the pinned 003/004 subscription split and the <code>Ontology.version</code> deferral (trace stamping is its consumer).</li>
-        <li><strong>Open captain hold</strong>: derived-fact truth maintenance (plan review, finding 2) — held above the PRPs; 003 binds current behavior without endorsing it.</li>
-        <li><strong>Human side quests</strong>: register <code>horismos.dev</code>; file the <code>w3id.org/horismos</code> PR; reserve registry names; merge PR #3; decide the truth-maintenance hold.</li>
+        <li><strong>Runtime track</strong>: workflow engine, perception/narration boundaries, tools contract, Bridge implementations; inherits the pinned 003/004 subscription split and the <code>Ontology.version</code> deferral (trace stamping is its consumer). Workflow + tool model parsing (U2/U3) shipped; Bridge trait, error variants, and the OpenRouter bridge (U4/U5/U13) landed on a contractor branch, integrating now.</li>
+        <li><strong>Former captain hold, now resolved</strong>: derived-fact truth maintenance (plan review, finding 2) — fixed on <code>main</code> (PR #7); PRP-004's own perception/tool-effect paths kept rebase-friendly for it.</li>
+        <li><strong>Human side quests</strong>: register <code>horismos.dev</code>; file the <code>w3id.org/horismos</code> PR; reserve registry names; merge PR #3.</li>
       </ul>
     </div>
     <div class="hl hl-end">
@@ -189,8 +189,8 @@
             <td>PRP-003 · Python bindings<span class="why"><code>pip install horismos</code> — the Pythonic front door — U1–U10 shipped</span></td>
             <td><span class="chip chip-done">Done · 2026-08-18</span></td></tr>
         <tr><td class="track-cell">Runtime</td>
-            <td>PRP-004 · Agent loop<span class="why">Workflow engine, perception/narration boundaries, tools, Bridge</span></td>
-            <td><span class="chip chip-next">Next up</span></td></tr>
+            <td>PRP-004 · Agent loop<span class="why">Workflow engine, perception/narration boundaries, tools, Bridge — activated 2026-08-18, folder form, against merged main</span></td>
+            <td><span class="chip chip-next">Active · 2026-08-18</span></td></tr>
         <tr><td class="track-cell">Ship &amp; Author</td>
             <td>PRP-006 · Packaging &amp; docs<span class="why">crates.io + PyPI + docs site + zero-key CI gates</span></td>
             <td><span class="chip chip-draft">Draft</span></td></tr>
@@ -223,5 +223,8 @@ flowchart LR
   <p class="foot">Source of truth: <code>PRPs/BOARD.md</code> (updated in the same commit
   as any PRP status change), <code>PRPs/CONVENTIONS.md</code> (lifecycle &amp; folder
   form), <code>docs/framework/</code> (the spec). This page is regenerated from those —
-  if they disagree, the repo wins.</p>
+  if they disagree, the repo wins. PRP-004 is being implemented in parallel with
+  PRP-003, directly against merged <code>main</code> (not against PRP-003's unmerged
+  surface); see <code>PRPs/PRP-004-agent-loop/</code>.</p>
 </div>
+

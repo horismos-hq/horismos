@@ -112,12 +112,16 @@ result.proof         # proof tree(s) for the decision property
 result.trace         # the full trajectory (doc 09)
 ```
 
-**[DECIDE: `horis:decides` — single decision property per workflow vs. explicit
-outcome mapping per terminal step — PRP-004]**
+`horis:decides` names exactly one decision property per workflow
+(`:Triage horis:decides :acuity`). `result.decision` is `{property, value}` for
+that property when the run ends holding a value for it, and absent otherwise —
+matching doc 09's `outcome.decision`, which is one pair, not a list.
 
 ## Composition
 
 Workflows may invoke workflows: `horis:SubflowStep` with `horis:workflow :OtherFlow`.
 The subflow runs in the same World (same transaction discipline), its trace nests, and
 its terminal outcome selects the parent's next edge. One level of nesting is supported
-in v1. **[DECIDE: recursion ban vs. depth cap — PRP-004]**
+in v1: a workflow reachable through a `horis:SubflowStep` may not itself declare a
+`horis:SubflowStep` — depth is capped at one, checked at load, never a runtime
+surprise.

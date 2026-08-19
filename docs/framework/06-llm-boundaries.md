@@ -85,7 +85,6 @@ Contract:
   because one is generated from the other — and *only* from the other.
 - Narration failure (timeout, refusal) is non-fatal by default: the step falls back
   to the mechanical `proof.render()` text. `horis:required true` makes it fatal.
-  **[DECIDE: default non-fatal confirmed? — PRP-004]**
 
 ## Where the neural surface ends
 

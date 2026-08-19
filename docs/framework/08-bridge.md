@@ -52,8 +52,11 @@ agent = Agent(world, workflow="triage:Triage",
 
 The ontology names a model (`horis:model "claude:claude-fable-5"`); deployment maps
 names to configured Bridge instances. Swapping providers is a config change; the
-ontology is provider-agnostic. **[DECIDE: allow deployment-level model override of
-ontology-declared models (lean yes, with trace annotation) — PRP-004]**
+ontology is provider-agnostic. Deployment may override an ontology-declared model
+with a different configured Bridge for the same prefix (swap in a cheaper `claude:`
+model, or `mock:` in tests); every trace step's `model` field records the Bridge
+actually invoked (`Bridge::id()`), never merely the ontology's declared string, so
+an override stays visible after the fact without a dedicated trace field.
 
 ## Provider mechanics (perception)
 
@@ -69,10 +72,13 @@ messages.create(
 
 The provider's tool-use machinery is used *backwards* — not to let the model choose
 actions, but as a constrained typed-output channel. Providers with native structured
-output modes use those instead; the Bridge hides the difference. Confidence derivation
-is provider-specific (logprobs where available, calibrated self-report otherwise) and
-documented per backend. **[DECIDE: confidence calibration strategy per provider —
-PRP-004; the mock backend makes tests independent of this decision]**
+output modes use those instead; the Bridge hides the difference. v1 ships one
+calibration strategy for every provider: the forced tool call's schema carries a
+`confidence` number field the model must self-report, and a result that omits it is
+treated as `0.0` — failing safe into the fallback edge rather than false-accepting.
+Logprob-derived confidence, where a provider exposes it, is a future per-backend
+enhancement layered on the same field; the mock backend's scripted confidence makes
+every test independent of either.
 
 ## Operational semantics
 
@@ -82,9 +88,10 @@ PRP-004; the mock backend makes tests independent of this decision]**
   identical to low confidence — the step's `horis:fallback` edge. There is no
   "retry until it works" mode.
 - **Accounting**: every call records model, latency, token counts, cost estimate in
-  the trace. Per-run and per-deployment budgets are queryable; a `horis:budget` on
-  the workflow makes exceeding it a fallback-triggering condition.
-  **[DECIDE: budget semantics v1 or defer — PRP-004]**
+  the trace — this ships in v1. `horis:budget` as a workflow-level threshold that
+  turns exceeding it into a fallback-triggering condition is deferred past v1: the
+  accounting the feature would consume already exists, so adding the threshold
+  check later is additive, not a redesign.
 - **No streaming** in v1: perception outputs are atomic typed payloads; narration is
   short. Revisit only with evidence.
 

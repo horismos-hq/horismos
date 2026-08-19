@@ -41,7 +41,7 @@ println!("{}", outcome.proof().render());
 ```rust
 pub trait Tool: Send + Sync {
     fn invoke(&self, args: ToolArgs, cx: &ToolCx) -> Result<ToolOutput, ToolError>;
-    // async variant behind the `async-tools` feature  [DECIDE: sync+async story — PRP-004]
+    // v1 ships sync only; an async variant behind a future `async-tools` feature is deferred
 }
 
 #[async_trait]
@@ -85,7 +85,10 @@ perception (the structured-input pattern, doc 06).
 - `Ontology` is `Send + Sync`; share one across threads.
 - `World` is single-writer by design (transactions are serial per world). Parallelism
   pattern: many worlds (one per case/session), one ontology — triage runs are
-  independent by nature. **[DECIDE: multi-world manager utility — PRP-004]**
+  independent by nature. A multi-world manager utility (a registry keyed by case or
+  session id, spawning and reaping worlds) is deferred past v1 — the pattern above is
+  simple enough for a caller to implement directly until a deployment needs one built
+  in.
 - All inference is deterministic (doc 04); `Trace` equality is a meaningful test
   assertion and CI uses it.
 
