@@ -213,16 +213,38 @@ the same commit as this file.
       `0.0`, empty instances — D9's fail-safe). `MockBridge::invocations()` returns
       every call in order for a test to assert against. 6 tests green
       (`mock::tests::*`).
-- [ ] U7. **Agent interpreter** (`workflow::agent`) — `Agent::builder(&onto)
+- [x] U7. **Agent interpreter** (`workflow::agent`) — `Agent::builder(&onto)
       .workflow(name).bridge(prefix, bridge).tool(name, impl).build()`;
       `agent.run(&mut world, RunInput)` executing Perception → Reasoning → Action →
       Narration, `horis:requires` gating, fallback/`onUnreachable`/`onError` edges,
       `horis:now` transaction-stamping (once per `run`, never re-read). Deployment
       model override per D8. Test target: a mock-bridge run of the full triage
       workflow reaches `:Done` with `acuity :Immediate`, matching PRP-002's Example 1
-      hand-computed proof exactly. Unblocked now that U4/U6 exist; mine to drive next
-      (`workflow::mod`'s `agent` submodule is deliberately not yet declared — see its
-      module doc).
+      hand-computed proof exactly. **Done 2026-08-19**:
+      `workflow::agent::tests::the_immediate_track_reaches_done_with_acuity_immediate`
+      green (a stub bridge + stub tools drive the full `:Intake → :Route →
+      :AssignQueue → :NotifyNurse → :Done` path). Case-subject identity and
+      type-directed tool-argument resolution are documented as implementation
+      notes in the module doc (no `[DECIDE]` marker asks for either — same
+      posture as `workflow::model`'s `ProposalStep` simplification).
+      `execute_step`'s `StepBody` dispatch already covers
+      Choice/Proposal/Wait/Subflow as `WorkflowError::StepDeferred`, so U12's
+      parse-and-defer plumbing exists; U12 itself stays unchecked below since
+      its own test coverage is separately scoped. Found and fixed a
+      PRP-001-owned bug along the way: `World::assert_instance_as` tagged
+      *every* caller-supplied subject as `gate::Subject::Named`, so a Tool
+      merging effects back onto the case instance perception minted (a
+      legitimate merge onto an *existing* skolem-space instance) tripped
+      check 1's caller-may-not-squat rule meant for *unminted* skolem ids.
+      Fixed by adding `World::assert_on(provenance, subject: Ref, properties)`
+      — a `pub(crate)` merge-onto-existing-instance path that tags an
+      existing skolem subject as `Skolem` (mirroring
+      `apply_rule_conclusion`'s established precedent) without reopening the
+      squat hole for external callers going through `assert_instance_as`/
+      `assert_named_instance` (`gate_properties.rs`'s
+      `a_rejected_operation_leaves_no_trace` still pins that a caller naming
+      an *existing* skolem IRI directly is refused). `invoke_tool` now calls
+      `assert_on`.
 - [ ] U8. **Fallback path** — `MockBridge` scripted to a low-confidence response;
       test target: the run takes `:Intake`'s `horis:fallback` edge to
       `:EscalateToNurse`, fires `:paging.notify_nurse`, and
@@ -238,8 +260,13 @@ the same commit as this file.
       **Partially done 2026-08-19** (D13's prerequisite): `trace::schema` ships
       `SCHEMA_V2`/`Trace::new_v2` and the four new `Step` variants; `trace::migrate`
       ships `convert_v1_to_v2` with per-kind round-trip tests. The `trace::emit`
-      builder functions and the Agent's population of run-level fields remain —
-      blocked on U7.
+      builder functions and the Agent's population of run-level fields remain.
+      **Unblocked, reassigned 2026-08-19**: U7 (`workflow::agent`) is done, so
+      the trace-builder API this needs to call into is stable; captain
+      direction moved the remaining `trace::emit` work to a contractor branch
+      (`fm/horismos-prp004-u9-u12`), keeping this build's `Agent::run`
+      signature as the integration point — mine to wire trace emission into
+      once that branch lands.
 - [ ] U10. **Tool-effect validation** — `ActionStep` resolves args from the graph,
       invokes the bound `Tool`, validates the returned effect against
       `horis:effect` (type/class match for typed placeholders; `horis:now` resolved
@@ -261,28 +288,29 @@ the same commit as this file.
       *execution* traces is still future work past this PRP's DoD; parsing (U2) is
       already done. Test target: a workflow using one of these step kinds loads
       cleanly and fails at `run()` with the named, domain-term error — not a panic,
-      not a silent no-op.
-- [ ] U13. **`OpenRouterBridge`** (`horismos-bridges::openrouter`, feature
-      `bridges-openrouter`) — OpenAI-compatible chat completions client, base URL
-      `https://openrouter.ai/api/v1`, model from `OPENROUTER_MODEL` env (default an
-      inexpensive model), forced `tool_choice` on `assert_facts`/`narrate`/
-      `rank`-shaped calls. Reads `OPENROUTER_API_KEY` from env or a gitignored local
-      file only — never logged, never committed, never in a trace. Test target:
-      request-shape unit tests against a mocked HTTP layer (no network, no key, still
-      runs in CI) verifying the forced-tool-choice request body; a `#[ignore]`d live
-      test gated on the key's presence for the captain to run by hand (D4's
-      live-verification gap). **Superseding note (2026-08-19, captain directive)**:
-      the text above describes the original thin-`reqwest` shape; the captain has
-      since directed this to use the `litellm-rust` SDK crate as the provider layer
-      instead, under strict containment — exact-pinned version, lives only inside
-      `horismos-bridges` behind `Bridge` (nothing above the trait may know it exists),
-      its response adapter's discarding of `model`/`finish_reason`/OpenRouter routing
-      metadata must be verified against the pinned version and those trace-audit
-      fields recovered if so, forced `tool_choice` for `assert_facts` must work
-      through it (empirically verified, `needs-decision` if it cannot), and
-      `MockBridge` (U6) stays crate-free. In progress on `fm/horismos-prp004-u4-u13`;
-      reconcile this entry's text with whatever that branch actually ships when
-      integrated.
+      not a silent no-op. **Reassigned 2026-08-19**: U7's `execute_step` already
+      dispatches all four kinds to `WorkflowError::StepDeferred`, so the
+      behavior this unit tests already exists; explicit test coverage moved
+      to the `fm/horismos-prp004-u9-u12` contractor branch alongside U9.
+- [x] U13. **`OpenRouterBridge`** (`horismos-bridges::openrouter`, feature
+      `bridges-openrouter`) — **Done 2026-08-19**, delivered on the same contractor
+      branch as U4/U5 per the captain's litellm-rust directive: `litellm-rust` 0.3.0
+      (avivsinai), exact-pinned, lives only inside `horismos-bridges` behind `Bridge`.
+      Base URL `https://openrouter.ai/api/v1`, model from `OPENROUTER_MODEL` env,
+      forced `tool_choice` on `assert_facts`/`narrate`/`rank`-shaped calls verified
+      empirically against the crate's source (`ChatRequest::tool_choice` is forwarded
+      verbatim) — a passing unit test asserts the exact request body. The crate's own
+      response adapter was verified to drop `model`/`finish_reason`/OpenRouter's
+      `provider` field (confirmed, not assumed — its response struct doesn't
+      deserialize them and `raw` is always `None`); recovered via the crate's own
+      public transport primitive (`litellm_rust::http::send_json_once`) called
+      directly with `T = serde_json::Value`, not a second duplicate call. Reads
+      `OPENROUTER_API_KEY` from env or a gitignored local file only — never logged,
+      never committed, never in a trace. Test target: request-shape unit tests against
+      a local mock HTTP listener (no network, no key, still runs in CI) verifying the
+      forced-tool-choice request body — met; a `#[ignore]`d live test gated on the
+      key's presence is left for the captain to run by hand (D4's live-verification
+      gap; key was not present in this environment, checked).
 - [ ] U14. **Live demo** (`examples/triage_agent_demo.rs` + `make demo` /
       `make demo-live`) — loads `triage.ttl` + the SNOMED subset, runs "58M, crushing
       chest pain, heart rate 128" through `MockBridge` (CI/`make demo`) or
