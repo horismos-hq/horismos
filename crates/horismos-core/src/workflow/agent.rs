@@ -518,11 +518,22 @@ impl<'a> Agent<'a> {
     /// the case subject (the first-extracted class's asserted instance, if
     /// any — see the module doc) plus every fact asserted, in interned form,
     /// for [`crate::trace::perception_step`].
+    ///
+    /// One `PerceiveResult` may carry several instances, each asserted
+    /// through its own gate-checked `assert_instance_as` transaction. If a
+    /// later instance is rejected, the whole batch must still read as one
+    /// attempt to `execute_perception`'s retry loop: an earlier instance's
+    /// commit is not left standing for a retry to pile onto or duplicate.
+    /// Staging onto a cloned `World` (an O(1) structural-sharing clone, not
+    /// a deep copy) and swapping it in only once every instance clears the
+    /// gate gives that all-or-nothing behavior without adding new `World`
+    /// retraction surface.
     fn assert_perceived(
         &self,
         world: &mut World,
         result: &PerceiveResult,
     ) -> Result<(Option<Ref>, Vec<crate::trace::PerceivedFact>), WorkflowError> {
+        let mut staged = world.clone();
         let mut primary = None;
         let mut asserted_facts = Vec::new();
         for (index, instance) in result.instances.iter().enumerate() {
@@ -542,7 +553,7 @@ impl<'a> Agent<'a> {
                     .map_err(|e| WorkflowError::PerceptionMalformed {
                         reason: e.domain_text(),
                     })?;
-            let schema = world.ontology().schema();
+            let schema = staged.ontology().schema();
             let mut properties = Vec::new();
             for (key, json_value) in obj {
                 if key == "class" {
@@ -570,7 +581,7 @@ impl<'a> Agent<'a> {
                 .get(&index)
                 .copied()
                 .unwrap_or(result.confidence);
-            let asserted = world
+            let asserted = staged
                 .assert_instance_as(Provenance::Perception, None, class, properties.clone())
                 .map_err(|e| WorkflowError::PerceptionRejected {
                     reason: e.domain_text(),
@@ -587,6 +598,7 @@ impl<'a> Agent<'a> {
                 primary = Some(asserted);
             }
         }
+        *world = staged;
         Ok((primary, asserted_facts))
     }
 
@@ -1211,11 +1223,18 @@ mod tests {
         assert!(!outcome.fallback_taken);
         let case = outcome.case.expect("perception resolved a case subject");
         let acuity = onto.node_ref(":acuity").expect(":acuity is declared");
+        let immediate = onto.node_ref(":Immediate").expect(":Immediate is declared");
         assert_eq!(
             world.value(case, acuity),
-            Some(&Value::Ref(Ref::new(
-                onto.node_ref(":Immediate").expect(":Immediate is declared")
-            )))
+            Some(&Value::Ref(Ref::new(immediate)))
+        );
+        // D5 runtime target: `:Triage`'s `horis:decides :acuity` resolves to
+        // a concrete `RunOutcome.decision`, not just a value reachable on
+        // the case subject — this is what was silently `None` before
+        // `triage.ttl` gained the `horis:decides` declaration.
+        assert_eq!(
+            outcome.decision,
+            Some((acuity, Value::Ref(Ref::new(immediate))))
         );
         // U10 test target (well-formed branch): `:Route`'s tool effect
         // (`:queueRef`, asserted by `assign_queue`) is still visible on the
@@ -1396,6 +1415,70 @@ mod tests {
         assert!(
             text.contains("queueRef"),
             "witness must name the offending property, got: {text}"
+        );
+    }
+
+    /// Regression target: `assert_perceived` must treat one perception
+    /// attempt's instances as a single all-or-nothing transaction. A second
+    /// instance whose `heartRate` (1280) exceeds `:heartRate`'s
+    /// `horis:max` (300) is gate-rejected — the first, well-formed
+    /// instance's commit must not be left standing in `world` for a retry
+    /// to compound on or duplicate.
+    #[test]
+    fn a_gate_rejected_instance_leaves_no_partial_perception_commit() {
+        let onto = triage();
+        let bridge = StubBridge {
+            id: "mock:triage".to_owned(),
+            confidence: 0.9,
+            instances: vec![],
+        };
+        let agent = Agent::builder(&onto)
+            .workflow(":Triage")
+            .expect("Triage is declared")
+            .bridge("claude", bridge)
+            .tool(
+                "assign_queue",
+                StubTool(vec![
+                    onto.node_ref(":queueRef").expect(":queueRef is declared"),
+                ]),
+            )
+            .tool(
+                "notify_nurse",
+                StubTool(vec![
+                    onto.node_ref(":pagedTo").expect(":pagedTo is declared"),
+                ]),
+            )
+            .build()
+            .expect("every binding is registered");
+
+        let mut world = World::new(&onto);
+        let patient = onto.node_ref(":Patient").expect(":Patient is declared");
+        let result = PerceiveResult {
+            instances: vec![
+                serde_json::json!({
+                    "class": ":Patient",
+                    "heartRate": 128,
+                    "hasSymptom": ":CrushingChestPain"
+                }),
+                serde_json::json!({
+                    "class": ":Patient",
+                    "heartRate": 1280,
+                    "hasSymptom": ":CrushingChestPain"
+                }),
+            ],
+            confidence: 0.9,
+            fact_confidence: BTreeMap::new(),
+            accounting: Default::default(),
+        };
+
+        agent
+            .assert_perceived(&mut world, &result)
+            .expect_err("the second instance's out-of-range heartRate must be gate-rejected");
+        assert_eq!(
+            world.instances(patient).count(),
+            0,
+            "the first instance's commit must be rolled back when a later instance in the \
+             same perception attempt is gate-rejected"
         );
     }
 }

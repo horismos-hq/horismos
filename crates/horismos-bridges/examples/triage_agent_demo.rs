@@ -155,7 +155,7 @@ async fn main() {
         println!(
             "decision: {} = {}",
             onto.compact(onto.resolve(*property)),
-            render_value(&onto, value)
+            render_value(&world, value)
         );
     }
 
@@ -197,9 +197,9 @@ async fn main() {
     );
 }
 
-fn render_value(onto: &Ontology, value: &Value) -> String {
+fn render_value(world: &World, value: &Value) -> String {
     match value {
-        Value::Ref(r) => onto.compact(onto.resolve(r.iri())),
+        Value::Ref(r) => world.ontology().compact(world.resolve(r.iri())),
         other => other.lexical_form().unwrap_or_default(),
     }
 }
