@@ -250,7 +250,13 @@ the same commit as this file.
       `:EscalateToNurse`, fires `:paging.notify_nurse`, and
       `outcome.labels.fallback_taken == true`. A second script returns a
       schema-valid-but-gate-rejected payload to exercise the bounded-retry loop
-      (`horis:retries`, default 2) before falling back.
+      (`horis:retries`, default 2) before falling back. **Revised 2026-08-19**: the
+      first half of this target is unreachable as originally written — see the gap
+      note below and
+      `horismos-bridges/tests/agent_loop_dod.rs`'s
+      `the_fallback_track_on_low_confidence_perception_refuses_rather_than_guessing`
+      (U15), which covers the *actual* correct behavior (a domain-term refusal, not a
+      silent guess) for this edge. The bounded-retry-loop half is still open.
 - [ ] U9. **Trace emission extension** (`trace::emit`) — `perception_step`/
       `action_step`/`narration_step` builders mirroring `reasoning_step`; run-level
       `Trace` fields (`ontology`, `workflow`, `input`, `outcome`, `totals`)
@@ -347,10 +353,18 @@ the same commit as this file.
       + golden-file byte-comparison test, blocked on U9's `trace::emit` wiring
       (`fm/horismos-prp004-u9-u12`, in progress) — will close this out once that
       integrates.
-- [ ] U15. **The DoD run** (`crates/horismos-core/tests/agent_loop_dod.rs`) — the
+- [ ] U15. **The DoD run** (`crates/horismos-bridges/tests/agent_loop_dod.rs`) — the
       final unit: one test module reproducing the whole Definition of Done
       (immediate track, fallback track, tool-effect validation, trajectory
       serialize+replay) against `MockBridge`, independent of `bridges-openrouter`.
+      **Location corrected 2026-08-19**: lives in `horismos-bridges`, not
+      `horismos-core/tests/` as originally written — `horismos-core` may not depend
+      on `horismos-bridges` even as a dev-dependency (the anti-wrapper boundary), and
+      this unit needs the real `MockBridge` driving the real `Agent` together (U8's
+      test coverage folds in here too, see its entry). **Mostly done 2026-08-19**:
+      three tests green (immediate track; the fallback-track refusal, see U8's
+      revised note; tool-effect validation's rejection branch). **Remaining**:
+      trajectory serialize+replay, blocked on U9 the same as U14.
 - [ ] U-Python. **Python `agent.run(...)` wiring** — deferred: PRP-003 is
       unmerged on a sibling branch (see `01-objective.md` § Coordination with
       PRP-003). Dated 2026-08-18: pick this up once PRP-003 merges; until then the
@@ -358,27 +372,43 @@ the same commit as this file.
 
 ## Gaps discovered during implementation
 
-- **2026-08-18 — inherited defect, not fixed here: PRP-002 truth maintenance.**
-  Independent review `data/horismos-prp-review-s1/report.md` top finding 2
-  (CONFIRMED · Critical): `World::assert_instance_as` re-chains on every assertion,
-  but neither it nor `World::retract_as` invalidates or recomputes a standing
-  rule-derived conclusion when the base fact that supported it is later replaced or
-  retracted (`crates/horismos-core/src/world/mod.rs:340-419,603-632`). Concretely: if
-  a patient's `heartRate` is asserted at 128 (deriving `acuity :Immediate` via `:r1`),
-  then later re-asserted at 96 or retracted, `acuity` stays `:Immediate` — stale,
-  silently. This is a PRP-002 defect (truth-maintenance policy is unresolved there,
-  not a PRP-004 question), and this PRP does not attempt a fix — that decision
-  belongs to PRP-002's own record per the review's recommended repair order. Exposure
-  in the agent loop: PRP-004's own perception/tool-effect assertion paths were
-  written so the shipped demo and DoD never re-assert a rule-supporting property
-  mid-run (the triage happy path asserts `heartRate`/`hasSymptom` once, and the
-  `:Route` tool's effects — `:queuedAt`, `:queueRef` — never overlap with any rule
-  condition), so the demo does not visibly exhibit the bug. Any future workflow that
-  *does* correct a rule-supporting base fact mid-run (a corrected vital sign, a
-  retracted symptom) inherits this defect until PRP-002 resolves it. Flagged here,
-  not papered over, per interim orders on this branch.
-- **2026-08-18 — D13 above**: trace representation for Choice/Proposal/Wait/Subflow
-  is an open captain decision; see the D-item.
+- **2026-08-18 — inherited defect, not fixed here: PRP-002 truth maintenance
+  (RESOLVED 2026-08-19).** Independent review `data/horismos-prp-review-s1/report.md`
+  top finding 2 (CONFIRMED · Critical): `World::assert_instance_as` re-chains on every
+  assertion, but neither it nor `World::retract_as` invalidates or recomputes a
+  standing rule-derived conclusion when the base fact that supported it is later
+  replaced or retracted (`crates/horismos-core/src/world/mod.rs:340-419,603-632`).
+  Concretely: if a patient's `heartRate` is asserted at 128 (deriving
+  `acuity :Immediate` via `:r1`), then later re-asserted at 96 or retracted, `acuity`
+  stayed `:Immediate` — stale, silently. This was a PRP-002 defect (truth-maintenance
+  policy was unresolved there, not a PRP-004 question), and this PRP did not attempt a
+  fix directly — **the captain ruled recompute/invalidate and it landed on `main` as
+  PR #7 (2026-08-19)**; this branch rebased onto it (`fm/horismos-prp004-a1`), so the
+  fix is now present. PRP-004's own perception/tool-effect assertion paths were kept
+  rebase-friendly for exactly this landing, per the interim FYI on this branch (the
+  triage happy path still never re-asserts a rule-supporting property mid-run, so the
+  demo's proof shape is unaffected either way).
+- **2026-08-19 — D13 above, resolved**: trace representation for Choice/Proposal/
+  Wait/Subflow was the captain's open decision; resolved as option (b), mint
+  `horismos.trace/2` now — see the D-item for what landed.
+- **2026-08-19 — `:EscalateToNurse` is unreachable-and-satisfiable via `:Intake`'s
+  `horis:fallback` edge, found writing U15's fallback-track test.** Doc06's
+  algorithm runs the confidence gate before asserting anything, so a low-confidence
+  perceive never creates a case subject (correct, documented behavior — "the LLM
+  never guesses"). But `:paging.notify_nurse`'s effects (`:notifiedAt`/`:pagedTo`)
+  are `rdfs:domain :Patient`, so invoking it needs *some* `:Patient` instance to
+  attach them to, and this edge never creates one. `Agent::run` correctly refuses
+  with `WorkflowError::NoCaseSubject` rather than guessing a subject or silently
+  skipping the tool — this is the right runtime behavior, not a bug in `agent.rs`.
+  The bug is in the fixture/workflow design: `:EscalateToNurse` is only actually
+  reachable-and-satisfiable via `:Route`'s `horis:onError` edge (where a case
+  already exists), not via `:Intake`'s fallback as U8's original test target
+  assumed. Not fixed here — needs a design decision (a future PRP or a D-item on
+  this one): either a case-independent escalation tool/effect shape, or
+  runtime-minted-anonymous-instance semantics for exactly this "couldn't identify a
+  patient, still need to escalate" scenario. `WorkflowError::NoCaseSubject`'s own
+  doc comment already anticipated this class of gap ("a malformed workflow
+  verification (PRP-005) should catch statically; this is the runtime backstop").
 - **2026-08-19 — security acceptance surface ported forward from PR #6.** PR #6
   (security threat model, `docs/framework/15-security.md`) added a Security
   acceptance surface subsection and two `[DECIDE]` markers (D14/D15 above) to the
