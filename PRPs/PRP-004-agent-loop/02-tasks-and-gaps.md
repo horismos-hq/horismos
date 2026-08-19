@@ -265,14 +265,24 @@ the same commit as this file.
       identical mock runs against fresh `World`s produce byte-identical trajectories.
       **Partially done 2026-08-19** (D13's prerequisite): `trace::schema` ships
       `SCHEMA_V2`/`Trace::new_v2` and the four new `Step` variants; `trace::migrate`
-      ships `convert_v1_to_v2` with per-kind round-trip tests. The `trace::emit`
-      builder functions and the Agent's population of run-level fields remain.
-      **Unblocked, reassigned 2026-08-19**: U7 (`workflow::agent`) is done, so
-      the trace-builder API this needs to call into is stable; captain
-      direction moved the remaining `trace::emit` work to a contractor branch
-      (`fm/horismos-prp004-u9-u12`), keeping this build's `Agent::run`
-      signature as the integration point — mine to wire trace emission into
-      once that branch lands.
+      ships `convert_v1_to_v2` with per-kind round-trip tests.
+      **Builders done 2026-08-19** (contractor branch `fm/horismos-prp004-u9-u12`):
+      `trace::emit::{perception_step, action_step, narration_step, proposal_step}`
+      land, mirroring `reasoning_step`'s pattern (pure functions of `(&World,
+      typed inputs)`; `latency_ms` left `None`, stamped by the caller after the
+      call — same convention `reasoning_step` already uses for its own timing
+      field, so U7 stamps it identically for every kind). `proposal_step` is a
+      real builder ("Proposal as a real kind" — trace/2 represents it fully even
+      though `ProposalStep` ranking execution is still deferred, U12);
+      Choice/Subflow/Wait get no builder yet (nothing executes them, so there is
+      no typed input to build one from — `Step`'s own variants are the schema's
+      complete word on their shape). Round-trip
+      (`Trace::from_json(t.to_json()) == t`) tests land for all eight declared
+      kinds (`crates/horismos-core/src/trace/mod.rs` tests), plus a
+      byte-determinism test for the new v2 kinds. The Agent's population of
+      run-level `Trace` fields (`ontology`, `workflow`, `input`, `outcome`,
+      `totals`) remains — blocked on U7, which calls these builders per the
+      activation spec's coordinate-by-interface plan.
 - [x] U10. **Tool-effect validation** — `ActionStep` resolves args from the graph,
       invokes the bound `Tool`, validates the returned effect against
       `horis:effect` (type/class match for typed placeholders; `horis:now` resolved
@@ -311,10 +321,21 @@ the same commit as this file.
       *execution* traces is still future work past this PRP's DoD; parsing (U2) is
       already done. Test target: a workflow using one of these step kinds loads
       cleanly and fails at `run()` with the named, domain-term error — not a panic,
-      not a silent no-op. **Reassigned 2026-08-19**: U7's `execute_step` already
-      dispatches all four kinds to `WorkflowError::StepDeferred`, so the
-      behavior this unit tests already exists; explicit test coverage moved
-      to the `fm/horismos-prp004-u9-u12` contractor branch alongside U9.
+      not a silent no-op.
+      **Stubs done 2026-08-19** (contractor branch `fm/horismos-prp004-u9-u12`):
+      `workflow::deferred::{choice_deferred, proposal_deferred, wait_deferred,
+      subflow_deferred}` land as free functions, each returning the documented
+      `WorkflowError::StepDeferred` with the step's compacted IRI and its concrete
+      kind. `workflow::agent` (U7) already dispatches all four kinds inline to
+      `WorkflowError::StepDeferred`; the next unit rewires it to call these
+      functions instead of duplicating that logic inline (mechanical
+      integration, matching U9's coordinate-by-interface plan). Each kind has an
+      ontology-parses-cleanly-then-defers test (`workflow::deferred::tests`),
+      including a genuine two-workflow `SubflowStep` fixture.
+      **Also fixed while writing that SubflowStep test**: a real defect in
+      already-"Done" U2 parsing, discovered because every previous
+      `SubflowStep`-adjacent test used a single-workflow document (see gap note
+      below, dated 2026-08-19).
 - [x] U13. **`OpenRouterBridge`** (`horismos-bridges::openrouter`, feature
       `bridges-openrouter`) — **Done 2026-08-19**, delivered on the same contractor
       branch as U4/U5 per the captain's litellm-rust directive: `litellm-rust` 0.3.0
@@ -420,3 +441,27 @@ the same commit as this file.
   acceptance surface, since those binding schemes are not built here (see
   Non-goals) — D14/D15 and the adversarial-fixture-set requirement stay open for
   whichever future PRP/unit adds those binding schemes.
+- **2026-08-19 — found and fixed while building U12's SubflowStep test: a U2
+  defect (multi-workflow documents), untouched until now because every prior
+  workflow-parsing test used a single-workflow document.**
+  `workflow::model::parse_one_workflow` built each `Workflow.steps` from the
+  *entire* document's `step_ids` map (`crates/horismos-core/src/workflow/model.rs`,
+  the `parse_workflows`/`parse_one_workflow` pair) — every step declared
+  anywhere in the document, not just the steps that workflow's own `starts_at`
+  reaches. Invisible for a single-workflow document (the two sets coincide, as
+  in `triage.ttl`), but D6's depth-1 check (`target.steps.values().any(is a
+  SubflowStep)`) then fires unconditionally on *any* multi-workflow document
+  containing a `SubflowStep` at all, since the target's polluted map always
+  contains it too — even with zero real nesting. This made legitimate one-level
+  `SubflowStep` usage (the exact shape U12's own test target calls for: "a
+  workflow using one of these step kinds loads cleanly") unparseable under any
+  code path that actually declares two workflows in one document. Fixed by
+  scoping `Workflow.steps` to what `starts_at` reaches (BFS over the same edges
+  `check_step_edges` already validates), applied *after* the existing
+  full-document edge validation so no error-message behavior for any existing
+  test changed. Regression tests added:
+  `workflow::model::tests::a_workflows_steps_are_scoped_to_what_it_reaches_not_the_whole_document`
+  and `…::genuine_two_level_subflow_nesting_is_still_rejected` (confirms D6's
+  cap still fires for real nesting after the fix). All prior U2 tests
+  (`triage_workflow_parses_into_the_documented_step_graph`,
+  `a_dangling_next_edge_is_a_domain_term_error`) still pass unchanged.

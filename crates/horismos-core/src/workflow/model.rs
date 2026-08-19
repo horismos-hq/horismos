@@ -382,11 +382,25 @@ fn parse_one_workflow(
 
     // Every edge that names a step must resolve within this workflow's
     // declared steps — a dangling edge is a load error, never a runtime
-    // surprise.
+    // surprise. Validated against every step declared in the document
+    // (`step_ids` is shared across all workflows here), so a stray
+    // unreachable step with its own dangling edge is still caught.
     check_step_ref(starts_at, &steps, &name(), "horis:startsAt", interner)?;
     for step in steps.values() {
         check_step_edges(step, &steps, interner)?;
     }
+
+    // `steps` above is scratch space keyed by every step *declared in the
+    // document*, not this workflow's own — a document naming more than one
+    // `horis:Workflow` would otherwise leave every workflow holding the
+    // union of all of them (bug: this previously made D6's "does the
+    // subflow target nest further" check fire on *any* `SubflowStep`
+    // anywhere in a multi-workflow document, since the target's polluted
+    // map always contained one). Scope the returned `Workflow.steps` to
+    // what `starts_at` actually reaches, matching this struct's own doc
+    // ("every step *this workflow* declares").
+    let reachable = reachable_steps(starts_at, &steps_snapshot_edges(&steps));
+    steps.retain(|iri, _| reachable.contains(iri));
 
     Ok(Workflow {
         iri: wf_iri,
@@ -395,6 +409,54 @@ fn parse_one_workflow(
         decides,
         steps,
     })
+}
+
+/// The step IRIs `starts_at` can reach by following the same edges
+/// [`check_step_edges`] validates (`next`/`fallback`/`onError`/
+/// `onUnreachable`/`onUnsatisfied`/branch `next`/`otherwise`).
+fn reachable_steps(starts_at: Iri, edges: &BTreeMap<Iri, Vec<Iri>>) -> BTreeSet<Iri> {
+    let mut seen = BTreeSet::new();
+    let mut stack = vec![starts_at];
+    while let Some(iri) = stack.pop() {
+        if !seen.insert(iri) {
+            continue;
+        }
+        if let Some(targets) = edges.get(&iri) {
+            stack.extend(targets.iter().copied());
+        }
+    }
+    seen
+}
+
+/// Each step's outgoing edges, for [`reachable_steps`]'s BFS — the same
+/// edge set [`check_step_edges`] walks, just collected rather than
+/// validated.
+fn steps_snapshot_edges(steps: &BTreeMap<Iri, Step>) -> BTreeMap<Iri, Vec<Iri>> {
+    steps
+        .iter()
+        .map(|(&iri, step)| {
+            let targets = match &step.body {
+                StepBody::Bare => vec![],
+                StepBody::Perception(p) => vec![p.fallback, p.next],
+                StepBody::Reasoning(r) => vec![r.on_unreachable, r.next],
+                StepBody::Action(a) => [Some(a.on_error), a.on_unsatisfied, a.next]
+                    .into_iter()
+                    .flatten()
+                    .collect(),
+                StepBody::Narration(n) => vec![n.next],
+                StepBody::Proposal(p) => vec![p.fallback, p.next],
+                StepBody::Choice(c) => c
+                    .branches
+                    .iter()
+                    .map(|b| b.next)
+                    .chain(c.otherwise)
+                    .collect(),
+                StepBody::Wait(w) => w.next.into_iter().collect(),
+                StepBody::Subflow(s) => vec![s.next],
+            };
+            (iri, targets)
+        })
+        .collect()
 }
 
 fn check_step_ref(
@@ -1225,5 +1287,75 @@ mod tests {
         )
         .expect_err("a next edge to an undeclared step must be rejected at load");
         assert!(err.domain_text().contains("Nowhere"), "{err:?}");
+    }
+
+    const DEFERRED_PRELUDE: &str = "@prefix : <https://example.org/t#> .\n\
+         @prefix horis: <https://w3id.org/horismos#> .\n\
+         @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .\n\
+         @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .\n\
+         @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .\n";
+
+    /// Regression for the reachability fix below (`reachable_steps`,
+    /// `steps_snapshot_edges`): a document naming two workflows must not
+    /// leave either one holding the other's steps — `Workflow.steps` is
+    /// scoped to what its own `starts_at` actually reaches, matching the
+    /// struct's doc comment. Before the fix, `:Main`'s `:A` (a
+    /// `SubflowStep`, present in *every* workflow's steps map because
+    /// `step_ids` was never scoped) made `:Sub` incorrectly look like it
+    /// nested a subflow of its own, unconditionally rejecting this
+    /// otherwise-valid one-level SubflowStep.
+    #[test]
+    fn a_workflows_steps_are_scoped_to_what_it_reaches_not_the_whole_document() {
+        let source = format!(
+            "{DEFERRED_PRELUDE}\
+             :Sub a horis:Workflow ; horis:startsAt :SubStart .\n\
+             :SubStart a horis:Step ; horis:terminal true .\n\
+             :Main a horis:Workflow ; horis:startsAt :A .\n\
+             :A a horis:SubflowStep ; horis:workflow :Sub ; horis:next :B .\n\
+             :B a horis:Step ; horis:terminal true .\n"
+        );
+        let onto = Ontology::load_from_str(&source, |_| None)
+            .expect("a genuine one-level subflow must load cleanly");
+
+        let sub_iri = onto
+            .iri("https://example.org/t#Sub")
+            .expect("Sub is declared");
+        let sub = onto.workflow(sub_iri).expect(":Sub must parse");
+        assert_eq!(
+            sub.steps.len(),
+            1,
+            ":Sub reaches only :SubStart, never :Main's :A/:B: {:?}",
+            sub.steps.keys().collect::<Vec<_>>()
+        );
+
+        let main_iri = onto
+            .iri("https://example.org/t#Main")
+            .expect("Main is declared");
+        let main = onto.workflow(main_iri).expect(":Main must parse");
+        assert_eq!(main.steps.len(), 2, ":Main reaches :A and :B");
+    }
+
+    /// D6's depth-1 cap must still reject genuine nesting after the
+    /// reachability fix above — a target workflow that itself contains a
+    /// (now correctly-scoped) `SubflowStep` is still too deep.
+    #[test]
+    fn genuine_two_level_subflow_nesting_is_still_rejected() {
+        let source = format!(
+            "{DEFERRED_PRELUDE}\
+             :Third a horis:Workflow ; horis:startsAt :ThirdStart .\n\
+             :ThirdStart a horis:Step ; horis:terminal true .\n\
+             :Sub a horis:Workflow ; horis:startsAt :C .\n\
+             :C a horis:SubflowStep ; horis:workflow :Third ; horis:next :SubEnd .\n\
+             :SubEnd a horis:Step ; horis:terminal true .\n\
+             :Main a horis:Workflow ; horis:startsAt :A .\n\
+             :A a horis:SubflowStep ; horis:workflow :Sub ; horis:next :B .\n\
+             :B a horis:Step ; horis:terminal true .\n"
+        );
+        let err = Ontology::load_from_str(&source, |_| None)
+            .expect_err("two levels of subflow nesting must be rejected (D6)");
+        assert!(
+            matches!(err, OntologyError::SubflowNestingTooDeep { .. }),
+            "{err:?}"
+        );
     }
 }

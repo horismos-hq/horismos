@@ -9,6 +9,7 @@
 //! `07-tools.md` · Owner: PRP-004
 
 pub mod agent;
+pub mod deferred;
 pub mod model;
 pub mod tool;
 
