@@ -18,6 +18,8 @@
 
 use std::collections::BTreeMap;
 
+use thiserror::Error;
+
 use crate::error::OntologyError;
 use crate::ontology::schema::Schema;
 use crate::ontology::term::{Datatype, Interner, Iri, Value};
@@ -96,6 +98,30 @@ pub struct Tool {
     pub timeout: Option<String>,
     pub idempotent: bool,
     pub retries: u32,
+}
+
+/// Errors from invoking a tool binding. Deliberately narrow: an
+/// out-of-contract *effect* (wrong type, undeclared property) is a
+/// validation-gate rejection (`HorismosError::ValidationRejected`) like any
+/// other World mutation, per doc 07's "response validated like any effect"
+/// — it carries the same domain-term witness every other gate rejection
+/// does, so it is not duplicated here. `ToolError` covers failures *before*
+/// a candidate effect ever reaches the gate: the binding itself did not
+/// produce one.
+#[derive(Debug, Error, Clone, PartialEq, Eq)]
+pub enum ToolError {
+    /// The bound callable (Rust fn, `python:`, `http:`/`https:`, `mcp://`)
+    /// errored or exceeded `horis:timeout` before returning a candidate
+    /// effect.
+    #[error("tool {tool} invocation failed: {reason}")]
+    InvocationFailed { tool: String, reason: String },
+}
+
+impl ToolError {
+    /// The failing condition, stated in domain vocabulary.
+    pub fn domain_text(&self) -> String {
+        self.to_string()
+    }
 }
 
 // -- Parsing ---------------------------------------------------------------

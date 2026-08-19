@@ -8,12 +8,14 @@
 //! profile violations; U4 adds schema-build errors (subclass cycles,
 //! min>max, oneOf/domain/range misuse); U5 adds named-graph import errors
 //! (missing/cyclic imports, duplicate graph names, prefix conflicts) and
-//! attributes a profile violation to the graph it came from. The remaining
-//! variants (`VerificationFailed`, `WorkflowError`, `BridgeError`,
-//! `ToolError`) are added by their owning units/PRPs as those pieces land —
-//! see `.claude/skills/pyo3-boundary`. U6 adds `ValidationRejected`, whose
+//! attributes a profile violation to the graph it came from. `VerificationFailed`
+//! is added by its owning PRP as that piece lands — see
+//! `.claude/skills/pyo3-boundary`. U6 adds `ValidationRejected`, whose
 //! witness type lives with the gate that produces it
-//! (`crate::world::gate`).
+//! (`crate::world::gate`). PRP-004 U5 adds `WorkflowError`, `BridgeError`,
+//! `ToolError`, each wrapping its owning module's error enum
+//! (`crate::workflow::WorkflowError`, `crate::bridge::BridgeError`,
+//! `crate::workflow::tool::ToolError`).
 //!
 //! Spec: `docs/framework/12-rust-api.md` (§ Errors) · Owner: PRP-001
 
@@ -65,6 +67,29 @@ pub enum HorismosError {
         "forward chaining exceeded {cap} iterations without reaching a fixed point (last fired rule {last_rule}); the transaction was rolled back"
     )]
     IterationCapExceeded { cap: usize, last_rule: String },
+
+    /// A workflow step could not execute as declared
+    /// (`docs/framework/05-workflows.md`–`07-tools.md`; PRP-004). See
+    /// [`crate::workflow::WorkflowError`] for the specific causes.
+    #[error(transparent)]
+    WorkflowError(#[from] crate::workflow::WorkflowError),
+
+    /// A `Bridge` call failed (`docs/framework/08-bridge.md`; PRP-004).
+    /// The runtime treats every cause the same way — the step's
+    /// `horis:fallback` edge — so this exists for trace/log fidelity, not
+    /// differentiated handling. See [`crate::bridge::BridgeError`] for the
+    /// specific causes.
+    #[error(transparent)]
+    BridgeError(#[from] crate::bridge::BridgeError),
+
+    /// A tool binding invocation failed before any effect reached the
+    /// validation gate (`docs/framework/07-tools.md`; PRP-004). An
+    /// out-of-contract *effect* a binding does produce is
+    /// [`HorismosError::ValidationRejected`] instead, like any other World
+    /// mutation. See [`crate::workflow::tool::ToolError`] for the specific
+    /// causes.
+    #[error(transparent)]
+    ToolError(#[from] crate::workflow::tool::ToolError),
 }
 
 impl HorismosError {
@@ -76,6 +101,9 @@ impl HorismosError {
             Self::SnapshotFormat { reason } => reason.clone(),
             Self::SnapshotMismatch { reason } => reason.clone(),
             Self::IterationCapExceeded { .. } => self.to_string(),
+            Self::WorkflowError(e) => e.domain_text(),
+            Self::BridgeError(e) => e.domain_text(),
+            Self::ToolError(e) => e.domain_text(),
         }
     }
 

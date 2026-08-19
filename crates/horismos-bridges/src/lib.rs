@@ -15,3 +15,5 @@ pub mod anthropic;
 pub mod onnx;
 #[cfg(feature = "bridges-openai")]
 pub mod openai;
+#[cfg(feature = "bridges-openrouter")]
+pub mod openrouter;
