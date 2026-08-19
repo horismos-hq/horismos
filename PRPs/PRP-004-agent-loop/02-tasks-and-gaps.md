@@ -267,14 +267,31 @@ the same commit as this file.
       (`fm/horismos-prp004-u9-u12`), keeping this build's `Agent::run`
       signature as the integration point — mine to wire trace emission into
       once that branch lands.
-- [ ] U10. **Tool-effect validation** — `ActionStep` resolves args from the graph,
+- [x] U10. **Tool-effect validation** — `ActionStep` resolves args from the graph,
       invokes the bound `Tool`, validates the returned effect against
       `horis:effect` (type/class match for typed placeholders; `horis:now` resolved
       to the transaction stamp) through the gate with `Provenance::Tool`;
       `horis:onError` on gate rejection, invocation error, or timeout. Test target:
       an out-of-contract tool return (wrong type; an undeclared property) is
       rejected with a domain-term witness and the step follows `onError`; a
-      well-formed return's effects are visible to the next step.
+      well-formed return's effects are visible to the next step. **Done
+      2026-08-19**: `workflow::agent::tests::a_gate_rejected_tool_effect_follows_on_error_and_still_pages_the_nurse`
+      (wrong-typed `:queueRef` refused at the gate, `:Route` follows
+      `horis:onError` to `:EscalateToNurse`), the sibling
+      `..._carries_a_domain_term_witness` (asserts the witness text names
+      the offending property), and an added assertion in U7's happy-path
+      test (`:queueRef` still visible on the case after `:Explain`/`:Done`
+      ran). Found and fixed a real gap while writing the rejection-path
+      test: `model.rs` explicitly allows a terminal step to be an
+      `ActionStep` ("only horis:Step and horis:ActionStep may be terminal in
+      v1") specifically so `:EscalateToNurse` still fires
+      `:paging.notify_nurse` on the way out, but `Agent::run`'s loop checked
+      `current.terminal` *before* dispatch, so a terminal `ActionStep` never
+      actually executed. Fixed: the loop now short-circuits only on a bare
+      `horis:Step` body (a pure endpoint marker, always terminal by
+      load-time validation) and otherwise always dispatches the step,
+      stopping *after* execution when `current.terminal` — extracted into a
+      small `Agent::finish` helper to keep the two return points in sync.
 - [ ] U11. **`horis:now` transaction stamping** — `Agent::run` (or `Tool`'s
       invocation context) carries one timestamp, supplied by the caller (defaults to
       the host clock read exactly once, at transaction open — never inside chaining),

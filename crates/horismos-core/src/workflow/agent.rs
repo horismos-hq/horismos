@@ -285,18 +285,18 @@ impl<'a> Agent<'a> {
         let mut fallback_taken = false;
 
         loop {
-            if current.terminal {
-                let decision = self.workflow.decides.and_then(|property| {
-                    case.and_then(|c| world.value(c, property))
-                        .cloned()
-                        .map(|v| (property, v))
-                });
-                return Ok(RunOutcome {
-                    terminal: current.iri,
-                    decision,
-                    fallback_taken,
-                    case,
-                });
+            // A bare `horis:Step` (`:Done`, `:PagingFailed`) is a pure
+            // endpoint marker with nothing to execute — load-time validation
+            // (`workflow::model`) guarantees it is also always terminal. A
+            // terminal `ActionStep` (`:EscalateToNurse`) is the other
+            // allowed terminal body (model.rs: "only horis:Step and
+            // horis:ActionStep may be terminal in v1") specifically so its
+            // action still fires — paging on the way out — before the run
+            // ends, so it is dispatched below like any other step; the
+            // `current.terminal` check after dispatch is what stops the run
+            // from following its `horis:onError`/`horis:next` edge further.
+            if matches!(current.body, StepBody::Bare) {
+                return Ok(self.finish(current.iri, case, fallback_taken, world));
             }
 
             let outcome = self.execute_step(world, &current, case, &input).await?;
@@ -306,11 +306,36 @@ impl<'a> Agent<'a> {
             if let Some(resolved_case) = outcome.case {
                 case = Some(resolved_case);
             }
+            if current.terminal {
+                return Ok(self.finish(current.iri, case, fallback_taken, world));
+            }
             current = self
                 .workflow
                 .step(outcome.next)
                 .expect("edge targets are validated at load time")
                 .clone();
+        }
+    }
+
+    /// Builds the `RunOutcome` for reaching terminal step `terminal` (D5's
+    /// `horis:decides` lookup against the final case-subject state).
+    fn finish(
+        &self,
+        terminal: Iri,
+        case: Option<Ref>,
+        fallback_taken: bool,
+        world: &World,
+    ) -> RunOutcome {
+        let decision = self.workflow.decides.and_then(|property| {
+            case.and_then(|c| world.value(c, property))
+                .cloned()
+                .map(|v| (property, v))
+        });
+        RunOutcome {
+            terminal,
+            decision,
+            fallback_taken,
+            case,
         }
     }
 
@@ -1020,6 +1045,164 @@ mod tests {
             Some(&Value::Ref(Ref::new(
                 onto.node_ref(":Immediate").expect(":Immediate is declared")
             )))
+        );
+        // U10 test target (well-formed branch): `:Route`'s tool effect
+        // (`:queueRef`, asserted by `assign_queue`) is still visible on the
+        // case subject after later steps (`:Explain`, `:Done`) ran.
+        let queue_ref = onto.node_ref(":queueRef").expect(":queueRef is declared");
+        assert_eq!(
+            world.value(case, queue_ref),
+            Some(&Value::String("stub".to_owned()))
+        );
+    }
+
+    /// A stub `Tool` that returns a wrong-typed value (an integer where the
+    /// declared effect is `xsd:string`) for every property it is given —
+    /// exercises U10's gate-rejection branch.
+    struct WrongTypeTool(Vec<Iri>);
+    impl Tool for WrongTypeTool {
+        fn call(&self, _args: &BTreeMap<String, Value>) -> Result<BTreeMap<Iri, Value>, String> {
+            Ok(self.0.iter().map(|&p| (p, Value::Integer(42))).collect())
+        }
+    }
+
+    /// U10 test target (gate-rejected branch): an out-of-contract tool
+    /// return — here, an integer where `:queueRef` declares `xsd:string` —
+    /// is refused at the validation gate, so `:Route` follows its
+    /// `horis:onError` edge to `:EscalateToNurse`. `:EscalateToNurse` is
+    /// itself a terminal `ActionStep`: reaching it still fires
+    /// `:paging.notify_nurse` (see `Agent::run`'s module doc) before the run
+    /// ends, so the paging effect is visible too.
+    #[test]
+    fn a_gate_rejected_tool_effect_follows_on_error_and_still_pages_the_nurse() {
+        let onto = triage();
+
+        let bridge = StubBridge {
+            id: "mock:triage".to_owned(),
+            confidence: 0.9,
+            instances: vec![serde_json::json!({
+                "class": ":Patient",
+                "heartRate": 128,
+                "hasSymptom": ":CrushingChestPain"
+            })],
+        };
+
+        let agent = Agent::builder(&onto)
+            .workflow(":Triage")
+            .expect("Triage is declared")
+            .bridge("claude", bridge)
+            .tool(
+                "assign_queue",
+                WrongTypeTool(vec![
+                    onto.node_ref(":queueRef").expect(":queueRef is declared"),
+                ]),
+            )
+            .tool(
+                "notify_nurse",
+                StubTool(vec![
+                    onto.node_ref(":pagedTo").expect(":pagedTo is declared"),
+                ]),
+            )
+            .build()
+            .expect("every binding is registered");
+
+        let mut world = World::new(&onto);
+        let now = chrono::DateTime::parse_from_rfc3339("2026-08-19T00:00:00Z")
+            .expect("a fixed RFC3339 literal parses");
+        let outcome = block_on(agent.run(
+            &mut world,
+            RunInput::new("58M, crushing chest pain, heart rate 128", now),
+        ))
+        .expect("the run completes via the onError edge, not a WorkflowError");
+
+        assert_eq!(
+            onto.resolve(outcome.terminal),
+            "https://example.org/triage#EscalateToNurse"
+        );
+        assert!(outcome.fallback_taken);
+        let case = outcome.case.expect("perception resolved a case subject");
+        let queue_ref = onto.node_ref(":queueRef").expect(":queueRef is declared");
+        assert_eq!(
+            world.value(case, queue_ref),
+            None,
+            "the rejected assign_queue effect must never reach the world"
+        );
+        let paged_to = onto.node_ref(":pagedTo").expect(":pagedTo is declared");
+        assert_eq!(
+            world.value(case, paged_to),
+            Some(&Value::String("stub".to_owned())),
+            "the terminal ActionStep's own tool must still have fired"
+        );
+    }
+
+    /// U10 test target (witness content): the rejected tool return's
+    /// domain-term witness names the property and the datatype mismatch —
+    /// calls `Agent::invoke_tool` directly (private, same-crate access) so
+    /// the witness text isn't lost behind `execute_action`'s onError
+    /// routing.
+    #[test]
+    fn a_gate_rejected_tool_effect_carries_a_domain_term_witness() {
+        let onto = triage();
+        let bridge = StubBridge {
+            id: "mock:triage".to_owned(),
+            confidence: 0.9,
+            instances: vec![],
+        };
+        let agent = Agent::builder(&onto)
+            .workflow(":Triage")
+            .expect("Triage is declared")
+            .bridge("claude", bridge)
+            .tool(
+                "assign_queue",
+                WrongTypeTool(vec![
+                    onto.node_ref(":queueRef").expect(":queueRef is declared"),
+                ]),
+            )
+            .tool(
+                "notify_nurse",
+                StubTool(vec![
+                    onto.node_ref(":pagedTo").expect(":pagedTo is declared"),
+                ]),
+            )
+            .build()
+            .expect("every binding is registered");
+
+        let mut world = World::new(&onto);
+        // `:acuity` is `horis:assignedBy horis:RulesOnly` — set it the only
+        // legitimate way (the tachycardia-with-chest-pain rule chaining off
+        // an ordinary Api-provenance assertion), matching how a real run
+        // reaches `:Route` rather than asserting it directly.
+        let patient = onto.node_ref(":Patient").expect(":Patient is declared");
+        let heart_rate = onto.node_ref(":heartRate").expect(":heartRate is declared");
+        let has_symptom = onto
+            .node_ref(":hasSymptom")
+            .expect(":hasSymptom is declared");
+        let crushing = onto
+            .node_ref(":CrushingChestPain")
+            .expect(":CrushingChestPain is declared");
+        let case = world
+            .assert_instance(
+                patient,
+                [
+                    (heart_rate, Value::Decimal(rust_decimal::Decimal::from(128))),
+                    (has_symptom, Value::Ref(Ref::new(crushing))),
+                ],
+            )
+            .expect("a well-formed Patient assertion succeeds, chaining acuity := Immediate");
+
+        let now = chrono::DateTime::parse_from_rfc3339("2026-08-19T00:00:00Z")
+            .expect("a fixed RFC3339 literal parses");
+        let tool_iri = onto
+            .node_ref(":ehr.assign_queue")
+            .expect(":ehr.assign_queue is declared");
+        let err = agent
+            .invoke_tool(&mut world, case, tool_iri, now)
+            .expect_err("an integer queueRef must be rejected by the gate");
+
+        let text = err.domain_text();
+        assert!(
+            text.contains("queueRef"),
+            "witness must name the offending property, got: {text}"
         );
     }
 }
