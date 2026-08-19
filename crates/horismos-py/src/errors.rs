@@ -102,6 +102,12 @@ pub(crate) fn to_py_err(py: Python<'_>, err: CoreError) -> PyErr {
         CoreError::IterationCapExceeded { .. } => {
             witnessless_err(py, "iteration_cap_exceeded", text)
         }
+        // Workflow/Bridge/Tool errors (PRP-004) carry no gate witness — the
+        // shared domain_text/suggestion/data attribute set is the whole
+        // contract, same as internal_err/naming_err below.
+        CoreError::WorkflowError(_) => plain(py, py.get_type::<HorismosWorkflowError>(), text),
+        CoreError::BridgeError(_) => plain(py, py.get_type::<HorismosBridgeError>(), text),
+        CoreError::ToolError(_) => plain(py, py.get_type::<HorismosToolError>(), text),
     }
 }
 
