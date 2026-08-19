@@ -1,7 +1,7 @@
 # Horismos dev entry points. Requires: rustup (stable), uv. Everything Python
 # runs through uv; maturin is a dev dependency, never a global install.
 
-.PHONY: build develop test test-rust test-py lint fmt no-model-gate check-boundary verify clean
+.PHONY: build develop test test-rust test-py lint fmt no-model-gate check-boundary verify clean demo demo-live
 
 build:
 	cargo build --workspace
@@ -44,6 +44,16 @@ check-boundary:
 	@echo "anti-wrapper boundary: OK"
 
 verify: check-boundary lint test no-model-gate
+
+# PRP-004 U14: the triage-workflow demo against MockBridge — deterministic,
+# no network, no key.
+demo:
+	cargo run -p horismos-bridges --example triage_agent_demo
+
+# Same demo, built with the OpenRouter provider client; uses OpenRouterBridge
+# when OPENROUTER_API_KEY is set, else falls back to MockBridge with a warning.
+demo-live:
+	cargo run -p horismos-bridges --example triage_agent_demo --features bridges-openrouter
 
 clean:
 	cargo clean

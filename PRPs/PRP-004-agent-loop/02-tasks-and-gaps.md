@@ -328,13 +328,25 @@ the same commit as this file.
       forced-tool-choice request body — met; a `#[ignore]`d live test gated on the
       key's presence is left for the captain to run by hand (D4's live-verification
       gap; key was not present in this environment, checked).
-- [ ] U14. **Live demo** (`examples/triage_agent_demo.rs` + `make demo` /
-      `make demo-live`) — loads `triage.ttl` + the SNOMED subset, runs "58M, crushing
-      chest pain, heart rate 128" through `MockBridge` (CI/`make demo`) or
-      `OpenRouterBridge` (`make demo-live`, needs `OPENROUTER_API_KEY`), prints the
+- [ ] U14. **Live demo** (`crates/horismos-bridges/examples/triage_agent_demo.rs` +
+      `make demo` / `make demo-live`) — loads `triage.ttl` + the SNOMED subset, runs
+      "58M, crushing chest pain, heart rate 128" through `MockBridge` (CI/`make demo`)
+      or `OpenRouterBridge` (`make demo-live`, needs `OPENROUTER_API_KEY`), prints the
       proof tree and narration, writes the full trajectory JSON. Test target: the
       mock run's trajectory matches a committed golden JSON exactly (byte-for-byte,
-      determinism).
+      determinism). **Mostly done 2026-08-19**: lives in `horismos-bridges` (not the
+      workspace-root `examples/` dir, which only holds fixtures — the only crate
+      allowed to depend on both `horismos-core` and a `Bridge` implementation).
+      `make demo` and `make demo-live` both build and run; the live path falls back to
+      `MockBridge` with a warning when built without `bridges-openrouter` or without
+      `OPENROUTER_API_KEY` set. Prints the terminal step, decision, `:acuity`'s proof
+      tree (`world.explain`), and narration text — the last of these needed a small
+      addition, `RunOutcome.narrations: Vec<(Iri, String)>` (agent.rs, committed
+      separately), since narration prose has nowhere else to persist (D7) and nothing
+      in `Agent::run`'s prior return value exposed it. **Remaining**: trajectory JSON
+      + golden-file byte-comparison test, blocked on U9's `trace::emit` wiring
+      (`fm/horismos-prp004-u9-u12`, in progress) — will close this out once that
+      integrates.
 - [ ] U15. **The DoD run** (`crates/horismos-core/tests/agent_loop_dod.rs`) — the
       final unit: one test module reproducing the whole Definition of Done
       (immediate track, fallback track, tool-effect validation, trajectory
