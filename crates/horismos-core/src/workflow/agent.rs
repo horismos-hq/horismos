@@ -131,6 +131,12 @@ pub struct RunOutcome {
     /// perception ever ran. `None` for a workflow whose `startsAt` step is
     /// not a `PerceptionStep` and never reaches one.
     pub case: Option<Ref>,
+    /// Every successful `NarrationStep`'s `(step, text)`, in the order the
+    /// run reached them — the one output this run produces that `World`
+    /// never holds (a rejected/non-required narration failure leaves no
+    /// entry). Full step-by-step trajectory capture is U9's `trace::emit`;
+    /// this is the caller-facing summary in the meantime (U14's demo).
+    pub narrations: Vec<(Iri, String)>,
 }
 
 /// Builds an [`Agent`]: the ontology, which of its workflows to run, and
@@ -283,6 +289,7 @@ impl<'a> Agent<'a> {
             .clone();
         let mut case: Option<Ref> = None;
         let mut fallback_taken = false;
+        let mut narrations = Vec::new();
 
         loop {
             // A bare `horis:Step` (`:Done`, `:PagingFailed`) is a pure
@@ -296,7 +303,7 @@ impl<'a> Agent<'a> {
             // `current.terminal` check after dispatch is what stops the run
             // from following its `horis:onError`/`horis:next` edge further.
             if matches!(current.body, StepBody::Bare) {
-                return Ok(self.finish(current.iri, case, fallback_taken, world));
+                return Ok(self.finish(current.iri, case, fallback_taken, narrations, world));
             }
 
             let outcome = self.execute_step(world, &current, case, &input).await?;
@@ -306,8 +313,11 @@ impl<'a> Agent<'a> {
             if let Some(resolved_case) = outcome.case {
                 case = Some(resolved_case);
             }
+            if let Some(narration) = outcome.narration {
+                narrations.push(narration);
+            }
             if current.terminal {
-                return Ok(self.finish(current.iri, case, fallback_taken, world));
+                return Ok(self.finish(current.iri, case, fallback_taken, narrations, world));
             }
             current = self
                 .workflow
@@ -324,6 +334,7 @@ impl<'a> Agent<'a> {
         terminal: Iri,
         case: Option<Ref>,
         fallback_taken: bool,
+        narrations: Vec<(Iri, String)>,
         world: &World,
     ) -> RunOutcome {
         let decision = self.workflow.decides.and_then(|property| {
@@ -336,6 +347,7 @@ impl<'a> Agent<'a> {
             decision,
             fallback_taken,
             case,
+            narrations,
         }
     }
 
@@ -351,7 +363,10 @@ impl<'a> Agent<'a> {
             StepBody::Perception(p) => self.execute_perception(world, p, input).await,
             StepBody::Reasoning(r) => self.execute_reasoning(world, case, r),
             StepBody::Action(a) => self.execute_action(world, &step_name, case, a, input.now),
-            StepBody::Narration(n) => self.execute_narration(world, &step_name, case, n).await,
+            StepBody::Narration(n) => {
+                self.execute_narration(world, step.iri, &step_name, case, n)
+                    .await
+            }
             StepBody::Bare => Err(WorkflowError::StepDeferred {
                 step: step_name,
                 kind: "horis:Step (non-terminal, no body)".to_owned(),
@@ -401,11 +416,7 @@ impl<'a> Agent<'a> {
             }
             match self.assert_perceived(world, &result) {
                 Ok(primary) => {
-                    return Ok(StepOutcome {
-                        next: p.next,
-                        is_fallback: false,
-                        case: primary,
-                    });
+                    return Ok(StepOutcome::new(p.next, false, primary));
                 }
                 Err(_) if attempt < p.retries => attempt += 1,
                 Err(_) => return Ok(self.fallback_outcome(p.fallback)),
@@ -482,17 +493,9 @@ impl<'a> Agent<'a> {
     ) -> Result<StepOutcome, WorkflowError> {
         let case = case.ok_or(WorkflowError::NoCaseSubject)?;
         if holds(world, case, &r.goal) {
-            Ok(StepOutcome {
-                next: r.next,
-                is_fallback: false,
-                case: Some(case),
-            })
+            Ok(StepOutcome::new(r.next, false, Some(case)))
         } else {
-            Ok(StepOutcome {
-                next: r.on_unreachable,
-                is_fallback: true,
-                case: Some(case),
-            })
+            Ok(StepOutcome::new(r.on_unreachable, true, Some(case)))
         }
     }
 
@@ -510,11 +513,7 @@ impl<'a> Agent<'a> {
             && !holds(world, case, requires)
         {
             return match a.on_unsatisfied {
-                Some(edge) => Ok(StepOutcome {
-                    next: edge,
-                    is_fallback: true,
-                    case: Some(case),
-                }),
+                Some(edge) => Ok(StepOutcome::new(edge, true, Some(case))),
                 None => Err(WorkflowError::RequiresUnsatisfiable {
                     step: step_name.to_owned(),
                 }),
@@ -523,16 +522,12 @@ impl<'a> Agent<'a> {
 
         let outcome = self.invoke_tool(world, case, a.tool, now);
         match outcome {
-            Ok(()) => Ok(StepOutcome {
-                next: a.next.unwrap_or(a.on_error),
-                is_fallback: false,
-                case: Some(case),
-            }),
-            Err(_) => Ok(StepOutcome {
-                next: a.on_error,
-                is_fallback: true,
-                case: Some(case),
-            }),
+            Ok(()) => Ok(StepOutcome::new(
+                a.next.unwrap_or(a.on_error),
+                false,
+                Some(case),
+            )),
+            Err(_) => Ok(StepOutcome::new(a.on_error, true, Some(case))),
         }
     }
 
@@ -607,6 +602,7 @@ impl<'a> Agent<'a> {
     async fn execute_narration(
         &self,
         world: &World,
+        step_iri: Iri,
         step_name: &str,
         case: Option<Ref>,
         n: &NarrationStep,
@@ -621,29 +617,21 @@ impl<'a> Agent<'a> {
             })
             .await;
         match result {
-            Ok(_) => Ok(StepOutcome {
-                next: n.next,
-                is_fallback: false,
-                case: Some(case),
-            }),
+            Ok(r) => {
+                let mut outcome = StepOutcome::new(n.next, false, Some(case));
+                outcome.narration = Some((step_iri, r.text));
+                Ok(outcome)
+            }
             Err(e) if n.required => Err(WorkflowError::NarrationFailed {
                 step: step_name.to_owned(),
                 reason: e.domain_text(),
             }),
-            Err(_) => Ok(StepOutcome {
-                next: n.next,
-                is_fallback: false,
-                case: Some(case),
-            }),
+            Err(_) => Ok(StepOutcome::new(n.next, false, Some(case))),
         }
     }
 
     fn fallback_outcome(&self, fallback: Iri) -> StepOutcome {
-        StepOutcome {
-            next: fallback,
-            is_fallback: true,
-            case: None,
-        }
+        StepOutcome::new(fallback, true, None)
     }
 }
 
@@ -651,6 +639,22 @@ struct StepOutcome {
     next: Iri,
     is_fallback: bool,
     case: Option<Ref>,
+    /// `Some((step, text))` when this step was a `NarrationStep` whose
+    /// bridge call returned successfully — threaded up into
+    /// [`RunOutcome::narrations`] since narration prose, unlike a `Value`
+    /// asserted into `World`, has nowhere else to persist (D7).
+    narration: Option<(Iri, String)>,
+}
+
+impl StepOutcome {
+    fn new(next: Iri, is_fallback: bool, case: Option<Ref>) -> Self {
+        StepOutcome {
+            next,
+            is_fallback,
+            case,
+            narration: None,
+        }
+    }
 }
 
 /// Resolves every `horis:arg` the tool declares against `case`'s own data —
@@ -1054,6 +1058,11 @@ mod tests {
             world.value(case, queue_ref),
             Some(&Value::String("stub".to_owned()))
         );
+        // `:Explain`'s narration text is captured on RunOutcome — the run
+        // never persists it into World (D7), so this is its only home
+        // until U9's trace emission lands.
+        let explain = onto.node_ref(":Explain").expect(":Explain is declared");
+        assert_eq!(outcome.narrations, vec![(explain, "narrated".to_owned())]);
     }
 
     /// A stub `Tool` that returns a wrong-typed value (an integer where the
