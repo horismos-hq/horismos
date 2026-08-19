@@ -132,7 +132,7 @@
       <p class="hl-label">Next · The immediate goal</p>
       <h3>PRP-004 Active — the agent loop (PRP-005 startable in parallel)</h3>
       <ul>
-        <li><strong>Runtime track</strong>: workflow engine, perception/narration boundaries, tools contract, Bridge implementations; inherits the pinned 003/004 subscription split and the <code>Ontology.version</code> deferral (trace stamping is its consumer). Workflow + tool model parsing (U2/U3) shipped; Bridge trait, error variants, and the OpenRouter bridge (U4/U5/U13) landed on a contractor branch, integrating now.</li>
+        <li><strong>Runtime track</strong>: workflow engine, perception/narration boundaries, tools contract, Bridge implementations; inherits the pinned 003/004 subscription split and the <code>Ontology.version</code> deferral (trace stamping is its consumer). U7–U15 (Agent interpreter, trace/2 wiring, tool-effect validation, live demo, DoD suite) implemented and integrated with the U9/U12 contractor branch; <a href="https://github.com/billaram/horismos/pull/8">PR #8</a> is open pending review, <code>make verify</code> green. Two new open decisions (D14/D15, URL/MCP-server allowlist mechanics) from the doc-15 security workstream are gap-noted, not blocking.</li>
         <li><strong>Former captain hold, now resolved</strong>: derived-fact truth maintenance (plan review, finding 2) — fixed on <code>main</code> (PR #7); PRP-004's own perception/tool-effect paths kept rebase-friendly for it.</li>
         <li><strong>Human side quests</strong>: register <code>horismos.dev</code>; file the <code>w3id.org/horismos</code> PR; reserve registry names; merge PR #3.</li>
       </ul>

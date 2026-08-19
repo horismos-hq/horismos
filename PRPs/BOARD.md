@@ -5,8 +5,9 @@ At-a-glance project state. Updated in the same commit as any PRP status change
 [Horismos Board artifact](https://claude.ai/code/artifact/dc7ee691-4c9f-40a7-b235-0760de8ff17d)
 (source: `planning/board.html`, republished to the same URL on updates).
 
-_Last updated: 2026-08-19 (PRP-004 activated and Active; PRP-002 truth-maintenance
-defect fixed on `main` (PR #7) — no longer an open captain hold)_
+_Last updated: 2026-08-19 (PRP-004's U7–U15 critical path implemented, PR #8 open
+pending review; PRP-002 truth-maintenance defect fixed on `main` (PR #7) — no
+longer an open captain hold)_
 
 ## Current state
 
@@ -45,6 +46,23 @@ truth-maintenance defect above (since fixed) and an open trace-schema
 question for workflow step kinds beyond perception/reasoning/action/
 narration (since resolved as D13 in PRP-004's `02-tasks-and-gaps.md` — mint
 `horismos.trace/2`) — both tracked there rather than fixed ad hoc.
+
+**Update 2026-08-19**: the U7–U15 critical path (Agent interpreter, trace/2
+emission wiring, tool-effect validation, the live triage demo, the DoD test
+module) is implemented, the U9/U12 contractor branch is integrated, and
+[PR #8](https://github.com/billaram/horismos/pull/8) is open against `main`,
+pending human review — `make verify` green throughout. Two open decisions
+(D14/D15: URL allowlist and MCP-server allowlist mechanics for future
+`http:`/`https:`/`mcp:` tool bindings) surfaced from the doc-15 security
+workstream landing on `main` mid-branch and are gap-noted in
+`02-tasks-and-gaps.md`, not blocking — this PRP ships only `rust:` bindings.
+Also recorded there, not silently absorbed: the `:EscalateToNurse`
+case-subject gap (a low-confidence perception fallback has no case to page
+against — a future design decision, not a bug in the runtime's refusal to
+guess), and that this repo has no CI wired to run on pull requests yet
+(`.github/workflows/wheels.yml` is `workflow_dispatch`-only by design,
+PRP-006's to wire up) — the PR's validation bar is review + `make verify`
+until then.
 
 Human side quests: register `horismos.dev`; file the w3id.org/horismos PR;
 reserve crates.io/PyPI names early; merge PR #3 (PRP-002 folder record).
