@@ -99,7 +99,7 @@
         horis:asserts [ horis:property :queuedAt ; horis:value horis:now ] ;
         horis:asserts [ horis:property :queueRef ; horis:type xsd:string ]
     ] ;
-    horis:binding "python:ehr_client.assign_queue" ;
+    horis:binding "rust:assign_queue" ;
     horis:timeout "5s" ;
     horis:idempotent false .
 
@@ -111,6 +111,6 @@
         horis:asserts [ horis:property :notifiedAt ; horis:value horis:now ] ;
         horis:asserts [ horis:property :pagedTo    ; horis:type xsd:string ]
     ] ;
-    horis:binding "python:paging_client.notify_nurse" ;
+    horis:binding "rust:notify_nurse" ;
     horis:timeout "5s" ;
     horis:idempotent false .

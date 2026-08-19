@@ -28,6 +28,13 @@ use crate::world::Provenance;
 /// The schema tag every v1 trace carries.
 pub const SCHEMA_V1: &str = "horismos.trace/1";
 
+/// The schema tag every v2 trace carries (PRP-004, captain decision
+/// 2026-08-19: mint v2 now, before any real corpus depends on v1's four
+/// kinds — `docs/framework/05-workflows.md` declares eight step semantics
+/// and v1 could only represent four). See [`crate::trace::migrate`] for the
+/// versioning policy and the `convert_v1_to_v2` converter.
+pub const SCHEMA_V2: &str = "horismos.trace/2";
+
 /// A full trajectory (doc 09). PRP-002 populates `steps` with reasoning
 /// steps; run-level fields it cannot know (workflow, input, model timing)
 /// stay `None` until the agent loop (PRP-004) owns emission.
@@ -55,10 +62,29 @@ pub struct Trace {
 }
 
 impl Trace {
-    /// A new, empty v1 trace under a caller-chosen run id.
+    /// A new, empty v1 trace under a caller-chosen run id. PRP-002's shape,
+    /// kept byte-for-byte unchanged — every existing PRP-002 call site and
+    /// pinned test keeps producing `horismos.trace/1`.
     pub fn new(run_id: impl Into<String>) -> Trace {
         Trace {
             schema: SCHEMA_V1.to_owned(),
+            run_id: run_id.into(),
+            ontology: None,
+            workflow: None,
+            started_at: None,
+            input: None,
+            steps: Vec::new(),
+            outcome: None,
+            totals: None,
+        }
+    }
+
+    /// A new, empty v2 trace (PRP-004): what [`crate::workflow::Agent::run`]
+    /// builds, since a real run may include any of the eight step kinds v1
+    /// cannot represent. Identical shape to `new`, tagged [`SCHEMA_V2`].
+    pub fn new_v2(run_id: impl Into<String>) -> Trace {
+        Trace {
+            schema: SCHEMA_V2.to_owned(),
             run_id: run_id.into(),
             ontology: None,
             workflow: None,
@@ -167,6 +193,80 @@ pub enum Step {
         audience: Option<String>,
         #[serde(skip_serializing_if = "Option::is_none", default)]
         text: Option<String>,
+        loss_mask: bool,
+    },
+    /// A deterministic `horis:ChoiceStep` branch (doc 05) — v2 only. Purely
+    /// symbolic (the 11 operators over the graph, doc 04's evaluator, no
+    /// model call), so `loss_mask` is always `true`, the same as `reasoning`.
+    Choice {
+        #[serde(skip_serializing_if = "Option::is_none", default)]
+        step: Option<String>,
+        /// The compacted IRI of the step `horis:next` resolved to — the
+        /// branch actually taken. `None` only if `horis:otherwise` fired
+        /// with no `horis:next` of its own (malformed; verification (PRP-005)
+        /// rejects this statically, but the trace stays honest either way).
+        #[serde(skip_serializing_if = "Option::is_none", default)]
+        branch_taken: Option<String>,
+        /// `true` when no `horis:branches` condition held and
+        /// `horis:otherwise` fired instead.
+        otherwise: bool,
+        #[serde(skip_serializing_if = "Option::is_none", default)]
+        latency_ms: Option<u64>,
+        loss_mask: bool,
+    },
+    /// A `horis:ProposalStep` ranking (doc 07) — v2 only. The model ranks
+    /// only precondition-satisfied candidates the runtime already computed;
+    /// `loss_mask: false` — the ranking itself is model-generated output,
+    /// trainable, the same posture as `perception`.
+    Proposal {
+        #[serde(skip_serializing_if = "Option::is_none", default)]
+        step: Option<String>,
+        #[serde(skip_serializing_if = "Option::is_none", default)]
+        model: Option<String>,
+        /// The full candidate set the model ranked over, compacted IRIs, in
+        /// the order presented — never more than the runtime-computed,
+        /// precondition-satisfied set (doc 07: "the LLM ranks; it cannot add
+        /// options").
+        candidates: Vec<String>,
+        #[serde(skip_serializing_if = "Option::is_none", default)]
+        confidence: Option<f64>,
+        #[serde(skip_serializing_if = "Option::is_none", default)]
+        threshold: Option<f64>,
+        #[serde(skip_serializing_if = "Option::is_none", default)]
+        accepted: Option<bool>,
+        /// The chosen candidate's compacted IRI — `None` when the step fell
+        /// back (low confidence, Bridge error) rather than accepting a rank.
+        #[serde(skip_serializing_if = "Option::is_none", default)]
+        chosen: Option<String>,
+        #[serde(skip_serializing_if = "Option::is_none", default)]
+        latency_ms: Option<u64>,
+        loss_mask: bool,
+    },
+    /// A `horis:SubflowStep` run (doc 05) — v2 only. One level of nesting
+    /// (D6, `docs/framework/05-workflows.md`): `steps` is the nested
+    /// workflow's own trajectory, recorded inline rather than as a separate
+    /// trace, so replay stays a single self-contained document.
+    Subflow {
+        #[serde(skip_serializing_if = "Option::is_none", default)]
+        step: Option<String>,
+        workflow: String,
+        steps: Vec<Step>,
+        /// The nested run's terminal step, compacted.
+        terminal: String,
+        #[serde(skip_serializing_if = "Option::is_none", default)]
+        latency_ms: Option<u64>,
+        loss_mask: bool,
+    },
+    /// A `horis:WaitStep` (doc 05) — v2 only, schema-complete but **not
+    /// producible by this build**: execution is deferred to v1.1 (D3,
+    /// `PRP-004-agent-loop/02-tasks-and-gaps.md`). Defined now so the trace
+    /// schema already has a slot for it — round-trip tested against a
+    /// hand-built fixture, not a live run.
+    Wait {
+        #[serde(skip_serializing_if = "Option::is_none", default)]
+        step: Option<String>,
+        #[serde(skip_serializing_if = "Option::is_none", default)]
+        reason: Option<String>,
         loss_mask: bool,
     },
 }
