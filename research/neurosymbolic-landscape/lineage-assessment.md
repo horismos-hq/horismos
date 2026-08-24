@@ -52,7 +52,7 @@ a roadmap conversation.
 
 ## Source
 
-See `research/reading-log.md`, Q3 section.
+See `../reading-log.md`, Q3 section.
 
 ## Confidence
 

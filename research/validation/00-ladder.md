@@ -48,7 +48,7 @@ calibration silently fails, and AUROC alone is blind to it
 
 ## Source
 
-See `research/reading-log.md`, Q4 section.
+See `../reading-log.md`, Q4 section.
 
 ## Confidence
 

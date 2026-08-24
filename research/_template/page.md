@@ -8,7 +8,7 @@
 
 ## Evidence
 
-<The findings, each tagged **[measured]** or **[inference]** per `research/README.md`'s
+<The findings, each tagged **[measured]** or **[inference]** per `../README.md`'s
 convention. Prefer short, sourced paragraphs over long unsourced prose.>
 
 ## Source

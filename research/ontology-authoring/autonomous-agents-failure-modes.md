@@ -45,7 +45,7 @@ captain-supplied source.
 
 ## Source
 
-See `research/reading-log.md`, Q6 section.
+See `../reading-log.md`, Q6 section.
 
 ## Confidence
 

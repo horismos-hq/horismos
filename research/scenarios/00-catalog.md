@@ -10,7 +10,7 @@ verifying; (e) prior art (FHIR PlanDefinition/CQL/published protocol) to ground 
 ontology's vocabulary. Three scenarios — VTE prophylaxis ordering, NEWS2 deterioration
 + RRT escalation, and sepsis bundle compliance-tracking — are recommended as the next
 three builds, in that order. See per-scenario pages for detail, and
-`scenarios/ruled-out.md` for what was excluded and why.
+`ruled-out.md` for what was excluded and why.
 
 ## Evidence
 
@@ -34,7 +34,7 @@ This is a living document — update it as new scenarios are evaluated or built.
 
 ## Source
 
-Per-cell citations are in the table; full sources in `research/reading-log.md` Q2
+Per-cell citations are in the table; full sources in `../reading-log.md` Q2
 section. Detail pages: `vte-prophylaxis.md`, `news2-deterioration.md`,
 `sepsis-bundle-compliance.md`, `ruled-out.md`.
 

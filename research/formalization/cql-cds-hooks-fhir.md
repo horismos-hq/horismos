@@ -38,7 +38,7 @@ formalism ([bpm-plus.org](https://www.bpm-plus.org/)).
 
 ## Source
 
-See per-claim citations above; all also listed in `research/reading-log.md` under Q1.
+See per-claim citations above; all also listed in `../reading-log.md` under Q1.
 
 ## Confidence
 

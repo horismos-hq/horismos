@@ -67,7 +67,7 @@ generating ECL expression) into the subset file so staleness is mechanically
 detectable. This is exactly `search_vocab`/PRP-007's stated scope — the finding is
 that its output format needs to support polyhierarchy and provenance metadata, not
 just an `owl:sameAs` anchor. This recommendation is a captain-held decision, not
-applied here — see `ontology-authoring/prp-007-open-items.md`.
+applied here — see `../ontology-authoring/prp-007-open-items.md`.
 
 **[measured]** Licensing: distributing SNOMED CT content is a real deploying-org
 obligation. Whoever ships a horismos ontology bundle containing real SNOMED CT content
@@ -96,7 +96,7 @@ definitions
 
 ## Source
 
-See `research/reading-log.md`, Q5 section.
+See `../reading-log.md`, Q5 section.
 
 ## Confidence
 

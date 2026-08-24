@@ -81,7 +81,7 @@ evidence RAG alone is not a safety mechanism equivalent to a hard gate.
 
 ## Source
 
-See `research/reading-log.md`, Q3 section, for the full citation list.
+See `../reading-log.md`, Q3 section, for the full citation list.
 
 ## Confidence
 

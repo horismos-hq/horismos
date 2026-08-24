@@ -35,7 +35,7 @@ PRP-007's design found in the literature
 
 ## Source
 
-See `research/reading-log.md`, Q6 section.
+See `../reading-log.md`, Q6 section.
 
 ## Confidence
 

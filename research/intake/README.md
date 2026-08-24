@@ -1,6 +1,6 @@
 # Intake: the URL-drop convention
 
-A person (most often the captain) can drop a URL into `research/intake/queue.md` at
+A person (most often the captain) can drop a URL into `../intake/queue.md` at
 any time, or hand it to an agent directly in conversation. Either way, the next agent
 session that notices an `unfiled` row — or receives the URL directly — does:
 
@@ -15,10 +15,10 @@ session that notices an `unfiled` row — or receives the URL directly — does:
    - write `research/intake/filed/YYYY-MM-DD-<slug>.md` (the raw note),
    - update or create the relevant `research/<topic>/*.md` page with a short
      paragraph incorporating the finding,
-   - append one row to `research/reading-log.md`,
+   - append one row to `../reading-log.md`,
    - mark the `queue.md` row `filed` with a pointer to the filed note.
 5. This is a small PR by construction — one URL in, a handful of file touches out —
-   matching the delta-PR convention in `research/README.md`.
+   matching the delta-PR convention in `../README.md`.
 
 ## Worked example
 
@@ -30,8 +30,8 @@ piece's argument were identified; one follow-up pass traced Markovic's own relat
 academic work and a thematically adjacent piece; it was positioned against horismos's
 design; and it was filed. See:
 
-- The filed raw note: `research/intake/filed/2026-08-24-markovic-learnable-ontologies.md`
-- The updated topic page: `research/ontology-authoring/00-overview.md`
-- The reading-log row: `research/reading-log.md`, under "Captain intake"
+- The filed raw note: `../intake/filed/2026-08-24-markovic-learnable-ontologies.md`
+- The updated topic page: `../ontology-authoring/autonomous-agents-failure-modes.md`
+- The reading-log row: `../reading-log.md`, under "Captain intake"
 
 This is exactly the shape a real intake PR takes.

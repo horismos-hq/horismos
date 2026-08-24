@@ -12,7 +12,7 @@ deferred.
    checking.** PRP-007 as currently scoped has no explicit check for whether a
    drafted rule/constraint actually binds under some reachable scenario, as distinct
    from being internally consistent. See
-   `ontology-authoring/verification-of-llm-drafted-artifacts.md` for the "vacuous
+   `verification-of-llm-drafted-artifacts.md` for the "vacuous
    verification" literature this responds to
    ([LASA](https://arxiv.org/abs/2506.17865),
    [CHARGE](https://arxiv.org/abs/2607.27776),
@@ -27,11 +27,11 @@ deferred.
    [arXiv:2307.13702](https://arxiv.org/abs/2307.13702)) — no paper studies
    faithfulness of NL renderings of *separately-verified formal artifacts*
    specifically, so this is an assumption to test empirically, not a solved problem.
-   See `ontology-authoring/verification-of-llm-drafted-artifacts.md`.
+   See `verification-of-llm-drafted-artifacts.md`.
 
 3. **`search_vocab`'s output format should support polyhierarchy and provenance
    metadata**, not just an `owl:sameAs` anchor — see
-   `terminology/snomed-ct.md` for the full finding (the current
+   `../terminology/snomed-ct.md` for the full finding (the current
    `examples/triage/snomed-ct-subset.ttl` fixture already shows single-parent
    structure with no version provenance).
 
@@ -45,11 +45,11 @@ axiom-identification benchmark (F1 0.218–0.642 across 12 LLMs, "not high enoug
 fully automate axiom identification,"
 [arXiv:2512.05594](https://arxiv.org/abs/2512.05594)) is the strongest evidence-based
 argument *for* keeping PRP-007's gate hard rather than lightening it — see
-`ontology-authoring/00-overview.md`.
+`00-overview.md`.
 
 ## Source
 
-See `research/reading-log.md`, Q6 section, and the pages linked above.
+See `../reading-log.md`, Q6 section, and the pages linked above.
 
 ## Confidence
 

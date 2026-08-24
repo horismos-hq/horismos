@@ -39,7 +39,7 @@ detailed findings this overview summarizes.
 
 ## Source
 
-See `research/reading-log.md`, Q6 section.
+See `../reading-log.md`, Q6 section.
 
 ## Confidence
 

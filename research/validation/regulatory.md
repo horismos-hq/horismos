@@ -38,7 +38,7 @@ bugs ([PMC12274014](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC12274014/)).
 
 ## Source
 
-See `research/reading-log.md`, Q4 section.
+See `../reading-log.md`, Q4 section.
 
 ## Confidence
 

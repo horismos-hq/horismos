@@ -9,16 +9,16 @@ import, reasoned over by horismos's own Rete-lite engine — is architecturally
 test assertion" is incompatible with a live terminology-server call during reasoning).
 But the currently-shipped fixture already shows the failure mode the pattern is
 supposed to avoid: single-parent structure with no version provenance. See
-`terminology/snomed-ct.md` for the detailed finding and recommendation.
+`snomed-ct.md` for the detailed finding and recommendation.
 
 ## Evidence
 
-See `terminology/snomed-ct.md` for the full analysis. `terminology/loinc.md` and
-`terminology/rxnorm.md` cover the other two terminology systems horismos may need.
+See `snomed-ct.md` for the full analysis. `loinc.md` and
+`rxnorm.md` cover the other two terminology systems horismos may need.
 
 ## Source
 
-See `research/reading-log.md`, Q5 section.
+See `../reading-log.md`, Q5 section.
 
 ## Confidence
 

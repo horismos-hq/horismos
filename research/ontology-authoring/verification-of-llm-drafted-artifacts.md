@@ -61,7 +61,7 @@ ontologies ([arXiv:2507.10584](https://arxiv.org/abs/2507.10584)).
 
 ## Source
 
-See `research/reading-log.md`, Q6 section.
+See `../reading-log.md`, Q6 section.
 
 ## Confidence
 
