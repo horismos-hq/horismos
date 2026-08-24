@@ -53,6 +53,12 @@ derives acuity through rules over a SNOMED-anchored symptom hierarchy, and route
 a queue via an EHR tool. It exercises every framework feature. The full file is built
 up progressively in docs 02–07.
 
+## Research wiki
+
+`../../research/` reality-checks this design against the field (CIG formalisms,
+neuro-symbolic AI, clinical validation practice, terminology engineering,
+agent-authored ontologies) — see `research/README.md`.
+
 ## Prior art
 
 Horismos inherits designs proven in the `sigil-lang` project (same authors): Rete-lite
