@@ -70,6 +70,14 @@ messages.create(
   messages = [{ role: "user", content: <input text> }])
 ```
 
+**Not a Bridge (declared-future, PRP-008)**: an Adapter that hydrates an `ExternalSnapshot`
+from a FHIR server or repository is *not* a Bridge, and gains no `Bridge` implementation —
+a Bridge supplies a neural *proposal* that must clear the gate; an Adapter supplies
+authoritative structured state that's admitted the same way any other `api`-provenance
+assertion is (doc 03, doc 06). Model providers stay outside core exactly as today; an
+Adapter adds no new relationship to `horismos-core`'s dependency graph beyond what doc 14
+already draws for it.
+
 The provider's tool-use machinery is used *backwards* — not to let the model choose
 actions, but as a constrained typed-output channel. Providers with native structured
 output modes use those instead; the Bridge hides the difference. v1 ships one

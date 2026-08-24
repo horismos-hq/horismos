@@ -11,6 +11,20 @@ reader who knows Python well but is new to symbolic reasoning and to Rust. Teach
 sections cite `docs/framework/` (especially [doc 04 · Reasoning](../../docs/framework/04-reasoning.md))
 rather than restating it; where they summarize, the doc is the authority.
 
+## Pivot note (2026-08-24) — bounded projection kernel
+
+Captain-adopted pivot (`horismos-thin-pivot-s1/report.md`, PRP-002 row; PRP-000 §"Snapshot-
+scoped guarantees"): this PRP's historical DoD and shipped tests are unchanged. The durable
+description is reinterpreted: the fixed-point claim below is scoped to **one admitted
+projection** — "same facts, same ontology → same conclusions" holds for the facts Horismos
+was given in one hydration, not for a live external record it does not observe. Base proof
+leaves gain source resource/version/mapping provenance where a fact was hydrated from an
+external system (PRP-008). Refresh is a replacement of the external base-fact set followed by
+the full re-chain this PRP already implements — not a new mechanism. An explicit
+**input-closure declaration** is added (PRP-008) so pragmatic closed-world negation (below)
+distinguishes "declared complete and absent" from "not fetched" — this PRP's closed-world
+semantics are otherwise unchanged and remain correct for a declared-complete input set.
+
 ## Intent
 
 Deterministic inference over the instance graph: forward chaining to fixed point,

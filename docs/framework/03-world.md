@@ -1,8 +1,56 @@
 # 03 · The World
 
-The World is the typed instance store — the agent's memory of record. It holds facts
-as instances of ontology classes, and **every mutation passes the validation gate**.
-There is no back door.
+The World is the typed instance store — an **admitted projection**, bound to one decision
+package and hydration, not the deployment's enterprise memory of record (pivot adopted
+2026-08-24, `PRPs/PRP-000-vision-positioning.md` §"Snapshot-scoped guarantees"). It holds
+facts as instances of ontology classes, and **every mutation Horismos mediates passes the
+validation gate**. There is no back door *inside an evaluation or commit Horismos
+mediates* — that qualifier matters: Horismos cannot see, let alone gate, a write another
+client makes directly against the external system of record. Everything in this document
+below — the gate, truth maintenance, snapshots, transactions — is unchanged and exact
+*for one admitted projection*; what's new is stating plainly what stays true only inside
+that boundary, and what an external system's own concurrent writers can invalidate.
+
+## World as a transaction projection (declared-future mechanism, PRP-008)
+
+For a standalone deployment (structured facts asserted directly via the API, the shipped
+triage pattern), a World *is* effectively the whole record for that session — nothing
+below changes for that case. For a deployment overlaying an external system of record
+(FHIR, a repository), a World is instead the local, closed evaluation workspace for **one
+decision epoch**:
+
+- **Hydration** (owned by PRP-008's Adapter): an external read materializes a declared,
+  versioned closure into a canonical `ExternalSnapshot` *before* any World transaction —
+  no adapter performs a network read from inside matching, chaining, verification, or a
+  transaction in progress (doc 14's anti-wrapper boundary, unchanged and enforced here
+  too).
+- **Admission**: the `ExternalSnapshot` is admitted as base facts through the same
+  five-check gate below, all-or-nothing — a partially-admitted bundle is never observable,
+  matching the existing atomic-transaction guarantee.
+- **Rejection/quarantine**: a bundle that fails admission (schema mismatch, declared
+  closure incomplete, unsupported external construct) is rejected in domain terms and
+  never partially lands — quarantine for inspection is an adapter-level concern, not a
+  World state.
+- **Closure**: the projection's declared input closure states exactly which
+  facts/resources were treated as complete for this decision (PRP-005's assumption
+  manifest references this). Absent-because-not-fetched and absent-because-verified-not-
+  present are distinct states at the adapter layer, feeding Horismos's existing pragmatic
+  closed-world reading (doc 04) rather than silently collapsing into it.
+- **Freshness / external-conflict invalidation**: the projection is valid only as of its
+  source-version vector. A conflicting external update since hydration does not
+  retroactively corrupt the local World (its gate/TMS/proof stay exact for the facts it
+  was given) — it invalidates the projection's *external* validity: a proposed commit
+  against a drifted source fails closed, and the projection must be refreshed (re-
+  hydrated, re-chained) before a new commit is attempted.
+- **Conditional commit**: a `ProposedEffectSet` produced from the World's fixed point
+  commits back to the system of record only if the source still matches the recorded
+  version vector (a transaction Bundle / conditional update where the external system
+  supports it). The trace distinguishes "decision produced," "commit attempted," "commit
+  accepted," and "commit failed/conflicted" as separate, separately observable states —
+  there is no cross-system atomicity claim (doc 09, doc 15).
+
+None of this changes the mechanics below — they are the mechanism a `Decision Package`'s
+base facts pass through, whether asserted directly via the API or hydrated by an adapter.
 
 ## Creating a world
 

@@ -10,6 +10,20 @@ examples against `examples/triage/triage.ttl`, Python-parallel notes, and a glos
 Teaching sections cite `docs/framework/05-workflows.md` through `08-bridge.md` rather
 than restating them.
 
+## Pivot note (2026-08-24) — bounded projection kernel
+
+Captain-adopted pivot (`horismos-thin-pivot-s1/report.md`, PRP-004 row; PRP-000 §"Snapshot-
+scoped guarantees"): this PRP's current branch, scope, and DoD below are **unchanged and
+finish first** — the report explicitly recommends landing the current scenario/runtime work
+without dragging standards integration into the active branch. The durable description
+drops one claim going forward: Horismos does **not** require that "the ontology must own the
+outer loop." The workflow/tool/Bridge kernel this PRP ships is reusable as a **decision
+microflow** a host invokes (e.g. via a CDS-Hooks-style call, or one PlanDefinition-subset
+fragment) rather than the framework owning a deployment's entire longitudinal workflow.
+Host-invoked/stateless execution, adapter bindings for external commits, and aligning
+`ActionStep` effects with conditional external commits are **owned by PRP-008** (activated
+after this PRP and PRP-005) — not built here, not retrofitted mid-branch.
+
 ## Intent
 
 Execute workflows declared in the ontology. Perception (NL → typed instances) and

@@ -5,6 +5,19 @@ under `make verify`; DoD run ships as `crates/horismos-core/tests/dod.rs`
 (see `02-tasks-and-gaps.md`, incl. gaps handed to PRP-002/006)
 **Depends on**: PRP-000
 
+## Pivot note (2026-08-24) — bounded projection kernel
+
+Captain-adopted pivot (`horismos-thin-pivot-s1/report.md`, PRP-001 row; PRP-000 §"Snapshot-
+scoped guarantees"): this PRP's historical DoD and shipped tests are unchanged and remain the
+record of what was built and verified. The durable description is reinterpreted, not
+rewritten: `World` is a **transaction projection** — an admitted, versioned local snapshot
+bound to one decision package — not the deployment's enterprise memory of record. `World`
+gains no FHIR client and no network I/O; the interop story moves from `owl:sameAs`-only
+anchoring to versioned standard mappings plus terminology closure (owned by PRP-008). PRP-008
+adds a core-native, format-neutral `ExternalSnapshot`/batch-admission value carrying source/
+version/mapping provenance on top of this crate's existing gate and store — that work,
+including any new core types, is owned by PRP-008, not retrofitted here.
+
 ## Intent
 
 The foundation crate: load, validate, and hold an RDFS-plus ontology; store typed

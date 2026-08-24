@@ -5,9 +5,30 @@ At-a-glance project state. Updated in the same commit as any PRP status change
 [Horismos Board artifact](https://claude.ai/code/artifact/dc7ee691-4c9f-40a7-b235-0760de8ff17d)
 (source: `planning/board.html`, republished to the same URL on updates).
 
-_Last updated: 2026-08-19 (PRP-004's U7–U15 critical path implemented, PR #8 open
-pending review; PRP-002 truth-maintenance defect fixed on `main` (PR #7) — no
-longer an open captain hold)_
+_Last updated: 2026-08-24 (bounded-projection-kernel pivot adopted; new PRP-008 drafted;
+PRP-000/001/002/003/004/005/007 and framework docs 00–15 amended for the new positioning —
+no PRP-001–004 DoD rewritten, no runtime code changed). Previously: 2026-08-19 (PRP-004's
+U7–U15 critical path implemented, PR #8 open pending review; PRP-002 truth-maintenance
+defect fixed on `main` (PR #7) — no longer an open captain hold)._
+
+## Pivot: bounded projection kernel (2026-08-24)
+
+Captain-adopted (`data/horismos-thin-pivot-s1/report.md`,
+`data/horismos-thin-pivot-s1/decisions/captain-pivot-ruling.md`). Horismos's positioning
+moves from "one artifact owns domain + rules + workflows" to a **thin, standards-
+compatible decision/capability layer**: adapters hydrate versioned, explicitly scoped
+snapshots from an existing system of record (FHIR/CIS, or a coding-harness repository);
+the unchanged gate/reasoning/truth-maintenance/proof/trace core runs over that local
+projection; typed proposed effects commit back conditionally, failing closed on
+source-version drift. Full statement: `PRPs/PRP-000-vision-positioning.md` §"Snapshot-
+scoped guarantees". This is a **documentation/spec-only** change in this pass — no
+`horismos-core`/`horismos-py` code changed, no PRP-001–004 Done/Active DoD rewritten
+(each gained a non-normative "Pivot note" reinterpreting scope, not altering what was
+built or verified). New: `PRPs/PRP-008-standards-host-integration.md` (Draft), sequenced
+by dependency DAG — after PRP-005, before PRP-006/007 — not by number
+(`PRPs/CONVENTIONS.md` § dependency-DAG sequencing). Still open, not preempted by this
+pass: which scenario (VTE / NEWS2 / sepsis-compliance) is PRP-008's first vertical slice —
+a separate captain call.
 
 ## Current state
 
@@ -110,11 +131,14 @@ provenance semirings over the Datalog-shaped subset (Type 5), GNN guidance.
 | Engine | [PRP-005 verification](PRP-005-guarantees-verification.md) | ⬜ Draft | BDD checks + domain-term witnesses (needs only 001+002) |
 | Surface | [PRP-003 python bindings](PRP-003-python-bindings/01-objective.md) | ✅ Done (2026-08-18) | `pip install horismos`; the Pythonic front door |
 | Runtime | [PRP-004 agent loop](PRP-004-agent-loop/01-objective.md) | 🟦 Active (2026-08-18) | Workflow engine, perception/narration boundaries, tools, Bridge |
-| Ship & Author | [PRP-006 packaging](PRP-006-packaging-distribution.md) | ⬜ Draft | crates.io + PyPI + docs site + CI gates |
-| Ship & Author | [PRP-007 authoring agent](PRP-007-authoring-agent.md) | ⬜ Draft | SMEs converse; Claude drafts Turtle; verifier gatekeeps |
+| Integration | [PRP-008 standards & host integration](PRP-008-standards-host-integration.md) | ⬜ Draft (new, 2026-08-24) | FHIR hydration/commit, terminology provenance, CDS-Hooks/PlanDefinition/CQL composition, candidate-artifact boundary, generic host SPI |
+| Ship & Author | [PRP-006 packaging](PRP-006-packaging-distribution.md) | ⬜ Draft | crates.io + PyPI + docs site + CI gates — activates after PRP-008 |
+| Ship & Author | [PRP-007 authoring agent](PRP-007-authoring-agent.md) | ⬜ Draft (amended 2026-08-24) | Import/align/overlay-first; SMEs converse; Claude drafts Turtle; verifier gatekeeps |
 
-Build order: 001 → 002 → 003 → 004 → 005 → 006 → 007, with 005 startable right
-after 002 (it deliberately doesn't need the agent loop).
+Build order (dependency DAG, not strict number order — `PRPs/CONVENTIONS.md`):
+001 → 002 → 003 → 004 → 005 → **008** → 006 → 007, with 005 startable right
+after 002 (it deliberately doesn't need the agent loop), and 008 sequenced after 005
+and before 006/007 despite its higher number.
 
 ## Quick recap — what exists today
 

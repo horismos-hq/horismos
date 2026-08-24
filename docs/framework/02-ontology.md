@@ -121,6 +121,33 @@ Summarized here, specified in doc 05:
 `horis:ActionStep`, `horis:NarrationStep`, `horis:ProposalStep`, `horis:next`,
 `horis:goal`, `horis:requires`, `horis:fallback`, `horis:terminal`.
 
+## Standard-artifact anchoring (declared-future, PRP-008)
+
+The pivot to a bounded projection kernel (`PRPs/PRP-000-vision-positioning.md`) keeps this
+profile exactly as specified above — no new `horis:` terms are minted in this document;
+every D-item below is owned by `PRPs/PRP-008-standards-host-integration.md` and resolved
+there, per this repo's rule that vocabulary is never invented ad hoc. What changes is the
+*honesty* of the anchoring story: `owl:sameAs` alone is necessary but not sufficient for
+real interoperability. A single-parent, unversioned anchor (`:ChestPain owl:sameAs
+sct:29857009`, no edition) loses SNOMED CT's polyhierarchy and cannot express "which
+release this anchor was checked against" — the current triage fixture demonstrates exactly
+this gap (`research/terminology/snomed-ct.md`). PRP-008 will extend anchoring with:
+
+- **versioned mappings** — which standard-vocabulary edition/version an anchor was
+  verified against, not just the bare IRI;
+- **polyhierarchy-preserving anchors** — more than one `owl:sameAs`-style edge where the
+  external system itself is polyhierarchical, rather than collapsing to one parent;
+- **profile identity** — which FHIR profile, PlanDefinition version, or tool-schema
+  version a term or mapping targets;
+- **compiled mappings** — FHIR JSON/RDF resources are mapped to ontology facts by
+  deterministic adapter code, compiled/validated before runtime, never inferred ad hoc by
+  an LLM (the perception/narration boundary discipline of doc 06 extends unchanged to
+  standards mapping: it is not a transducer boundary, it is ordinary deterministic code).
+
+None of this weakens the "compatible with standards" claim below into "the ontology is
+FHIR" — Horismos's rule, workflow, provenance, and gate semantics remain Horismos's own;
+standards supply domain identity and terminology, not Horismos's execution model.
+
 ## Imports and anchoring
 
 ```turtle

@@ -89,13 +89,23 @@ narrative on BOARD.md:
 | **Engine** | 001, 002, 005 | The zero-LLM symbolic core; 005 deliberately needs only 001+002 |
 | **Surface** | 003 | The Python front door |
 | **Runtime** | 004 | Workflows, boundaries, tools, bridges |
+| **Integration** | 008 | Standards & host integration (bounded projection kernel); activates after 005, before 006/007 |
 | **Ship & Author** | 006, 007 | Distribution, docs site, the SME authoring agent |
 
 ## Other rules (carried over from README, now normative)
 
-- Numbering is sequence; each PRP assumes the previous ones are done.
+- **Sequencing is a dependency DAG, not strict numeric order** (captain ruling,
+  2026-08-24, bounded-projection pivot — `data/horismos-thin-pivot-s1/decisions/
+  captain-pivot-ruling.md` item 2). A PRP's number is a stable identifier assigned at
+  draft time; its activation order follows its declared `Depends on`/`Sequencing`
+  line, not its number. PRP-008 is the first PRP to exercise this: numbered after
+  005–007 but sequenced to activate before 006/007. **Never renumber an established
+  PRP** to preserve a strict sequence — a later-numbered PRP may legitimately activate
+  earlier than an existing lower-numbered Draft.
 - Every **[DECIDE]** marker in `docs/framework/` is owned by exactly one PRP;
   activating a PRP begins by resolving its markers.
 - `BOARD.md` is the at-a-glance state (current / next / end goal). Any session that
   changes a PRP's status updates BOARD.md in the same commit.
 - The running example is clinical triage; every PRP's DoD is expressed against it.
+  PRP-008 adds a second, standards-anchored vertical slice (VTE prophylaxis) once
+  it activates — triage stays the primary example for docs 01–13.

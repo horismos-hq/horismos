@@ -11,6 +11,17 @@ Python developer can load the triage ontology, assert typed patients, watch the 
 derive `acuity`, ask *why*, and get a proof tree — without reading a line of Rust, and
 without an LLM anywhere in the process.
 
+## Pivot note (2026-08-24) — bounded projection kernel
+
+Captain-adopted pivot (`horismos-thin-pivot-s1/report.md`, PRP-003 row; PRP-000 §"Snapshot-
+scoped guarantees"): this PRP's historical DoD and shipped tests are unchanged; the API
+surface below remains the shipped Python front door. Future whole-bundle host-adapter
+entry/exit surfaces — hydrate an external snapshot in one call, return a decision plus
+proposed effect set/commit receipt — are explicitly **owned by PRP-008**, not this PRP: FHIR
+or repository parsing/mapping stays outside `horismos-py` (no logic in bindings, unchanged
+hard rule), and no per-resource chatter enters a transaction. Nothing in this PRP's shipped
+surface is deprecated or reduced by the pivot.
+
 ## What PRP-001 and PRP-002 already provide
 
 Everything this PRP exposes already exists and is tested on the Rust side

@@ -66,6 +66,34 @@ Witnesses are the shared currency of three consumers: humans (rendered text), th
 authoring agent (structured region → generates a repair draft), and CI (JSON diff —
 "this PR introduces a new completeness gap").
 
+## The assumption manifest (added 2026-08-24, bounded-projection pivot)
+
+Every `VerificationReport` carries an explicit assumption manifest alongside `report.ok`
+— input closure, external profile/version, mapping version, supported artifact subset,
+and unverified external effects — so scope is machine-readable, not implied by silence.
+Full spec: `PRPs/PRP-005-guarantees-verification.md` §"Assumption manifest". This section
+exists precisely so the "does not claim" list below is enforced structurally, not just
+stated in prose.
+
+## Non-vacuity (added 2026-08-24)
+
+A rule or constraint can be internally consistent and BDD-verifiable while binding
+nothing — the LASA/CHARGE "vacuous verification" failure mode
+(`horismos-research-s1/report.md` §1.7). Verification adds a pass, distinct from
+consistency-checking, that flags a satisfiable-but-inert rule or a constraint that
+excludes no reachable value. Full spec: `PRPs/PRP-005-guarantees-verification.md`
+§"Non-vacuity checks".
+
+## Imported-artifact and capability checks (declared-future, PRP-008/PRP-007)
+
+Where an ontology overlay imports a standard artifact (a PlanDefinition subset) or
+compiles a capability fragment from an existing tool/skill, verification extends to:
+mapping loss/totality reporting (did the import lose information, and is that loss
+bounded), supported-subset conformance (does the imported artifact stay within the
+declared supported construct list, failing closed at load otherwise), and capability
+composition checks (do two capability fragments' declared effects conflict). These checks
+compose with, and do not replace, the rule-set and workflow checks above.
+
 ## What verification does not claim
 
 - Nothing about LLM behavior — by construction, perception is behind the gate and
@@ -75,3 +103,13 @@ authoring agent (structured region → generates a repair draft), and CI (JSON d
   respected at the boundaries.
 - Nothing probabilistic. Properties are proven over the discretized symbolic space,
   exactly, or reported with a witness. There are no "95% verified" states.
+- **Nothing about external record completeness or freshness** (added, pivot) — a
+  verification pass is proven over the declared input closure in the assumption
+  manifest, never over an unbounded or currently-live external record.
+- **Nothing about terminology-server correctness** — an anchored mapping is checked for
+  internal consistency, not for whether the terminology server's own content is correct.
+- **Nothing about tool or host implementation behavior** beyond declared-contract
+  compliance (doc 07's correction on contract narrowing applies here too) — and,
+  declared-future, nothing about the semantic correctness of a candidate-artifact
+  proposal (docs 06/07): the candidate-artifact boundary is a policy/sandbox gate, not a
+  verification theorem.
