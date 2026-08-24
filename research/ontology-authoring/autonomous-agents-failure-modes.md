@@ -39,7 +39,7 @@ risks these examples raise: traces are one-directional output (never an input th
 mutates the ontology), and no action ever fires off a raw prediction — only off
 symbolically-checked preconditions. Where horismos is genuinely *behind* is the
 learning axis: v1 has no path at all from accumulated execution traces back into
-candidate ontology edits. See `research/intake/filed/2026-08-24-markovic-learnable-
+candidate ontology edits. See `../intake/filed/2026-08-24-markovic-learnable-
 ontologies.md` for the fuller version of this argument, worked through against a
 captain-supplied source.
 

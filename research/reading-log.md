@@ -85,7 +85,7 @@ paths point to where each source's finding lives in this wiki.
 
 | Source | Date | Takeaway | URL | Filed under |
 |---|---|---|---|---|
-| Li, Huang, Naik, "Scallop: A Language for Neurosymbolic Programming" | 2023 | Datalog + differentiable provenance semirings; formal but built for gradient training | https://arxiv.org/abs/2304.04812 | `neurosymbolic-landscape/00-overview.md`, `lineage-assessment.md` |
+| Li, Huang, Naik, "Scallop: A Language for Neurosymbolic Programming" | 2023 | Datalog + differentiable provenance semirings; formal but built for gradient training | https://arxiv.org/abs/2304.04812 | `neurosymbolic-landscape/00-overview.md`, `neurosymbolic-landscape/lineage-assessment.md` |
 | Riegel et al., "Logical Neural Networks" | 2020 | Weighted real-valued logic, differentiable, bound-propagation | https://arxiv.org/abs/2006.13155 | `neurosymbolic-landscape/lineage-assessment.md` |
 | IBM/LNN GitHub | ongoing | Reference implementation, mature/stable | https://github.com/IBM/LNN | `neurosymbolic-landscape/lineage-assessment.md` |
 | Manhaeve et al., "DeepProbLog" | 2018 | Neural predicates + ProbLog, exact/approx weighted model counting | https://arxiv.org/abs/1805.10872 | `neurosymbolic-landscape/lineage-assessment.md` |
@@ -181,7 +181,7 @@ paths point to where each source's finding lives in this wiki.
 | "Neuro-Symbolic Integration + Ontological Reasoning" (HermiT-in-loop paper) | 2025 | Genuine reasoner-in-loop precedent — withdrawn by its own authors for inaccuracies | https://arxiv.org/abs/2504.07640 | `ontology-authoring/autonomous-agents-failure-modes.md` |
 | GLaMoR | 2025 | Replaces symbolic OWL reasoner with a learned approximator — counter to horismos's anti-wrapper stance | https://arxiv.org/abs/2504.19023 | `ontology-authoring/autonomous-agents-failure-modes.md` |
 | "Is Three the Magic Number?" repair-loop study | 2026 | Diminishing returns after 3–4 repair iterations | https://arxiv.org/abs/2607.05197 | `ontology-authoring/verification-of-llm-drafted-artifacts.md` |
-| LASA | 2025 | Names "vacuous assertions" as a known LLM-verification failure mode | https://arxiv.org/abs/2506.17865 | `ontology-authoring/verification-of-llm-drafted-artifacts.md`, `prp-007-open-items.md` |
+| LASA | 2025 | Names "vacuous assertions" as a known LLM-verification failure mode | https://arxiv.org/abs/2506.17865 | `ontology-authoring/verification-of-llm-drafted-artifacts.md`, `ontology-authoring/prp-007-open-items.md` |
 | CHARGE | 2026 | Reports non-vacuity rate as a headline verification metric | https://arxiv.org/abs/2607.27776 | `ontology-authoring/verification-of-llm-drafted-artifacts.md` |
 | "From Natural Language to Verified Code" | 2026 | Names and designs against "vacuous verification" explicitly | https://arxiv.org/abs/2604.22601 | `ontology-authoring/verification-of-llm-drafted-artifacts.md` |
 | Lahiri, "Evaluating LLM-driven User-Intent Formalization" | 2024 | No algorithmic guarantee a formal spec captures user intent | https://arxiv.org/abs/2406.09757 | `ontology-authoring/verification-of-llm-drafted-artifacts.md` |
