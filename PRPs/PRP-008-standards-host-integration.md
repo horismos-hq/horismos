@@ -26,9 +26,11 @@ Own everything the bounded-projection pivot requires that is *not* a change to
 bundle into a local World projection, validating and conditionally committing typed
 proposed effects back to the system of record, and the generic host-adapter surface that
 lets both FHIR/CIS deployments and coding-harness deployments plug into the same kernel. A
-credible prototype against **one vertical slice** (VTE prophylaxis, per the report's
-recommended sequence) is the bar — not certification, not hospital deployment, not full
-CQL/PlanDefinition coverage.
+credible prototype against **one vertical slice** is the bar — not certification, not
+hospital deployment, not full CQL/PlanDefinition coverage. VTE prophylaxis is the source
+report's recommended first slice; which scenario (VTE / NEWS2 / sepsis-compliance) is
+actually built first is still open, not preempted by this pass — a separate captain call
+(see `PRPs/BOARD.md`).
 
 ## Reference data flow (unchanged from the adopted design)
 
@@ -143,9 +145,12 @@ envelope's `horis:` terms, minted jointly, not by either PRP alone.
 
 ## Definition of done
 
-The **VTE prophylaxis** vertical slice (per the report's recommended sequence — structured
-EHR inputs, bounded scoring/contraindications, typed recommendation/order proposal,
-published prior art) runs end to end:
+Below, "the vertical slice" is written against **VTE prophylaxis** (per the report's
+recommended sequence — structured EHR inputs, bounded scoring/contraindications, typed
+recommendation/order proposal, published prior art) as the illustrative first candidate.
+Which scenario (VTE / NEWS2 / sepsis-compliance) is actually built is still open, not
+preempted by this pass — a separate captain call (see `PRPs/BOARD.md`); the DoD below
+applies to whichever scenario is chosen. The vertical slice runs end to end:
 
 - one declared FHIR input closure hydrates atomically into an `ExternalSnapshot`;
 - resource/profile/terminology/mapping versions appear in the proof and the trace;
