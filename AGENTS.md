@@ -1,10 +1,12 @@
 # Horismos — working conventions
 
-Horismos is an **ontology-first neuro-symbolic agent framework**: Rust core, Python
-bindings. One authored artifact — an RDFS-plus ontology declaring the domain, its
-rules, and its workflows — is loaded, formally verified, and executed. LLMs exist only
-at declared transducer boundaries (perception: NL → typed instances; narration:
-proof → NL). Delete the LLM and the framework still runs.
+Horismos is an **ontology-first neuro-symbolic decision and capability kernel**: Rust
+core, Python bindings. A small RDFS-plus overlay declares the rules, constraints, and
+decision/workflow fragment a deployment needs; the runtime loads it, formally verifies
+it, and evaluates it as a versioned projection over an existing system of record (not
+as the system of record itself — see `PRPs/PRP-000-vision-positioning.md`). LLMs exist
+only at declared transducer boundaries (perception: NL → typed instances; narration:
+proof → NL). Delete the LLM and the kernel still runs.
 
 **The two principles** (they resolve most design arguments):
 1. Neural proposes, symbolic decides — no rule firing, workflow transition, or tool

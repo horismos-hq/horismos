@@ -1,8 +1,9 @@
 # Horismos Framework Documentation
 
-> **Horismos** is an ontology-first neuro-symbolic agent framework. Rust core, Python
-> bindings. The ontology is simultaneously the typed world-state, the reasoning
-> substrate, and the agent workflow. Neural proposes; symbolic decides.
+> **Horismos** is an ontology-first neuro-symbolic decision and capability kernel. Rust
+> core, Python bindings. The ontology overlay declares a bounded decision/capability
+> fragment, evaluated as a versioned projection over an existing system of record.
+> Neural proposes; symbolic decides.
 
 > **Status**: framework *definition*, v0.1 — written in shipped voice so every contract
 > is concrete and arguable, reviewed before implementation. Where behavior is still an

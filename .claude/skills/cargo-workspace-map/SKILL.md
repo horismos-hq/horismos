@@ -24,6 +24,7 @@ disagree, the doc wins — then fix this skill.
 | Bridge implementations (mock, anthropic, openai, onnx) | `horismos-bridges` | 08 | PRP-004 |
 | Python marshaling — **no logic** | `horismos-py` (`_horismos` cdylib) | 11 | PRP-003 |
 | Pure-Python surface, proxies, stubs | `python/horismos/` | 11 | PRP-003 |
+| *(declared-future)* FHIR/host adapter — hydrate/commit only, same posture as `horismos-bridges` | `horismos-fhir` (reserved, not built) | 14 | PRP-008 |
 
 ## Dependency rules (mechanically enforced)
 
@@ -31,6 +32,7 @@ disagree, the doc wins — then fix this skill.
 horismos-core     → nothing model-related, no network, no provider SDKs. EVER.
 horismos-bridges  → horismos-core + provider SDKs (feature-gated)
 horismos-py       → horismos-core + horismos-bridges
+horismos-fhir     → horismos-core + an HTTP client (feature-gated); declared-future, PRP-008
 ```
 
 - Adding any dependency to `crates/horismos-core/Cargo.toml`: it must not be a

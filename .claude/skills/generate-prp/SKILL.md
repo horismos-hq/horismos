@@ -20,9 +20,12 @@ wins — then fix this skill.
 
 Conversion file → folder happens **at activation** (or earlier if the one-pager
 outgrows a page). `01-objective.md` is the original one-pager moved verbatim, then
-kept current. Numbering is flat and is dependency sequence; each PRP assumes its
-predecessors are Done. Every PRP belongs to a track (Standing / Engine / Surface /
-Runtime / Ship & Author) — the track is the narrative unit on BOARD.md.
+kept current. Numbering is a stable identifier assigned at draft time, not an
+activation queue — activation order follows each PRP's declared `Depends on` line
+(a dependency DAG; CONVENTIONS.md § dependency-DAG sequencing), and a later-numbered
+PRP may activate before an existing lower-numbered Draft. Every PRP belongs to a
+track (Standing / Engine / Surface / Runtime / Ship & Author / Integration) — the
+track is the narrative unit on BOARD.md.
 
 ## `01-objective.md` — required sections, in this order
 
