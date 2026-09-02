@@ -14,7 +14,7 @@
 ## The nouns
 
 Four nouns added by the bounded-projection pivot (2026-08-24) sit alongside the original
-seven; declared-future ones name mechanism `PRPs/PRP-008-standards-host-integration.md`
+seven; host-integration ones name mechanism `PRPs/PRP-008-standards-host-integration/01-objective.md`
 owns, not new `horis:` vocabulary minted here (`docs/framework/02-ontology.md`):
 
 | Noun | What it is | Lives in |

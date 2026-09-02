@@ -25,7 +25,7 @@ D-items to evidence that now exists. None requires changing the pivot's shape.
 ## The commitments assessed
 
 **[measured — local repo]** The pivot is stated in `PRPs/PRP-000-vision-positioning.md`
-§"Snapshot-scoped guarantees", `PRPs/PRP-008-standards-host-integration.md`,
+§"Snapshot-scoped guarantees", `PRPs/PRP-008-standards-host-integration/01-objective.md`,
 `docs/framework/03-world.md` §"World as a transaction projection",
 `docs/framework/06-llm-boundaries.md` §"Candidate-artifact authoring",
 `docs/framework/07-tools.md` §"Adapter-mediated external commits",

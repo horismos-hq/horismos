@@ -30,7 +30,7 @@ server" and recommends a terminology server plus ECL/ValueSets over hand-rolled 
 to make extraction a build-time, versioned, reproducible pipeline — not to change the
 architecture. Under the bounded-projection pivot this is now owned work: PRP-008's
 "Terminology provenance" scope item and its D8 (terminology service / build-time
-expansion policy) — see `PRPs/PRP-008-standards-host-integration.md`.
+expansion policy) — see `PRPs/PRP-008-standards-host-integration/01-objective.md`.
 
 See `snomed-ct.md` for the full analysis. `loinc.md` and `rxnorm.md` cover the other two
 terminology systems horismos may need.

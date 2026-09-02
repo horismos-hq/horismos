@@ -11,7 +11,7 @@
 > **Pivot adopted 2026-08-24** (bounded projection kernel — `PRPs/PRP-000-vision-
 > positioning.md` §"Snapshot-scoped guarantees"): docs below are updated at the contract
 > level for the new positioning; deep host-integration mechanism (FHIR adapters, CDS
-> Hooks, PlanDefinition) is owned by the new `PRPs/PRP-008-standards-host-integration.md`
+> Hooks, PlanDefinition) is owned by `PRPs/PRP-008-standards-host-integration/01-objective.md`
 > and marked **declared-future** where it appears here.
 
 ## The one-paragraph mental model
@@ -57,7 +57,7 @@ workflow, your provider clients, or your standard terminology — it overlays th
 - **"I build agents today"** → 01 (the comparison table), 07 (tools inversion), 06.
 - **"I'm the SME"** → 13 only. You will never read Turtle unless you want to.
 - **"I'm integrating against FHIR/CIS or a coding harness"** → `PRPs/PRP-000-vision-
-  positioning.md`'s comparison table, then `PRPs/PRP-008-standards-host-integration.md`
+  positioning.md`'s comparison table, then `PRPs/PRP-008-standards-host-integration/01-objective.md`
   for the mechanism this PRP owns; docs 03 and 14 for how the projection boundary works
   today.
 

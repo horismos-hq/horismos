@@ -41,7 +41,7 @@ horismos/
 **Pivot note (2026-08-24)**: the `horismos-fhir` crate above is a layout reservation only
 — no code, no `Cargo.toml` member, no gate. Building it, and the "no network inside
 evaluation" fixtures/gates that would prove the anti-wrapper boundary still holds once it
-exists, are `PRPs/PRP-008-standards-host-integration.md`'s implementation work, not this
+exists, are `PRPs/PRP-008-standards-host-integration/01-objective.md`'s implementation work, not this
 skeleton's. See `docs/framework/14-architecture.md` §"Two-boundary data flow" for the
 mechanism this crate will implement.
 

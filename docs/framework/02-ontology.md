@@ -125,7 +125,7 @@ Summarized here, specified in doc 05:
 
 The pivot to a bounded projection kernel (`PRPs/PRP-000-vision-positioning.md`) keeps this
 profile exactly as specified above — no new `horis:` terms are minted in this document;
-every D-item below is owned by `PRPs/PRP-008-standards-host-integration.md` and resolved
+every D-item below is owned by `PRPs/PRP-008-standards-host-integration/01-objective.md` and resolved
 there, per this repo's rule that vocabulary is never invented ad hoc. What changes is the
 *honesty* of the anchoring story: `owl:sameAs` alone is necessary but not sufficient for
 real interoperability. A single-parent, unversioned anchor (`:ChestPain owl:sameAs

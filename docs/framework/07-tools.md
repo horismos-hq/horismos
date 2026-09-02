@@ -81,9 +81,9 @@ statement. In tools terms: a model-generated patch/file/command is never an ordi
 passes through deterministic policy validation, sandboxed test execution, and a symbolic
 authorization step before an `ActionStep`-like effect can land. This is captain-adopted
 design (`decisions/captain-pivot-ruling.md` item 3), owned jointly by `PRPs/PRP-007-
-authoring-agent.md` and `PRPs/PRP-008-standards-host-integration.md`, and **not built in
-v1** — declared here so it has a named shape rather than being invented ad hoc against a
-future coding-agent deadline.
+authoring-agent.md` and `PRPs/PRP-008-standards-host-integration/01-objective.md`.
+PRP-008 owns the runtime validation/sandbox/authorization evidence; PRP-007 owns authoring
+and generation of the envelope.
 
 ## Invocation semantics
 

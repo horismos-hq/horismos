@@ -1,11 +1,13 @@
 # PRP-008 — Standards & Host Integration
 
-**Status**: Draft (new, 2026-08-24 — captain-adopted bounded-projection pivot)
+**Status**: Active (2026-09-02 — VTE prophylaxis confirmed by captain; explicitly
+parallel with PRP-005 on isolated branches)
 **Depends on**: PRP-001, PRP-002, PRP-004, PRP-005 (consumes all four; preserves every
 core invariant they established — no changes to `horismos-core`'s gate, chaining, or
 determinism semantics, only new adapter-side types and crates around it).
-**Sequencing**: dependency DAG, not numeric — activates **after PRP-005** (the verification
-kernel it needs) and the current PRP-004 branch land, **before PRP-006** (packaging — needs
+**Sequencing**: dependency DAG, not numeric — implementation runs **in parallel with
+PRP-005** while consuming its provisional five-field assumption-manifest shape, and lands
+after the verifier work it needs; it remains **before PRP-006** (packaging — needs
 a real integration surface to document) **and PRP-007** (authoring — its default job needs
 PRP-008's mapping/package contracts to overlay against). Numbering stays sequential per
 `PRPs/CONVENTIONS.md`; this PRP does not renumber 005–007.
@@ -27,10 +29,8 @@ bundle into a local World projection, validating and conditionally committing ty
 proposed effects back to the system of record, and the generic host-adapter surface that
 lets both FHIR/CIS deployments and coding-harness deployments plug into the same kernel. A
 credible prototype against **one vertical slice** is the bar — not certification, not
-hospital deployment, not full CQL/PlanDefinition coverage. VTE prophylaxis is the source
-report's recommended first slice; which scenario (VTE / NEWS2 / sepsis-compliance) is
-actually built first is still open, not preempted by this pass — a separate captain call
-(see `PRPs/BOARD.md`).
+hospital deployment, not full CQL/PlanDefinition coverage. The captain confirmed **VTE
+prophylaxis** as that first slice on 2026-09-02.
 
 ## Reference data flow (unchanged from the adopted design)
 
@@ -112,8 +112,10 @@ No adapter performs a network read from inside matching, chaining, verification,
 
 ## Required decisions (D-items — resolved at activation, not smuggled into code)
 
-Ten D-items carried from the adopted design report, each needing the repo's brainstorming
-protocol (`.claude/skills/brainstorming`) before implementation, never decided ad hoc:
+Ten D-items carried from the adopted design report were resolved on 2026-09-02 using the
+repo's brainstorming protocol. The full evidence, alternatives, adversarial pass, ranked
+criteria, fallbacks, and implementation pins are in `03-decisions.md`; the checked durable
+ledger is `02-tasks-and-gaps.md`.
 
 1. **FHIR baseline and deployment profile(s)**: R4/R4B/R5, US Core or another national
    base, resource closure, and what is merely accepted vs. conformance-tested.
@@ -140,17 +142,16 @@ protocol (`.claude/skills/brainstorming`) before implementation, never decided a
 10. **Generic host SPI**: the minimum format-neutral `ExternalSnapshot`/`ProposedEffectSet`
     shape that keeps FHIR and coding-harness clients out of `horismos-core`.
 
-Plus the vocabulary D-item shared with PRP-007 (its Key decision 5): the candidate-artifact
-envelope's `horis:` terms, minted jointly, not by either PRP alone.
+The shared vocabulary boundary is split mechanically: PRP-008 owns the runtime evidence
+terms needed to validate, sandbox, and authorize an opaque typed envelope; PRP-007 retains
+ownership of authoring-side envelope terms and generation semantics. This PRP does not
+design PRP-007's half.
 
 ## Definition of done
 
-Below, "the vertical slice" is written against **VTE prophylaxis** (per the report's
-recommended sequence — structured EHR inputs, bounded scoring/contraindications, typed
-recommendation/order proposal, published prior art) as the illustrative first candidate.
-Which scenario (VTE / NEWS2 / sepsis-compliance) is actually built is still open, not
-preempted by this pass — a separate captain call (see `PRPs/BOARD.md`); the DoD below
-applies to whichever scenario is chosen. The vertical slice runs end to end:
+The captain confirmed **VTE prophylaxis** as the first vertical slice on 2026-09-02:
+structured EHR inputs, bounded risk/contraindication rules, and a typed recommendation/order
+proposal. The vertical slice runs end to end:
 
 - one declared FHIR input closure hydrates atomically into an `ExternalSnapshot`;
 - resource/profile/terminology/mapping versions appear in the proof and the trace;

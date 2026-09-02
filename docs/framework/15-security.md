@@ -237,7 +237,7 @@ constructed Bridges) but does not implement itself in v1.
 
 **Not built in v1.** Stated here now, ahead of implementation, so the threat model exists
 before the mechanism does — the same discipline this document already applies to
-boundaries 1–4. Owned by `PRPs/PRP-008-standards-host-integration.md`; its D-items resolve
+boundaries 1–4. Owned by `PRPs/PRP-008-standards-host-integration/01-objective.md`; its D-items resolve
 the exact mitigations, not this document.
 
 **Threats:**
