@@ -12,7 +12,7 @@ Append-only. One line per merged PR: date, PR link, summary.
   adjustments A1–A14 and 10 challenge lines X1–X10, all captain-held), plus two new
   topic pages (`neurosymbolic-landscape/coding-agent-harnesses.md`,
   `ontology-authoring/kg-maintenance-and-agent-memory.md`) and dated "Sweep #2 delta"
-  sections on eight existing pages. Fixed the evidence-tag gap in
+  sections on nine existing pages. Fixed the evidence-tag gap in
   `terminology/00-overview.md` deferred from PR #9 (the page carried no
   [measured]/[inference] tags; now tagged, repo facts re-verified at HEAD). Reading log:
   +~140 rows across Q1/Q3/Q4/Q5/Q6 and a new Q7 (coding-agent harnesses).

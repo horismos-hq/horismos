@@ -3,9 +3,8 @@
 The single canonical cross-topic log of every source cited anywhere in this wiki.
 Append-only — new rows go at the bottom of the relevant section, or a new section is
 added for a new topic. Grouped by research question/topic for scan-ability.
-`[unverified]` flags a source relayed only via a search snippet where direct
-primary-text fetch failed — noted honestly rather than silently upgraded to a
-confirmed citation.
+`[unverified]` rows follow `README.md`'s evidence-labeling convention (snippet-only
+source, primary fetch failed).
 
 Populated from the founding `horismos-research-s1` sweep (2026-08-24) and extended by
 sweep #2 (2026-09-02; rows dated 2026-06 onward at the bottom of each section, plus the

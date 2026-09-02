@@ -30,6 +30,9 @@ separate, always:
   accompanies the tag.
 - **[inference]** — synthesis or judgment: a researcher's or an agent's reasoning
   connecting measured facts, not itself an independently citable fact.
+- **[unverified]** — a qualifier, not a third label: the source was relayed only via a
+  search snippet because the primary-text fetch failed. Mark it explicitly rather than
+  silently upgrading it to a confirmed [measured] citation.
 
 This isn't decoration. Horismos's own design principle — neural proposes, symbolic
 decides — has a research-wiki analog: don't let a plausible-sounding synthesis pass as
@@ -78,7 +81,9 @@ reviewable PR**: one URL, one finding, or one topic-page update per PR, never a 
 rewrite of multiple pages at once. This mirrors the intake mechanism's own shape
 (fetch → summarize → position → file, §see `intake/README.md`) and keeps every change
 independently reviewable against its cited source. If a change touches more than a
-handful of files, it's probably several PRs, not one.
+handful of files, it's probably several PRs, not one. The one exception is a weekly
+sweep, which lands as a single PR: its edits to existing pages are confined to dated
+"Sweep #N delta" sections (see above), so each page's delta stays reviewable on its own.
 
 ## Where the founding sweep's report lives
 
