@@ -19,7 +19,7 @@ def test_load_with_imports_sees_the_triage_prefix(onto: Ontology) -> None:
 
 def test_load_accepts_string_paths() -> None:
     # Path objects are covered by the session fixture (conftest passes Paths).
-    a = Ontology.load(str(TRIAGE), imports=[str(SNOMED)], allow_incomplete=True)
+    a = Ontology.load(str(TRIAGE), imports=[str(SNOMED)])
     assert a.namespaces[""] == "https://example.org/triage#"
 
 
@@ -46,8 +46,8 @@ def test_ref_rejects_an_undeclared_term(onto: Ontology) -> None:
 
 def test_rules_are_introspectable(onto: Ontology) -> None:
     rules = onto.rules
-    assert [r.curie for r in rules] == [":r1"]
-    (r1,) = rules
+    assert [r.curie for r in rules] == [":r1", ":r2", ":r3", ":r4", ":r6", ":r5"]
+    r1 = rules[0]
     assert r1.priority == 10
     assert r1.explain == "Tachycardia with chest pain — immediate track"
 

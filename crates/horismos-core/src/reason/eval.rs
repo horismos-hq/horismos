@@ -187,7 +187,7 @@ mod tests {
     use rust_decimal::Decimal;
 
     fn triage_world() -> World {
-        let onto = Ontology::load_allow_incomplete(concat!(
+        let onto = Ontology::load(concat!(
             env!("CARGO_MANIFEST_DIR"),
             "/../../examples/triage/triage.ttl"
         ))

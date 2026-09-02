@@ -245,6 +245,13 @@ impl Ontology {
         crate::verify::verify_ontology(self, crate::verify::AssumptionManifest::default())
     }
 
+    /// Whether this ontology was admitted through the explicit incomplete
+    /// authoring/debug escape. Agent traces expose this posture so an
+    /// incomplete run can never look like a verified deployment run.
+    pub fn allows_incomplete(&self) -> bool {
+        self.inner.allow_incomplete
+    }
+
     /// The queryable schema (U4) — classes, the `subClassOf` closure,
     /// property domains/ranges/constraints. The validation gate's input.
     pub fn schema(&self) -> &Schema {
@@ -454,7 +461,7 @@ mod tests {
     }
 
     fn triage() -> Ontology {
-        Ontology::load_allow_incomplete(concat!(
+        Ontology::load(concat!(
             env!("CARGO_MANIFEST_DIR"),
             "/../../examples/triage/triage.ttl"
         ))
@@ -642,7 +649,7 @@ mod tests {
                 name
             )
         };
-        let onto = Ontology::load_allow_incomplete(fixture("root.ttl"))
+        let onto = Ontology::load(fixture("root.ttl"))
             .expect("root must load")
             .with_import(fixture("extra.ttl"))
             .expect("the extra import must load");

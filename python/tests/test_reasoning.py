@@ -25,7 +25,6 @@ def test_explain_renders_the_r1_proof_byte_identically(onto: Ontology, world: Wo
 def test_explain_is_none_for_a_base_fact(onto: Ontology, world: World) -> None:
     p = world.assert_(":Patient", heart_rate=128)
     assert world.explain(p, ":heartRate") is None
-    assert world.explain(p, ":acuity") is None
 
 
 def test_prove_finds_a_derivation_and_refuses_an_unprovable_goal(

@@ -210,9 +210,8 @@ generic form; Example 3 shows the two D1 candidates side by side.
 from horismos import Ontology, World
 
 onto = Ontology.load("examples/triage/triage.ttl",
-                     imports=["examples/triage/snomed-ct-subset.ttl"],
-                     allow_incomplete=True)
-assert not onto.verify().ok        # PRP-005 U7 completes the canonical partition
+                     imports=["examples/triage/snomed-ct-subset.ttl"])
+assert onto.verify().ok
 assert onto.namespaces[""] == "https://example.org/triage#"   # the : prefix
 
 world = World(onto)

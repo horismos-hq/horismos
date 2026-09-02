@@ -28,7 +28,7 @@ use horismos_core::reason::matcher::MatcherKind;
 use horismos_core::{Ontology, Ref, Value, World};
 
 fn triage_ontology() -> Ontology {
-    Ontology::load_allow_incomplete(concat!(
+    Ontology::load(concat!(
         env!("CARGO_MANIFEST_DIR"),
         "/../../examples/triage/triage.ttl"
     ))

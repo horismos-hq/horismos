@@ -868,7 +868,7 @@ mod tests {
 
     /// A world over the flagship fixture, `examples/triage/triage.ttl`.
     fn triage_world() -> World {
-        let onto = Ontology::load_allow_incomplete(concat!(
+        let onto = Ontology::load(concat!(
             env!("CARGO_MANIFEST_DIR"),
             "/../../examples/triage/triage.ttl"
         ))
@@ -1489,7 +1489,7 @@ mod tests {
 
     #[test]
     fn skolem_iris_are_deterministic_across_worlds() {
-        let onto = Ontology::load_allow_incomplete(concat!(
+        let onto = Ontology::load(concat!(
             env!("CARGO_MANIFEST_DIR"),
             "/../../examples/triage/triage.ttl"
         ))
@@ -1867,10 +1867,15 @@ mod tests {
 
     #[test]
     fn retraction_passes_the_same_provenance_policy() {
-        let mut world = triage_world();
-        let patient = tri(&mut world, "Patient");
-        let acuity = tri(&mut world, "acuity");
-        let immediate = Value::Ref(Ref::new(tri(&mut world, "Immediate")));
+        let mut world = world_of(
+            ":Patient a rdfs:Class .\n\
+             :AcuityLevel a rdfs:Class ; horis:oneOf ( :Immediate ) .\n\
+             :acuity a rdf:Property ; rdfs:domain :Patient ; rdfs:range :AcuityLevel ;\n\
+             \x20   horis:cardinality \"0..1\" ; horis:assignedBy horis:RulesOnly .",
+        );
+        let patient = t(&mut world, "Patient");
+        let acuity = t(&mut world, "acuity");
+        let immediate = Value::Ref(Ref::new(t(&mut world, "Immediate")));
 
         let p = world
             .assert_instance_as(
@@ -1979,7 +1984,7 @@ mod tests {
 
     #[test]
     fn instances_query_order_is_deterministic_across_two_identically_built_worlds() {
-        let onto = Ontology::load_allow_incomplete(concat!(
+        let onto = Ontology::load(concat!(
             env!("CARGO_MANIFEST_DIR"),
             "/../../examples/triage/triage.ttl"
         ))

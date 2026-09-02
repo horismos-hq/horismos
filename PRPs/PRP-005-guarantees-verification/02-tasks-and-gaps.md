@@ -108,10 +108,18 @@ Baseline: `5c45c0a3ac4c31ffa8d5d5ec90214d7d8b740e64` (`make verify` green,
   response and exit 1 are exercised through a real subprocess. Explicit imports are
   assembled before the single verification decision. `make verify` is green (291 Rust
   unit tests plus integration suites and 73 Python tests).
-- [ ] U7. **Triage, benchmark, docs, and DoD** — extend the canonical triage rules to
+- [x] U7. **Triage, benchmark, docs, and DoD** — extend the canonical triage rules to
   a conflict-free complete partition, seed the exact test gap by removing its one
   covering rule, add a Criterion benchmark asserting/measuring the under-one-second
-  budget, and update shipped API/verification docs.
+  budget, and update shipped API/verification docs. **Done 2026-09-02**: canonical
+  triage now verifies under ordinary fail-closed loading, while the gap regression
+  removes the marked moderate/no-symptom rule from that same artifact and pins the
+  exact sentence plus structured numeric and absence predicates. A test enforces the
+  one-second ceiling and Criterion measures load plus verification at approximately
+  0.47 ms on this worktree. Docs 09–12 cover the shipped report, CLI, load policy,
+  assumption manifest, fixed-point workflow composition, and durable trace annotation
+  for the explicit incomplete escape. `make verify` is green (291 Rust unit tests plus
+  integration/property suites and 73 Python tests).
 - [ ] U8. **Finish sequence** — `make verify`, `make check-boundary`, and
   `make no-model-gate`; final whole-branch senior review; mark PRP Done and update
   BOARD plus `planning/board.html`; commit the complete branch.

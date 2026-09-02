@@ -12,9 +12,7 @@ SNOMED = REPO / "examples" / "triage" / "snomed-ct-subset.ttl"
 
 @pytest.fixture(scope="session")
 def onto() -> horismos.Ontology:
-    # PRP-005 U7 restores this to ordinary default-hard loading once the
-    # canonical triage partition is complete and non-vacuous.
-    return horismos.Ontology.load(TRIAGE, imports=[SNOMED], allow_incomplete=True)
+    return horismos.Ontology.load(TRIAGE, imports=[SNOMED])
 
 
 @pytest.fixture()

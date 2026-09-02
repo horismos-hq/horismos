@@ -753,7 +753,7 @@ mod tests {
     }
 
     fn triage() -> Ontology {
-        Ontology::load_allow_incomplete(concat!(
+        Ontology::load(concat!(
             env!("CARGO_MANIFEST_DIR"),
             "/../../examples/triage/triage.ttl"
         ))
@@ -761,10 +761,10 @@ mod tests {
     }
 
     #[test]
-    fn triage_ttl_yields_exactly_r1_with_its_documented_shape() {
+    fn triage_ttl_yields_the_complete_partition_with_r1s_documented_shape() {
         let onto = triage();
         let rules = onto.rules();
-        assert_eq!(rules.len(), 1, "triage.ttl declares exactly :r1");
+        assert_eq!(rules.len(), 6, "triage.ttl declares the six-rule partition");
 
         let r1 = &rules[0];
         assert_eq!(onto.resolve(r1.iri), "https://example.org/triage#r1");

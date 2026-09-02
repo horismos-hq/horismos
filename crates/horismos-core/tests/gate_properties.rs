@@ -25,7 +25,7 @@ const TRIAGE: &str = concat!(
 const NS: &str = "https://example.org/triage#";
 
 fn ontology() -> Ontology {
-    Ontology::load_allow_incomplete(TRIAGE).expect("triage.ttl must load")
+    Ontology::load(TRIAGE).expect("triage.ttl must load")
 }
 
 fn iri(world: &mut World, local: &str) -> horismos_core::Iri {

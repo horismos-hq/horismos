@@ -34,7 +34,7 @@ const SNOMED: &str = concat!(
 const IMMEDIATE_INPUT: &str = "58M, crushing chest pain, heart rate 128";
 
 fn load_ontology() -> Ontology {
-    Ontology::load_allow_incomplete(TRIAGE)
+    Ontology::load(TRIAGE)
         .expect("triage.ttl must load")
         .with_import(SNOMED)
         .expect("the SNOMED subset must import")

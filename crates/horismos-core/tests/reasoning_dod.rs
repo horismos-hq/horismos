@@ -28,7 +28,7 @@ const SNOMED: &str = concat!(
 );
 
 fn load() -> Ontology {
-    Ontology::load_allow_incomplete(TRIAGE)
+    Ontology::load(TRIAGE)
         .expect("triage.ttl must load")
         .with_import(SNOMED)
         .expect("the SNOMED subset must import")

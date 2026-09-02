@@ -524,7 +524,19 @@ mod rule_verification_tests {
 
     #[test]
     fn seeded_triage_gap_has_the_exact_domain_sentence_and_region() {
-        let result = report(&format!("{TRIAGE_DOMAIN}{TRIAGE_RULES_WITH_GAP}"));
+        let source = include_str!("../../../../examples/triage/triage.ttl");
+        let start = source
+            .find("# PRP-005 completeness-cover:start")
+            .expect("canonical triage marks the covering rule");
+        let end_marker = "# PRP-005 completeness-cover:end";
+        let end = source
+            .find(end_marker)
+            .map(|index| index + end_marker.len())
+            .expect("canonical triage closes the covering-rule marker");
+        let seeded = format!("{}{}", &source[..start], &source[end..]);
+        let ontology = Ontology::load_from_str_allow_incomplete(&seeded, |_| None)
+            .expect("the seeded canonical triage ontology remains structurally valid");
+        let result = verify_ontology(&ontology, AssumptionManifest::default());
         let witness = result
             .witnesses()
             .iter()

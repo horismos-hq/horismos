@@ -313,6 +313,7 @@ impl<'a> Agent<'a> {
             iri: ontology_namespace(self.onto, self.workflow.iri),
             version: self.workflow.version.clone(),
             hash: None,
+            allow_incomplete: self.onto.allows_incomplete(),
         });
         trace.workflow = Some(self.onto.compact(self.onto.resolve(self.workflow.iri)));
         trace.started_at = Some(input.now.to_rfc3339());
@@ -1190,7 +1191,7 @@ mod tests {
     }
 
     fn triage() -> Ontology {
-        Ontology::load_allow_incomplete(concat!(
+        Ontology::load(concat!(
             env!("CARGO_MANIFEST_DIR"),
             "/../../examples/triage/triage.ttl"
         ))
@@ -1201,7 +1202,11 @@ mod tests {
     /// reaches `:Done` with `acuity :Immediate`.
     #[test]
     fn the_immediate_track_reaches_done_with_acuity_immediate() {
-        let onto = triage();
+        let onto = Ontology::load_allow_incomplete(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../examples/triage/triage.ttl"
+        ))
+        .expect("the explicit authoring posture still loads verified triage");
 
         let bridge = StubBridge {
             id: "mock:triage".to_owned(),
@@ -1287,6 +1292,18 @@ mod tests {
             crate::trace::Step::Narration { text: Some(t), .. } if t == "narrated"
         ));
         assert_eq!(outcome.trace.run_id, "run_immediate");
+        let ontology_ref = outcome
+            .trace
+            .ontology
+            .as_ref()
+            .expect("agent traces identify their ontology");
+        assert!(ontology_ref.allow_incomplete);
+        assert_eq!(
+            serde_json::from_str::<serde_json::Value>(&outcome.trace.to_json())
+                .expect("trace JSON is valid")["ontology"]["allow_incomplete"],
+            true,
+            "the explicit escape is durable trace evidence"
+        );
         assert_eq!(
             crate::trace::Trace::from_json(&outcome.trace.to_json()).expect("trace round-trips"),
             outcome.trace
