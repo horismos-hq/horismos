@@ -53,10 +53,15 @@ Baseline: `5c45c0a3ac4c31ffa8d5d5ec90214d7d8b740e64` (`make verify` green,
 
 ## Units of work
 
-- [ ] U1. **Verification model and dependency** — add the pure-Rust BDD dependency,
+- [x] U1. **Verification model and dependency** — add the pure-Rust BDD dependency,
   `AssumptionManifest`, structured regions/witnesses, deterministic JSON, report
   categories, and `exit_code`. Tests pin all five manifest fields when empty and
-  populated, witness ordering, and JSON round-trip shape.
+  populated, witness ordering, and JSON round-trip shape. **Done 2026-09-02**:
+  private `ReportBuilder` finalization makes inconsistent `ok`/finding state
+  unconstructible; complete JSON shape and permutation tests pin recursive ordering;
+  the BDD dependency is `verify`-scoped and a direct wasm32 build is green. Batch review
+  approved with no findings after two Important determinism/construction issues were
+  corrected (commits `f833a99..HEAD`).
 - [ ] U2. **Rule-set BDD verification** — ontology-aware numeric/class/value
   discretization plus completeness, conflict, dead-rule, termination, and rule
   non-vacuity checks. Test target: seeded triage gap renders exactly “no acuity

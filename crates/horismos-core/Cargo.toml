@@ -10,7 +10,7 @@ repository.workspace = true
 [features]
 default = ["verify", "sparql"]
 # BDD verification (will pull biodivine-lib-bdd when PRP-002/005 activate)
-verify = []
+verify = ["dep:biodivine-lib-bdd", "dep:getrandom02"]
 # The SPARQL query subset (docs/framework/03-world.md)
 sparql = []
 # MockBridge + testing utilities (docs/framework/08-bridge.md)
@@ -32,6 +32,11 @@ oxrdf.workspace = true
 imbl.workspace = true
 regex.workspace = true
 postcard.workspace = true
+biodivine-lib-bdd = { workspace = true, optional = true }
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+getrandom02 = { workspace = true, optional = true }
+getrandom03.workspace = true
 
 [dev-dependencies]
 proptest.workspace = true

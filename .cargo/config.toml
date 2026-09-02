@@ -1,0 +1,5 @@
+# getrandom 0.3 deliberately requires both its `wasm_js` feature and this
+# target-specific backend selection. Horismos never asks verification for a
+# random witness; this only makes transitive RNG code compile for the target.
+[target.wasm32-unknown-unknown]
+rustflags = ['--cfg', 'getrandom_backend="wasm_js"']
