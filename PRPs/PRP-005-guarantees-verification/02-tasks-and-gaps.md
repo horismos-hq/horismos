@@ -79,9 +79,14 @@ Baseline: `5c45c0a3ac4c31ffa8d5d5ec90214d7d8b740e64` (`make verify` green,
   **Done 2026-09-02**: explicit `0..*` and semantics-preserving universal-pattern
   forms emit structured domain witnesses; restrictive and whitespace-significant
   patterns remain unflagged.
-- [ ] U4. **Workflow verification** — reachability, every-path termination,
+- [x] U4. **Workflow verification** — reachability, every-path termination,
   fallible-edge totality, requires satisfiability, and choice totality over parsed
   workflow graphs. Crafted fixtures pass and fail each required acceptance check.
+  **Done 2026-09-02**: orphan declarations remain available as verification
+  evidence without entering executable workflow maps; graph cycles/dead ends,
+  missing failure edges, unsatisfiable action preconditions, and uncovered choices
+  each produce their own deterministic finding. Optional parsed failure edges have
+  a domain-error runtime backstop for explicitly incomplete ontologies.
 - [ ] U5. **Rust load and error surface** — `Ontology::verify`, default-hard load,
   explicit load options/`allow_incomplete`, `VerificationFailed { report }`, and
   public report exports. Existing callers are migrated without weakening production

@@ -757,3 +757,102 @@ mod rule_verification_tests {
         );
     }
 }
+
+#[cfg(test)]
+mod workflow_verification_tests {
+    use super::{AssumptionManifest, FindingKind, verify_ontology};
+    use crate::Ontology;
+
+    const PRELUDE: &str = "@prefix : <https://example.org/workflow-verify#> .\n\
+        @prefix horis: <https://w3id.org/horismos#> .\n\
+        @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .\n\
+        @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .\n\
+        @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .\n";
+
+    fn report(body: &str) -> super::VerificationReport {
+        let ontology = Ontology::load_from_str(&format!("{PRELUDE}{body}"), |_| None)
+            .expect("workflow verification fixture must parse");
+        verify_ontology(&ontology, AssumptionManifest::default())
+    }
+
+    #[test]
+    fn workflow_reachability_and_termination_pass_and_fail() {
+        let passing = report(
+            r#"
+            :Patient a rdfs:Class .
+            :Flow a horis:Workflow ; horis:startsAt :Start .
+            :Start a horis:PerceptionStep ; horis:extracts :Patient ;
+                horis:confidence 0.8 ; horis:fallback :Done ; horis:next :Done .
+            :Done a horis:Step ; horis:terminal true .
+            "#,
+        );
+        let flow = &passing.workflows()[":Flow"];
+        assert!(flow.reachable && flow.terminating && flow.fallbacks_total);
+
+        let unreachable = report(
+            r#"
+            :Patient a rdfs:Class .
+            :Flow a horis:Workflow ; horis:startsAt :Done .
+            :Done a horis:Step ; horis:terminal true .
+            :Orphan a horis:Step ; horis:terminal true .
+            "#,
+        );
+        assert!(!unreachable.workflows()[":Flow"].reachable);
+        assert!(unreachable.witnesses().iter().any(|w| {
+            w.kind == FindingKind::WorkflowReachability && w.domain_text.contains(":Orphan")
+        }));
+
+        let cycle = report(
+            r#"
+            :Patient a rdfs:Class .
+            :result a rdf:Property ; rdfs:domain :Patient ; rdfs:range xsd:string .
+            :Flow a horis:Workflow ; horis:startsAt :A .
+            :A a horis:NarrationStep ; horis:narrates [ horis:property :result ] ; horis:next :B .
+            :B a horis:NarrationStep ; horis:narrates [ horis:property :result ] ; horis:next :A .
+            "#,
+        );
+        assert!(!cycle.workflows()[":Flow"].terminating);
+    }
+
+    #[test]
+    fn workflow_requires_fallback_and_choice_checks_fail_independently() {
+        let missing_fallback = report(
+            r#"
+            :Patient a rdfs:Class .
+            :Flow a horis:Workflow ; horis:startsAt :Start .
+            :Start a horis:PerceptionStep ; horis:extracts :Patient ;
+                horis:confidence 0.8 ; horis:next :Done .
+            :Done a horis:Step ; horis:terminal true .
+            "#,
+        );
+        assert!(!missing_fallback.workflows()[":Flow"].fallbacks_total);
+
+        let unsatisfied = report(
+            r#"
+            :Patient a rdfs:Class .
+            :score a rdf:Property ; rdfs:domain :Patient ; rdfs:range xsd:integer ; horis:min 0 ; horis:max 5 .
+            :effect a rdf:Property ; rdfs:domain :Patient ; rdfs:range xsd:string .
+            :tool a horis:Tool ; horis:effect [ horis:asserts [ horis:property :effect ; horis:type xsd:string ] ] ; horis:binding "rust:test" .
+            :Flow a horis:Workflow ; horis:startsAt :Act .
+            :Act a horis:ActionStep ; horis:tool :tool ;
+                horis:requires [ horis:property :score ; horis:exceeds 10 ] ;
+                horis:onError :Done ; horis:onUnsatisfied :Done ; horis:next :Done .
+            :Done a horis:Step ; horis:terminal true .
+            "#,
+        );
+        assert!(!unsatisfied.workflows()[":Flow"].requires_satisfiable);
+
+        let choice = report(
+            r#"
+            :Patient a rdfs:Class .
+            :flag a rdf:Property ; rdfs:domain :Patient ; rdfs:range xsd:boolean .
+            :Flow a horis:Workflow ; horis:startsAt :Choose .
+            :Choose a horis:ChoiceStep ; horis:branches (
+                [ horis:when [ horis:property :flag ; horis:is true ] ; horis:next :Done ]
+            ) .
+            :Done a horis:Step ; horis:terminal true .
+            "#,
+        );
+        assert!(!choice.workflows()[":Flow"].choices_total);
+    }
+}

@@ -14,12 +14,13 @@ use rust_decimal::prelude::ToPrimitive;
 
 use super::{
     AssumptionManifest, Bound, Conflict, FindingKind, Region, RegionPredicate, ReportBuilder,
-    VerificationReport, Witness,
+    VerificationReport, Witness, WorkflowVerification,
 };
 use crate::Ontology;
 use crate::ontology::schema::{AssignedBy, Cardinality, PropertyDecl, PropertyRange};
 use crate::ontology::term::{Datatype, Iri, Value};
 use crate::reason::rule::{Condition, ConditionTree, Op, Rule, Term};
+use crate::workflow::model::{Step, StepBody};
 
 #[derive(Debug, Clone, Copy)]
 struct NumericVars {
@@ -61,6 +62,7 @@ pub fn verify_ontology(ontology: &Ontology, assumptions: AssumptionManifest) -> 
     verify_dead_and_vacuous_rules(&space, &formulas, &mut report);
     verify_rule_termination(ontology, &mut report);
     verify_constraint_vacuity(ontology, &mut report);
+    verify_workflows(&space, &mut report);
 
     report.finish()
 }
@@ -1112,6 +1114,169 @@ fn verify_constraint_vacuity(ontology: &Ontology, report: &mut ReportBuilder) {
 
 fn universal_pattern(pattern: &str) -> bool {
     matches!(pattern, ".*" | "^.*$" | "(?:.*)" | "^(?:.*)$")
+}
+
+fn verify_workflows(space: &SymbolicSpace<'_>, report: &mut ReportBuilder) {
+    for workflow in space.ontology.workflows().values() {
+        let workflow_name = compact_iri(space.ontology, workflow.iri);
+        let mut result = WorkflowVerification::default();
+
+        if !workflow.unreachable_steps.is_empty() {
+            result.reachable = false;
+            for step in &workflow.unreachable_steps {
+                let step_name = compact_iri(space.ontology, *step);
+                report.witnesses.push(Witness {
+                    kind: FindingKind::WorkflowReachability,
+                    domain_text: format!(
+                        "{step_name} is not reachable from {workflow_name} horis:startsAt"
+                    ),
+                    region: Region::default(),
+                    suggestion: Some("connect the step or remove its declaration".into()),
+                });
+            }
+        }
+
+        let edges: BTreeMap<Iri, Vec<Iri>> = workflow
+            .steps
+            .iter()
+            .map(|(&iri, step)| (iri, verification_step_edges(step)))
+            .collect();
+        let cycle = workflow.steps.keys().copied().any(|start| {
+            let mut seen = BTreeSet::new();
+            reaches_step(start, start, &edges, &mut seen, true)
+        });
+        let dead_end = workflow.steps.values().any(|step| {
+            !step.terminal
+                && edges
+                    .get(&step.iri)
+                    .is_none_or(|targets| targets.is_empty())
+        });
+        if cycle || dead_end {
+            result.terminating = false;
+            report.witnesses.push(Witness {
+                kind: FindingKind::WorkflowTermination,
+                domain_text: format!(
+                    "{workflow_name} has a reachable {} and not every path reaches horis:terminal",
+                    if cycle {
+                        "step cycle"
+                    } else {
+                        "non-terminal dead end"
+                    }
+                ),
+                region: Region::default(),
+                suggestion: Some("route every acyclic path to a terminal step".into()),
+            });
+        }
+
+        for step in workflow.steps.values() {
+            let step_name = compact_iri(space.ontology, step.iri);
+            let missing_edge = match &step.body {
+                StepBody::Perception(body) if body.fallback.is_none() => Some("horis:fallback"),
+                StepBody::Reasoning(body) if body.on_unreachable.is_none() => {
+                    Some("horis:onUnreachable")
+                }
+                StepBody::Action(body) if body.on_error.is_none() => Some("horis:onError"),
+                StepBody::Proposal(body) if body.fallback.is_none() => Some("horis:fallback"),
+                _ => None,
+            };
+            if let Some(edge) = missing_edge {
+                result.fallbacks_total = false;
+                report.witnesses.push(Witness {
+                    kind: FindingKind::WorkflowFallback,
+                    domain_text: format!("{step_name} can fail but declares no {edge} edge"),
+                    region: Region::default(),
+                    suggestion: Some(format!("declare {edge} on {step_name}")),
+                });
+            }
+
+            if let StepBody::Action(action) = &step.body
+                && let Some(requires) = &action.requires
+                && space
+                    .reachable
+                    .and(&space.condition_tree(requires))
+                    .is_false()
+            {
+                result.requires_satisfiable = false;
+                report.witnesses.push(Witness {
+                    kind: FindingKind::WorkflowRequires,
+                    domain_text: format!(
+                        "{step_name} horis:requires has no satisfiable value under the declared schema bounds"
+                    ),
+                    region: Region::default(),
+                    suggestion: Some("repair the precondition or its establishing rules".into()),
+                });
+            }
+
+            if let StepBody::Choice(choice) = &step.body
+                && choice.otherwise.is_none()
+            {
+                let covered = choice
+                    .branches
+                    .iter()
+                    .fold(space.variables.mk_false(), |bdd, branch| {
+                        bdd.or(&space.condition_tree(&branch.when))
+                    });
+                if !space.reachable.and(&covered.not()).is_false() {
+                    result.choices_total = false;
+                    report.witnesses.push(Witness {
+                        kind: FindingKind::WorkflowChoice,
+                        domain_text: format!(
+                            "{step_name} horis:branches do not cover every reachable case and no horis:otherwise is declared"
+                        ),
+                        region: space.region(&space.reachable.and(&covered.not()), None),
+                        suggestion: Some("add a covering branch or horis:otherwise".into()),
+                    });
+                }
+            }
+        }
+
+        report.workflows.insert(workflow_name, result);
+    }
+}
+
+fn verification_step_edges(step: &Step) -> Vec<Iri> {
+    if step.terminal {
+        return Vec::new();
+    }
+    match &step.body {
+        StepBody::Bare => Vec::new(),
+        StepBody::Perception(body) => body.fallback.into_iter().chain([body.next]).collect(),
+        StepBody::Reasoning(body) => body.on_unreachable.into_iter().chain([body.next]).collect(),
+        StepBody::Action(body) => [body.on_error, body.on_unsatisfied, body.next]
+            .into_iter()
+            .flatten()
+            .collect(),
+        StepBody::Narration(body) => vec![body.next],
+        StepBody::Proposal(body) => body.fallback.into_iter().chain([body.next]).collect(),
+        StepBody::Choice(body) => body
+            .branches
+            .iter()
+            .map(|branch| branch.next)
+            .chain(body.otherwise)
+            .collect(),
+        StepBody::Wait(body) => body.next.into_iter().collect(),
+        StepBody::Subflow(body) => vec![body.next],
+    }
+}
+
+fn reaches_step(
+    current: Iri,
+    target: Iri,
+    edges: &BTreeMap<Iri, Vec<Iri>>,
+    seen: &mut BTreeSet<Iri>,
+    initial: bool,
+) -> bool {
+    if !initial && current == target {
+        return true;
+    }
+    if !seen.insert(current) {
+        return false;
+    }
+    edges
+        .get(&current)
+        .into_iter()
+        .flatten()
+        .any(|next| reaches_step(*next, target, edges, seen, false))
 }
 
 fn as_decimal(value: &Value) -> Option<Decimal> {
