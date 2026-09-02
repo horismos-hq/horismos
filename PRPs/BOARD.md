@@ -5,7 +5,8 @@ At-a-glance project state. Updated in the same commit as any PRP status change
 [Horismos Board artifact](https://claude.ai/code/artifact/dc7ee691-4c9f-40a7-b235-0760de8ff17d)
 (source: `planning/board.html`, republished to the same URL on updates).
 
-_Last updated: 2026-08-24 (bounded-projection-kernel pivot adopted; new PRP-008 drafted;
+_Last updated: 2026-09-02 (PRP-005 activated; verification decisions D1–D4 resolved).
+Previously: 2026-08-24 (bounded-projection-kernel pivot adopted; new PRP-008 drafted;
 PRP-000/001/002/003/004/005/007 and framework docs 00–15 amended for the new positioning —
 no PRP-001–004 DoD rewritten, no runtime code changed). Previously: 2026-08-19 (PRP-004's
 U7–U15 critical path implemented, PR #8 open pending review; PRP-002 truth-maintenance
@@ -54,7 +55,12 @@ so nothing there needed to change.
 
 ## Next goal
 
-**PRP-004 (agent loop) is Active** (2026-08-18, branch `fm/horismos-prp004-a1`),
+**PRP-005 (guarantees & verification) is Active** (2026-09-02, branch
+`fm/horismos-prp005-a1`). It adds the pure-Rust BDD verifier, bounded assumption
+manifests, non-vacuity, workflow checks, default-hard load verification, Rust/Python
+reports, and the triage-scale benchmark. D1–D4 are resolved in the PRP folder.
+
+PRP-004 (agent loop) remains Active on its existing branch (`fm/horismos-prp004-a1`),
 implementing the workflow engine, Bridge, and tools against merged `main`
 directly (not against PRP-003's now-Done Python surface, per its own
 coordination note) — with **PRP-005 (verification) startable in parallel**
@@ -128,7 +134,7 @@ provenance semirings over the Datalog-shaped subset (Type 5), GNN guidance.
 | Standing | [PRP-000 vision](PRP-000-vision-positioning.md) | ✅ Decisions closed | Pitch, personas, honest Kautz 2–3 placement; naming/license/benchmark resolved |
 | Engine | [PRP-001 ontology core](PRP-001-ontology-core/01-objective.md) | ✅ Done (2026-07-29) | Load/validate ontology, typed World, five-check gate, snapshots, queries |
 | Engine | [PRP-002 reasoning](PRP-002-reasoning-substrate/01-objective.md) | ✅ Done (2026-08-05, PR #4; recorded 2026-08-18) | Chaining, subsumption, proof trees, training-grade traces |
-| Engine | [PRP-005 verification](PRP-005-guarantees-verification.md) | ⬜ Draft | BDD checks + domain-term witnesses (needs only 001+002) |
+| Engine | [PRP-005 verification](PRP-005-guarantees-verification/01-objective.md) | 🟦 Active (2026-09-02) | BDD checks + domain-term witnesses (needs only 001+002) |
 | Surface | [PRP-003 python bindings](PRP-003-python-bindings/01-objective.md) | ✅ Done (2026-08-18) | `pip install horismos`; the Pythonic front door |
 | Runtime | [PRP-004 agent loop](PRP-004-agent-loop/01-objective.md) | 🟦 Active (2026-08-18) | Workflow engine, perception/narration boundaries, tools, Bridge |
 | Integration | [PRP-008 standards & host integration](PRP-008-standards-host-integration.md) | ⬜ Draft (new, 2026-08-24) | FHIR hydration/commit, terminology provenance, CDS-Hooks/PlanDefinition/CQL composition, candidate-artifact boundary, generic host SPI |

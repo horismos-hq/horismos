@@ -10,7 +10,8 @@ WASM-safe, 50 tests of prior art; the Z3 rejection stands — no 200MB C++ depen
 
 - **Load time**: `Ontology.load` runs verification by default; failures block
   deployment unless explicitly overridden (`allow_incomplete=True` — annotated in
-  every subsequent trace). **[DECIDE: confirm default-hard policy — PRP-005]**
+  every subsequent trace). The default-hard policy is fixed; `allow_incomplete` is
+  the explicit authoring/debug escape (decided 2026-09-02, PRP-005 D1).
 - **Authoring time**: every draft the authoring agent produces (doc 13) — target
   <1s interactive on triage-sized ontologies.
 - **CI**: `horismos verify path/` exit codes; JSON output for tooling.
@@ -71,7 +72,8 @@ authoring agent (structured region → generates a repair draft), and CI (JSON d
 Every `VerificationReport` carries an explicit assumption manifest alongside `report.ok`
 — input closure, external profile/version, mapping version, supported artifact subset,
 and unverified external effects — so scope is machine-readable, not implied by silence.
-Full spec: `PRPs/PRP-005-guarantees-verification.md` §"Assumption manifest". This section
+Full spec: `PRPs/PRP-005-guarantees-verification/01-objective.md`
+§"Assumption manifest". This section
 exists precisely so the "does not claim" list below is enforced structurally, not just
 stated in prose.
 
@@ -81,7 +83,8 @@ A rule or constraint can be internally consistent and BDD-verifiable while bindi
 nothing — the LASA/CHARGE "vacuous verification" failure mode
 (`horismos-research-s1/report.md` §1.7). Verification adds a pass, distinct from
 consistency-checking, that flags a satisfiable-but-inert rule or a constraint that
-excludes no reachable value. Full spec: `PRPs/PRP-005-guarantees-verification.md`
+excludes no reachable value. Full spec:
+`PRPs/PRP-005-guarantees-verification/01-objective.md`
 §"Non-vacuity checks".
 
 ## Imported-artifact and capability checks (declared-future, PRP-008/PRP-007)

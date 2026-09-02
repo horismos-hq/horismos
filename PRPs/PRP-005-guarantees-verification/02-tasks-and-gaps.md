@@ -1,0 +1,90 @@
+# PRP-005 — Tasks & Gaps
+
+Plan: `PRPs/PRP-005-guarantees-verification/01-objective.md`  
+Branch: `fm/horismos-prp005-a1`  
+Worktree: `/Users/billaram/.treehouse/horismos-86ae5f/1/horismos`  
+Baseline: `5c45c0a3ac4c31ffa8d5d5ec90214d7d8b740e64` (`make verify` green,
+2026-09-02)
+
+## Decisions to resolve (before implementation)
+
+- [x] D1. **Verification at load** (decided 2026-09-02): every ordinary load runs
+  verification and fails closed by default. `allow_incomplete` is the explicit
+  authoring/debug escape and the resulting ontology remains inspectable through
+  `verify()`; disabling verification entirely is not a public v1 path. This follows
+  doc 10's deployment posture and keeps an invalid rule set from becoming an
+  executable default. If repeated full checks breach the one-second budget, cache the
+  immutable report inside `Ontology`; do not weaken the default.
+- [x] D2. **Incremental re-verification** (decided 2026-09-02): v1 performs a full,
+  deterministic verification of each newly loaded immutable ontology. There is no
+  ontology-edit API or stable dependency graph to invalidate incrementally, and doc
+  14 budgets a full load plus verify at under one second. If the benchmark later
+  crosses that budget, the fallback is dependency-indexed recompilation inside
+  `verify`, preserving identical reports and witness ordering.
+- [x] D3. **Unit-aware numeric discretization** (decided 2026-09-02): thresholds are
+  interpreted only in the property's one declared opaque unit. Rule-side labels must
+  match exactly (already a load error); unitless rules on a unitful property inherit
+  that property's unit. No conversions or dimensional algebra occur. This is already
+  the shipped contract in docs 02 and 04; if conversion is ever required, it needs new
+  authored mapping vocabulary in its own PRP rather than an implicit verifier table.
+- [x] D4. **Assumption-manifest shape** (decided 2026-09-02, provisional pending
+  PRP-008): use a dedicated `VerificationReport.assumptions: AssumptionManifest`, not
+  witness categories. It carries exactly five fields: `input_closure`,
+  `external_profile_versions`, `mapping_version`, `supported_subset`, and
+  `unverified_external_effects`; standalone verification supplies explicit empty
+  values. PRP-008 may replace their provisional string/list value types with
+  `ExternalSnapshot`-linked types, but may not remove a field or make absence
+  implicit.
+
+## Controller resolutions
+
+- BDD ownership is `horismos-core::verify`, behind feature `verify`; PyO3 marshals one
+  complete report and contains no verification logic.
+- Variable names, properties, rules, workflows, witnesses, and JSON arrays are emitted
+  in ontology/token or lexicographic order. Witness selection uses the first satisfying
+  valuation, never a random valuation.
+- `biodivine-lib-bdd` is a workspace dependency with default features disabled. Its
+  random-sampling API is never called; determinism is pinned by report equality tests.
+- Verification findings are report data. Default-hard loaders translate a non-OK
+  report into `VerificationFailed`; `allow_incomplete` returns the ontology and the
+  same report remains available.
+- Batching approved by the task's required PRP workflow: B1=U1, B2=U2+U3,
+  B3=U4+U5, B4=U6+U7. One senior-reviewer pass follows each batch.
+
+## Units of work
+
+- [ ] U1. **Verification model and dependency** — add the pure-Rust BDD dependency,
+  `AssumptionManifest`, structured regions/witnesses, deterministic JSON, report
+  categories, and `exit_code`. Tests pin all five manifest fields when empty and
+  populated, witness ordering, and JSON round-trip shape.
+- [ ] U2. **Rule-set BDD verification** — ontology-aware numeric/class/value
+  discretization plus completeness, conflict, dead-rule, termination, and rule
+  non-vacuity checks. Test target: seeded triage gap renders exactly “no acuity
+  assigned when heartRate ∈ (100, 120] and no Symptom present” and carries the
+  interval/absence region; crafted overlaps/dead/cycles fail.
+- [ ] U3. **Constraint non-vacuity** — detect declared constraints that exclude no
+  otherwise-typed value/cardinality and emit first-class witnesses. Test target:
+  `horis:pattern ".*"` is caught in domain terms while a restricting pattern passes.
+- [ ] U4. **Workflow verification** — reachability, every-path termination,
+  fallible-edge totality, requires satisfiability, and choice totality over parsed
+  workflow graphs. Crafted fixtures pass and fail each required acceptance check.
+- [ ] U5. **Rust load and error surface** — `Ontology::verify`, default-hard load,
+  explicit load options/`allow_incomplete`, `VerificationFailed { report }`, and
+  public report exports. Existing callers are migrated without weakening production
+  defaults.
+- [ ] U6. **Python and CI surface** — native whole-report marshaling, public Python
+  dataclasses, load flags, error report attachment, stubs, and `python -m horismos
+  verify` exit `0`/`1` with JSON output.
+- [ ] U7. **Triage, benchmark, docs, and DoD** — extend the canonical triage rules to
+  a conflict-free complete partition, seed the exact test gap by removing its one
+  covering rule, add a Criterion benchmark asserting/measuring the under-one-second
+  budget, and update shipped API/verification docs.
+- [ ] U8. **Finish sequence** — `make verify`, `make check-boundary`, and
+  `make no-model-gate`; final whole-branch senior review; mark PRP Done and update
+  BOARD plus `planning/board.html`; commit the complete branch.
+
+## Gaps discovered during implementation
+
+- 2026-09-02: the specified sibling prior-art checkout `../sigil-lang` is not present
+  in this disposable worktree. The implementation follows the PRP's stated semantics
+  and the public `biodivine-lib-bdd` API; no source-level port claim will be made.
