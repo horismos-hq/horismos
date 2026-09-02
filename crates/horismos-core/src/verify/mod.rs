@@ -602,6 +602,34 @@ mod rule_verification_tests {
     }
 
     #[test]
+    fn universal_pattern_and_zero_or_many_are_vacuous_constraints() {
+        let result = report(
+            r#"
+            :Patient a rdfs:Class .
+            :code a rdf:Property ; rdfs:domain :Patient ; rdfs:range xsd:string ;
+                horis:pattern ".*" .
+            :tags a rdf:Property ; rdfs:domain :Patient ; rdfs:range xsd:string ;
+                horis:cardinality "0..*" .
+            :restricted a rdf:Property ; rdfs:domain :Patient ; rdfs:range xsd:string ;
+                horis:pattern "A+" ; horis:cardinality "0..1" .
+            :spaced a rdf:Property ; rdfs:domain :Patient ; rdfs:range xsd:string ;
+                horis:pattern " .* " .
+            "#,
+        );
+        let texts: Vec<&str> = result
+            .witnesses()
+            .iter()
+            .filter(|w| w.kind == FindingKind::ConstraintVacuity)
+            .map(|w| w.domain_text.as_str())
+            .collect();
+        assert_eq!(texts.len(), 2);
+        assert!(texts.iter().any(|text| text.contains("code")));
+        assert!(texts.iter().any(|text| text.contains("tags")));
+        assert!(!texts.iter().any(|text| text.contains("restricted")));
+        assert!(!texts.iter().any(|text| text.contains("spaced")));
+    }
+
+    #[test]
     fn integer_cells_exact_numbers_and_contains_follow_runtime_semantics() {
         let integer_partition = report(
             r#"

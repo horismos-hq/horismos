@@ -73,9 +73,12 @@ Baseline: `5c45c0a3ac4c31ffa8d5d5ec90214d7d8b740e64` (`make verify` green,
   The seeded sentence and structured region are pinned exactly. Batch review approved
   after numeric, semantic-equality, regex, and compound/multi-value termination
   soundness findings were corrected.
-- [ ] U3. **Constraint non-vacuity** — detect declared constraints that exclude no
+- [x] U3. **Constraint non-vacuity** — detect declared constraints that exclude no
   otherwise-typed value/cardinality and emit first-class witnesses. Test target:
   `horis:pattern ".*"` is caught in domain terms while a restricting pattern passes.
+  **Done 2026-09-02**: explicit `0..*` and semantics-preserving universal-pattern
+  forms emit structured domain witnesses; restrictive and whitespace-significant
+  patterns remain unflagged.
 - [ ] U4. **Workflow verification** — reachability, every-path termination,
   fallible-edge totality, requires satisfiability, and choice totality over parsed
   workflow graphs. Crafted fixtures pass and fail each required acceptance check.

@@ -60,6 +60,7 @@ pub fn verify_ontology(ontology: &Ontology, assumptions: AssumptionManifest) -> 
     verify_conflicts(&space, &formulas, &mut report);
     verify_dead_and_vacuous_rules(&space, &formulas, &mut report);
     verify_rule_termination(ontology, &mut report);
+    verify_constraint_vacuity(ontology, &mut report);
 
     report.finish()
 }
@@ -1062,6 +1063,55 @@ fn reaches(
     edges[current]
         .iter()
         .any(|next| reaches(*next, target, edges, seen, false))
+}
+
+fn verify_constraint_vacuity(ontology: &Ontology, report: &mut ReportBuilder) {
+    for property in ontology.schema().properties() {
+        let property_name = local(ontology, property.iri);
+        let domain = property
+            .domain
+            .map(|iri| compact_iri(ontology, iri))
+            .unwrap_or_else(|| "the declared domain".into());
+        if property.cardinality == Some(Cardinality::ZeroOrMany) {
+            report.witnesses.push(Witness {
+                kind: FindingKind::ConstraintVacuity,
+                domain_text: format!(
+                    "{property_name} horis:cardinality \"0..*\" excludes no value count on {domain}"
+                ),
+                region: Region {
+                    subject_class: property.domain.map(|iri| compact_iri(ontology, iri)),
+                    predicates: Vec::new(),
+                },
+                suggestion: Some(
+                    "remove the vacuous cardinality or declare a restrictive bound".into(),
+                ),
+            });
+        }
+        if property.pattern.as_deref().is_some_and(universal_pattern) {
+            let datatype = match property.range {
+                Some(PropertyRange::Datatype(kind)) => kind.to_string(),
+                _ => "value".into(),
+            };
+            report.witnesses.push(Witness {
+                kind: FindingKind::ConstraintVacuity,
+                domain_text: format!(
+                    "{property_name} horis:pattern {:?} excludes no {datatype} value on {domain}",
+                    property.pattern.as_deref().unwrap_or_default()
+                ),
+                region: Region {
+                    subject_class: property.domain.map(|iri| compact_iri(ontology, iri)),
+                    predicates: Vec::new(),
+                },
+                suggestion: Some(
+                    "remove the vacuous pattern or declare a restrictive expression".into(),
+                ),
+            });
+        }
+    }
+}
+
+fn universal_pattern(pattern: &str) -> bool {
+    matches!(pattern, ".*" | "^.*$" | "(?:.*)" | "^(?:.*)$")
 }
 
 fn as_decimal(value: &Value) -> Option<Decimal> {
