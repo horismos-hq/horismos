@@ -100,6 +100,26 @@ impl Ontology {
         Ontology::assemble(set, interner, options)
     }
 
+    /// Loads a root plus explicit undeclared imports as one verification
+    /// transaction. This avoids verifying a deliberately partial root before
+    /// the caller-provided graphs have been assembled.
+    pub fn load_with_imports_and_options<I, P>(
+        path: impl AsRef<Path>,
+        imports: I,
+        options: LoadOptions,
+    ) -> Result<Ontology, OntologyError>
+    where
+        I: IntoIterator<Item = P>,
+        P: AsRef<Path>,
+    {
+        let mut interner = Interner::new();
+        let mut set = OntologySet::load(path, &mut interner)?;
+        for import in imports {
+            set = set.with_import(import, &mut interner)?;
+        }
+        Ontology::assemble(set, interner, options)
+    }
+
     /// Explicit authoring/debug escape for filesystem loads. Verification still
     /// runs and its complete report remains available through [`Ontology::verify`].
     pub fn load_allow_incomplete(path: impl AsRef<Path>) -> Result<Ontology, OntologyError> {

@@ -84,18 +84,34 @@ impl PyOntology {
     /// `with_import` per entry, all inside one boundary crossing, GIL
     /// released while the parser and schema builder run (D3).
     #[staticmethod]
-    #[pyo3(signature = (path, imports = Vec::new()))]
-    fn load(py: Python<'_>, path: PathBuf, imports: Vec<PathBuf>) -> PyResult<PyOntology> {
+    #[pyo3(signature = (path, imports = Vec::new(), allow_incomplete = false))]
+    fn load(
+        py: Python<'_>,
+        path: PathBuf,
+        imports: Vec<PathBuf>,
+        allow_incomplete: bool,
+    ) -> PyResult<PyOntology> {
         let loaded = py
             .detach(|| {
-                let mut onto = horismos_core::Ontology::load(&path)?;
-                for import in &imports {
-                    onto = onto.with_import(import)?;
-                }
-                Ok::<_, horismos_core::error::OntologyError>(onto)
+                horismos_core::Ontology::load_with_imports_and_options(
+                    &path,
+                    &imports,
+                    horismos_core::LoadOptions { allow_incomplete },
+                )
             })
             .map_err(|e| ontology_err(py, e))?;
         Ok(PyOntology { inner: loaded })
+    }
+
+    /// One-crossing verification payload: canonical JSON plus the core's
+    /// CI process status.
+    fn verification_payload(&self, py: Python<'_>) -> PyResult<(String, i32)> {
+        let report = py.detach(|| self.inner.verify());
+        let exit_code = report.exit_code();
+        let json = report
+            .to_json()
+            .map_err(|error| crate::errors::internal_err(py, error.to_string()))?;
+        Ok((json, exit_code))
     }
 
     /// The unified prefix map, as `{prefix: namespace}`.

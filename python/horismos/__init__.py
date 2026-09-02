@@ -24,11 +24,24 @@ from horismos._horismos import (
     Rule,
     __version__,
 )
-from horismos._ontology import Ontology, VerificationReport
+from horismos._ontology import (
+    AssumptionManifest,
+    Bound,
+    Conflict,
+    Ontology,
+    Region,
+    RegionPredicate,
+    VerificationReport,
+    Witness,
+    WorkflowVerification,
+)
 from horismos._world import Snapshot, Subscription, World
 
 __all__ = [
     "PROFILE_VERSION",
+    "AssumptionManifest",
+    "Bound",
+    "Conflict",
     "Diff",
     "Fact",
     "HorismosBridgeError",
@@ -41,10 +54,14 @@ __all__ = [
     "Ontology",
     "ProofNode",
     "Ref",
+    "Region",
+    "RegionPredicate",
     "Rule",
     "Snapshot",
     "Subscription",
     "VerificationReport",
+    "Witness",
+    "WorkflowVerification",
     "World",
     "__version__",
 ]

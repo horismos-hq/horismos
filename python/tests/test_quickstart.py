@@ -65,6 +65,7 @@ def test_example_2_runs_verbatim_where_it_raises() -> None:
     onto = Ontology.load(
         REPO / "examples/triage/triage.ttl",
         imports=[REPO / "examples/triage/snomed-ct-subset.ttl"],
+        allow_incomplete=True,
     )
     world = World(onto)
     try:

@@ -86,7 +86,12 @@ Baseline: `5c45c0a3ac4c31ffa8d5d5ec90214d7d8b740e64` (`make verify` green,
   evidence without entering executable workflow maps; graph cycles/dead ends,
   missing failure edges, unsatisfiable action preconditions, and uncovered choices
   each produce their own deterministic finding. Optional parsed failure edges have
-  a domain-error runtime backstop for explicitly incomplete ontologies.
+  a domain-error runtime backstop for explicitly incomplete ontologies. Batch review
+  approved after global-orphan attribution and rule-established/chained precondition
+  semantics were corrected to mirror the runtime's priority-and-restart fixed point.
+- Task U5: minor (deferred): add direct regressions for `allow_incomplete` propagation
+  through `with_import` and execution of an incomplete workflow's missing-edge runtime
+  backstop; the paths were inspected and approved during Batch 3 review.
 - [x] U5. **Rust load and error surface** — `Ontology::verify`, default-hard load,
   explicit load options/`allow_incomplete`, `VerificationFailed { report }`, and
   public report exports. Existing callers are migrated without weakening production
@@ -94,9 +99,15 @@ Baseline: `5c45c0a3ac4c31ffa8d5d5ec90214d7d8b740e64` (`make verify` green,
   verifier and retain the boxed machine report on failure; explicit authoring helpers
   still verify and expose the same deterministic report. Partial internal fixtures use
   the named escape while production loaders remain fail-closed. `make verify` is green.
-- [ ] U6. **Python and CI surface** — native whole-report marshaling, public Python
+- [x] U6. **Python and CI surface** — native whole-report marshaling, public Python
   dataclasses, load flags, error report attachment, stubs, and `python -m horismos
-  verify` exit `0`/`1` with JSON output.
+  verify` exit `0`/`1` with JSON output. **Done 2026-09-02**: the PyO3 layer returns
+  one canonical JSON payload plus the core exit code; frozen Python dataclasses marshal
+  every report field, including the five-field manifest. Default-hard failures raise
+  `HorismosVerificationError` with the typed report attached. The CLI's failing-report
+  response and exit 1 are exercised through a real subprocess. Explicit imports are
+  assembled before the single verification decision. `make verify` is green (291 Rust
+  unit tests plus integration suites and 73 Python tests).
 - [ ] U7. **Triage, benchmark, docs, and DoD** — extend the canonical triage rules to
   a conflict-free complete partition, seed the exact test gap by removing its one
   covering rule, add a Criterion benchmark asserting/measuring the under-one-second

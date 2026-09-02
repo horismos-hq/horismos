@@ -16,7 +16,8 @@ shipped API and is unaffected by that future addition.
 from horismos import Ontology, World, Agent
 from horismos.bridges import AnthropicBridge
 
-onto = Ontology.load("triage.ttl", imports=["snomed-ct-subset.ttl"])
+onto = Ontology.load("triage.ttl", imports=["snomed-ct-subset.ttl"],
+                     allow_incomplete=True)  # removed when U7 completes the partition
 assert onto.verify().ok
 
 world = World(onto)
@@ -40,8 +41,9 @@ test suite holds it to that):
 from horismos import Ontology, World
 
 onto = Ontology.load("examples/triage/triage.ttl",
-                     imports=["examples/triage/snomed-ct-subset.ttl"])
-assert onto.verify().ok            # stub until PRP-005: load-time checks only
+                     imports=["examples/triage/snomed-ct-subset.ttl"],
+                     allow_incomplete=True)  # removed when U7 completes the partition
+assert not onto.verify().ok        # U7 completes the canonical partition next
 assert onto.namespaces[""] == "https://example.org/triage#"   # the : prefix
 
 world = World(onto)

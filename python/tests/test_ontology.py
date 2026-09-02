@@ -1,10 +1,13 @@
 """U1 — the Ontology handle across the boundary."""
 
+import json
+import subprocess
+import sys
 from pathlib import Path
 
 import horismos
 import pytest
-from horismos import HorismosOntologyError, Ontology
+from horismos import HorismosOntologyError, HorismosVerificationError, Ontology
 
 from .conftest import SNOMED, TRIAGE
 
@@ -16,7 +19,7 @@ def test_load_with_imports_sees_the_triage_prefix(onto: Ontology) -> None:
 
 def test_load_accepts_string_paths() -> None:
     # Path objects are covered by the session fixture (conftest passes Paths).
-    a = Ontology.load(str(TRIAGE), imports=[str(SNOMED)])
+    a = Ontology.load(str(TRIAGE), imports=[str(SNOMED)], allow_incomplete=True)
     assert a.namespaces[""] == "https://example.org/triage#"
 
 
@@ -68,10 +71,111 @@ def test_the_introspection_tables_cover_the_declared_schema(onto: Ontology) -> N
     ]
 
 
-def test_verify_is_a_stub_until_prp_005(onto: Ontology) -> None:
-    report = onto.verify()
+def test_verify_returns_the_complete_typed_report(vonto: Ontology) -> None:
+    report = vonto.verify()
     assert report.ok
-    assert "PRP-005" in report.notes
+    assert report.exit_code == 0
+    assert report.assumptions.input_closure == ()
+    assert report.assumptions.external_profile_versions == {}
+    assert report.assumptions.mapping_version is None
+    assert report.assumptions.supported_subset == ()
+    assert report.assumptions.unverified_external_effects == ()
+    assert json.loads(report.to_json())["assumptions"] == {
+        "input_closure": [],
+        "external_profile_versions": {},
+        "mapping_version": None,
+        "supported_subset": [],
+        "unverified_external_effects": [],
+    }
+
+
+def test_default_hard_load_attaches_the_complete_report(tmp_path: Path) -> None:
+    incomplete = tmp_path / "incomplete.ttl"
+    incomplete.write_text(
+        """\
+@prefix : <https://example.org/incomplete#> .
+@prefix horis: <https://w3id.org/horismos#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+:Patient a rdfs:Class .
+:decision a rdf:Property ; rdfs:domain :Patient ; rdfs:range xsd:boolean ;
+    horis:assignedBy horis:RulesOnly .
+"""
+    )
+    with pytest.raises(HorismosVerificationError) as raised:
+        Ontology.load(incomplete)
+    assert raised.value.exit_code == 1
+    assert raised.value.report.ok is False
+    assert raised.value.report.complete == {":decision": False}
+    assert raised.value.report.assumptions.input_closure == ()
+    assert str(raised.value) == raised.value.report.witnesses[0].domain_text
+
+    allowed = Ontology.load(incomplete, allow_incomplete=True)
+    assert allowed.verify().to_json() == raised.value.report.to_json()
+
+
+def test_explicit_imports_are_verified_as_one_assembled_ontology(tmp_path: Path) -> None:
+    root = tmp_path / "root.ttl"
+    rules = tmp_path / "rules.ttl"
+    prefixes = """\
+@prefix : <https://example.org/assembled#> .
+@prefix horis: <https://w3id.org/horismos#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+"""
+    root.write_text(
+        prefixes
+        + """\
+:Patient a rdfs:Class .
+:flag a rdf:Property ; rdfs:domain :Patient ; rdfs:range xsd:boolean ; horis:cardinality "1" .
+:decision a rdf:Property ; rdfs:domain :Patient ; rdfs:range xsd:boolean ;
+    horis:assignedBy horis:RulesOnly .
+"""
+    )
+    rules.write_text(
+        prefixes
+        + """\
+:cover a horis:Rule ;
+    horis:when [ horis:subject :Patient ; horis:property :flag ; horis:isAssigned true ] ;
+    horis:then [ horis:property :decision ; horis:value true ] .
+"""
+    )
+    assert Ontology.load(root, imports=[rules]).verify().ok
+
+
+def test_verify_cli_emits_json_and_exit_one_for_findings(tmp_path: Path) -> None:
+    incomplete = tmp_path / "cli-incomplete.ttl"
+    incomplete.write_text(
+        """\
+@prefix : <https://example.org/cli#> .
+@prefix horis: <https://w3id.org/horismos#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+:Patient a rdfs:Class .
+:decision a rdf:Property ; rdfs:domain :Patient ; rdfs:range xsd:boolean ;
+    horis:assignedBy horis:RulesOnly .
+"""
+    )
+    result = subprocess.run(
+        [sys.executable, "-m", "horismos", "verify", str(incomplete)],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 1
+    assert result.stderr == ""
+    payload = json.loads(result.stdout)
+    assert payload["ok"] is False
+    assert payload["assumptions"] == {
+        "input_closure": [],
+        "external_profile_versions": {},
+        "mapping_version": None,
+        "supported_subset": [],
+        "unverified_external_effects": [],
+    }
 
 
 def test_a_missing_file_raises_an_ontology_error() -> None:
