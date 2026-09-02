@@ -62,11 +62,17 @@ Baseline: `5c45c0a3ac4c31ffa8d5d5ec90214d7d8b740e64` (`make verify` green,
   the BDD dependency is `verify`-scoped and a direct wasm32 build is green. Batch review
   approved with no findings after two Important determinism/construction issues were
   corrected (commits `f833a99..HEAD`).
-- [ ] U2. **Rule-set BDD verification** — ontology-aware numeric/class/value
+- [x] U2. **Rule-set BDD verification** — ontology-aware numeric/class/value
   discretization plus completeness, conflict, dead-rule, termination, and rule
   non-vacuity checks. Test target: seeded triage gap renders exactly “no acuity
   assigned when heartRate ∈ (100, 120] and no Symptom present” and carries the
-  interval/absence region; crafted overlaps/dead/cycles fail.
+  interval/absence region; crafted overlaps/dead/cycles fail. **Done 2026-09-02**:
+  exact datatype-aware BDD partitions now cover decimal/integer boundaries, class
+  subsumption, exact values, substring predicates, and multi-valued conclusion sets;
+  completeness/conflict/dead/shadowing/enablement-cycle witnesses are deterministic.
+  The seeded sentence and structured region are pinned exactly. Batch review approved
+  after numeric, semantic-equality, regex, and compound/multi-value termination
+  soundness findings were corrected.
 - [ ] U3. **Constraint non-vacuity** — detect declared constraints that exclude no
   otherwise-typed value/cardinality and emit first-class witnesses. Test target:
   `horis:pattern ".*"` is caught in domain terms while a restricting pattern passes.

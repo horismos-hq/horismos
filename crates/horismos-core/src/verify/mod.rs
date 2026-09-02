@@ -10,6 +10,10 @@ use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
 
+mod rules;
+
+pub use rules::verify_ontology;
+
 /// The explicit scope under which a [`VerificationReport`] holds.
 ///
 /// These five fields are fixed by the bounded-projection pivot. Their
@@ -451,5 +455,277 @@ mod tests {
         let witness = region.first_valuation().expect("b is satisfiable");
         assert!(!witness.value(variables.var_by_name("a").expect("a exists")));
         assert!(witness.value(variables.var_by_name("b").expect("b exists")));
+    }
+}
+
+#[cfg(test)]
+mod rule_verification_tests {
+    use super::{AssumptionManifest, FindingKind, RegionPredicate, verify_ontology};
+    use crate::Ontology;
+
+    const PRELUDE: &str = "@prefix : <https://example.org/verify#> .\n\
+        @prefix horis: <https://w3id.org/horismos#> .\n\
+        @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .\n\
+        @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .\n\
+        @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .\n";
+
+    fn load(body: &str) -> Ontology {
+        Ontology::load_from_str(&format!("{PRELUDE}{body}"), |_| None)
+            .expect("verification fixture must parse")
+    }
+
+    fn report(body: &str) -> super::VerificationReport {
+        verify_ontology(&load(body), AssumptionManifest::default())
+    }
+
+    const TRIAGE_DOMAIN: &str = r#"
+        :Patient a rdfs:Class .
+        :Symptom a rdfs:Class .
+        :ChestPain rdfs:subClassOf :Symptom .
+        :CrushingChestPain rdfs:subClassOf :ChestPain .
+        :heartRate a rdf:Property ; rdfs:domain :Patient ; rdfs:range xsd:decimal ;
+            horis:unit "bpm" ; horis:min 0 ; horis:max 300 ;
+            horis:cardinality "0..1" .
+        :hasSymptom a rdf:Property ; rdfs:domain :Patient ; rdfs:range :Symptom .
+        :AcuityLevel a rdfs:Class ; horis:oneOf ( :Immediate :Urgent :Standard ) .
+        :acuity a rdf:Property ; rdfs:domain :Patient ; rdfs:range :AcuityLevel ;
+            horis:cardinality "0..1" ; horis:assignedBy horis:RulesOnly .
+    "#;
+
+    const TRIAGE_RULES_WITH_GAP: &str = r#"
+        :r1 a horis:Rule ; horis:priority 50 ;
+            horis:when [ horis:all (
+                [ horis:subject :Patient ; horis:property :heartRate ; horis:exceeds 120 ]
+                [ horis:subject :Patient ; horis:property :hasSymptom ; horis:is :ChestPain ]
+            ) ] ; horis:then [ horis:property :acuity ; horis:value :Immediate ] ;
+            horis:explain "immediate" .
+        :r2 a horis:Rule ; horis:priority 40 ;
+            horis:when [ horis:all (
+                [ horis:subject :Patient ; horis:property :heartRate ; horis:exceeds 100 ]
+                [ horis:subject :Patient ; horis:property :heartRate ; horis:atMost 120 ]
+                [ horis:subject :Patient ; horis:property :hasSymptom ; horis:is :Symptom ]
+            ) ] ; horis:then [ horis:property :acuity ; horis:value :Urgent ] ;
+            horis:explain "moderate with symptom" .
+        :r3 a horis:Rule ; horis:priority 30 ;
+            horis:when [ horis:subject :Patient ; horis:property :heartRate ; horis:atMost 100 ] ;
+            horis:then [ horis:property :acuity ; horis:value :Standard ] ;
+            horis:explain "standard" .
+        :r4 a horis:Rule ; horis:priority 20 ;
+            horis:when [ horis:all (
+                [ horis:subject :Patient ; horis:property :heartRate ; horis:exceeds 120 ]
+                [ horis:subject :Patient ; horis:property :hasSymptom ; horis:isNot :ChestPain ]
+            ) ] ; horis:then [ horis:property :acuity ; horis:value :Urgent ] ;
+            horis:explain "urgent" .
+        :r5 a horis:Rule ; horis:priority 10 ;
+            horis:when [ horis:subject :Patient ; horis:property :heartRate ; horis:isEmpty true ] ;
+            horis:then [ horis:property :acuity ; horis:value :Standard ] ;
+            horis:explain "no vital" .
+    "#;
+
+    #[test]
+    fn seeded_triage_gap_has_the_exact_domain_sentence_and_region() {
+        let result = report(&format!("{TRIAGE_DOMAIN}{TRIAGE_RULES_WITH_GAP}"));
+        let witness = result
+            .witnesses()
+            .iter()
+            .find(|w| w.kind == FindingKind::Completeness)
+            .expect("the seeded completeness gap must be found");
+        assert_eq!(
+            witness.domain_text,
+            "no acuity assigned when heartRate ∈ (100, 120] and no Symptom present"
+        );
+        assert!(witness.region.predicates.iter().any(|predicate| matches!(
+            predicate,
+            RegionPredicate::Numeric { property, lower: Some(lower), upper: Some(upper), unit: Some(unit) }
+                if property == "heartRate" && lower.value == "100" && !lower.inclusive
+                    && upper.value == "120" && upper.inclusive && unit == "bpm"
+        )));
+        assert!(witness.region.predicates.iter().any(|predicate| matches!(
+            predicate,
+            RegionPredicate::Absent { property, value: Some(value) }
+                if property == "hasSymptom" && value == ":Symptom"
+        )));
+    }
+
+    #[test]
+    fn conflicts_dead_rules_and_cycles_are_reported() {
+        let conflict = report(&format!(
+            "{TRIAGE_DOMAIN}\n\
+             :a a horis:Rule ; horis:priority 2 ; horis:when [ horis:subject :Patient ; horis:property :heartRate ; horis:exceeds 100 ] ; horis:then [ horis:property :acuity ; horis:value :Immediate ] .\n\
+             :b a horis:Rule ; horis:priority 1 ; horis:when [ horis:subject :Patient ; horis:property :heartRate ; horis:exceeds 120 ] ; horis:then [ horis:property :acuity ; horis:value :Urgent ] ."
+        ));
+        assert_eq!(conflict.conflicts().len(), 1);
+
+        let dead = report(&format!(
+            "{TRIAGE_DOMAIN}\n\
+             :dead a horis:Rule ; horis:when [ horis:subject :Patient ; horis:property :heartRate ; horis:exceeds 350 ] ; horis:then [ horis:property :acuity ; horis:value :Immediate ] ."
+        ));
+        assert_eq!(dead.dead_rules(), &[":dead"]);
+
+        let cycle = report(
+            r#"
+            :Patient a rdfs:Class .
+            :flagA a rdf:Property ; rdfs:domain :Patient ; rdfs:range xsd:boolean ;
+                horis:assignedBy horis:RulesOnly .
+            :flagB a rdf:Property ; rdfs:domain :Patient ; rdfs:range xsd:boolean ;
+                horis:assignedBy horis:RulesOnly .
+            :a a horis:Rule ; horis:when [ horis:subject :Patient ; horis:property :flagB ; horis:isAssigned true ] ;
+                horis:then [ horis:property :flagA ; horis:value true ] .
+            :b a horis:Rule ; horis:when [ horis:subject :Patient ; horis:property :flagA ; horis:isAssigned true ] ;
+                horis:then [ horis:property :flagB ; horis:value true ] .
+            "#,
+        );
+        assert!(!cycle.terminating());
+        assert!(
+            cycle
+                .witnesses()
+                .iter()
+                .any(|w| w.kind == FindingKind::RuleTermination)
+        );
+    }
+
+    #[test]
+    fn satisfiable_fully_shadowed_rule_is_vacuous_not_dead() {
+        let result = report(&format!(
+            "{TRIAGE_DOMAIN}\n\
+             :high a horis:Rule ; horis:priority 10 ; horis:when [ horis:subject :Patient ; horis:property :heartRate ; horis:exceeds 0 ] ; horis:then [ horis:property :acuity ; horis:value :Immediate ] .\n\
+             :low a horis:Rule ; horis:priority 1 ; horis:when [ horis:subject :Patient ; horis:property :heartRate ; horis:exceeds 100 ] ; horis:then [ horis:property :acuity ; horis:value :Urgent ] ."
+        ));
+        assert!(!result.dead_rules().iter().any(|rule| rule == ":low"));
+        let witness = result
+            .witnesses()
+            .iter()
+            .find(|w| w.kind == FindingKind::RuleVacuity)
+            .expect("the inert lower-priority rule must be caught");
+        assert!(witness.domain_text.contains(":low"));
+        assert!(witness.domain_text.contains("higher-priority"));
+    }
+
+    #[test]
+    fn integer_cells_exact_numbers_and_contains_follow_runtime_semantics() {
+        let integer_partition = report(
+            r#"
+            :Patient a rdfs:Class .
+            :count a rdf:Property ; rdfs:domain :Patient ; rdfs:range xsd:integer ;
+                horis:cardinality "1" .
+            :decision a rdf:Property ; rdfs:domain :Patient ; rdfs:range xsd:boolean ;
+                horis:assignedBy horis:RulesOnly ; horis:cardinality "0..1" .
+            :low a horis:Rule ; horis:when [ horis:subject :Patient ; horis:property :count ; horis:atMost 0 ] ;
+                horis:then [ horis:property :decision ; horis:value false ] .
+            :high a horis:Rule ; horis:when [ horis:subject :Patient ; horis:property :count ; horis:atLeast 1 ] ;
+                horis:then [ horis:property :decision ; horis:value true ] .
+            :impossible a horis:Rule ; horis:when [ horis:all (
+                [ horis:subject :Patient ; horis:property :count ; horis:is 50 ]
+                [ horis:subject :Patient ; horis:property :count ; horis:exceeds 120 ]
+            ) ] ; horis:then [ horis:property :decision ; horis:value true ] .
+            "#,
+        );
+        assert_eq!(integer_partition.complete().get(":decision"), Some(&true));
+        assert!(
+            integer_partition
+                .dead_rules()
+                .iter()
+                .any(|rule| rule == ":impossible")
+        );
+
+        let contains = report(
+            r#"
+            :Patient a rdfs:Class .
+            :code a rdf:Property ; rdfs:domain :Patient ; rdfs:range xsd:string .
+            :tag a rdf:Property ; rdfs:domain :Patient ; rdfs:range xsd:string .
+            :substring a horis:Rule ; horis:when [ horis:all (
+                [ horis:subject :Patient ; horis:property :code ; horis:contains "x" ]
+                [ horis:subject :Patient ; horis:property :code ; horis:isNot "x" ]
+            ) ] ; horis:then [ horis:property :tag ; horis:value "matched" ] .
+            "#,
+        );
+        assert!(
+            !contains
+                .dead_rules()
+                .iter()
+                .any(|rule| rule == ":substring")
+        );
+    }
+
+    #[test]
+    fn semantic_conclusion_equality_and_enabling_cycles_avoid_false_findings() {
+        let equivalent_numbers = report(
+            r#"
+            :Patient a rdfs:Class .
+            :input a rdf:Property ; rdfs:domain :Patient ; rdfs:range xsd:boolean .
+            :score a rdf:Property ; rdfs:domain :Patient ; rdfs:range xsd:decimal ;
+                horis:cardinality "0..1" .
+            :a a horis:Rule ; horis:when [ horis:subject :Patient ; horis:property :input ; horis:isAssigned true ] ;
+                horis:then [ horis:property :score ; horis:value 1 ] .
+            :b a horis:Rule ; horis:when [ horis:subject :Patient ; horis:property :input ; horis:isAssigned true ] ;
+                horis:then [ horis:property :score ; horis:value 1.0 ] .
+            "#,
+        );
+        assert!(equivalent_numbers.conflicts().is_empty());
+
+        let disabling_cycle = report(
+            r#"
+            :Patient a rdfs:Class .
+            :flagA a rdf:Property ; rdfs:domain :Patient ; rdfs:range xsd:boolean ; horis:assignedBy horis:RulesOnly .
+            :flagB a rdf:Property ; rdfs:domain :Patient ; rdfs:range xsd:boolean ; horis:assignedBy horis:RulesOnly .
+            :a a horis:Rule ; horis:when [ horis:subject :Patient ; horis:property :flagB ; horis:isEmpty true ] ;
+                horis:then [ horis:property :flagA ; horis:value true ] .
+            :b a horis:Rule ; horis:when [ horis:subject :Patient ; horis:property :flagA ; horis:isEmpty true ] ;
+                horis:then [ horis:property :flagB ; horis:value true ] .
+            "#,
+        );
+        assert!(disabling_cycle.terminating());
+
+        let compound_non_enabling = report(
+            r#"
+            :Patient a rdfs:Class .
+            :x a rdf:Property ; rdfs:domain :Patient ; rdfs:range xsd:string ; horis:assignedBy horis:RulesOnly ; horis:cardinality "0..1" .
+            :y a rdf:Property ; rdfs:domain :Patient ; rdfs:range xsd:boolean ; horis:assignedBy horis:RulesOnly ; horis:cardinality "0..1" .
+            :source a horis:Rule ; horis:when [ horis:subject :Patient ; horis:property :y ; horis:isAssigned true ] ;
+                horis:then [ horis:property :x ; horis:value "Y" ] .
+            :noneTarget a horis:Rule ; horis:when [ horis:none (
+                [ horis:subject :Patient ; horis:property :x ; horis:isEmpty true ]
+                [ horis:subject :Patient ; horis:property :x ; horis:isNot "X" ]
+            ) ] ; horis:then [ horis:property :y ; horis:value true ] .
+            :allTarget a horis:Rule ; horis:when [ horis:all (
+                [ horis:subject :Patient ; horis:property :x ; horis:is "X" ]
+                [ horis:subject :Patient ; horis:property :x ; horis:is "Y" ]
+            ) ] ; horis:then [ horis:property :y ; horis:value true ] .
+            "#,
+        );
+        assert!(compound_non_enabling.terminating());
+
+        let multi_value_enabling = report(
+            r#"
+            :Patient a rdfs:Class .
+            :seedA a rdf:Property ; rdfs:domain :Patient ; rdfs:range xsd:boolean .
+            :seedB a rdf:Property ; rdfs:domain :Patient ; rdfs:range xsd:boolean .
+            :x a rdf:Property ; rdfs:domain :Patient ; rdfs:range xsd:string ; horis:assignedBy horis:RulesOnly ; horis:cardinality "0..*" .
+            :y a rdf:Property ; rdfs:domain :Patient ; rdfs:range xsd:boolean ; horis:assignedBy horis:RulesOnly ; horis:cardinality "0..1" .
+            :priorA a horis:Rule ; horis:when [ horis:subject :Patient ; horis:property :seedA ; horis:isAssigned true ] ;
+                horis:then [ horis:property :x ; horis:value "A" ] .
+            :priorB a horis:Rule ; horis:when [ horis:subject :Patient ; horis:property :seedB ; horis:isAssigned true ] ;
+                horis:then [ horis:property :x ; horis:value "B" ] .
+            :source a horis:Rule ; horis:when [ horis:subject :Patient ; horis:property :y ; horis:isAssigned true ] ;
+                horis:then [ horis:property :x ; horis:value "C" ] .
+            :target a horis:Rule ; horis:when [ horis:all (
+                [ horis:subject :Patient ; horis:property :x ; horis:is "A" ]
+                [ horis:subject :Patient ; horis:property :x ; horis:is "B" ]
+                [ horis:subject :Patient ; horis:property :x ; horis:is "C" ]
+            ) ] ; horis:then [ horis:property :y ; horis:value true ] .
+            "#,
+        );
+        assert!(!multi_value_enabling.terminating());
+    }
+
+    #[test]
+    fn full_bdd_reports_repeat_byte_identically() {
+        let onto = load(&format!("{TRIAGE_DOMAIN}{TRIAGE_RULES_WITH_GAP}"));
+        let first = verify_ontology(&onto, AssumptionManifest::default());
+        let second = verify_ontology(&onto, AssumptionManifest::default());
+        assert_eq!(
+            first.to_json().expect("JSON"),
+            second.to_json().expect("JSON")
+        );
     }
 }
