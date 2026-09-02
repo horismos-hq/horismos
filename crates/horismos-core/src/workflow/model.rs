@@ -99,10 +99,6 @@ pub struct Workflow {
     pub decides: Option<Iri>,
     /// Every step this workflow declares, keyed by step IRI.
     pub steps: BTreeMap<Iri, Step>,
-    /// Declared step nodes that no workflow's `startsAt` can reach. Kept
-    /// separately so verification can report them without polluting the
-    /// executable step map of unrelated workflows.
-    pub unreachable_steps: Vec<Iri>,
 }
 
 impl Workflow {
@@ -228,7 +224,7 @@ pub fn parse_workflows(
     schema: &Schema,
     tools: &BTreeMap<Iri, Tool>,
     interner: &Interner,
-) -> Result<BTreeMap<Iri, Workflow>, OntologyError> {
+) -> Result<(BTreeMap<Iri, Workflow>, Vec<Iri>), OntologyError> {
     let graph = SubjectGraph::collect(documents.iter().copied(), interner);
 
     let mut workflow_ids = Vec::new();
@@ -315,15 +311,6 @@ pub fn parse_workflows(
         .filter(|step| !claimed.contains(step))
         .copied()
         .collect();
-    if let Some((_, first)) = workflows.first_key_value()
-        && !orphaned.is_empty()
-    {
-        let first_iri = first.iri;
-        if let Some(first) = workflows.get_mut(&first_iri) {
-            first.unreachable_steps = orphaned;
-        }
-    }
-
     // Second pass: SubflowStep.workflow must name a *different* declared
     // workflow whose own steps contain no SubflowStep (D6 — depth capped at
     // one, checked here since it needs every workflow parsed first).
@@ -352,7 +339,7 @@ pub fn parse_workflows(
         }
     }
 
-    Ok(workflows)
+    Ok((workflows, orphaned))
 }
 
 fn parse_one_workflow(
@@ -430,7 +417,6 @@ fn parse_one_workflow(
         version,
         decides,
         steps,
-        unreachable_steps: Vec::new(),
     })
 }
 

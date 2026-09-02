@@ -798,10 +798,37 @@ mod workflow_verification_tests {
             :Orphan a horis:Step ; horis:terminal true .
             "#,
         );
-        assert!(!unreachable.workflows()[":Flow"].reachable);
+        assert!(unreachable.workflows()[":Flow"].reachable);
         assert!(unreachable.witnesses().iter().any(|w| {
-            w.kind == FindingKind::WorkflowReachability && w.domain_text.contains(":Orphan")
+            w.kind == FindingKind::WorkflowReachability
+                && w.domain_text
+                    == ":Orphan is not reachable from any horis:Workflow horis:startsAt"
         }));
+
+        let isolated = report(
+            r#"
+            :Patient a rdfs:Class .
+            :Alpha a horis:Workflow ; horis:startsAt :AlphaDone .
+            :AlphaDone a horis:Step ; horis:terminal true .
+            :Beta a horis:Workflow ; horis:startsAt :BetaDone .
+            :BetaDone a horis:Step ; horis:terminal true .
+            :GlobalOrphan a horis:Step ; horis:terminal true .
+            "#,
+        );
+        assert!(
+            isolated
+                .workflows()
+                .values()
+                .all(|workflow| workflow.reachable)
+        );
+        assert_eq!(
+            isolated
+                .witnesses()
+                .iter()
+                .filter(|w| w.kind == FindingKind::WorkflowReachability)
+                .count(),
+            1
+        );
 
         let cycle = report(
             r#"
@@ -855,6 +882,40 @@ mod workflow_verification_tests {
             "#,
         );
         assert!(!choice.workflows()[":Flow"].choices_total);
+    }
+
+    #[test]
+    fn workflow_conditions_use_only_rule_established_derived_facts() {
+        let domain = r#"
+            :Patient a rdfs:Class .
+            :Decision a rdfs:Class ; horis:oneOf ( :Yes :No ) .
+            :flag a rdf:Property ; rdfs:domain :Patient ; rdfs:range xsd:boolean ;
+                horis:cardinality "1" .
+            :decision a rdf:Property ; rdfs:domain :Patient ; rdfs:range :Decision ;
+                horis:assignedBy horis:RulesOnly ; horis:cardinality "0..1" .
+            :effect a rdf:Property ; rdfs:domain :Patient ; rdfs:range xsd:string .
+            :tool a horis:Tool ; horis:effect [ horis:asserts [ horis:property :effect ; horis:type xsd:string ] ] ; horis:binding "rust:test" .
+            :Flow a horis:Workflow ; horis:startsAt :Act .
+            :Act a horis:ActionStep ; horis:tool :tool ;
+                horis:requires [ horis:property :decision ; horis:isAssigned true ] ;
+                horis:onError :Choose ; horis:onUnsatisfied :Choose ; horis:next :Choose .
+            :Choose a horis:ChoiceStep ; horis:branches (
+                [ horis:when [ horis:property :decision ; horis:is :Yes ] ; horis:next :Done ]
+            ) .
+            :Done a horis:Step ; horis:terminal true .
+        "#;
+        let missing = report(domain);
+        assert!(!missing.workflows()[":Flow"].requires_satisfiable);
+        assert!(!missing.workflows()[":Flow"].choices_total);
+
+        let establishing_rule = r#"
+            :establish a horis:Rule ;
+                horis:when [ horis:subject :Patient ; horis:property :flag ; horis:isAssigned true ] ;
+                horis:then [ horis:property :decision ; horis:value :Yes ] .
+        "#;
+        let established = report(&format!("{domain}{establishing_rule}"));
+        assert!(established.workflows()[":Flow"].requires_satisfiable);
+        assert!(established.workflows()[":Flow"].choices_total);
     }
 }
 

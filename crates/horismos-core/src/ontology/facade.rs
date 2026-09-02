@@ -69,6 +69,9 @@ struct Inner {
     /// Every `horis:Workflow`, parsed and validated at load (PRP-004 U2),
     /// keyed by workflow IRI.
     workflows: BTreeMap<Iri, Workflow>,
+    /// Step declarations unreachable from every workflow root. They are
+    /// global verification evidence, never owned by an arbitrary workflow.
+    unreachable_workflow_steps: Vec<Iri>,
     /// Preserved so `with_import` keeps the caller's explicit authoring
     /// posture and traces can later annotate incomplete execution.
     allow_incomplete: bool,
@@ -158,6 +161,7 @@ impl Ontology {
             rules: shared.rules.clone(),
             tools: shared.tools.clone(),
             workflows: shared.workflows.clone(),
+            unreachable_workflow_steps: shared.unreachable_workflow_steps.clone(),
             allow_incomplete: shared.allow_incomplete,
         });
         let options = LoadOptions {
@@ -181,7 +185,8 @@ impl Ontology {
         let rules = parse_rules(set.documents(), &schema, &interner)?;
         let docs: Vec<&crate::ontology::turtle::Document> = set.documents().collect();
         let tools = parse_tools(&docs, &schema, &interner)?;
-        let workflows = parse_workflows(&docs, &schema, &tools, &interner)?;
+        let (workflows, unreachable_workflow_steps) =
+            parse_workflows(&docs, &schema, &tools, &interner)?;
 
         let mut compaction = set.prefixes.clone();
         compaction.sort_by(|(a_name, a_ns), (b_name, b_ns)| {
@@ -198,6 +203,7 @@ impl Ontology {
                 rules,
                 tools,
                 workflows,
+                unreachable_workflow_steps,
                 allow_incomplete: options.allow_incomplete,
             }),
         };
@@ -326,6 +332,10 @@ impl Ontology {
     /// workflow IRI.
     pub fn workflows(&self) -> &BTreeMap<Iri, Workflow> {
         &self.inner.workflows
+    }
+
+    pub(crate) fn unreachable_workflow_steps(&self) -> &[Iri] {
+        &self.inner.unreachable_workflow_steps
     }
 
     /// The `horis:Workflow` named `iri`, if this ontology declares one —

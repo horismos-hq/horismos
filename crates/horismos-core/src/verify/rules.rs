@@ -62,7 +62,7 @@ pub fn verify_ontology(ontology: &Ontology, assumptions: AssumptionManifest) -> 
     verify_dead_and_vacuous_rules(&space, &formulas, &mut report);
     verify_rule_termination(ontology, &mut report);
     verify_constraint_vacuity(ontology, &mut report);
-    verify_workflows(&space, &mut report);
+    verify_workflows(&space, &formulas, &mut report);
 
     report.finish()
 }
@@ -317,6 +317,87 @@ impl<'a> SymbolicSpace<'a> {
                 })
                 .not(),
         }
+    }
+
+    fn condition_tree_after_rules(&self, tree: &ConditionTree, formulas: &[Bdd]) -> Bdd {
+        match tree {
+            ConditionTree::Leaf(condition) => {
+                let is_derived = self
+                    .ontology
+                    .schema()
+                    .property(condition.property)
+                    .is_some_and(|property| property.assigned_by == AssignedBy::RulesOnly);
+                if !is_derived {
+                    return self.condition(condition);
+                }
+                let assigning = self
+                    .ontology
+                    .rules()
+                    .iter()
+                    .zip(formulas)
+                    .filter(|(rule, _)| rule.then.property == condition.property);
+                let assigned = assigning
+                    .clone()
+                    .fold(self.variables.mk_false(), |bdd, (_, formula)| {
+                        bdd.or(formula)
+                    });
+                match &condition.op {
+                    Op::IsEmpty => assigned.not(),
+                    Op::IsNot(expected) => assigning
+                        .filter(|(rule, _)| {
+                            term_matches_static(self.ontology, &rule.then.value, expected)
+                        })
+                        .fold(self.variables.mk_false(), |bdd, (_, formula)| {
+                            bdd.or(formula)
+                        })
+                        .not(),
+                    op => assigning
+                        .filter(|(rule, _)| {
+                            conclusion_satisfies(self.ontology, &rule.then.value, op)
+                        })
+                        .fold(self.variables.mk_false(), |bdd, (_, formula)| {
+                            bdd.or(formula)
+                        }),
+                }
+            }
+            ConditionTree::All(children) => children
+                .iter()
+                .fold(self.variables.mk_true(), |bdd, child| {
+                    bdd.and(&self.condition_tree_after_rules(child, formulas))
+                }),
+            ConditionTree::Any(children) => children
+                .iter()
+                .fold(self.variables.mk_false(), |bdd, child| {
+                    bdd.or(&self.condition_tree_after_rules(child, formulas))
+                }),
+            ConditionTree::NoneOf(children) => children
+                .iter()
+                .fold(self.variables.mk_false(), |bdd, child| {
+                    bdd.or(&self.condition_tree_after_rules(child, formulas))
+                })
+                .not(),
+        }
+    }
+
+    fn condition_subject_scope(&self, tree: &ConditionTree) -> Bdd {
+        let domains: Vec<Iri> = tree
+            .leaves()
+            .iter()
+            .filter_map(|condition| {
+                self.ontology
+                    .schema()
+                    .property(condition.property)
+                    .and_then(|property| property.domain)
+            })
+            .collect();
+        if domains.is_empty() {
+            return self.variables.mk_true();
+        }
+        domains
+            .into_iter()
+            .fold(self.variables.mk_false(), |scope, domain| {
+                scope.or(&self.subject_is(domain))
+            })
     }
 
     fn condition(&self, condition: &Condition) -> Bdd {
@@ -1116,25 +1197,10 @@ fn universal_pattern(pattern: &str) -> bool {
     matches!(pattern, ".*" | "^.*$" | "(?:.*)" | "^(?:.*)$")
 }
 
-fn verify_workflows(space: &SymbolicSpace<'_>, report: &mut ReportBuilder) {
+fn verify_workflows(space: &SymbolicSpace<'_>, formulas: &[Bdd], report: &mut ReportBuilder) {
     for workflow in space.ontology.workflows().values() {
         let workflow_name = compact_iri(space.ontology, workflow.iri);
         let mut result = WorkflowVerification::default();
-
-        if !workflow.unreachable_steps.is_empty() {
-            result.reachable = false;
-            for step in &workflow.unreachable_steps {
-                let step_name = compact_iri(space.ontology, *step);
-                report.witnesses.push(Witness {
-                    kind: FindingKind::WorkflowReachability,
-                    domain_text: format!(
-                        "{step_name} is not reachable from {workflow_name} horis:startsAt"
-                    ),
-                    region: Region::default(),
-                    suggestion: Some("connect the step or remove its declaration".into()),
-                });
-            }
-        }
 
         let edges: BTreeMap<Iri, Vec<Iri>> = workflow
             .steps
@@ -1193,7 +1259,7 @@ fn verify_workflows(space: &SymbolicSpace<'_>, report: &mut ReportBuilder) {
                 && let Some(requires) = &action.requires
                 && space
                     .reachable
-                    .and(&space.condition_tree(requires))
+                    .and(&space.condition_tree_after_rules(requires, formulas))
                     .is_false()
             {
                 result.requires_satisfiable = false;
@@ -1214,16 +1280,23 @@ fn verify_workflows(space: &SymbolicSpace<'_>, report: &mut ReportBuilder) {
                     .branches
                     .iter()
                     .fold(space.variables.mk_false(), |bdd, branch| {
-                        bdd.or(&space.condition_tree(&branch.when))
+                        bdd.or(&space.condition_tree_after_rules(&branch.when, formulas))
                     });
-                if !space.reachable.and(&covered.not()).is_false() {
+                let subject_scope = choice
+                    .branches
+                    .iter()
+                    .fold(space.variables.mk_false(), |scope, branch| {
+                        scope.or(&space.condition_subject_scope(&branch.when))
+                    });
+                let target = space.reachable.and(&subject_scope);
+                if !target.and(&covered.not()).is_false() {
                     result.choices_total = false;
                     report.witnesses.push(Witness {
                         kind: FindingKind::WorkflowChoice,
                         domain_text: format!(
                             "{step_name} horis:branches do not cover every reachable case and no horis:otherwise is declared"
                         ),
-                        region: space.region(&space.reachable.and(&covered.not()), None),
+                        region: space.region(&target.and(&covered.not()), None),
                         suggestion: Some("add a covering branch or horis:otherwise".into()),
                     });
                 }
@@ -1231,6 +1304,18 @@ fn verify_workflows(space: &SymbolicSpace<'_>, report: &mut ReportBuilder) {
         }
 
         report.workflows.insert(workflow_name, result);
+    }
+
+    for step in space.ontology.unreachable_workflow_steps() {
+        let step_name = compact_iri(space.ontology, *step);
+        report.witnesses.push(Witness {
+            kind: FindingKind::WorkflowReachability,
+            domain_text: format!(
+                "{step_name} is not reachable from any horis:Workflow horis:startsAt"
+            ),
+            region: Region::default(),
+            suggestion: Some("connect the step to a workflow or remove its declaration".into()),
+        });
     }
 }
 
