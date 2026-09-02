@@ -501,7 +501,8 @@ would decide it. None is applied by this wiki.
 
 - Which scenario (VTE / NEWS2 / sepsis-compliance) is PRP-008's first vertical slice —
   captain call per `PRPs/BOARD.md`. Nothing in this sweep bears on the choice; Epic's
-  CRD launch is prior-authorization, which `../scenarios/ruled-out.md` rules out.
+  CRD launch is prior-authorization, which `../scenarios/ruled-out.md` deprioritizes as
+  a first slice.
 - PRP-008 D1–D5, D8, D9, D10 — evidence above (X7, A1–A7) narrows them; resolution stays
   in PRP-008 via the brainstorming protocol.
 - Whether narration gains a conclusion monitor (A8) — doc 06 / PRP-004 / PRP-007 owners.

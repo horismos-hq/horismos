@@ -102,9 +102,9 @@ server-support survey of `If-Match`/`versioned-update` exists; Epic's update spe
 login-walled.
 
 **[measured] CQL.** Release 2 published as STU 2026-08-12: "introduces substantive new
-features … and no breaking changes"; v1.5.3 "was reaffirmed as an ANSI standard in
-September 2026"; R2 adds directives (`#DefaultComparisonPrecision`), model qualifiers
-(`using … called USC`), and in-language `define type / context / conversion`
+features … and no breaking changes"; R2 adds directives
+(`#DefaultComparisonPrecision`), model qualifiers (`using … called USC`), and
+in-language `define type / context / conversion`
 ([standups.hl7.org](https://standups.hl7.org/2026/08/12/stu-publication-of-hl7-specification-clinical-quality-language-cql-release-2/);
 [cql.hl7.org](https://cql.hl7.org/)). Common CQL Artifacts for FHIR Ed. 2 published
 Informative 2026-08-21 (R4). The Using-CQL-with-FHIR IG's STU3 ballot adds
