@@ -76,4 +76,3 @@ correct" judgment and the pipeline recommendation are [inference].
 2026-09-02 (repo facts re-checked against current HEAD; sweep #2 tag fix — the page
 previously carried no evidence tags, deferred from PR #9 per `../CHANGELOG.md`; sweep #2
 delta appended)
-previously carried no evidence tags, deferred from PR #9 per `../CHANGELOG.md`)

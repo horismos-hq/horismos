@@ -46,11 +46,11 @@ non-interactive modes ([policy-engine.md](https://github.com/google-gemini/gemin
 [#20469](https://github.com/google-gemini/gemini-cli/issues/20469)).
 
 **[measured]** DeepSeek Harness v0.1 (MIT, developer preview, ~2026-08-13/20 per
-secondary sources) is "everything is a plugin": `packages/interaction/` for approval/
-permission/ask-user, `packages/hooks/` providing "Claude Code/Codex hook bridges," sandbox
-policy `read-only`/`workspace-write`/`full-access`, and the invariant "Model-visible ⟺
-logged: anything that reaches a model request must be reconstructable from the session
-log" ([AGENTS.md](https://github.com/deepseek-ai/deepseek-harness/blob/master/AGENTS.md);
+secondary sources → [unverified]) is "everything is a plugin": `packages/interaction/`
+for approval/permission/ask-user, `packages/hooks/` providing "Claude Code/Codex hook
+bridges," sandbox policy `read-only`/`workspace-write`/`full-access`, and the invariant
+"Model-visible ⟺ logged: anything that reaches a model request must be reconstructable
+from the session log" ([AGENTS.md](https://github.com/deepseek-ai/deepseek-harness/blob/master/AGENTS.md);
 [README](https://raw.githubusercontent.com/deepseek-ai/deepseek-harness/master/README.md)).
 pi ships four core tools (`read`, `write`, `edit`, `bash`), `pi.registerTool`,
 `pi.on("tool_call", ...)`, `SKILL.md` skills, and "No permission popups. Run in a
