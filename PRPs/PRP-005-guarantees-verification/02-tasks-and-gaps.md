@@ -107,7 +107,9 @@ Baseline: `5c45c0a3ac4c31ffa8d5d5ec90214d7d8b740e64` (`make verify` green,
   `HorismosVerificationError` with the typed report attached. The CLI's failing-report
   response and exit 1 are exercised through a real subprocess. Explicit imports are
   assembled before the single verification decision. `make verify` is green (291 Rust
-  unit tests plus integration suites and 73 Python tests).
+  unit tests plus integration suites and 74 Python tests). Batch review additionally
+  tightened the native exception stub to `VerificationReport` and pinned successful
+  and failing CLI output byte-for-byte across repeated subprocess invocations.
 - [x] U7. **Triage, benchmark, docs, and DoD** — extend the canonical triage rules to
   a conflict-free complete partition, seed the exact test gap by removing its one
   covering rule, add a Criterion benchmark asserting/measuring the under-one-second
@@ -119,7 +121,7 @@ Baseline: `5c45c0a3ac4c31ffa8d5d5ec90214d7d8b740e64` (`make verify` green,
   0.47 ms on this worktree. Docs 09–12 cover the shipped report, CLI, load policy,
   assumption manifest, fixed-point workflow composition, and durable trace annotation
   for the explicit incomplete escape. `make verify` is green (291 Rust unit tests plus
-  integration/property suites and 73 Python tests).
+  integration/property suites and 74 Python tests).
 - [ ] U8. **Finish sequence** — `make verify`, `make check-boundary`, and
   `make no-model-gate`; final whole-branch senior review; mark PRP Done and update
   BOARD plus `planning/board.html`; commit the complete branch.

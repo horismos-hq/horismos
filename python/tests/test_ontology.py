@@ -159,14 +159,14 @@ def test_verify_cli_emits_json_and_exit_one_for_findings(tmp_path: Path) -> None
     horis:assignedBy horis:RulesOnly .
 """
     )
-    result = subprocess.run(
-        [sys.executable, "-m", "horismos", "verify", str(incomplete)],
-        check=False,
-        capture_output=True,
-        text=True,
-    )
+    command = [sys.executable, "-m", "horismos", "verify", str(incomplete)]
+    result = subprocess.run(command, check=False, capture_output=True, text=True)
+    repeated = subprocess.run(command, check=False, capture_output=True, text=True)
     assert result.returncode == 1
     assert result.stderr == ""
+    assert repeated.returncode == result.returncode
+    assert repeated.stderr == result.stderr
+    assert repeated.stdout == result.stdout
     payload = json.loads(result.stdout)
     assert payload["ok"] is False
     assert payload["assumptions"] == {
@@ -176,6 +176,30 @@ def test_verify_cli_emits_json_and_exit_one_for_findings(tmp_path: Path) -> None
         "supported_subset": [],
         "unverified_external_effects": [],
     }
+
+
+def test_verify_cli_exit_zero_is_byte_deterministic() -> None:
+    command = [
+        sys.executable,
+        "-m",
+        "horismos",
+        "verify",
+        str(TRIAGE),
+        "--import",
+        str(SNOMED),
+    ]
+    first = subprocess.run(command, check=False, capture_output=True, text=True)
+    second = subprocess.run(command, check=False, capture_output=True, text=True)
+
+    assert first.returncode == 0
+    assert first.stderr == ""
+    assert second.returncode == first.returncode
+    assert second.stderr == first.stderr
+    assert second.stdout == first.stdout
+    payload = json.loads(first.stdout)
+    assert payload["ok"] is True
+    assert payload["complete"] == {":acuity": True}
+    assert payload["witnesses"] == []
 
 
 def test_a_missing_file_raises_an_ontology_error() -> None:
