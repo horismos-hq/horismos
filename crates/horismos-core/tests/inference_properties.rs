@@ -59,7 +59,8 @@ const EXAMPLE_1: &str = "@prefix : <https://example.org/t#> .\n\
      \x20 horis:explain \"Immediate track — continuous cardiac monitoring\" .\n";
 
 fn example_ontology() -> Ontology {
-    Ontology::load_from_str(EXAMPLE_1, |_| None).expect("the Example 1 ontology loads")
+    Ontology::load_from_str_allow_incomplete(EXAMPLE_1, |_| None)
+        .expect("the Example 1 ontology loads")
 }
 
 fn t(world: &mut World, local: &str) -> Iri {

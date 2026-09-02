@@ -28,7 +28,7 @@ use horismos_core::reason::matcher::MatcherKind;
 use horismos_core::{Ontology, Ref, Value, World};
 
 fn triage_ontology() -> Ontology {
-    Ontology::load(concat!(
+    Ontology::load_allow_incomplete(concat!(
         env!("CARGO_MANIFEST_DIR"),
         "/../../examples/triage/triage.ttl"
     ))
@@ -63,7 +63,7 @@ fn chain_ontology(rules: usize) -> Ontology {
              \x20 horis:then [ horis:property :f{next} ; horis:value true ] .\n"
         ));
     }
-    Ontology::load_from_str(&source, |_| None).expect("the synthetic chain loads")
+    Ontology::load_from_str_allow_incomplete(&source, |_| None).expect("the synthetic chain loads")
 }
 
 fn triage_transaction(c: &mut Criterion) {

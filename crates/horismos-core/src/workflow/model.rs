@@ -1200,7 +1200,7 @@ mod tests {
     use super::*;
 
     fn triage() -> Ontology {
-        Ontology::load(concat!(
+        Ontology::load_allow_incomplete(concat!(
             env!("CARGO_MANIFEST_DIR"),
             "/../../examples/triage/triage.ttl"
         ))
@@ -1295,7 +1295,7 @@ mod tests {
 
     #[test]
     fn a_dangling_next_edge_is_a_domain_term_error() {
-        let err = Ontology::load_from_str(
+        let err = Ontology::load_from_str_allow_incomplete(
             "@prefix : <https://example.org/t#> .\n\
              @prefix horis: <https://w3id.org/horismos#> .\n\
              @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .\n\
@@ -1339,7 +1339,7 @@ mod tests {
              :A a horis:SubflowStep ; horis:workflow :Sub ; horis:next :B .\n\
              :B a horis:Step ; horis:terminal true .\n"
         );
-        let onto = Ontology::load_from_str(&source, |_| None)
+        let onto = Ontology::load_from_str_allow_incomplete(&source, |_| None)
             .expect("a genuine one-level subflow must load cleanly");
 
         let sub_iri = onto
@@ -1376,7 +1376,7 @@ mod tests {
              :A a horis:SubflowStep ; horis:workflow :Sub ; horis:next :B .\n\
              :B a horis:Step ; horis:terminal true .\n"
         );
-        let err = Ontology::load_from_str(&source, |_| None)
+        let err = Ontology::load_from_str_allow_incomplete(&source, |_| None)
             .expect_err("two levels of subflow nesting must be rejected (D6)");
         assert!(
             matches!(err, OntologyError::SubflowNestingTooDeep { .. }),

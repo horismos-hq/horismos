@@ -470,7 +470,7 @@ mod rule_verification_tests {
         @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .\n";
 
     fn load(body: &str) -> Ontology {
-        Ontology::load_from_str(&format!("{PRELUDE}{body}"), |_| None)
+        Ontology::load_from_str_allow_incomplete(&format!("{PRELUDE}{body}"), |_| None)
             .expect("verification fixture must parse")
     }
 
@@ -770,8 +770,9 @@ mod workflow_verification_tests {
         @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .\n";
 
     fn report(body: &str) -> super::VerificationReport {
-        let ontology = Ontology::load_from_str(&format!("{PRELUDE}{body}"), |_| None)
-            .expect("workflow verification fixture must parse");
+        let ontology =
+            Ontology::load_from_str_allow_incomplete(&format!("{PRELUDE}{body}"), |_| None)
+                .expect("workflow verification fixture must parse");
         verify_ontology(&ontology, AssumptionManifest::default())
     }
 
@@ -854,5 +855,52 @@ mod workflow_verification_tests {
             "#,
         );
         assert!(!choice.workflows()[":Flow"].choices_total);
+    }
+}
+
+#[cfg(test)]
+mod load_verification_tests {
+    use crate::error::OntologyError;
+    use crate::{LoadOptions, Ontology};
+
+    const INCOMPLETE: &str = "@prefix : <https://example.org/load-verify#> .\n\
+        @prefix horis: <https://w3id.org/horismos#> .\n\
+        @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .\n\
+        @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .\n\
+        @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .\n\
+        :Patient a rdfs:Class .\n\
+        :decision a rdf:Property ; rdfs:domain :Patient ; rdfs:range xsd:boolean ;\n\
+            horis:assignedBy horis:RulesOnly .\n";
+
+    #[test]
+    fn ordinary_load_fails_closed_with_the_complete_report() {
+        let error = Ontology::load_from_str(INCOMPLETE, |_| None)
+            .expect_err("an incomplete rules-only property must block ordinary load");
+        let OntologyError::VerificationFailed { report } = error else {
+            panic!("expected VerificationFailed");
+        };
+        assert!(!report.ok());
+        assert_eq!(report.exit_code(), 1);
+        assert_eq!(report.complete().get(":decision"), Some(&false));
+        assert_eq!(report.assumptions().input_closure, Vec::<String>::new());
+    }
+
+    #[test]
+    fn explicit_allow_incomplete_keeps_the_same_report_inspectable() {
+        let ontology = Ontology::load_from_str_with_options(
+            INCOMPLETE,
+            |_| None,
+            LoadOptions {
+                allow_incomplete: true,
+            },
+        )
+        .expect("the explicit authoring escape returns the ontology");
+        let first = ontology.verify();
+        let second = ontology.verify();
+        assert!(!first.ok());
+        assert_eq!(
+            first.to_json().expect("JSON"),
+            second.to_json().expect("JSON")
+        );
     }
 }

@@ -860,14 +860,15 @@ mod tests {
 
     /// A world over the inline test ontology (`:` = `https://example.org/t#`).
     fn world_of(source: &str) -> World {
-        let onto = Ontology::load_from_str(&format!("{PRELUDE}{source}\n"), |_| None)
-            .expect("the test ontology must load");
+        let onto =
+            Ontology::load_from_str_allow_incomplete(&format!("{PRELUDE}{source}\n"), |_| None)
+                .expect("the test ontology must load");
         World::new(&onto)
     }
 
     /// A world over the flagship fixture, `examples/triage/triage.ttl`.
     fn triage_world() -> World {
-        let onto = Ontology::load(concat!(
+        let onto = Ontology::load_allow_incomplete(concat!(
             env!("CARGO_MANIFEST_DIR"),
             "/../../examples/triage/triage.ttl"
         ))
@@ -1488,7 +1489,7 @@ mod tests {
 
     #[test]
     fn skolem_iris_are_deterministic_across_worlds() {
-        let onto = Ontology::load(concat!(
+        let onto = Ontology::load_allow_incomplete(concat!(
             env!("CARGO_MANIFEST_DIR"),
             "/../../examples/triage/triage.ttl"
         ))
@@ -1978,7 +1979,7 @@ mod tests {
 
     #[test]
     fn instances_query_order_is_deterministic_across_two_identically_built_worlds() {
-        let onto = Ontology::load(concat!(
+        let onto = Ontology::load_allow_incomplete(concat!(
             env!("CARGO_MANIFEST_DIR"),
             "/../../examples/triage/triage.ttl"
         ))
@@ -2067,7 +2068,7 @@ mod retraction_ruling_tests {
     /// the retract-then-assert bypass is closed.
     #[test]
     fn an_immutable_fact_refuses_retraction_in_the_documented_wording() {
-        let onto = Ontology::load_from_str(
+        let onto = Ontology::load_from_str_allow_incomplete(
             "@prefix : <https://example.org/t#> .\n\
              @prefix horis: <https://w3id.org/horismos#> .\n\
              @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .\n\
@@ -2181,7 +2182,7 @@ mod retraction_ruling_tests {
     /// its local twin is enumerated — the PRP-001 spurious reject is gone.
     #[test]
     fn one_of_accepts_a_same_as_anchored_member() {
-        let onto = Ontology::load_from_str(
+        let onto = Ontology::load_from_str_allow_incomplete(
             "@prefix : <https://example.org/t#> .\n\
              @prefix horis: <https://w3id.org/horismos#> .\n\
              @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .\n\

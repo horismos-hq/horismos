@@ -1190,7 +1190,7 @@ mod tests {
     }
 
     fn triage() -> Ontology {
-        Ontology::load(concat!(
+        Ontology::load_allow_incomplete(concat!(
             env!("CARGO_MANIFEST_DIR"),
             "/../../examples/triage/triage.ttl"
         ))

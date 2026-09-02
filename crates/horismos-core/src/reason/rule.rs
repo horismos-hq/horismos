@@ -749,11 +749,11 @@ mod tests {
          \x20   horis:cardinality \"0..1\" ; horis:assignedBy horis:RulesOnly .\n";
 
     pub(super) fn load(rules: &str) -> Result<Ontology, OntologyError> {
-        Ontology::load_from_str(&format!("{PRELUDE}{DOMAIN}{rules}\n"), |_| None)
+        Ontology::load_from_str_allow_incomplete(&format!("{PRELUDE}{DOMAIN}{rules}\n"), |_| None)
     }
 
     fn triage() -> Ontology {
-        Ontology::load(concat!(
+        Ontology::load_allow_incomplete(concat!(
             env!("CARGO_MANIFEST_DIR"),
             "/../../examples/triage/triage.ttl"
         ))

@@ -187,7 +187,7 @@ mod tests {
     use rust_decimal::Decimal;
 
     fn triage_world() -> World {
-        let onto = Ontology::load(concat!(
+        let onto = Ontology::load_allow_incomplete(concat!(
             env!("CARGO_MANIFEST_DIR"),
             "/../../examples/triage/triage.ttl"
         ))
@@ -555,7 +555,7 @@ mod tests {
     #[test]
     fn contains_does_substring_on_strings() {
         let mut world = World::new(
-            &Ontology::load_from_str(
+            &Ontology::load_from_str_allow_incomplete(
                 "@prefix : <https://example.org/t#> .\n\
                  @prefix horis: <https://w3id.org/horismos#> .\n\
                  @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .\n\

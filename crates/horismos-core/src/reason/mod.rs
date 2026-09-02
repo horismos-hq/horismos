@@ -67,8 +67,9 @@ pub(crate) mod testing {
          \x20 horis:explain \"Immediate track — continuous cardiac monitoring\" .\n";
 
     pub(crate) fn example_world() -> World {
-        let onto = Ontology::load_from_str(&format!("{PRELUDE}{EXAMPLE_1}"), |_| None)
-            .expect("the Example 1 ontology must load");
+        let onto =
+            Ontology::load_from_str_allow_incomplete(&format!("{PRELUDE}{EXAMPLE_1}"), |_| None)
+                .expect("the Example 1 ontology must load");
         World::new(&onto)
     }
 }

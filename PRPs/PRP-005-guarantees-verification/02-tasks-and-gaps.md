@@ -87,10 +87,13 @@ Baseline: `5c45c0a3ac4c31ffa8d5d5ec90214d7d8b740e64` (`make verify` green,
   missing failure edges, unsatisfiable action preconditions, and uncovered choices
   each produce their own deterministic finding. Optional parsed failure edges have
   a domain-error runtime backstop for explicitly incomplete ontologies.
-- [ ] U5. **Rust load and error surface** — `Ontology::verify`, default-hard load,
+- [x] U5. **Rust load and error surface** — `Ontology::verify`, default-hard load,
   explicit load options/`allow_incomplete`, `VerificationFailed { report }`, and
   public report exports. Existing callers are migrated without weakening production
-  defaults.
+  defaults. **Done 2026-09-02**: ordinary filesystem and string loads run the full
+  verifier and retain the boxed machine report on failure; explicit authoring helpers
+  still verify and expose the same deterministic report. Partial internal fixtures use
+  the named escape while production loaders remain fail-closed. `make verify` is green.
 - [ ] U6. **Python and CI surface** — native whole-report marshaling, public Python
   dataclasses, load flags, error report attachment, stubs, and `python -m horismos
   verify` exit `0`/`1` with JSON output.
