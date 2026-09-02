@@ -17,6 +17,8 @@ The wiki was founded from a single research sweep,
 `horismos-research-s1` (2026-08-24) — see every page below for its findings. That
 sweep's own full report is the founding snapshot; this wiki is the living,
 incrementally-updated version of it.
+Weekly sweeps since then append dated "Sweep #N delta" sections to existing pages
+rather than rewriting them (first: sweep #2, 2026-09-02 — see `CHANGELOG.md`).
 
 ## The evidence-labeling convention
 
@@ -48,6 +50,8 @@ research/
   formalization/                — Q1: guideline representation languages & standards
   scenarios/                    — Q2: the scenario catalog beyond triage
   neurosymbolic-landscape/       — Q3: academic + industry neuro-symbolic AI landscape
+    pivot-alignment.md           — standing page: is the adopted pivot aligned with the
+                                   field? re-verdicted every sweep (verdict-history table on the page)
   validation/                    — Q4: clinical AI validation practice
   terminology/                   — Q5: SNOMED CT / LOINC / RxNorm licensing & scale
   ontology-authoring/            — Q6: agent-authored and learnable ontologies (PRP-007)

@@ -50,6 +50,37 @@ That would be a real architectural fork away from the current hard-separation de
 not an incremental add-on, and is worth naming explicitly the next time it comes up in
 a roadmap conversation.
 
+## Sweep #2 delta (2026-09-02): positioning language changed — revisited as this page asks
+
+**[measured]** Under the pivot the inherited positioning statement is "a deterministic,
+ontology-first decision and capability kernel that evaluates a versioned projection of
+an existing system, proves why an effect is allowed, and conditionally commits through
+standards-native adapters" (`PRPs/PRP-000-vision-positioning.md`). The closest
+architectural precedents found this sweep: ATA — offline LLM ingestion into a
+human-verifiable symbolic knowledge base, an online symbolic decision engine "without
+invoking the LLM," claiming perfect determinism and prompt-injection immunity
+([arXiv:2510.16381](https://arxiv.org/abs/2510.16381), Oct 2025); DaoQL — an explicit
+world model on a data-first ontology with the LLM as language engine, counterfactual
+decomposability 94% vs 45% for GPT-4o alone
+([arXiv:2607.17269](https://arxiv.org/abs/2607.17269)); and Sterling — a BFO-authored
+domain with a typed-lambda-calculus correctness proof and append-only ledger where the
+LLM derives roles only, but which *claims* semantic correctness
+([arXiv:2606.04903](https://arxiv.org/abs/2606.04903)). The learned-world-model
+counterparts: WorldEvolver, which gates its own foresight by confidence
+([arXiv:2606.30639](https://arxiv.org/abs/2606.30639)), and Clinical Graph-JEPA, which
+treats a MIMIC-IV patient-state KG as a "predictive patient-state representation" with
+JEPA latent refinement ([arXiv:2608.22583](https://arxiv.org/abs/2608.22583)). A shipped
+neighbour of the "provenance semirings" direction noted above: lemmalog, a Datalog
+agent-memory engine with semiring provenance (`../ontology-authoring/kg-maintenance-and-agent-memory.md`).
+
+**[inference]** The lineage claim above is unchanged by the pivot. What the pivot adds
+to positioning: "a symbolic world model is the snapshot you can prove over; a learned
+world model is a proposal source" is a cleaner line than the Kautz-type argument, and
+the contrast with Sterling — Horismos deliberately claims no semantic-correctness
+theorem — is now a stated differentiator rather than an omission. The "become more like
+Scallop" fork named above is now also a "become more like lemmalog" fork, and is still
+worth naming explicitly when it comes up.
+
 ## Source
 
 See `../reading-log.md`, Q3 section.
@@ -61,4 +92,4 @@ mixed — lineage/precedent facts are [measured]; the positioning recommendation
 
 ## Last-verified
 
-2026-08-24
+2026-09-02 (sweep #2 delta appended; founding claims unchanged)

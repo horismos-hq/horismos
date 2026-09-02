@@ -35,6 +35,28 @@ deferred.
    `examples/triage/snomed-ct-subset.ttl` fixture already shows single-parent
    structure with no version provenance).
 
+4. **[inference]** **Restate the sign-off gate's rationale from accuracy to safety, and treat the
+   verifier's consistency pass as necessary but not sufficient.** (Sweep #2,
+   2026-09-02.) Ontology-refinement loops with no human gate now report benchmark gains
+   — OaK, LLM judge plus HermiT ([arXiv:2608.22974](https://arxiv.org/abs/2608.22974));
+   ASKS ([arXiv:2608.29612](https://arxiv.org/abs/2608.29612)) — so "the gate is what
+   makes it accurate" is no longer a safe argument; and "single-axiom OWL edits achieve
+   93.3% SIV success with 100% Pellet-consistency stealth"
+   ([arXiv:2606.17223](https://arxiv.org/abs/2606.17223)), so a reasoner-consistency
+   check alone cannot be the gate. Implied: SME review of the *semantic diff*, not only
+   the rendered summary; non-vacuity (item 1); per-fact provenance on every derived
+   conclusion. See `autonomous-agents-failure-modes.md` (sweep #2 delta) and
+   `../neurosymbolic-landscape/pivot-alignment.md` (X2, A10).
+
+5. **[inference]** **Capability-fragment compiler mode: name the export surfaces and widen the effect
+   model.** (Sweep #2.) Claude Code `SKILL.md` `hooks` + `metadata`; Gemini CLI
+   `toolAnnotations`; MCP `tools/resolve` (draft SEP-1862); DeepSeek Harness's Claude
+   Code/Codex hook bridge; effect constraints must cover credentials and endpoints, not
+   only paths. For the envelope D-item shared with PRP-008: wrap Codex V4A `apply_patch`
+   verbatim and put the base-hash check in the policy stage, not the editing tool. See
+   `../neurosymbolic-landscape/coding-agent-harnesses.md` and
+   `../neurosymbolic-landscape/pivot-alignment.md` (A11, A12).
+
 ## Context: why the sign-off gate should stay hard, not loosen
 
 **[measured]** The rice trait ontology curation study — LLM-as-fallback + mandatory
@@ -58,4 +80,4 @@ recommendations for PRP-007 are [inference] and are captain-held, not applied he
 
 ## Last-verified
 
-2026-08-24
+2026-09-02 (items 4–5 added by sweep #2; items 1–3 unchanged)

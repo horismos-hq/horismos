@@ -94,6 +94,29 @@ ECL (Expression Constraint Language) is the formal language for intensional subs
 definitions
 ([docs.snomed.org](https://docs.snomed.org/snomed-ct-specifications/snomed-ct-expression-constraint-language/introduction/1-introduction)).
 
+## Sweep #2 delta (2026-09-02): release-cadence and format changes
+
+**[measured]** SNOMED International's July 2026 International Edition notes (release
+date 20260701): "The only change, then, for this July 2026 International release, was
+to transition the International Edition to the new Description Length Limit" — 4096
+characters, up from 255 — with "NO DESCRIPTIONS … EXPANDED BEYOND 255 CHARACTERS FOR THE
+JULY 2026" release and the first expansions "currently planned for … the August 2026
+International release"; the August notes add that future description changes "will
+align with the updated specification of description length up to 4096 characters
+without early visibility of these changes." Concept Non Current indicators "were
+deprecated in the January 2026 International Edition" and will be "removed from both
+Full and Snapshot files … from the January 2027 release onwards." The notes reference
+"new monthly editing cycles"
+([July 2026 notes](https://conf.spaces.snomed.org/wiki/spaces/RMT/pages/972029981/);
+[August 2026 notes](https://conf.spaces.snomed.org/wiki/spaces/RMT/pages/1065124453/)).
+The US Edition remains on a March/September cycle (NLM page, snippet → [unverified]).
+No SNOMED licensing change was found in 2026.
+
+**[inference]** Two consequences for the build-time extraction pipeline this page
+recommends: provenance must carry edition *and* release month — the "same" SNOMED now
+differs monthly (International) versus semiannually (US) — and any fixed 255-character
+description field in an RF2 or FHIR ingest would now fail closed on legitimate data.
+
 ## Source
 
 See `../reading-log.md`, Q5 section.
@@ -105,4 +128,4 @@ extraction-pipeline recommendation is [inference] and captain-held (PRP-007 scop
 
 ## Last-verified
 
-2026-08-24
+2026-09-02 (sweep #2 delta appended; founding claims unchanged)

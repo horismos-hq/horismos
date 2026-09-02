@@ -36,6 +36,38 @@ Medical Devices registry
 a 27-year retrospective finding ~5–6% of AI/ML devices ever recalled, mostly software
 bugs ([PMC12274014](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC12274014/)).
 
+## Sweep #2 delta (2026-09-02): the 2022 CDS guidance is superseded; DSI transparency mandates are being withdrawn
+
+**[measured]** FDA issued a revised Clinical Decision Support Software final guidance
+in January 2026, superseding the 2022 guidance cited above (search snippets give the
+issue date as January 6 or January 29; fda.gov returned 404 to every fetch → the exact
+date is [unverified]; the Covington & Burling analysis was read in full). Criterion 4
+keeps "enabling the HCP to independently review the basis for the recommendations … so
+that it is not the intent that the HCP rely primarily on any of such recommendations";
+FDA now "exercises enforcement discretion for singular recommendations when clinically
+appropriate" where the 2022 text required option lists; the time-critical exclusion
+moved from Criterion 3 to Criterion 4; transparency expectations for inputs and logic
+are maintained; the guidance "remains silent on AI-enabled tools, generative AI
+applications, and medical chatbots"
+([Covington](https://www.cov.com/en/news-and-insights/insights/2026/01/5-key-takeaways-from-fdas-revised-clinical-decision-support-cds-software-guidance);
+[FDA guidance page](https://www.fda.gov/regulatory-information/search-fda-guidance-documents/clinical-decision-support-software)).
+
+**[measured]** HTI-5 (ASTP/ONC, proposed 2025-12-29, comments closed 2026-02-27, no
+final rule as of 2026-09-02) would remove legacy CDS §170.315(a)(9) and revise DSI
+§170.315(b)(11) to "fully remove the artificial intelligence (AI) 'model card'
+requirements," aiming to "establish a new foundation on which to build FHIR-based API
+requirements in the future"
+([fact sheet](https://www.healthit.gov/topic/laws-regulation-and-policy/hti-5-proposed-rule-fact-sheet);
+[overview deck](https://healthit.gov/wp-content/uploads/2026/02/HTI-5-Proposed-Rule-Overview.pdf);
+[status](https://healthit.gov/regulations/hti-rules/hti-5-proposed-rule/)).
+
+**[inference]** The founding claim above stands and sharpens: Criterion 4 now
+explicitly tolerates a single recommendation, so a card whose narration cites the proof
+is the exemption artifact, while an authorized write with no HCP review step would sit
+on the device side of the line — bears on PRP-008 D5 (output posture), not decided
+here. Trace transparency is becoming a differentiator rather than a certification
+checkbox.
+
 ## Source
 
 See `../reading-log.md`, Q4 section.
@@ -48,4 +80,4 @@ exists yet.
 
 ## Last-verified
 
-2026-08-24
+2026-09-02 (sweep #2 delta appended; the 2022 FDA CDS guidance cited in Evidence is superseded — see delta)
