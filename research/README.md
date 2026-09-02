@@ -17,6 +17,8 @@ The wiki was founded from a single research sweep,
 `horismos-research-s1` (2026-08-24) — see every page below for its findings. That
 sweep's own full report is the founding snapshot; this wiki is the living,
 incrementally-updated version of it.
+Weekly sweeps since then append dated "Sweep #N delta" sections to existing pages
+rather than rewriting them (first: sweep #2, 2026-09-02 — see `CHANGELOG.md`).
 
 ## The evidence-labeling convention
 
@@ -28,6 +30,9 @@ separate, always:
   accompanies the tag.
 - **[inference]** — synthesis or judgment: a researcher's or an agent's reasoning
   connecting measured facts, not itself an independently citable fact.
+- **[unverified]** — a qualifier, not a third label: the source was relayed only via a
+  search snippet because the primary-text fetch failed. Mark it explicitly rather than
+  silently upgrading it to a confirmed [measured] citation.
 
 This isn't decoration. Horismos's own design principle — neural proposes, symbolic
 decides — has a research-wiki analog: don't let a plausible-sounding synthesis pass as
@@ -48,6 +53,8 @@ research/
   formalization/                — Q1: guideline representation languages & standards
   scenarios/                    — Q2: the scenario catalog beyond triage
   neurosymbolic-landscape/       — Q3: academic + industry neuro-symbolic AI landscape
+    pivot-alignment.md           — standing page: is the adopted pivot aligned with the
+                                   field? re-verdicted every sweep (verdict-history table on the page)
   validation/                    — Q4: clinical AI validation practice
   terminology/                   — Q5: SNOMED CT / LOINC / RxNorm licensing & scale
   ontology-authoring/            — Q6: agent-authored and learnable ontologies (PRP-007)
@@ -74,7 +81,9 @@ reviewable PR**: one URL, one finding, or one topic-page update per PR, never a 
 rewrite of multiple pages at once. This mirrors the intake mechanism's own shape
 (fetch → summarize → position → file, §see `intake/README.md`) and keeps every change
 independently reviewable against its cited source. If a change touches more than a
-handful of files, it's probably several PRs, not one.
+handful of files, it's probably several PRs, not one. The one exception is a weekly
+sweep, which lands as a single PR: its edits to existing pages are confined to dated
+"Sweep #N delta" sections (see above), so each page's delta stays reviewable on its own.
 
 ## Where the founding sweep's report lives
 

@@ -59,6 +59,71 @@ ARPaCCino has an LLM draft Rego/OPA policy, iteratively refined against
 infrastructure-as-code compliance checks — a related draft-then-gate pattern outside
 ontologies ([arXiv:2507.10584](https://arxiv.org/abs/2507.10584)).
 
+## Sweep #2 delta (2026-09-02): the formalization gap gets numbers; the narration boundary gets an attack
+
+**[measured]** ShadowBench (EMNLP 2026) checks autoformalized Lean 4 statements
+against "shadow" statements by compilation plus forward and backward implication:
+Claude Opus 4.8 reaches 61.8% compile rate but 11.2% semantic-alignment pass on 178
+research-level problems, with 98.8% concordance to expert judgment
+([arXiv:2608.29270](https://arxiv.org/abs/2608.29270)). A PRISMA survey of 38
+agent-safety studies finds NL→formal translation "achieves only 24% to 35% semantic
+correctness" and that "no existing approach simultaneously achieves soundness,
+scalability, semantic correctness, and task-level safety preservation"
+([arXiv:2608.14590](https://arxiv.org/abs/2608.14590)). Legal-reasoning
+autoformalization shows "scope laundering (reporting conclusions without executing
+formal logic), implicit constraint blindness, and program synthesis failures," with
+scope laundering persisting "across all models"
+([arXiv:2606.16118](https://arxiv.org/abs/2606.16118)); another study finds models
+"mistranslat[e] premises during formalization, producing internally consistent outputs
+that evade detection entirely" at 87–99% compile rates
+([arXiv:2604.19459](https://arxiv.org/abs/2604.19459)). Detection is improving: a
+faithfulness probe catches 89.6% of drifted Lean formalizations at 3.0% false-positive
+rate versus 41.2% for type-checking alone
+([arXiv:2606.16541](https://arxiv.org/abs/2606.16541)); round-trip formalize →
+back-translate → re-formalize → equivalence-check flags failing rules with 1.4–2.5x
+more NLI drift ([arXiv:2604.25031](https://arxiv.org/abs/2604.25031)).
+
+**[measured]** Vacuity: no paper dated after 2026-08-24. The most recent work: KaPilot
+appends `#[kani::ensures(|_| false)]` and calls a spec non-vacuous only if verification
+fails after and succeeds before — no vacuity rate reported
+([arXiv:2607.21957](https://arxiv.org/abs/2607.21957)); an RL study found verified
+reward rising 2.2% → 58.1% was "largely specification hacking," dropping to 9.7% → 31.1%
+after filtering weak specs ([arXiv:2605.30914](https://arxiv.org/abs/2605.30914));
+mutation-guided rejection of vacuous LLM-written RTL assertions
+([arXiv:2606.21451](https://arxiv.org/abs/2606.21451)); and "vacuity failure" of risk
+bounds — a never-acting selector drives risk to zero — excluded by construction in
+actionability certificates ([arXiv:2608.12444](https://arxiv.org/abs/2608.12444)), a
+different sense of vacuity relevant to stating what a passed check rules out.
+
+**[measured]** The narration boundary: in an LLM–solver loop the certificate "ties to a
+property of a formula, not to the sentence that [the] LLM model outputs." Under prompt
+injection, five open models inverted the verified conclusion in 61% of 120 trials; a
+hardened prompt cut this to 14% but the stealthy share (verdict reported correctly,
+conclusion flipped) moved only from 0.57 to 0.53 and adaptive attacks recovered to 43%.
+Theorem 3.1: a conclusion monitor comparing narrated answer to verified verdict is sound
+and complete; "the only defense that drives their rate to zero is enforcement, which
+reports ρ(v) in place of the model conclusion"
+([arXiv:2606.19588](https://arxiv.org/abs/2606.19588)).
+
+**[measured]** Verifier-before-run peers: FORGE runs four static analyses over Datalog
+agent policies before deployment — contradiction, redundancy, subsumption, conditional
+reachability — and states its correctness theorem only "when the environment contract
+holds" (τ²-bench compliance 58% → 98%)
+([arXiv:2602.16708](https://arxiv.org/abs/2602.16708)); proof-carrying certificates for
+LLM pipelines partition declared assumptions by tier and turn abstention into a
+"maximum-weight certifiable residue with audit-logged dropped claims"
+([arXiv:2605.16407](https://arxiv.org/abs/2605.16407)).
+
+**[inference]** Bearing on the recommendations above and on PRP-005: (a) PRP-007's
+rendered-summary review surface should be complemented by a deterministic conclusion
+monitor (narrated conclusion vs proof verdict) — the narration paper's own remedy; (b)
+the seeded-wrong-axiom DoD test now has measured baselines to beat — a five-to-one
+compile-vs-meaning gap and 41.2% typecheck-only detection; (c) FORGE's four analyses are
+a direct peer for PRP-005's rule-set checks, and its closed-world stance ("Any fact
+absent … may be treated as false") is the contrast that makes Horismos's
+absent-vs-not-fetched distinction a stated differentiator. Flagged in
+`../neurosymbolic-landscape/pivot-alignment.md` (A8, A14); owners unchanged.
+
 ## Source
 
 See `../reading-log.md`, Q6 section.
@@ -70,4 +135,4 @@ recommendation flagged [inference].
 
 ## Last-verified
 
-2026-08-24
+2026-09-02 (sweep #2 delta appended; founding claims unchanged)

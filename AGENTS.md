@@ -25,6 +25,10 @@ proof → NL). Delete the LLM and the kernel still runs.
 - `PRPs/README.md`: phase plans. Open design questions are marked **[DECIDE]** in the
   docs, each owned by exactly one PRP — resolve them in the owning PRP, never ad hoc.
 - `PRPs/foundational-skeleton.md`: this skeleton — layout, tooling, skills roster.
+- `research/README.md`: the research wiki — reality-checks the design against the field,
+  every claim tagged `[measured]`/`[inference]`; consult before resolving a `[DECIDE]`.
+  `research/neurosymbolic-landscape/pivot-alignment.md` is the standing verdict on the
+  bounded-projection pivot, re-issued each weekly sweep.
 - Prior art: `../sigil-lang` (sibling repo) — the proving ground this framework
   inherits from; PRPs cite what to port.
 

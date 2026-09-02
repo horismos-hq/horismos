@@ -37,6 +37,15 @@ See `ontology-learning-benchmarks.md`, `autonomous-agents-failure-modes.md`,
 `verification-of-llm-drafted-artifacts.md`, and `prp-007-open-items.md` for the
 detailed findings this overview summarizes.
 
+## Sweep #2 delta (2026-09-02)
+
+One page added this sweep: `kg-maintenance-and-agent-memory.md` — how the agent-memory
+and knowledge-graph communities handle write-path control, admission gating, and
+versioned invalidation, and where that converges with or diverges from Horismos's
+commitments. Sweep #2 also appended delta sections to
+`autonomous-agents-failure-modes.md`, `verification-of-llm-drafted-artifacts.md`, and
+`prp-007-open-items.md` (items 4–5).
+
 ## Source
 
 See `../reading-log.md`, Q6 section.
@@ -47,4 +56,4 @@ measured
 
 ## Last-verified
 
-2026-08-24
+2026-09-02 (sweep #2 delta appended; founding claims unchanged)

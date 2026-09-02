@@ -79,6 +79,41 @@ setting
 ([medrxiv.org](https://www.medrxiv.org/content/10.64898/2026.02.13.26346256v1.full)) —
 evidence RAG alone is not a safety mechanism equivalent to a hard gate.
 
+## Sweep #2 delta (2026-09-02)
+
+Two pages added this sweep: `pivot-alignment.md` — the standing assessment of the
+bounded-projection pivot against the field (verdict: **aligned-with-adjustments**) —
+and `coding-agent-harnesses.md` — how Claude Code, Codex, Gemini CLI, Cursor, pi,
+DeepSeek Harness and MCP structure capabilities and policies.
+
+**[measured]** Industry motion since 2026-08-24 bearing on the "racing absence" framing
+above: Microsoft GraphRAG is "largely in maintenance mode" (3.1.2, 2026-08-21,
+[pypi](https://pypi.org/project/graphrag/)); Epic's UGM 2026 introduced Agent Factory
+("more than 120 pre-built AI agents, customize them to organizational policy … without
+writing code," broader availability 2027) and Ergo (November 2026), with no third-party
+decision-service, MCP or CDS Hooks surface mentioned in any coverage
+([HealthTech HotSpot](https://healthtechhotspot.com/epic-ugm-2026-recap-cosmos-curiosity-epicops-and-an-expanding-ai-footprint/);
+[Advisory Board](https://www.advisory.com/daily-briefing/2026/08/26/epic-ugm-ab-oi-ec));
+Oracle Health's 2026-08-19 expansion says its agents "use semantic reasoning to
+understand clinical meaning" with no FHIR or third-party surface
+([oracle.com](https://www.oracle.com/news/announcement/oracle-health-expands-clinical-ai-agent-with-coding-dictation-chart-review-2026-08-19/));
+MEDITECH's last AI announcement is 2026-03-10
+([meditech.com](https://ehr.meditech.com/news/meditech-s-latest-ai-innovations-support-smarter-care-and-stronger-performance));
+no major EHR exposes a first-party MCP server ([eureka.md](https://eureka.md/docs/ehr-mcp-servers)).
+The coding-harness approval step is moving to model classifiers (Codex `auto_review`,
+Claude Code `auto` mode, Cursor Auto-review — `coding-agent-harnesses.md`). Against
+that, Epic put Da Vinci CRD hook-triggered third-party decision services into production
+on 2026-08-17 (`../formalization/cql-cds-hooks-fhir.md`, sweep #2 delta). Naming
+collision: OaK (2026-08-24) calls its frozen task ontology "the kernel" — "the only
+channel through which the agent reaches the data"
+([arXiv:2608.22974](https://arxiv.org/abs/2608.22974)).
+
+**[inference]** The gap named above — pre-execution formal gating of LLM output in a
+shipping product — is still open, and the incumbents are moving toward classifier-based
+approval rather than filling it. The only durable third-party clinical decision surface
+remains CDS Hooks + SMART + FHIR REST, which is what the pivot targets. See
+`pivot-alignment.md` §X1, X6, X10.
+
 ## Source
 
 See `../reading-log.md`, Q3 section, for the full citation list.
@@ -91,4 +126,4 @@ mixed — the academic field's own definitional posture and the industry survey 
 
 ## Last-verified
 
-2026-08-24
+2026-09-02 (sweep #2 delta appended; founding claims unchanged)
