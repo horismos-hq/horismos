@@ -917,6 +917,99 @@ mod workflow_verification_tests {
         assert!(established.workflows()[":Flow"].requires_satisfiable);
         assert!(established.workflows()[":Flow"].choices_total);
     }
+
+    #[test]
+    fn workflow_conditions_follow_derived_from_derived_support() {
+        let domain = r#"
+            :Patient a rdfs:Class .
+            :Decision a rdfs:Class ; horis:oneOf ( :Yes :No ) .
+            :flag a rdf:Property ; rdfs:domain :Patient ; rdfs:range xsd:boolean ;
+                horis:cardinality "1" .
+            :intermediate a rdf:Property ; rdfs:domain :Patient ; rdfs:range xsd:boolean ;
+                horis:assignedBy horis:RulesOnly ; horis:cardinality "0..1" .
+            :decision a rdf:Property ; rdfs:domain :Patient ; rdfs:range :Decision ;
+                horis:assignedBy horis:RulesOnly ; horis:cardinality "0..1" .
+            :deriveDecision a horis:Rule ;
+                horis:when [ horis:subject :Patient ; horis:property :intermediate ; horis:isAssigned true ] ;
+                horis:then [ horis:property :decision ; horis:value :Yes ] .
+            :effect a rdf:Property ; rdfs:domain :Patient ; rdfs:range xsd:string .
+            :tool a horis:Tool ; horis:effect [ horis:asserts [ horis:property :effect ; horis:type xsd:string ] ] ; horis:binding "rust:test" .
+            :Flow a horis:Workflow ; horis:startsAt :Act .
+            :Act a horis:ActionStep ; horis:tool :tool ;
+                horis:requires [ horis:property :decision ; horis:isAssigned true ] ;
+                horis:onError :Done ; horis:onUnsatisfied :Done ; horis:next :Done .
+            :Done a horis:Step ; horis:terminal true .
+        "#;
+        let missing_upstream = report(domain);
+        assert!(!missing_upstream.workflows()[":Flow"].requires_satisfiable);
+
+        let upstream = r#"
+            :deriveIntermediate a horis:Rule ;
+                horis:when [ horis:subject :Patient ; horis:property :flag ; horis:isAssigned true ] ;
+                horis:then [ horis:property :intermediate ; horis:value true ] .
+        "#;
+        let established = report(&format!("{domain}{upstream}"));
+        assert!(established.workflows()[":Flow"].requires_satisfiable);
+    }
+
+    #[test]
+    fn higher_priority_support_blocks_a_lower_priority_negative_rule() {
+        let report = report(
+            r#"
+            :Patient a rdfs:Class .
+            :flag a rdf:Property ; rdfs:domain :Patient ; rdfs:range xsd:boolean ; horis:cardinality "1" .
+            :intermediate a rdf:Property ; rdfs:domain :Patient ; rdfs:range xsd:boolean ;
+                horis:assignedBy horis:RulesOnly ; horis:cardinality "0..1" .
+            :decision a rdf:Property ; rdfs:domain :Patient ; rdfs:range xsd:boolean ;
+                horis:assignedBy horis:RulesOnly ; horis:cardinality "0..1" .
+            :establishFirst a horis:Rule ; horis:priority 10 ;
+                horis:when [ horis:subject :Patient ; horis:property :flag ; horis:isAssigned true ] ;
+                horis:then [ horis:property :intermediate ; horis:value true ] .
+            :negativeLater a horis:Rule ; horis:priority 0 ;
+                horis:when [ horis:subject :Patient ; horis:property :intermediate ; horis:isEmpty true ] ;
+                horis:then [ horis:property :decision ; horis:value true ] .
+            :effect a rdf:Property ; rdfs:domain :Patient ; rdfs:range xsd:string .
+            :tool a horis:Tool ; horis:effect [ horis:asserts [ horis:property :effect ; horis:type xsd:string ] ] ; horis:binding "rust:test" .
+            :Flow a horis:Workflow ; horis:startsAt :Act .
+            :Act a horis:ActionStep ; horis:tool :tool ;
+                horis:requires [ horis:property :decision ; horis:isAssigned true ] ;
+                horis:onError :Done ; horis:onUnsatisfied :Done ; horis:next :Done .
+            :Done a horis:Step ; horis:terminal true .
+            "#,
+        );
+        assert!(!report.workflows()[":Flow"].requires_satisfiable);
+        assert!(report.dead_rules().contains(&":negativeLater".to_owned()));
+    }
+
+    #[test]
+    fn newly_enabled_higher_priority_support_restarts_before_negative_rules() {
+        let report = report(
+            r#"
+            :Patient a rdfs:Class .
+            :flag a rdf:Property ; rdfs:domain :Patient ; rdfs:range xsd:boolean ; horis:cardinality "1" .
+            :x a rdf:Property ; rdfs:domain :Patient ; rdfs:range xsd:boolean ; horis:assignedBy horis:RulesOnly ; horis:cardinality "0..1" .
+            :y a rdf:Property ; rdfs:domain :Patient ; rdfs:range xsd:boolean ; horis:assignedBy horis:RulesOnly ; horis:cardinality "0..1" .
+            :decision a rdf:Property ; rdfs:domain :Patient ; rdfs:range xsd:boolean ; horis:assignedBy horis:RulesOnly ; horis:cardinality "0..1" .
+            :high a horis:Rule ; horis:priority 10 ;
+                horis:when [ horis:subject :Patient ; horis:property :x ; horis:isAssigned true ] ;
+                horis:then [ horis:property :y ; horis:value true ] .
+            :middle a horis:Rule ; horis:priority 5 ;
+                horis:when [ horis:subject :Patient ; horis:property :flag ; horis:isAssigned true ] ;
+                horis:then [ horis:property :x ; horis:value true ] .
+            :negative a horis:Rule ; horis:priority 0 ;
+                horis:when [ horis:subject :Patient ; horis:property :y ; horis:isEmpty true ] ;
+                horis:then [ horis:property :decision ; horis:value true ] .
+            :effect a rdf:Property ; rdfs:domain :Patient ; rdfs:range xsd:string .
+            :tool a horis:Tool ; horis:effect [ horis:asserts [ horis:property :effect ; horis:type xsd:string ] ] ; horis:binding "rust:test" .
+            :Flow a horis:Workflow ; horis:startsAt :Act .
+            :Act a horis:ActionStep ; horis:tool :tool ; horis:requires [ horis:property :decision ; horis:isAssigned true ] ;
+                horis:onError :Done ; horis:onUnsatisfied :Done ; horis:next :Done .
+            :Done a horis:Step ; horis:terminal true .
+            "#,
+        );
+        assert!(!report.workflows()[":Flow"].requires_satisfiable);
+        assert!(report.dead_rules().contains(&":negative".to_owned()));
+    }
 }
 
 #[cfg(test)]

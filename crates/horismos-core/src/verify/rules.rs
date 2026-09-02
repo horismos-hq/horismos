@@ -49,12 +49,17 @@ struct SymbolicSpace<'a> {
 /// Verify all rule guarantees under a caller-supplied bounded-projection
 /// assumption manifest.
 pub fn verify_ontology(ontology: &Ontology, assumptions: AssumptionManifest) -> VerificationReport {
+    let has_rules_only_property = ontology
+        .schema()
+        .properties()
+        .any(|property| property.assigned_by == AssignedBy::RulesOnly);
+    if ontology.rules().is_empty() && ontology.workflows().is_empty() && !has_rules_only_property {
+        let mut report = ReportBuilder::new(assumptions);
+        verify_constraint_vacuity(ontology, &mut report);
+        return report.finish();
+    }
     let space = SymbolicSpace::new(ontology);
-    let formulas: Vec<Bdd> = ontology
-        .rules()
-        .iter()
-        .map(|rule| space.rule_formula(rule))
-        .collect();
+    let formulas = space.established_rule_formulas();
     let mut report = ReportBuilder::new(assumptions);
 
     verify_completeness(&space, &formulas, &mut report);
@@ -291,32 +296,36 @@ impl<'a> SymbolicSpace<'a> {
             })
     }
 
-    fn rule_formula(&self, rule: &Rule) -> Bdd {
-        self.reachable
-            .and(&self.subject_is(rule.subject_class))
-            .and(&self.condition_tree(&rule.when))
-    }
-
-    fn condition_tree(&self, tree: &ConditionTree) -> Bdd {
-        match tree {
-            ConditionTree::Leaf(condition) => self.condition(condition),
-            ConditionTree::All(children) => children
-                .iter()
-                .fold(self.variables.mk_true(), |bdd, child| {
-                    bdd.and(&self.condition_tree(child))
-                }),
-            ConditionTree::Any(children) => children
-                .iter()
-                .fold(self.variables.mk_false(), |bdd, child| {
-                    bdd.or(&self.condition_tree(child))
-                }),
-            ConditionTree::NoneOf(children) => children
-                .iter()
-                .fold(self.variables.mk_false(), |bdd, child| {
-                    bdd.or(&self.condition_tree(child))
-                })
-                .not(),
+    fn established_rule_formulas(&self) -> Vec<Bdd> {
+        let mut formulas = vec![self.variables.mk_false(); self.ontology.rules().len()];
+        // Rule conclusions only add support. Starting with every RulesOnly
+        // fact absent and unioning each round computes the least fixed point
+        // that the forward engine can establish, including derived chains.
+        let rule_count = self.ontology.rules().len();
+        let max_updates = rule_count
+            .saturating_mul(rule_count)
+            .saturating_add(rule_count)
+            .saturating_add(1);
+        let mut updates = 0;
+        let mut index = 0;
+        while index < rule_count && updates < max_updates {
+            // The runtime fires one candidate, then restarts its priority
+            // scan. Mirror that restart whenever any symbolic support grows.
+            let rule = &self.ontology.rules()[index];
+            let candidate = self
+                .reachable
+                .and(&self.subject_is(rule.subject_class))
+                .and(&self.condition_tree_after_rules(&rule.when, &formulas));
+            let established = formulas[index].or(&candidate);
+            if established != formulas[index] {
+                formulas[index] = established;
+                updates += 1;
+                index = 0;
+            } else {
+                index += 1;
+            }
         }
+        formulas
     }
 
     fn condition_tree_after_rules(&self, tree: &ConditionTree, formulas: &[Bdd]) -> Bdd {
