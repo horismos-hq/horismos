@@ -46,6 +46,45 @@ does not rebuild them — it wraps them in a typed contract. Where the MCP tool'
 schema is looser than the `horis:takes`/`horis:effect` declaration, the declaration
 wins: out-of-contract calls can't be made, out-of-contract results can't land.
 
+## Adapter-mediated external commits (declared-future, PRP-008)
+
+Under the bounded-projection pivot (`PRPs/PRP-000-vision-positioning.md`), a tool effect
+that reaches an external system of record commits through an Adapter, not a bare
+synchronous call, and the contract above extends with:
+
+- **Expected source versions**: an adapter-mediated commit carries the source-version
+  vector the World's projection was hydrated against; the external system rejects (or the
+  adapter refuses to attempt) a commit against a resource that has since changed —
+  the same fail-closed discipline as doc 03's conditional-commit semantics.
+- **Remote receipt/effect reconciliation**: a commit's outcome (accepted, conflicted,
+  failed) is a distinct trace state from "decision produced" — the tool's declared
+  `horis:effect` describes what Horismos proposes to assert, not a guarantee the remote
+  system accepted it; reconciliation records which actually happened.
+- **Authorization scopes**: an adapter-mediated tool binding carries the authorization
+  scope (e.g. a SMART-on-FHIR scope) it commits under, checked before the call, not
+  inferred from a successful response.
+- **Distributed-failure semantics**: no cross-system atomicity claim (doc 03, doc 15) —
+  a multi-effect commit may partially succeed; the trace names exactly which effects
+  committed and which didn't, rather than reporting one aggregate success/failure.
+- Where useful, an adapter-mediated tool aligns with an existing operation shape (e.g.
+  FHIR ActivityDefinition/operations) rather than inventing a parallel one — but this is
+  not forced: a tool that has no natural standards analog stays a plain `horis:Tool`.
+
+None of this changes tools without an external commit (the shipped `rust:`/`python:`
+in-process bindings) — they keep the synchronous contract above unmodified.
+
+## The candidate-artifact boundary (declared-future, coding-agent use case)
+
+See `docs/framework/06-llm-boundaries.md` §"Candidate-artifact authoring" for the full
+statement. In tools terms: a model-generated patch/file/command is never an ordinary
+`horis:Tool` argument built from graph-read values — it is a typed proposal envelope that
+passes through deterministic policy validation, sandboxed test execution, and a symbolic
+authorization step before an `ActionStep`-like effect can land. This is captain-adopted
+design (`decisions/captain-pivot-ruling.md` item 3), owned jointly by `PRPs/PRP-007-
+authoring-agent.md` and `PRPs/PRP-008-standards-host-integration.md`, and **not built in
+v1** — declared here so it has a named shape rather than being invented ad hoc against a
+future coding-agent deadline.
+
 ## Invocation semantics
 
 An `ActionStep` fires its tool when:
@@ -98,3 +137,12 @@ stop: that is a rule, and it belongs in the ontology.
 The remaining honest failure class — the tool itself misbehaves in the real world in
 ways its contract can't see — is logged with full trace context, which is exactly the
 context an incident review needs.
+
+**Correction (2026-08-24, bounded-projection pivot review)**: "impossible" in the table
+above describes the *visible, contract-checked* surface — which tool fires, what arguments
+it receives, when it's callable — not the tool implementation's full behavior. Contract
+narrowing constrains what an `ActionStep` can *ask for* and what result can *land as a
+fact*; it does not and cannot prove the bound implementation has no hidden side effect
+outside its declared `horis:effect` (a `python:`/`http:` binding that also writes to an
+unrelated system, for instance). That residual is the "tool itself misbehaves" row above,
+stated precisely rather than implied away by the table's absolutist framing.

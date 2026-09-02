@@ -1,12 +1,22 @@
 # 13 · Authoring
 
 SMEs do not write Turtle. They describe their domain in conversation with the
-authoring agent (`horismos author`), which drafts the ontology and negotiates with the
-verifier until the result is provably well-formed — then the SME signs off on a
+authoring agent (`horismos author`), which drafts an ontology **overlay** and negotiates
+with the verifier until the result is provably well-formed — then the SME signs off on a
 rendered summary, never syntax. The runtime's principle applied at design time:
 **neural proposes, symbolic decides.**
 
-## The loop
+**Default job, amended 2026-08-24** (`PRPs/PRP-007-authoring-agent.md`, captain-adopted
+bounded-projection pivot): the primary authoring mode is no longer blank-slate drafting
+from conversation alone — it is **import, align, and overlay**: ingest an existing FHIR
+profile, terminology subset, PlanDefinition, or a tool/skill's own schema/manifest without
+trusting it, deterministically lift whatever structure is already machine-readable (names,
+types, cardinalities, allowed sets — no model needed for facts already explicit in
+metadata), and let the model propose only the prose-derived mapping (rule conditions,
+effects, fallbacks), with every drafted clause linked back to its source text. Blank-slate
+drafting (the loop below) remains fully supported for domains with nothing to overlay.
+
+## The loop (blank-slate mode)
 
 ```
 SME: "Patients with heart rate over 120 and chest pain go straight to Immediate."
@@ -31,8 +41,30 @@ SME reviews the rendered summary:
 sign-off → versioned triage.ttl (+ domain-term changelog entry)
 ```
 
-Two hard gates, always: the **verifier** (no unverified draft survives the loop) and
-the **SME sign-off** (no autonomous deployment, ever).
+## The loop (import/align/overlay mode — declared-future, PRP-008 coordination)
+
+```
+Owner points the agent at a source: a FHIR profile, a PlanDefinition, a tool JSON
+Schema, a repo's SKILL.md/AGENTS.md — every source is hashed, never trusted blindly
+  ↓
+deterministic lift: names, types, cardinalities, allowed sets, exit codes, timeouts →
+  candidate classes, typed arguments, constraints        (no model needed here)
+  ↓
+agent proposes the prose-derived mapping: workflow steps, horis:requires conditions,
+  declared effects, fallbacks — each clause source-anchored to the line it came from
+  ↓
+parse → gate shapes → VERIFY (+ non-vacuity, PRP-005)   (docs 02, 10)
+  ↓
+compiler emits a formalization coverage report: formalized / machine-checkable /
+  test-backed-opaque / prose-only / contradictions — holes are named, never guessed
+  ↓
+Owner reviews the rendered summary + source-anchor view + coverage report — never a triple
+  ↓
+sign-off → versioned overlay .ttl (+ domain-term changelog + coverage report)
+```
+
+Two hard gates, always, in both modes: the **verifier** (no unverified draft survives the
+loop) and the **human sign-off** (no autonomous deployment, ever).
 
 ## The agent
 
@@ -74,7 +106,16 @@ invents IRIs in external namespaces.
 - **Scenario probes** — the SME can ask "what would happen for a 45-year-old with
   HR 115 and dizziness?"; the agent runs the draft ontology symbolically (structured
   facts, no perception) and shows the proof tree. Dry-running the ontology *is* the
-  review of its logic.
+  review of its logic. **Amended (2026-08-24)**: the DoD extends this to include a seeded
+  subtly-wrong-but-internally-consistent axiom, measuring — not assuming — whether an SME
+  reviewing only the rendered summary and scenario probes catches it
+  (`horismos-research-s1/report.md` §1.7; `PRPs/PRP-007-authoring-agent.md`'s DoD).
+- **(Import/align mode, declared-future) Source-anchor view, mapping-loss report, and
+  assumption diff** — which drafted clause traces to which line of the imported standard;
+  what was lost or approximated in the mapping (never silently); and what changed in the
+  overlay's own assumption manifest (`docs/framework/10-verification.md`) between
+  revisions — so a reviewer sees not just "what changed" but "what this overlay now
+  assumes that it didn't before."
 
 ## The corpus side effect
 
@@ -82,6 +123,25 @@ Every authoring session logs `(NL description, Turtle draft, verification outcom
 revision, final)` tuples — exported through the trace exporter (doc 09) as the
 **authoring corpus**: training data for an ontology-drafting model, distinct from the
 runtime trajectory corpus. Both flywheels start turning on day one of real use.
+
+## Skills-to-fragment loop and trace-mining (declared-future, PRP-007/PRP-008)
+
+Two extensions, captain-adopted alongside the pivot, neither built in v1:
+
+- **Capability-fragment compiling**: the same ingest → deterministic-lift → model-proposes
+  → verify → sign-off loop above, pointed at an existing coding-agent skill/tool instead
+  of a clinical standard, producing a **Capability Fragment** — a small overlay attached
+  to, not replacing, the original package, with the formalization coverage report from the
+  overlay loop above. `PRPs/PRP-007-authoring-agent.md` §"Capability-fragment compiler
+  mode" has the full spec; `PRPs/PRP-000-vision-positioning.md` §"Comparison" has the
+  positioning against existing harnesses.
+- **Trace-mining as a proposal source**: accumulated execution traces (doc 09) may suggest
+  candidate ontology edits, but only by entering this exact gated loop as a new kind of
+  draft proposal — never by mutating a signed-off ontology directly. This is a deliberate
+  rejection of a self-reinforcing ingest-learn-reingest loop (the documented NELL schema-
+  drift and Cognee-adjacent risk surveyed in `horismos-research-s1/report.md` §1.7):
+  Horismos's principle 2 ("traces are output, not logging") stays one-directional at the
+  authoring layer exactly as it is at the runtime layer.
 
 ## CLI
 

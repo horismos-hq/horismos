@@ -16,7 +16,10 @@ horismos/                          (workspace)
 │   │   ├── trace/              #   horismos.trace/1 emit + replay
 │   │   └── wasm.rs             #   [wasm] HorismosRuntime
 │   ├── horismos-bridges/          # provider clients ([bridges-*] features), mock
-│   └── horismos-py/               # PyO3 bindings only — no logic
+│   ├── horismos-py/               # PyO3 bindings only — no logic
+│   └── horismos-fhir/             # [declared-future, PRP-008] FHIR/host adapter crate —
+│                                   #   hydration, mapping, conditional commit; outside
+│                                   #   horismos-core, same dependency posture as -bridges
 ├── python/horismos/               # pure-Python surface: proxies, testing utils, export
 ├── docs/framework/             # ← you are here (becomes the docs site)
 ├── PRPs/                       # phase plans
@@ -62,6 +65,27 @@ interned IRIs. There is **no cross-language chatter inside a transaction** — t
 sigil-lang benchmark lesson (PyO3 marshaling dominated small workloads) is designed
 out: Python/WASM hand a whole input over, get a whole outcome back.
 
+## Two-boundary data flow for a standards-hydrated deployment (declared-future, PRP-008)
+
+The diagram above is the *inner* box, unchanged. A standards-hydrated deployment wraps it
+with two more boundaries, both outside `horismos-core`, both entirely before/after the
+transaction above — never interleaved with it:
+
+```
+FHIR/CIS or repo/harness ──Adapter (hydrate)──▶ ExternalSnapshot ──▶ [ inner box above ]
+                                                                            │
+                            [ inner box above ] ──▶ ProposedEffectSet ──Adapter (commit,
+                                                       conditional on source version)──▶
+                                                       FHIR/CIS or repo/harness
+```
+
+This is the reference data flow from the adopted design
+(`horismos-thin-pivot-s1/report.md` §"Reference data flow"). It changes nothing about the
+dependency invariant above: an Adapter lives in its own crate (`horismos-fhir`, or a
+coding-harness adapter), depends on `horismos-core` (never the reverse), and — same rule
+as `horismos-bridges` — is free to depend on an HTTP client precisely because it sits
+outside the boundary `make check-boundary`/`make no-model-gate` enforce.
+
 ## Performance posture
 
 | Path | Target (triage-scale: ~50 rules, ~10² facts) | Rationale |
@@ -70,10 +94,14 @@ out: Python/WASM hand a whole input over, get a whole outcome back.
 | `prove` / `explain` | < 1 ms | Depth-capped, indexed rule heads |
 | Load + verify | < 1 s | Authoring-loop interactivity (doc 13) |
 | Perception step | Bridge latency + < 5 ms overhead | The model call dominates by orders of magnitude |
+| *(declared-future)* Adapter hydration/commit | External I/O latency, not core-budgeted | A FHIR read/write is bounded by the external system, not the kernel — measured and reported separately, never blended into the deterministic-kernel numbers above |
 
 Benchmarks (criterion) are CI-tracked from PRP-002 onward; regressions fail builds.
 Scaling beyond (10³+ rules, 10⁵+ facts) is measured, not promised — the Rete-lite →
-full-Rete decision point is data-driven (PRP-002).
+full-Rete decision point is data-driven (PRP-002). **Split, going forward**: the table's
+existing rows measure *deterministic kernel time* only; any future adapter benchmark is a
+separate, clearly-labeled *external I/O latency* number — conflating the two would hide a
+network-bound adapter behind an in-core performance claim.
 
 ## Concurrency model
 
@@ -82,6 +110,15 @@ one world per case/session/conversation, sharing an immutable `Ontology`. This
 matches the domain shape (a triage case, a claim, an incident) and eliminates
 lock discipline from the mental model. Cross-world aggregation is a query/reporting
 concern, outside the runtime.
+
+**Amended (2026-08-24, bounded-projection pivot)**: for a standards-hydrated deployment,
+read "one world per case" as **one projection per decision epoch** — a World's lifetime is
+bound to one hydration/decision, not to the case's own lifetime, which the external system
+of record continues to own. A long-running case may span many projections (one per
+decision point, each re-hydrated), rather than one World living as long as the case does.
+This is a refinement of the existing pattern, not a different one: a standalone deployment
+where the case genuinely *is* the World's lifetime (the shipped triage example) is
+unaffected.
 
 ## Security & trust boundaries
 
@@ -105,7 +142,8 @@ concern, outside the runtime.
 | 10 Verification | PRP-005 |
 | 12 Rust API surface polish, packaging, docs site | PRP-006 |
 | 13 Authoring | PRP-007 |
-| 15 Security & Trust | PRP-004, PRP-006, PRP-007 (per boundary — see doc 15) |
+| 15 Security & Trust | PRP-004, PRP-006, PRP-007, PRP-008 (per boundary — see doc 15) |
+| Standards/host-integration additions across 00–03, 06, 07, 09, 10, 13, 14 (declared-future) | PRP-008 |
 
 Every **[DECIDE]** marker in these docs is owned by exactly one PRP; activating a PRP
 begins by resolving its markers.

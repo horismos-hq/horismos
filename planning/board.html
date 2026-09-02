@@ -112,11 +112,25 @@
   <header>
     <p class="eyebrow">Horismos · Project Board</p>
     <h1>Neural proposes. Symbolic decides.</h1>
-    <p class="tagline">Ontology-first neuro-symbolic agent framework — Rust core, Python
-    bindings. One authored RDFS-plus ontology is the domain, the rules, and the agent
-    loop; LLMs live only at declared perception/narration boundaries.</p>
-    <p class="stamp">Updated 2026-08-18 · mirrors <code>PRPs/BOARD.md</code> · repo <code>~/code/billaram/horismos</code></p>
+    <p class="tagline">Ontology-first neuro-symbolic decision and capability kernel — Rust
+    core, Python bindings. A small RDFS-plus overlay declares the rules and decision
+    fragment; the runtime evaluates it as a verified, versioned projection over an
+    existing system of record. LLMs live only at declared perception/narration
+    boundaries.</p>
+    <p class="stamp">Updated 2026-08-24 · mirrors <code>PRPs/BOARD.md</code> · repo <code>~/code/billaram/horismos</code></p>
   </header>
+
+  <section aria-label="Pivot note" style="margin-top:1.5rem;padding:1rem 1.25rem;background:var(--panel);border:1px solid var(--symbolic);border-radius:10px;">
+    <p class="hl-label" style="background:var(--symbolic-soft);color:var(--symbolic);">Pivot · 2026-08-24</p>
+    <p style="margin:.4rem 0 0;font-size:.92rem;color:var(--ink);">Captain-adopted
+    <strong>bounded projection kernel</strong>: Horismos moves from "one artifact owns
+    domain + rules + workflows" to a thin, standards-compatible decision/capability layer
+    overlaying an existing system of record — see
+    <code>PRPs/PRP-000-vision-positioning.md</code> §"Snapshot-scoped guarantees". New
+    <code>PRP-008</code> (Standards &amp; Host Integration) sequenced after PRP-005, before
+    PRP-006/007. Documentation/spec-only this pass — no runtime code changed, no PRP-001–004
+    DoD rewritten.</p>
+  </section>
 
   <section class="highlights" aria-label="Highlights">
     <div class="hl hl-now">
@@ -191,12 +205,15 @@
         <tr><td class="track-cell">Runtime</td>
             <td>PRP-004 · Agent loop<span class="why">Workflow engine, perception/narration boundaries, tools, Bridge — activated 2026-08-18, folder form, against merged main</span></td>
             <td><span class="chip chip-next">Active · 2026-08-18</span></td></tr>
+        <tr><td class="track-cell">Integration</td>
+            <td>PRP-008 · Standards &amp; host integration<span class="why">FHIR hydration/commit, terminology provenance, CDS-Hooks/PlanDefinition/CQL composition, candidate-artifact boundary, generic host SPI — sequenced after 005, before 006/007</span></td>
+            <td><span class="chip chip-draft">Draft · new 2026-08-24</span></td></tr>
         <tr><td class="track-cell">Ship &amp; Author</td>
-            <td>PRP-006 · Packaging &amp; docs<span class="why">crates.io + PyPI + docs site + zero-key CI gates</span></td>
+            <td>PRP-006 · Packaging &amp; docs<span class="why">crates.io + PyPI + docs site + zero-key CI gates — activates after PRP-008</span></td>
             <td><span class="chip chip-draft">Draft</span></td></tr>
         <tr><td class="track-cell">Ship &amp; Author</td>
-            <td>PRP-007 · Authoring agent<span class="why">SMEs converse; Claude drafts Turtle; the verifier gatekeeps</span></td>
-            <td><span class="chip chip-draft">Draft</span></td></tr>
+            <td>PRP-007 · Authoring agent<span class="why">Import/align/overlay-first; SMEs converse; Claude drafts Turtle; the verifier gatekeeps</span></td>
+            <td><span class="chip chip-draft">Draft · amended 2026-08-24</span></td></tr>
       </tbody>
     </table>
   </div>
@@ -206,18 +223,24 @@
     <pre class="mermaid">
 %%{init: {"theme": "neutral", "flowchart": {"curve": "linear"}}}%%
 flowchart LR
-    P0["000<br/>vision"] --> P1["001<br/>ontology core"] --> P2["002<br/>reasoning"] --> P3["003<br/>python api"] --> P4["004<br/>agent loop"] --> P6["006<br/>ship"] --> P7["007<br/>authoring agent"]
-    P2 --> P5["005<br/>verification"] --> P6
+    P0["000<br/>vision"] --> P1["001<br/>ontology core"] --> P2["002<br/>reasoning"] --> P3["003<br/>python api"] --> P4["004<br/>agent loop"] --> P8["008<br/>standards &amp; host<br/>integration"] --> P6["006<br/>ship"] --> P7["007<br/>authoring agent"]
+    P2 --> P5["005<br/>verification"] --> P8
     P5 -. "witnesses feed the<br/>authoring loop" .-> P7
     classDef engine fill:#DCE4FB,stroke:#3B5BDB,color:#1B2130;
     classDef surface fill:#CFE8E4,stroke:#17877B,color:#1B2130;
     classDef runtime fill:#F5E3C4,stroke:#C87B1B,color:#1B2130;
     classDef ship fill:#E9EAEE,stroke:#8A8FA3,color:#1B2130;
+    classDef integration fill:#DCEEEB,stroke:#17877B,color:#1B2130;
     class P1,P2,P5 engine;
     class P3 surface;
     class P4 runtime;
+    class P8 integration;
     class P0,P6,P7 ship;
     </pre>
+    <p style="font-size:.82rem;color:var(--muted);margin:.6rem 0 0;">Dependency DAG, not
+    strict number order (<code>PRPs/CONVENTIONS.md</code>): PRP-008 activates after
+    PRP-005 and before PRP-006/007 despite its higher number; established PRPs are never
+    renumbered to preserve a strict sequence.</p>
   </div>
 
   <p class="foot">Source of truth: <code>PRPs/BOARD.md</code> (updated in the same commit

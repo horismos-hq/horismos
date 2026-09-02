@@ -29,12 +29,15 @@ don't decide the answer.
 
 ## Trust boundaries
 
-Four places cross from something Horismos does not control into something it does:
+Five places cross from something Horismos does not control into something it does (the
+fifth added 2026-08-24 with the bounded-projection pivot, declared-future — see §5):
 
 1. **Perception input** — arbitrary NL, doc 06.
 2. **Tool bindings** — `python:`, `rust:`, `http:`/`https:`, `mcp://`, doc 07.
 3. **Authoring file writes** — the authoring agent's `write_draft`/`write_file` tools, doc 13.
 4. **Provider APIs** — outbound Bridge calls carrying credentials, doc 08.
+5. **The external system of record / host harness** — the FHIR server, CIS, or repository
+   an Adapter hydrates from and commits to, doc 03/07/14 (declared-future, PRP-008).
 
 Everything symbolic — rule firing, workflow transitions, tool *selection*, query
 evaluation, verification, retraction — happens after these boundaries and is not
@@ -230,6 +233,54 @@ and rotating/storing provider credentials outside the process environment are
 infrastructure concerns Horismos exposes hooks for (the pluggable store, deployer-
 constructed Bridges) but does not implement itself in v1.
 
+## 5. The external system of record / host harness (declared-future, PRP-008)
+
+**Not built in v1.** Stated here now, ahead of implementation, so the threat model exists
+before the mechanism does — the same discipline this document already applies to
+boundaries 1–4. Owned by `PRPs/PRP-008-standards-host-integration.md`; its D-items resolve
+the exact mitigations, not this document.
+
+**Threats:**
+
+- **Stale or incomplete reads** — a projection hydrated from a source that has since
+  changed, or hydrated against a search/bundle that silently omitted resources the
+  decision needed, is used as if it were current and complete.
+- **Authorization/SMART scopes** — an adapter call reaching further than the deployment
+  intended (a broader FHIR SMART scope than the decision needs), or a scope check that
+  happens after the fact rather than gating the call.
+- **Tenant/patient mix-up** — a multi-tenant or multi-patient deployment hydrating or
+  committing against the wrong tenant/patient context.
+- **Malicious or compromised server responses** — a FHIR/repository server (or a
+  compromised proxy in front of one) returning crafted resources designed to exploit the
+  mapping layer or smuggle unintended facts past admission.
+- **Webhook/subscription spoofing** — a CDS-Hooks-style inbound call, or a FHIR
+  Subscription notification, forged to trigger an unintended decision or hide a real
+  update.
+- **TOCTOU between decision and commit** — the source changes between hydration and the
+  conditional commit; doc 03's fail-closed design is the mitigation, but the threat is
+  named here as the reason that design exists, not assumed obvious.
+- **Mapping/package supply chain** — a compromised or tampered mapping definition
+  (StructureMap, declarative map, or PRP-008's chosen representation) silently changing
+  what a hydrated resource is interpreted to mean.
+- **Over-broad write scopes** — a conditional commit authorized to write more of the
+  external record than the specific proposed effect requires.
+
+**Intended mitigation shape (design intent, not yet built):** source-version vectors and
+conditional writes (doc 03) address TOCTOU; the declared input closure (doc 03/04) bounds
+stale-read risk by making completeness explicit rather than assumed; authorization scopes
+are checked before a call, not inferred from its response (doc 07); mapping/package
+identity is hashed and carried in the trace (doc 09) so a supply-chain change is
+detectable after the fact even where it can't be prevented outright. Exact mechanism
+(scope configuration surface, subscription-signature verification, tenant-isolation
+enforcement point) is PRP-008 D-item territory, resolved via the repo's brainstorming
+protocol at that PRP's activation — not decided here.
+
+**Deployer-owned (anticipated, restated when PRP-008 activates):** the external system's
+own access-control configuration, network segmentation between Horismos and the system of
+record, and incident response for a compromised external system are infrastructure
+concerns Horismos's adapter narrows what it *itself* can be tricked into doing with, not
+concerns it takes over.
+
 ## What v1 does not defend against (stated, not silent)
 
 These are permanent v1 design positions, not oversights:
@@ -246,6 +297,9 @@ These are permanent v1 design positions, not oversights:
 - **General deployment/network security** (TLS termination, firewall rules, secret
   manager choice, physical access) — standard infrastructure hygiene, out of scope
   for a framework doc same as for any other library.
+- **The entire §5 boundary (external system of record/host harness)** — no mitigation
+  there is built in v1; it is declared ahead of implementation (PRP-008) so the threat
+  model isn't retrofitted after the mechanism ships, not because it's considered solved.
 
 Dated: as of 2026-08-19, the two open **[DECIDE]** items on trace encryption/access
 and MCP-server allowlisting are unresolved by design — they need evidence (a real

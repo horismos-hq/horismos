@@ -10,15 +10,73 @@ so every later PRP inherits a stable story.
 
 ## The pitch
 
-Horismos is an ontology-first neuro-symbolic agent framework. A subject-matter expert authors
-one artifact — an RDFS-plus ontology declaring the domain, its rules, *and* its workflows —
-and the runtime executes it. LLMs exist only at two declared transducer boundaries
-(perception: NL → typed instances; narration: proof → NL). Every conclusion carries a proof
-tree; every rule set is formally verified before it runs. Delete the LLM and the framework
-still runs.
+**Pivot adopted 2026-08-24** (captain ruling, `bounded projection kernel`;
+`horismos-thin-pivot-s1/report.md` §"PRP-by-PRP change map", row PRP-000): Horismos is an
+ontology-first neuro-symbolic **decision and capability kernel**. A subject-matter expert
+authors one artifact — a small RDFS-plus overlay declaring the rules, constraints, and
+decision/workflow fragment the deployment needs — and the runtime **evaluates it as a
+verified projection over an existing system of record**, not as the system of record itself.
+Horismos does not own durable state, the enterprise workflow, provider clients, or standard
+terminology; an adapter hydrates a versioned, explicitly scoped bundle from the external
+authority, the unchanged gate/reasoning/truth-maintenance/proof/trace core runs over that
+local snapshot, and the result is a typed proposed effect set an adapter conditionally
+commits back — failing closed if the source versions drifted. LLMs still exist only at two
+declared transducer boundaries (perception: NL → typed instances; narration: proof → NL).
+Every conclusion carries a proof tree; every rule set is formally verified before it runs.
+Delete the LLM and the framework still runs.
+
+Superseded framing, kept here for the record: "one artifact owns domain + rules + workflows"
+described Horismos as the system of record. The evidence (`research/formalization/`,
+`horismos-thin-pivot-s1/report.md`) is that the historically successful CIG-family systems
+were thin layers over an existing record (FHIR/CDS-Hooks/CQL), not replacements for it, and
+that "own everything" repeats the highest-friction side of a 20-year adoption failure. See
+PRP-008 for the standards/host-integration work this pivot requires.
 
 **Tagline candidates** (settle here): "The symbolic spine for LLM agents" ·
-"Agents that live inside an ontology" · "Neural proposes. Symbolic decides."
+"Agents that live inside an ontology" · "Neural proposes. Symbolic decides." ·
+"A verified decision layer that overlays what you already run."
+
+## Comparison: thin decision layer vs. adjacent standards and harnesses
+
+Horismos does not compete with a system of record; it overlays one. The honest comparison
+set now includes the clinical-standards stack and coding-agent harnesses, not just other
+agent frameworks (see the full comparison table in `## Honest placement` below for the
+neuro-symbolic set):
+
+| System | What it owns | What Horismos adds if layered on top |
+|---|---|---|
+| **FHIR** | The resource model and wire format for a system of record (patients, observations, plans). | Horismos does not replace FHIR resources with its own World-as-record; it hydrates a versioned, declared-closure bundle *from* FHIR into a local projection, reasons over it, and conditionally commits proposed effects back — FHIR keeps owning durable state. |
+| **CQL (Clinical Quality Language)** | Expression evaluation over clinical data models — the industry-standard way to compute derived clinical facts. | Horismos composes with a CQL engine (consumes its typed results as inputs) rather than rebuilding one; native CQL compilation is an explicit non-goal until there is evidence it is needed (PRP-008 D7). |
+| **CDS Hooks** | The service-invocation contract (a hook fires, a card comes back) that lets an EHR call an external decision service at a workflow point. | Horismos can sit behind a CDS-Hooks-style service surface as the decision service — the host still owns the hook lifecycle and the card UI; Horismos supplies the proof-backed decision. |
+| **PlanDefinition (FHIR)** | A standard, portable representation of a care/order plan or protocol. | Horismos can import and execute a *deliberately bounded subset* of PlanDefinition, failing closed (a domain-term load error, never a silent approximation) on unsupported constructs — it does not attempt full PlanDefinition coverage. |
+| **Coding-agent harnesses (Claude Code skills, Pi, DeepSeek Harness)** | Extensibility, typed tool-call schemas, session logs, hooks/approvals, sandboxes — real engineering, already built. | None of the surveyed harnesses declare a semantic domain graph with verified cross-tool preconditions/effects or maintain a fixed point over repository state. A Horismos **Capability Fragment** (PRP-007/008) is a small ontology overlay attached to an *existing* skill/tool that proves when a capability is eligible, constrains its observable effect, and emits a proof — without replacing the harness's own state, sandbox, or approval machinery. |
+
+## Snapshot-scoped guarantees (the honest claim under the thin model)
+
+The pre-pivot text implied a global, always-current guarantee ("every mutation passes the
+gate," full stop). Under the bounded-projection model the guarantee is real but scoped —
+stated here verbatim from the adopted design report so it is not re-derived or loosened ad
+hoc downstream:
+
+> Given a verified decision package, a declared input closure, a source-version vector, and
+> an admitted input bundle, Horismos deterministically produces a fixed-point decision
+> snapshot, proof, trace, and proposed effect set. A commit succeeds only if the external
+> resources still match that source-version vector. Mutations outside Horismos are outside
+> the guarantee and invalidate the projection until it is refreshed.
+
+And the one-sentence positioning statement every later PRP inherits:
+
+> Horismos is a deterministic, ontology-first decision and capability kernel that evaluates a
+> versioned projection of an existing system, proves why an effect is allowed, and
+> conditionally commits through standards-native adapters.
+
+What stays true unconditionally (local, inside one evaluated projection): the gate has no
+back door, truth maintenance re-chains to a fixed point, determinism holds over materialized
+inputs, and every proof/trace is exact for the recorded snapshot. What becomes explicitly
+scoped: freshness (only as current as the last hydration + version check), completeness
+(bounded by a declared input closure, not implicit), and atomicity (local transactions are
+atomic; cross-system commits are conditional, not distributed-atomic). See
+`docs/framework/03-world.md` and `docs/framework/15-security.md` for the full mechanism.
 
 ## Personas
 

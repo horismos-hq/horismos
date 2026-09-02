@@ -1,12 +1,14 @@
 # Horismos
 
-**Ontology-first neuro-symbolic agent framework. Rust core, Python bindings.**
+**Ontology-first neuro-symbolic decision and capability kernel. Rust core, Python bindings.**
 
-A subject-matter expert authors one artifact — an RDFS-plus ontology declaring the
-domain, its rules, *and* its workflows — and the runtime executes it. LLMs exist only
-at two declared transducer boundaries (perception: NL → typed instances; narration:
-proof → NL). Every conclusion carries a proof tree; every rule set is formally
-verified before it runs. Delete the LLM and the framework still runs.
+A subject-matter expert authors one artifact — a small RDFS-plus overlay declaring the
+rules, constraints, and decision/workflow fragment a deployment needs — and the runtime
+evaluates it as a verified, versioned projection over an existing system of record (see
+`PRPs/PRP-000-vision-positioning.md`). LLMs exist only at two declared transducer
+boundaries (perception: NL → typed instances; narration: proof → NL). Every conclusion
+carries a proof tree; every rule set is formally verified before it runs. Delete the LLM
+and the kernel still runs.
 
 **Neural proposes. Symbolic decides.**
 
@@ -14,8 +16,8 @@ verified before it runs. Delete the LLM and the framework still runs.
 
 Pre-alpha: framework definition and skeleton. Nothing is implemented yet.
 
-- `docs/framework/` — the framework definition (docs 00–14), written in shipped voice
-- `PRPs/` — phase plans (PRP-000 vision → PRP-007 authoring agent)
+- `docs/framework/` — the framework definition (docs 00–15), written in shipped voice
+- `PRPs/` — phase plans (PRP-000 vision → PRP-008 standards & host integration)
 - `AGENTS.md` — working conventions for agentic development sessions (`CLAUDE.md` is
   a compatibility symlink)
 
