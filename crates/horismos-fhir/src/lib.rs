@@ -17,6 +17,12 @@ use horismos_host::{
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
+pub mod cds;
+pub mod plan;
+
+pub use cds::*;
+pub use plan::*;
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CapabilityStatement {
     pub fhir_version: String,
@@ -104,6 +110,10 @@ pub struct AuthorizedFhirCommit {
 impl AuthorizedFhirCommit {
     pub fn evidence(&self) -> &FhirAuthorizationEvidence {
         &self.evidence
+    }
+
+    pub(crate) fn effects(&self) -> &ProposedEffectSet {
+        &self.effects
     }
 }
 
@@ -330,6 +340,13 @@ impl<T: FhirTransport> FhirAdapter<T> {
                 "horis:authorizationGranted",
                 "FHIR commit",
                 "proof_ref is required",
+            ));
+        }
+        if effects.effects.is_empty() {
+            return Err(fhir_error(
+                "horis:authorizationGranted",
+                &effects.proof_ref,
+                "at least one proposed FHIR resource is required",
             ));
         }
         for effect in &effects.effects {

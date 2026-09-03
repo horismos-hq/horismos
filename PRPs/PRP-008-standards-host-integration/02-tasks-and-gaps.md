@@ -14,7 +14,9 @@
 - Task U1: complete (commit `9e8147c`, review Approved with minors; one coherent-fixture
   minor carried to U3).
 - Task U2: complete (commit `8d3f403`, senior review Approved after two hardening passes).
-- Task U3: complete (senior review Approved after fail-closed/conditional-write hardening;
+- Task U3: complete (commit `616a79b`, senior review Approved after fail-closed and
+  conditional-write hardening).
+- Task U4: complete (senior review Approved after evaluator/envelope/linkage hardening;
   commit pending).
 
 ## Decisions resolved before implementation
@@ -118,10 +120,15 @@
   modifiers, and requires a sealed proof-linked proposed-resource authorization. Its
   transport contract atomically enforces the full read vector; weak ETags and both 409/412
   conflict forms fail closed. Eleven focused tests and senior review Approved.
-- [ ] U4. **CDS Hooks and PlanDefinition/CQL boundary** — CDS-Hooks-shaped request/service
+- [x] U4. **CDS Hooks and PlanDefinition/CQL boundary** — CDS-Hooks-shaped request/service
   response, bounded R4 PlanDefinition importer/executor, and typed external CQL results.
   Test: unsupported construct fails at load; VTE invocation returns a recommendation card
-  with proof-linked proposed resource.
+  with proof-linked proposed resource. **Done 2026-09-03**: sealed manually validated
+  PlanDefinition imports accept only flat applicability actions over named
+  `text/cql-identifier` booleans; execution pins the evaluator artifact and exact source
+  vector. CDS Hooks wire types emit every authorized proposal and rebuild logical
+  resource-targeted proof Provenance for suggestion actions. Five focused tests and senior
+  review Approved.
 - [ ] U5. **VTE prophylaxis vertical slice** — package ontology, recorded FHIR Bundle,
   closure/profile/terminology/mapping manifest, standalone runner, and end-to-end tests.
   Test: zero-network/zero-model decision, versions in proof/integration trace, drift abort,
