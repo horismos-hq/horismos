@@ -1,7 +1,7 @@
 # PRP-008 — Standards & Host Integration
 
-**Status**: Active (2026-09-02 — VTE prophylaxis confirmed by captain; explicitly
-parallel with PRP-005 on isolated branches)
+**Status**: Done (2026-09-03 — VTE prophylaxis vertical slice, generic host SPI,
+candidate-artifact pipeline, and both adapter proofs complete; `make verify` green)
 **Depends on**: PRP-001, PRP-002, PRP-004, PRP-005 (consumes all four; preserves every
 core invariant they established — no changes to `horismos-core`'s gate, chaining, or
 determinism semantics, only new adapter-side types and crates around it).

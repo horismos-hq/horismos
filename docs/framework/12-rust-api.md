@@ -1,16 +1,17 @@
 # 12 · Rust API Reference
 
 Crates: `horismos-core` (the symbolic engine — **zero LLM dependencies**),
-`horismos-bridges` (provider clients, feature-gated), `horismos-py` (PyO3 layer, not for
-direct use). MSRV: latest stable minus 2.
+`horismos-host` (the format-neutral host SPI and candidate-artifact runtime),
+`horismos-fhir` and `horismos-harness` (host adapters), `horismos-bridges` (provider
+clients, feature-gated), and `horismos-py` (PyO3 layer, not for direct use). MSRV: latest
+stable minus 2.
 
-**Declared-future (PRP-008)**: pure, format-neutral `ExternalSnapshot`/`ProposedEffectSet`
-values and traits live in `horismos-core` only where genuinely core-agnostic; FHIR/HTTP
-implementations live in a new adapter crate (e.g. `horismos-fhir`), never in
-`horismos-core` itself. A direct `World<FhirClient>` — a World parameterized on a live
-external client — is an explicit **non-goal**: it would break doc 03's and doc 14's
-network-free-transaction invariant. Current dependency and deterministic feature gates are
-unchanged by this addition.
+Pure, format-neutral `ExternalSnapshot`/`ProposedEffectSet` values and the `HostAdapter`
+trait live in `horismos-host`; FHIR-specific and repository-specific implementations live
+in their adapter crates, never in `horismos-core`. A direct `World<FhirClient>` — a World
+parameterized on a live external client — is an explicit **non-goal**: it would break doc
+03's and doc 14's network-free-transaction invariant. The adapter crates materialize whole
+inputs before admission and consume whole proposed-effect sets afterward.
 
 ## Quickstart
 

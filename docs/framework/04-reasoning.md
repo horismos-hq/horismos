@@ -118,10 +118,10 @@ authoring loop (doc 13):
 Every leaf carries provenance — down to the perception confidence of the fact it
 rests on. An auditor can see that a symbolic conclusion ultimately rests on a neural
 extraction, and exactly how confident that extraction was. That is the neuro-symbolic
-seam, made visible. **Declared-future (PRP-008)**: where a leaf's base fact was hydrated
-from an external system, its provenance additionally carries the source resource
-identity, version/ETag, and mapping version — a proof is exact for the recorded snapshot,
-not a standing claim about the current external record.
+seam, made visible. Where a leaf's base fact was hydrated from an external system, the
+adapter-layer proof envelope additionally carries the source resource identity,
+version/ETag, and mapping version — a proof is exact for the recorded snapshot, not a
+standing claim about the current external record.
 
 ## Determinism guarantees
 

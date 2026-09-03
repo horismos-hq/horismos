@@ -20,7 +20,11 @@
   linkage hardening).
 - Task U5: complete (commit `576915d`, senior review Approved after patient/evidence/
   artifact integrity hardening).
-- Task U6: complete (senior review Approved with no findings; commit pending).
+- Task U6: complete (commit `2dd771e`, senior review Approved with no findings).
+- Final review: Approved with two documentation minors, both closed before the completion
+  commit (runtime evidence term count and foundational-skeleton historical wording).
+- Final validation: `make verify` green on 2026-09-03, including `make check-boundary`
+  and `make no-model-gate`.
 
 ## Decisions resolved before implementation
 
@@ -158,6 +162,12 @@
 
 ## Gaps discovered during implementation
 
-- 2026-09-03, U1 minor (deferred to U3): make the integration-trace fixture's proposed
-  effects and mixed receipt effect ids coherent when the FHIR commit fixture supplies real
-  effects. The receipt representation itself is behaviorally round-tripped in U1.
+- 2026-09-03, U1 minor (closed in U3): the FHIR fixture supplies coherent proposed-effect
+  and receipt ids, while the generic receipt representation remains independently
+  round-tripped by the SPI contract tests.
+- 2026-09-03, integration dependency: PRP-005 was still being built on its isolated lane,
+  so this branch deliberately does not run its not-yet-merged verifier against the VTE
+  ontology. The only coupling is the five-field `horismos_host::assumptions` module; its
+  conversion to the final `report.assumptions` type must be reconciled when PRP-005 lands.
+  This does not block PRP-008's adapter/vertical-slice DoD, but it does remain a required
+  integration check before the combined branches land.

@@ -117,7 +117,7 @@
     fragment; the runtime evaluates it as a verified, versioned projection over an
     existing system of record. LLMs live only at declared perception/narration
     boundaries.</p>
-    <p class="stamp">Updated 2026-09-02 · mirrors <code>PRPs/BOARD.md</code> · repo <code>~/code/billaram/horismos</code></p>
+    <p class="stamp">Updated 2026-09-03 · mirrors <code>PRPs/BOARD.md</code> · repo <code>~/code/billaram/horismos</code></p>
   </header>
 
   <section aria-label="Pivot note" style="margin-top:1.5rem;padding:1rem 1.25rem;background:var(--panel);border:1px solid var(--symbolic);border-radius:10px;">
@@ -128,8 +128,9 @@
     overlaying an existing system of record — see
     <code>PRPs/PRP-000-vision-positioning.md</code> §"Snapshot-scoped guarantees". New
     <code>PRP-008</code> (Standards &amp; Host Integration) sequenced after PRP-005, before
-    PRP-006/007. Activated 2026-09-02 in parallel with PRP-005; VTE prophylaxis is the
-    confirmed first vertical slice and D1–D10 are resolved.</p>
+    PRP-006/007. Completed 2026-09-03 on its isolated lane: VTE prophylaxis now exercises
+    the bounded projection end to end, with its provisional PRP-005 assumption coupling
+    isolated for reconciliation when that parallel verifier lane lands.</p>
   </section>
 
   <section class="highlights" aria-label="Highlights">
@@ -144,10 +145,10 @@
     </div>
     <div class="hl hl-next">
       <p class="hl-label">Next · The immediate goal</p>
-      <h3>PRP-008 Active — VTE standards integration (parallel with PRP-005)</h3>
+      <h3>PRP-008 Done — the VTE bounded projection runs end to end</h3>
       <ul>
-        <li><strong>Integration track</strong>: generic host SPI, candidate-artifact runtime gate, FHIR hydration and conditional commit, CDS Hooks and bounded PlanDefinition, then the confirmed VTE prophylaxis slice and a coding-harness adapter proof.</li>
-        <li><strong>Parallel contract</strong>: PRP-005 stays on its isolated lane; PRP-008 consumes only the provisional five-field <code>report.assumptions</code> shape through one small coupling module.</li>
+        <li><strong>Integration track shipped</strong>: generic host SPI, candidate-artifact runtime gate, FHIR hydration and conditional commit, CDS Hooks and bounded PlanDefinition, the VTE prophylaxis slice, and a coding-harness adapter proof.</li>
+        <li><strong>Next integration seam</strong>: reconcile the isolated five-field <code>report.assumptions</code> module when the parallel PRP-005 verifier lane lands; PRP-006 now has a real integration surface to package and document.</li>
         <li><strong>Human side quests</strong>: register <code>horismos.dev</code>; file the <code>w3id.org/horismos</code> PR; reserve registry names; merge PR #3.</li>
       </ul>
     </div>
@@ -207,7 +208,7 @@
             <td><span class="chip chip-next">Active · 2026-08-18</span></td></tr>
         <tr><td class="track-cell">Integration</td>
             <td>PRP-008 · Standards &amp; host integration<span class="why">FHIR hydration/commit, terminology provenance, CDS-Hooks/PlanDefinition/CQL composition, candidate-artifact boundary, generic host SPI — sequenced after 005, before 006/007</span></td>
-            <td><span class="chip chip-next">Active · 2026-09-02</span></td></tr>
+            <td><span class="chip chip-done">Done · 2026-09-03</span></td></tr>
         <tr><td class="track-cell">Ship &amp; Author</td>
             <td>PRP-006 · Packaging &amp; docs<span class="why">crates.io + PyPI + docs site + zero-key CI gates — activates after PRP-008</span></td>
             <td><span class="chip chip-draft">Draft</span></td></tr>

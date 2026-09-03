@@ -121,18 +121,19 @@ Summarized here, specified in doc 05:
 `horis:ActionStep`, `horis:NarrationStep`, `horis:ProposalStep`, `horis:next`,
 `horis:goal`, `horis:requires`, `horis:fallback`, `horis:terminal`.
 
-## Standard-artifact anchoring (declared-future, PRP-008)
+## Standard-artifact anchoring
 
 The pivot to a bounded projection kernel (`PRPs/PRP-000-vision-positioning.md`) keeps this
 profile exactly as specified above — no new `horis:` terms are minted for external
 terminology anchoring itself;
-every D-item below is owned by `PRPs/PRP-008-standards-host-integration/01-objective.md` and resolved
-there, per this repo's rule that vocabulary is never invented ad hoc. What changes is the
+the governing D-items are resolved in
+`PRPs/PRP-008-standards-host-integration/03-decisions.md`, per this repo's rule that
+vocabulary is never invented ad hoc. What changes is the
 *honesty* of the anchoring story: `owl:sameAs` alone is necessary but not sufficient for
 real interoperability. A single-parent, unversioned anchor (`:ChestPain owl:sameAs
 sct:29857009`, no edition) loses SNOMED CT's polyhierarchy and cannot express "which
 release this anchor was checked against" — the current triage fixture demonstrates exactly
-this gap (`research/terminology/snomed-ct.md`). PRP-008 will extend anchoring with:
+this gap (`research/terminology/snomed-ct.md`). PRP-008 extends anchoring with:
 
 - **versioned mappings** — which standard-vocabulary edition/version an anchor was
   verified against, not just the bare IRI;

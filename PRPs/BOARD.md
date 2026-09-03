@@ -5,8 +5,10 @@ At-a-glance project state. Updated in the same commit as any PRP status change
 [Horismos Board artifact](https://claude.ai/code/artifact/dc7ee691-4c9f-40a7-b235-0760de8ff17d)
 (source: `planning/board.html`, republished to the same URL on updates).
 
-_Last updated: 2026-09-02 (PRP-008 activated in parallel with PRP-005; VTE prophylaxis
-confirmed as its first vertical slice; D1–D10 resolved). Previously: 2026-08-24
+_Last updated: 2026-09-03 (PRP-008 completed on its isolated branch; VTE prophylaxis,
+the generic host SPI, candidate-artifact pipeline, and FHIR/harness adapters pass the
+full local verification gate). Previously: 2026-09-02 (PRP-008 activated in parallel
+with PRP-005; VTE prophylaxis confirmed and D1–D10 resolved). Previously: 2026-08-24
 (bounded-projection-kernel pivot adopted; new PRP-008 drafted). Previously: 2026-08-19 (PRP-004's
 U7–U15 critical path implemented, PR #8 open pending review; PRP-002 truth-maintenance
 defect fixed on `main` (PR #7) — no longer an open captain hold)._
@@ -24,10 +26,10 @@ source-version drift. Full statement: `PRPs/PRP-000-vision-positioning.md` §"Sn
 scoped guarantees". This is a **documentation/spec-only** change in this pass — no
 `horismos-core`/`horismos-py` code changed, no PRP-001–004 Done/Active DoD rewritten
 (each gained a non-normative "Pivot note" reinterpreting scope, not altering what was
-built or verified). `PRPs/PRP-008-standards-host-integration/` is now Active, running in
-parallel with PRP-005 on an isolated branch and sequenced to land after the verifier work
-it consumes, before PRP-006/007. The captain confirmed VTE prophylaxis as its first
-vertical slice on 2026-09-02.
+built or verified). `PRPs/PRP-008-standards-host-integration/` is Done on its isolated
+branch: VTE prophylaxis now exercises the bounded projection end to end, with the
+five-field PRP-005 assumption coupling isolated for reconciliation when that parallel
+verifier lane lands. PRP-008 remains sequenced before PRP-006/007.
 
 ## Current state
 
@@ -53,11 +55,12 @@ so nothing there needed to change.
 
 ## Next goal
 
-**PRP-008 (standards & host integration) is Active in parallel with PRP-005**
-(2026-09-02, branch `fm/horismos-prp008-a1`). D1–D10 are resolved; the build proceeds
-generic host SPI → candidate-artifact runtime boundary → FHIR adapter → CDS Hooks/
-PlanDefinition → VTE slice → coding-harness proof. PRP-005 coupling is isolated to its
-provisional five-field `report.assumptions` shape.
+**PRP-008 (standards & host integration) is Done** (2026-09-03, branch
+`fm/horismos-prp008-a1`). The generic host SPI, candidate-artifact runtime boundary,
+FHIR adapter, CDS Hooks/PlanDefinition subset, VTE slice, and coding-harness proof all
+ship together. PRP-005 coupling remains isolated to its provisional five-field
+`report.assumptions` shape for reconciliation when that parallel lane lands; PRP-006 is
+the next phase unlocked by this integration surface.
 
 **PRP-004 (agent loop) is Active** (2026-08-18, branch `fm/horismos-prp004-a1`),
 implementing the workflow engine, Bridge, and tools against merged `main`
@@ -136,7 +139,7 @@ provenance semirings over the Datalog-shaped subset (Type 5), GNN guidance.
 | Engine | [PRP-005 verification](PRP-005-guarantees-verification.md) | ⬜ Draft | BDD checks + domain-term witnesses (needs only 001+002) |
 | Surface | [PRP-003 python bindings](PRP-003-python-bindings/01-objective.md) | ✅ Done (2026-08-18) | `pip install horismos`; the Pythonic front door |
 | Runtime | [PRP-004 agent loop](PRP-004-agent-loop/01-objective.md) | 🟦 Active (2026-08-18) | Workflow engine, perception/narration boundaries, tools, Bridge |
-| Integration | [PRP-008 standards & host integration](PRP-008-standards-host-integration/01-objective.md) | 🟦 Active (2026-09-02) | VTE slice; FHIR hydration/commit, CDS-Hooks/PlanDefinition/CQL composition, candidate-artifact boundary, generic host SPI |
+| Integration | [PRP-008 standards & host integration](PRP-008-standards-host-integration/01-objective.md) | ✅ Done (2026-09-03) | VTE slice; FHIR hydration/commit, CDS-Hooks/PlanDefinition/CQL composition, candidate-artifact boundary, generic host SPI |
 | Ship & Author | [PRP-006 packaging](PRP-006-packaging-distribution.md) | ⬜ Draft | crates.io + PyPI + docs site + CI gates — activates after PRP-008 |
 | Ship & Author | [PRP-007 authoring agent](PRP-007-authoring-agent.md) | ⬜ Draft (amended 2026-08-24) | Import/align/overlay-first; SMEs converse; Claude drafts Turtle; verifier gatekeeps |
 

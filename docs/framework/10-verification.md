@@ -84,7 +84,7 @@ consistency-checking, that flags a satisfiable-but-inert rule or a constraint th
 excludes no reachable value. Full spec: `PRPs/PRP-005-guarantees-verification.md`
 §"Non-vacuity checks".
 
-## Imported-artifact and capability checks (declared-future, PRP-008/PRP-007)
+## Imported-artifact and capability checks
 
 Where an ontology overlay imports a standard artifact (a PlanDefinition subset) or
 compiles a capability fragment from an existing tool/skill, verification extends to:
@@ -92,7 +92,10 @@ mapping loss/totality reporting (did the import lose information, and is that lo
 bounded), supported-subset conformance (does the imported artifact stay within the
 declared supported construct list, failing closed at load otherwise), and capability
 composition checks (do two capability fragments' declared effects conflict). These checks
-compose with, and do not replace, the rule-set and workflow checks above.
+compose with, and do not replace, the rule-set and workflow checks above. PRP-008 ships
+the fail-closed PlanDefinition subset loader and mapping-loss contract; composition with
+PRP-005's verifier and PRP-007-authored capability fragments remains their integration
+work.
 
 ## What verification does not claim
 
@@ -109,7 +112,6 @@ compose with, and do not replace, the rule-set and workflow checks above.
 - **Nothing about terminology-server correctness** — an anchored mapping is checked for
   internal consistency, not for whether the terminology server's own content is correct.
 - **Nothing about tool or host implementation behavior** beyond declared-contract
-  compliance (doc 07's correction on contract narrowing applies here too) — and,
-  declared-future, nothing about the semantic correctness of a candidate-artifact
-  proposal (docs 06/07): the candidate-artifact boundary is a policy/sandbox gate, not a
-  verification theorem.
+  compliance (doc 07's correction on contract narrowing applies here too) — and nothing
+  about the semantic correctness of a candidate-artifact proposal (docs 06/07): the
+  candidate-artifact boundary is a policy/sandbox gate, not a verification theorem.

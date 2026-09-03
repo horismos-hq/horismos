@@ -33,8 +33,8 @@ PRPs, tracks, the dependency-DAG sequencing rule). At-a-glance state: [BOARD.md]
   [`docs/framework/15-security.md`](../docs/framework/15-security.md) is the v1
   threat model; PRP-004, PRP-006, and PRP-007 each carry a **Security acceptance
   surface** subsection stating what their DoD must prove, plus owned **[DECIDE]**
-  markers for the genuinely open mechanism choices. PRP-008 adds a fifth trust
-  boundary (the external system of record/host harness, doc 15) as declared-future.
+  markers for the genuinely open mechanism choices. PRP-008 implements the fifth trust
+  boundary (the external system of record/host harness, doc 15) as a bounded prototype.
 
 - PRPs are **very high level** — intent, scope, non-goals, key decisions, definition
   of done. Far-future Drafts are one page each; from PRP-002 onward the next-up/Active
@@ -49,7 +49,7 @@ PRPs, tracks, the dependency-DAG sequencing rule). At-a-glance state: [BOARD.md]
   Reading order table above states the actual activation order.
 - The running example across all PRPs is **clinical triage** (`docs/framework/` uses it
   throughout), extended by PRP-008 with a second, standards-anchored vertical slice
-  (VTE prophylaxis) once it activates. The proving-ground benchmark decision (τ-Bench
+  (VTE prophylaxis). The proving-ground benchmark decision (τ-Bench
   airline vs. triage-first) is recorded in PRP-000 as an open decision.
 - Prior art: `../../sigil-lang` is the proving ground this framework inherits from
   (Rete-lite matcher, BDD verifier, constraint solver, trace design, neural bridge,

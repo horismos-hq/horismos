@@ -3,12 +3,10 @@
 Package: `horismos` (wheels via maturin/PyO3 over `horismos-core`). Python ≥ 3.11.
 Everything here is importable from the top level unless noted.
 
-**Declared-future (PRP-008)**: whole-bundle host-adapter entry/exit surfaces — hydrate an
-external snapshot in one call, return a decision plus a `ProposedEffectSet`/commit receipt
-as distinct values — arrive only after PRP-008's core-native adapter types exist. FHIR/
-repository parsing and mapping logic stay outside `horismos-py` and this package (no logic
-in bindings, `.claude/skills/pyo3-boundary`, unchanged). Everything below is the current,
-shipped API and is unaffected by that future addition.
+The PRP-008 host SPI and adapters are Rust-only in v1. Whole-bundle Python entry/exit
+surfaces are not exported yet; FHIR/repository parsing and mapping logic stay outside
+`horismos-py` and this package (no logic in bindings, `.claude/skills/pyo3-boundary`,
+unchanged). Everything below remains the current shipped Python API.
 
 ## Quickstart (the canonical triage run)
 
