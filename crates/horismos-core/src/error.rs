@@ -122,7 +122,7 @@ pub enum OntologyError {
     /// The ontology is structurally valid but fails one or more formal
     /// guarantees. The complete machine-readable report is retained.
     #[cfg(feature = "verify")]
-    #[error("ontology verification failed with {} finding(s)", .report.witnesses().len())]
+    #[error("ontology verification failed with {} finding(s)", .report.failures().count())]
     VerificationFailed {
         report: Box<crate::verify::VerificationReport>,
     },
@@ -515,8 +515,8 @@ impl OntologyError {
         match self {
             #[cfg(feature = "verify")]
             Self::VerificationFailed { report } => report
-                .witnesses()
-                .first()
+                .failures()
+                .next()
                 .map_or_else(|| self.to_string(), |witness| witness.domain_text.clone()),
             Self::ProfileViolations(violations) => violations
                 .iter()

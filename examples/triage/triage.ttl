@@ -31,7 +31,8 @@
 
 :hasSymptom a rdf:Property ;
     rdfs:domain :Patient ;
-    rdfs:range  :Symptom .
+    rdfs:range  :Symptom ;
+    horis:cardinality "0..*" .
 
 :AcuityLevel a rdfs:Class ;
     horis:oneOf ( :Immediate :Urgent :Standard ) .

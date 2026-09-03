@@ -9,21 +9,76 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use biodivine_lib_bdd::{Bdd, BddVariable, BddVariableSet, BddVariableSetBuilder};
+use chrono::{DateTime, FixedOffset};
 use rust_decimal::Decimal;
-use rust_decimal::prelude::ToPrimitive;
 
 use super::{
     AssumptionManifest, Bound, Conflict, FindingKind, Region, RegionPredicate, ReportBuilder,
-    VerificationReport, Witness, WorkflowVerification,
+    Severity, VerificationReport, Witness, WorkflowVerification,
 };
 use crate::Ontology;
 use crate::ontology::schema::{AssignedBy, Cardinality, PropertyDecl, PropertyRange};
 use crate::ontology::term::{Datatype, Iri, Value};
+use crate::reason::eval::compare as compare_values;
 use crate::reason::rule::{Condition, ConditionTree, Op, Rule, Term};
 use crate::workflow::model::{Step, StepBody};
 
+/// An authored constant that the runtime orders with `compare`: numbers
+/// cross-type, `xsd:dateTime` by instant, and strings lexicographically.
+/// Each kind is discretized in its own opaque order; nothing is converted.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+enum Threshold {
+    Number(Decimal),
+    DateTime(DateTime<FixedOffset>),
+    Text(String),
+}
+
+impl Threshold {
+    fn from_value(value: &Value) -> Option<Self> {
+        match value {
+            Value::Decimal(value) => Some(Self::Number(*value)),
+            Value::Integer(value) => Some(Self::Number(Decimal::from(*value))),
+            Value::DateTime(value) => Some(Self::DateTime(*value)),
+            Value::String(value) => Some(Self::Text(value.clone())),
+            Value::Boolean(_) | Value::Duration(_) | Value::Ref(_) => None,
+        }
+    }
+
+    fn lexical(&self) -> String {
+        match self {
+            Self::Number(value) => value.to_string(),
+            Self::DateTime(value) => value.to_rfc3339(),
+            Self::Text(value) => value.clone(),
+        }
+    }
+}
+
+/// The threshold an authored constant contributes to `property`, if the
+/// runtime could ever order a stored value of that property against it.
+fn threshold_for(range: Option<PropertyRange>, value: &Value) -> Option<Threshold> {
+    let threshold = Threshold::from_value(value)?;
+    let comparable = match range {
+        None => true,
+        Some(PropertyRange::Class(_)) => false,
+        Some(PropertyRange::Datatype(datatype)) => matches!(
+            (&threshold, datatype),
+            (Threshold::Number(_), Datatype::Decimal | Datatype::Integer)
+                | (Threshold::DateTime(_), Datatype::DateTime)
+                | (Threshold::Text(_), Datatype::String)
+        ),
+    };
+    comparable.then_some(threshold)
+}
+
+/// `horis:min`/`horis:max` as the gate applies them: numeric bounds on a
+/// numerically comparable property; anything else constrains no value.
+fn gate_bound(property: &PropertyDecl, bound: Option<&Value>) -> Option<Threshold> {
+    threshold_for(property.range, bound?)
+        .filter(|threshold| matches!(threshold, Threshold::Number(_)))
+}
+
 #[derive(Debug, Clone, Copy)]
-struct NumericVars {
+struct OrderedVars {
     greater: BddVariable,
     at_least: BddVariable,
 }
@@ -31,8 +86,9 @@ struct NumericVars {
 #[derive(Debug)]
 struct PropertyVars {
     assigned: BddVariable,
-    numeric: BTreeMap<Decimal, NumericVars>,
+    ordered: BTreeMap<Threshold, OrderedVars>,
     atoms: BTreeMap<String, BddVariable>,
+    atom_positions: BTreeMap<String, Threshold>,
     contains: BTreeMap<String, BddVariable>,
     string_atoms: BTreeSet<String>,
 }
@@ -89,45 +145,48 @@ pub fn verify_ontology(ontology: &Ontology, assumptions: AssumptionManifest) -> 
 
 impl<'a> SymbolicSpace<'a> {
     fn new(ontology: &'a Ontology) -> Self {
-        let mut thresholds: BTreeMap<Iri, BTreeSet<Decimal>> = BTreeMap::new();
-        let mut atoms: BTreeMap<Iri, BTreeSet<String>> = BTreeMap::new();
-        let mut contains: BTreeMap<Iri, BTreeSet<String>> = BTreeMap::new();
-        let mut string_atoms: BTreeMap<Iri, BTreeSet<String>> = BTreeMap::new();
+        let mut collected = CollectedValues::default();
 
         for property in ontology.schema().properties() {
-            if let Some(value) = property.min.as_ref().and_then(as_decimal) {
-                thresholds.entry(property.iri).or_default().insert(value);
+            for bound in [property.min.as_ref(), property.max.as_ref()] {
+                if let Some(threshold) = gate_bound(property, bound) {
+                    collected
+                        .thresholds
+                        .entry(property.iri)
+                        .or_default()
+                        .insert(threshold);
+                }
             }
-            if let Some(value) = property.max.as_ref().and_then(as_decimal) {
-                thresholds.entry(property.iri).or_default().insert(value);
-            }
-            if let Some(PropertyRange::Class(range)) = property.range {
-                let property_atoms = atoms.entry(property.iri).or_default();
-                if let Some(members) = ontology
-                    .schema()
-                    .class(range)
-                    .and_then(|c| c.one_of.as_ref())
-                {
-                    for &member in members {
-                        property_atoms.insert(ontology.resolve(member).to_owned());
-                    }
-                } else {
-                    for subclass in ontology.schema().subclasses(range) {
-                        property_atoms.insert(ontology.resolve(subclass).to_owned());
+            match property.range {
+                Some(PropertyRange::Class(range)) => {
+                    let property_atoms = collected.atoms.entry(property.iri).or_default();
+                    if let Some(members) = ontology
+                        .schema()
+                        .class(range)
+                        .and_then(|c| c.one_of.as_ref())
+                    {
+                        for &member in members {
+                            property_atoms.insert(ontology.resolve(member).to_owned());
+                        }
+                    } else {
+                        for subclass in ontology.schema().subclasses(range) {
+                            property_atoms.insert(ontology.resolve(subclass).to_owned());
+                        }
                     }
                 }
+                Some(PropertyRange::Datatype(Datatype::Boolean)) => {
+                    let property_atoms = collected.atoms.entry(property.iri).or_default();
+                    for value in [true, false] {
+                        property_atoms
+                            .insert(term_text(ontology, &Term::Literal(Value::Boolean(value))));
+                    }
+                }
+                _ => {}
             }
         }
         for rule in ontology.rules() {
             for condition in rule.when.leaves() {
-                collect_condition_values(
-                    ontology,
-                    condition,
-                    &mut thresholds,
-                    &mut atoms,
-                    &mut contains,
-                    &mut string_atoms,
-                );
+                collect_condition_values(ontology, condition, &mut collected);
             }
         }
         // Workflow predicates share the same bounded input projection as
@@ -147,18 +206,18 @@ impl<'a> SymbolicSpace<'a> {
                 };
                 for tree in trees {
                     for condition in tree.leaves() {
-                        collect_condition_values(
-                            ontology,
-                            condition,
-                            &mut thresholds,
-                            &mut atoms,
-                            &mut contains,
-                            &mut string_atoms,
-                        );
+                        collect_condition_values(ontology, condition, &mut collected);
                     }
                 }
             }
         }
+        let CollectedValues {
+            thresholds,
+            atoms,
+            mut atom_positions,
+            contains,
+            mut string_atoms,
+        } = collected;
 
         let mut builder = BddVariableSetBuilder::new();
         let mut class_vars = BTreeMap::new();
@@ -171,16 +230,16 @@ impl<'a> SymbolicSpace<'a> {
         let mut property_vars = BTreeMap::new();
         for (property_index, property) in ontology.schema().properties().enumerate() {
             let assigned = builder.make_variable(&format!("p{property_index}_assigned"));
-            let mut numeric = BTreeMap::new();
+            let mut ordered = BTreeMap::new();
             for (index, threshold) in thresholds
                 .get(&property.iri)
                 .into_iter()
                 .flatten()
                 .enumerate()
             {
-                numeric.insert(
-                    *threshold,
-                    NumericVars {
+                ordered.insert(
+                    threshold.clone(),
+                    OrderedVars {
                         greater: builder.make_variable(&format!("p{property_index}_n{index}_gt")),
                         at_least: builder.make_variable(&format!("p{property_index}_n{index}_ge")),
                     },
@@ -209,8 +268,9 @@ impl<'a> SymbolicSpace<'a> {
                 property.iri,
                 PropertyVars {
                     assigned,
-                    numeric,
+                    ordered,
                     atoms: exact,
+                    atom_positions: atom_positions.remove(&property.iri).unwrap_or_default(),
                     contains: substring,
                     string_atoms: string_atoms.remove(&property.iri).unwrap_or_default(),
                 },
@@ -253,20 +313,16 @@ impl<'a> SymbolicSpace<'a> {
                 self.reachable = self.reachable.and(&subject_in_domain.imp(&assigned));
             }
 
-            if !vars.numeric.is_empty() {
-                for numeric in vars.numeric.values() {
+            if !vars.ordered.is_empty() {
+                for ordered in vars.ordered.values() {
                     self.reachable = self
                         .reachable
-                        .and(&self.variables.mk_var(numeric.greater).imp(&assigned));
+                        .and(&self.variables.mk_var(ordered.greater).imp(&assigned));
                     self.reachable = self
                         .reachable
-                        .and(&self.variables.mk_var(numeric.at_least).imp(&assigned));
+                        .and(&self.variables.mk_var(ordered.at_least).imp(&assigned));
                 }
-                let allowed = numeric_samples(property, vars.numeric.keys().copied())
-                    .into_iter()
-                    .fold(self.variables.mk_false(), |allowed, sample| {
-                        allowed.or(&numeric_signature(&self.variables, &vars.numeric, sample))
-                    });
+                let allowed = allowed_signatures(property, &vars.ordered, &self.variables);
                 self.reachable = self.reachable.and(&assigned.imp(&allowed));
             }
 
@@ -275,6 +331,27 @@ impl<'a> SymbolicSpace<'a> {
                 self.reachable = self
                     .reachable
                     .and(&self.variables.mk_var(*atom).imp(&assigned));
+            }
+            for (atom, position) in &vars.atom_positions {
+                let Some(atom_variable) = vars.atoms.get(atom) else {
+                    continue;
+                };
+                let atom_bdd = self.variables.mk_var(*atom_variable);
+                let single_valued = property
+                    .cardinality
+                    .is_some_and(Cardinality::is_single_valued);
+                for (threshold, ordered) in &vars.ordered {
+                    for (holds, variable) in [
+                        (position > threshold, ordered.greater),
+                        (position >= threshold, ordered.at_least),
+                    ] {
+                        if holds || single_valued {
+                            self.reachable = self
+                                .reachable
+                                .and(&atom_bdd.imp(&self.variables.mk_literal(variable, holds)));
+                        }
+                    }
+                }
             }
             for variable in vars.contains.values() {
                 self.reachable = self
@@ -320,7 +397,11 @@ impl<'a> SymbolicSpace<'a> {
                     .reachable
                     .and(&self.variables.mk_sat_up_to_k(1, &exact));
             }
-            if matches!(property.range, Some(PropertyRange::Class(_))) && !exact.is_empty() {
+            let closed_value_space = matches!(
+                property.range,
+                Some(PropertyRange::Class(_) | PropertyRange::Datatype(Datatype::Boolean))
+            );
+            if closed_value_space && !exact.is_empty() {
                 let some_atom = exact
                     .iter()
                     .fold(self.variables.mk_false(), |bdd, variable| {
@@ -477,45 +558,50 @@ impl<'a> SymbolicSpace<'a> {
         candidate.and(&immutable_conflict.not())
     }
 
+    /// A condition over the store at the rule fixed point: facts the input
+    /// may carry (unless the property is `horis:RulesOnly`) together with
+    /// every standing rule conclusion on the same property.
     fn condition_tree_after_rules(&self, tree: &ConditionTree, formulas: &[Bdd]) -> Bdd {
         match tree {
             ConditionTree::Leaf(condition) => {
-                let is_derived = self
+                let rules_only = self
                     .ontology
                     .schema()
                     .property(condition.property)
                     .is_some_and(|property| property.assigned_by == AssignedBy::RulesOnly);
-                if !is_derived {
-                    return self.condition(condition);
-                }
                 let assigning = self
                     .ontology
                     .rules()
                     .iter()
                     .zip(formulas)
                     .filter(|(rule, _)| rule.then.property == condition.property);
-                let assigned = assigning
-                    .clone()
-                    .fold(self.variables.mk_false(), |bdd, (_, formula)| {
-                        bdd.or(formula)
-                    });
+                let derived_where = |keep: &dyn Fn(&Rule) -> bool| {
+                    assigning
+                        .clone()
+                        .filter(|(rule, _)| keep(rule))
+                        .fold(self.variables.mk_false(), |bdd, (_, formula)| {
+                            bdd.or(formula)
+                        })
+                };
+                let input = (!rules_only).then(|| self.condition(condition));
                 match &condition.op {
-                    Op::IsEmpty => assigned.not(),
-                    Op::IsNot(expected) => assigning
-                        .filter(|(rule, _)| {
+                    Op::IsEmpty => {
+                        let holds = derived_where(&|_| true).not();
+                        input.map_or(holds.clone(), |input| holds.and(&input))
+                    }
+                    Op::IsNot(expected) => {
+                        let holds = derived_where(&|rule| {
                             term_matches_static(self.ontology, &rule.then.value, expected)
                         })
-                        .fold(self.variables.mk_false(), |bdd, (_, formula)| {
-                            bdd.or(formula)
-                        })
-                        .not(),
-                    op => assigning
-                        .filter(|(rule, _)| {
+                        .not();
+                        input.map_or(holds.clone(), |input| holds.and(&input))
+                    }
+                    op => {
+                        let holds = derived_where(&|rule| {
                             conclusion_satisfies(self.ontology, &rule.then.value, op)
-                        })
-                        .fold(self.variables.mk_false(), |bdd, (_, formula)| {
-                            bdd.or(formula)
-                        }),
+                        });
+                        input.map_or(holds.clone(), |input| holds.or(&input))
+                    }
                 }
             }
             ConditionTree::All(children) => children
@@ -563,14 +649,15 @@ impl<'a> SymbolicSpace<'a> {
             return self.variables.mk_false();
         };
         let assigned = self.variables.mk_var(vars.assigned);
+        let property = condition.property;
         match &condition.op {
-            Op::Exceeds(value) => assigned.and(&self.numeric(vars, value, |v| v.greater)),
-            Op::Below(value) => assigned.and(&self.numeric(vars, value, |v| v.at_least).not()),
-            Op::AtLeast(value) => assigned.and(&self.numeric(vars, value, |v| v.at_least)),
-            Op::AtMost(value) => assigned.and(&self.numeric(vars, value, |v| v.greater).not()),
+            Op::Exceeds(value) => assigned.and(&self.ordered(property, value, |v| v.greater)),
+            Op::Below(value) => assigned.and(&self.ordered(property, value, |v| v.at_least).not()),
+            Op::AtLeast(value) => assigned.and(&self.ordered(property, value, |v| v.at_least)),
+            Op::AtMost(value) => assigned.and(&self.ordered(property, value, |v| v.greater).not()),
             Op::Between(low, high) => assigned
-                .and(&self.numeric(vars, low, |v| v.at_least))
-                .and(&self.numeric(vars, high, |v| v.greater).not()),
+                .and(&self.ordered(property, low, |v| v.at_least))
+                .and(&self.ordered(property, high, |v| v.greater).not()),
             Op::Is(term) => assigned.and(&self.term_matches(condition.property, term)),
             Op::Contains(Term::Literal(Value::String(needle)))
                 if matches!(
@@ -598,14 +685,25 @@ impl<'a> SymbolicSpace<'a> {
         }
     }
 
-    fn numeric(
+    /// The boundary variable an ordered comparison against `value` reads.
+    /// A constant the runtime cannot order against this property (a class
+    /// reference, a duration, or a mismatched datatype) never holds.
+    fn ordered(
         &self,
-        vars: &PropertyVars,
+        property: Iri,
         value: &Value,
-        select: impl FnOnce(NumericVars) -> BddVariable,
+        select: impl FnOnce(OrderedVars) -> BddVariable,
     ) -> Bdd {
-        as_decimal(value)
-            .and_then(|number| vars.numeric.get(&number).copied())
+        let Some(vars) = self.property_vars.get(&property) else {
+            return self.variables.mk_false();
+        };
+        let range = self
+            .ontology
+            .schema()
+            .property(property)
+            .and_then(|declared| declared.range);
+        threshold_for(range, value)
+            .and_then(|threshold| vars.ordered.get(&threshold).copied())
             .map_or_else(
                 || self.variables.mk_false(),
                 |boundary| self.variables.mk_var(select(boundary)),
@@ -616,9 +714,14 @@ impl<'a> SymbolicSpace<'a> {
         let Some(vars) = self.property_vars.get(&property) else {
             return self.variables.mk_false();
         };
+        let range = self
+            .ontology
+            .schema()
+            .property(property)
+            .and_then(|declared| declared.range);
         match term {
-            Term::Literal(value) if as_decimal(value).is_some() => as_decimal(value)
-                .and_then(|number| vars.numeric.get(&number))
+            Term::Literal(value) if as_decimal(value).is_some() => threshold_for(range, value)
+                .and_then(|threshold| vars.ordered.get(&threshold))
                 .map_or_else(
                     || self.variables.mk_false(),
                     |boundary| {
@@ -666,30 +769,30 @@ impl<'a> SymbolicSpace<'a> {
             let Some(vars) = self.property_vars.get(&property.iri) else {
                 continue;
             };
-            if !vars.numeric.is_empty() {
-                let mut lower: Option<(Decimal, bool)> = None;
-                let mut upper: Option<(Decimal, bool)> = None;
-                for (number, boundary) in &vars.numeric {
+            if !vars.ordered.is_empty() {
+                let mut lower: Option<(Threshold, bool)> = None;
+                let mut upper: Option<(Threshold, bool)> = None;
+                for (threshold, boundary) in &vars.ordered {
                     if forced(&formula, &self.variables, boundary.greater, true) {
-                        strongest_lower(&mut lower, *number, false);
+                        strongest_lower(&mut lower, threshold, false);
                     } else if forced(&formula, &self.variables, boundary.greater, false) {
-                        strongest_upper(&mut upper, *number, true);
+                        strongest_upper(&mut upper, threshold, true);
                     }
                     if forced(&formula, &self.variables, boundary.at_least, true) {
-                        strongest_lower(&mut lower, *number, true);
+                        strongest_lower(&mut lower, threshold, true);
                     } else if forced(&formula, &self.variables, boundary.at_least, false) {
-                        strongest_upper(&mut upper, *number, false);
+                        strongest_upper(&mut upper, threshold, false);
                     }
                 }
                 if lower.is_some() || upper.is_some() {
                     predicates.push(RegionPredicate::Numeric {
                         property: local(self.ontology, property.iri),
                         lower: lower.map(|(value, inclusive)| Bound {
-                            value: value.to_string(),
+                            value: value.lexical(),
                             inclusive,
                         }),
                         upper: upper.map(|(value, inclusive)| Bound {
-                            value: value.to_string(),
+                            value: value.lexical(),
                             inclusive,
                         }),
                         unit: property.unit.clone(),
@@ -737,69 +840,61 @@ impl<'a> SymbolicSpace<'a> {
     }
 }
 
+#[derive(Debug, Default)]
+struct CollectedValues {
+    thresholds: BTreeMap<Iri, BTreeSet<Threshold>>,
+    atoms: BTreeMap<Iri, BTreeSet<String>>,
+    atom_positions: BTreeMap<Iri, BTreeMap<String, Threshold>>,
+    contains: BTreeMap<Iri, BTreeSet<String>>,
+    string_atoms: BTreeMap<Iri, BTreeSet<String>>,
+}
+
 fn collect_condition_values(
     ontology: &Ontology,
     condition: &Condition,
-    thresholds: &mut BTreeMap<Iri, BTreeSet<Decimal>>,
-    atoms: &mut BTreeMap<Iri, BTreeSet<String>>,
-    contains: &mut BTreeMap<Iri, BTreeSet<String>>,
-    string_atoms: &mut BTreeMap<Iri, BTreeSet<String>>,
+    collected: &mut CollectedValues,
 ) {
+    let range = ontology
+        .schema()
+        .property(condition.property)
+        .and_then(|property| property.range);
     match &condition.op {
         Op::Exceeds(v) | Op::Below(v) | Op::AtLeast(v) | Op::AtMost(v) => {
-            if let Some(number) = as_decimal(v) {
-                thresholds
+            if let Some(threshold) = threshold_for(range, v) {
+                collected
+                    .thresholds
                     .entry(condition.property)
                     .or_default()
-                    .insert(number);
+                    .insert(threshold);
             }
         }
         Op::Between(a, b) => {
             for value in [a, b] {
-                if let Some(number) = as_decimal(value) {
-                    thresholds
+                if let Some(threshold) = threshold_for(range, value) {
+                    collected
+                        .thresholds
                         .entry(condition.property)
                         .or_default()
-                        .insert(number);
+                        .insert(threshold);
                 }
             }
         }
         Op::Is(term) | Op::IsNot(term) => {
-            collect_exact_term(
-                ontology,
-                condition.property,
-                term,
-                thresholds,
-                atoms,
-                string_atoms,
-            );
+            collect_exact_term(ontology, condition.property, range, term, collected);
         }
         Op::Contains(Term::Literal(Value::String(needle))) => {
-            contains
+            collected
+                .contains
                 .entry(condition.property)
                 .or_default()
                 .insert(needle.clone());
         }
         Op::Contains(term) => {
-            collect_exact_term(
-                ontology,
-                condition.property,
-                term,
-                thresholds,
-                atoms,
-                string_atoms,
-            );
+            collect_exact_term(ontology, condition.property, range, term, collected);
         }
         Op::InList(terms) => {
             for term in terms {
-                collect_exact_term(
-                    ontology,
-                    condition.property,
-                    term,
-                    thresholds,
-                    atoms,
-                    string_atoms,
-                );
+                collect_exact_term(ontology, condition.property, range, term, collected);
             }
         }
         Op::IsAssigned | Op::IsEmpty => {}
@@ -809,83 +904,135 @@ fn collect_condition_values(
 fn collect_exact_term(
     ontology: &Ontology,
     property: Iri,
+    range: Option<PropertyRange>,
     term: &Term,
-    thresholds: &mut BTreeMap<Iri, BTreeSet<Decimal>>,
-    atoms: &mut BTreeMap<Iri, BTreeSet<String>>,
-    string_atoms: &mut BTreeMap<Iri, BTreeSet<String>>,
+    collected: &mut CollectedValues,
 ) {
     if let Term::Literal(value) = term
-        && let Some(number) = as_decimal(value)
+        && as_decimal(value).is_some()
     {
-        thresholds.entry(property).or_default().insert(number);
+        if let Some(threshold) = threshold_for(range, value) {
+            collected
+                .thresholds
+                .entry(property)
+                .or_default()
+                .insert(threshold);
+        }
         return;
     }
     let text = term_text(ontology, term);
-    atoms.entry(property).or_default().insert(text.clone());
+    collected
+        .atoms
+        .entry(property)
+        .or_default()
+        .insert(text.clone());
+    if let Term::Literal(value) = term
+        && let Some(position) = threshold_for(range, value)
+    {
+        collected
+            .atom_positions
+            .entry(property)
+            .or_default()
+            .insert(text.clone(), position);
+    }
     if matches!(term, Term::Literal(Value::String(_))) {
-        string_atoms.entry(property).or_default().insert(text);
+        collected
+            .string_atoms
+            .entry(property)
+            .or_default()
+            .insert(text);
     }
 }
 
-fn numeric_samples(
+/// One cell of the order induced by a property's authored thresholds.
+enum Cell<'a> {
+    Below,
+    At(&'a Threshold),
+    Between(&'a Threshold, &'a Threshold),
+    Above,
+}
+
+impl Cell<'_> {
+    /// Whether a stored value of `property` can fall in this cell: inside
+    /// the gate's `horis:min`/`horis:max`, and for `xsd:integer` only where
+    /// an integer actually exists.
+    fn is_inhabited(&self, property: &PropertyDecl) -> bool {
+        let minimum = gate_bound(property, property.min.as_ref());
+        let maximum = gate_bound(property, property.max.as_ref());
+        let within_bounds = match self {
+            Cell::Below => minimum.is_none(),
+            Cell::At(point) => {
+                minimum.as_ref().is_none_or(|bound| *point >= bound)
+                    && maximum.as_ref().is_none_or(|bound| *point <= bound)
+            }
+            Cell::Between(low, high) => {
+                minimum.as_ref().is_none_or(|bound| *low >= bound)
+                    && maximum.as_ref().is_none_or(|bound| *high <= bound)
+            }
+            Cell::Above => maximum.is_none(),
+        };
+        if !within_bounds {
+            return false;
+        }
+        if !matches!(
+            property.range,
+            Some(PropertyRange::Datatype(Datatype::Integer))
+        ) {
+            return true;
+        }
+        match self {
+            Cell::At(Threshold::Number(point)) => point.fract().is_zero(),
+            Cell::Between(Threshold::Number(low), Threshold::Number(high)) => {
+                low.floor() + Decimal::ONE < *high
+            }
+            _ => true,
+        }
+    }
+
+    fn signature(
+        &self,
+        boundaries: &BTreeMap<Threshold, OrderedVars>,
+        variables: &BddVariableSet,
+    ) -> Bdd {
+        boundaries
+            .iter()
+            .fold(variables.mk_true(), |signature, (threshold, boundary)| {
+                let (greater, at_least) = match self {
+                    Cell::Below => (false, false),
+                    Cell::At(point) => (*point > threshold, *point >= threshold),
+                    Cell::Between(low, _) => (*low >= threshold, *low >= threshold),
+                    Cell::Above => (true, true),
+                };
+                signature
+                    .and(&variables.mk_literal(boundary.greater, greater))
+                    .and(&variables.mk_literal(boundary.at_least, at_least))
+            })
+    }
+}
+
+/// Every threshold signature some stored value of `property` can have.
+fn allowed_signatures(
     property: &PropertyDecl,
-    thresholds: impl Iterator<Item = Decimal>,
-) -> BTreeSet<Decimal> {
-    let thresholds: Vec<Decimal> = thresholds.collect();
-    let mut samples = BTreeSet::new();
-    match property.range {
-        Some(PropertyRange::Datatype(Datatype::Decimal)) => {
-            for threshold in &thresholds {
-                samples.insert(*threshold);
-            }
-            for pair in thresholds.windows(2) {
-                if let Some(sum) = pair[0].checked_add(pair[1]) {
-                    samples.insert(sum / Decimal::from(2));
-                }
-            }
-            if let Some(first) = thresholds.first().and_then(|v| v.checked_sub(Decimal::ONE)) {
-                samples.insert(first);
-            }
-            if let Some(last) = thresholds.last().and_then(|v| v.checked_add(Decimal::ONE)) {
-                samples.insert(last);
-            }
-        }
-        Some(PropertyRange::Datatype(Datatype::Integer)) => {
-            for threshold in &thresholds {
-                for integer in [
-                    threshold.floor().to_i64().and_then(|v| v.checked_sub(1)),
-                    threshold.floor().to_i64(),
-                    threshold.ceil().to_i64(),
-                    threshold.ceil().to_i64().and_then(|v| v.checked_add(1)),
-                ]
-                .into_iter()
-                .flatten()
-                {
-                    samples.insert(Decimal::from(integer));
-                }
-            }
-        }
-        _ => {}
-    }
-    let minimum = property.min.as_ref().and_then(as_decimal);
-    let maximum = property.max.as_ref().and_then(as_decimal);
-    samples.retain(|sample| {
-        minimum.is_none_or(|bound| *sample >= bound) && maximum.is_none_or(|bound| *sample <= bound)
-    });
-    samples
-}
-
-fn numeric_signature(
+    boundaries: &BTreeMap<Threshold, OrderedVars>,
     variables: &BddVariableSet,
-    boundaries: &BTreeMap<Decimal, NumericVars>,
-    sample: Decimal,
 ) -> Bdd {
-    boundaries
+    let thresholds: Vec<&Threshold> = boundaries.keys().collect();
+    let mut cells = Vec::new();
+    if !thresholds.is_empty() {
+        cells.push(Cell::Below);
+        for (index, point) in thresholds.iter().enumerate() {
+            cells.push(Cell::At(point));
+            if let Some(next) = thresholds.get(index + 1) {
+                cells.push(Cell::Between(point, next));
+            }
+        }
+        cells.push(Cell::Above);
+    }
+    cells
         .iter()
-        .fold(variables.mk_true(), |signature, (threshold, boundary)| {
-            signature
-                .and(&variables.mk_literal(boundary.greater, sample > *threshold))
-                .and(&variables.mk_literal(boundary.at_least, sample >= *threshold))
+        .filter(|cell| cell.is_inhabited(property))
+        .fold(variables.mk_false(), |allowed, cell| {
+            allowed.or(&cell.signature(boundaries, variables))
         })
 }
 
@@ -917,6 +1064,7 @@ fn verify_completeness(space: &SymbolicSpace<'_>, formulas: &[Bdd], report: &mut
             let conditions = render_region_conditions(&region);
             report.witnesses.push(Witness {
                 kind: FindingKind::Completeness,
+                severity: Severity::Error,
                 domain_text: format!(
                     "no {} assigned when {conditions}",
                     local(space.ontology, property.iri)
@@ -955,19 +1103,29 @@ fn verify_conflicts(space: &SymbolicSpace<'_>, formulas: &[Bdd], report: &mut Re
             let property_name = compact_iri(space.ontology, a.then.property);
             let first_rule = compact_iri(space.ontology, a.iri);
             let second_rule = compact_iri(space.ontology, b.iri);
-            let first_value = term_text(space.ontology, &a.then.value);
-            let second_value = term_text(space.ontology, &b.then.value);
+            let first_value =
+                display_atom(space.ontology, &term_text(space.ontology, &a.then.value));
+            let second_value =
+                display_atom(space.ontology, &term_text(space.ontology, &b.then.value));
+            let winner = first_rule.clone();
+            let conditions = render_region_conditions(&region);
             report.conflicts.push(Conflict {
                 first_rule: first_rule.clone(),
                 second_rule: second_rule.clone(),
                 property: property_name.clone(),
-                first_value: display_atom(space.ontology, &first_value),
-                second_value: display_atom(space.ontology, &second_value),
+                first_value: first_value.clone(),
+                second_value: second_value.clone(),
+                first_priority: a.priority,
+                second_priority: b.priority,
+                winner: winner.clone(),
                 region: region.clone(),
             });
             report.witnesses.push(Witness {
                 kind: FindingKind::Conflict,
-                domain_text: format!("{first_rule} and {second_rule} assign conflicting {property_name} values in the same region"),
+                severity: Severity::Error,
+                domain_text: format!(
+                    "{first_rule} → {first_value} but {second_rule} → {second_value} for {property_name} when {conditions} — {winner} wins by priority; confirm intended"
+                ),
                 region,
                 suggestion: Some("make the conditions disjoint or align their conclusions".into()),
             });
@@ -1077,6 +1235,7 @@ fn verify_dead_and_vacuous_rules(
             report.dead_rules.push(name.clone());
             report.witnesses.push(Witness {
                 kind: FindingKind::DeadRule,
+                severity: Severity::Error,
                 domain_text: format!(
                     "{name} has no satisfiable input under the declared schema bounds"
                 ),
@@ -1093,6 +1252,7 @@ fn verify_dead_and_vacuous_rules(
             let value = display_atom(space.ontology, &term_text(space.ontology, &rule.then.value));
             report.witnesses.push(Witness {
                 kind: FindingKind::RuleVacuity,
+                severity: Severity::Error,
                 domain_text: format!(
                     "{name} is satisfiable but its conclusion {property} {value} cannot pass the declared validation constraints"
                 ),
@@ -1131,6 +1291,7 @@ fn verify_dead_and_vacuous_rules(
         if !higher.is_false() && accepted[index].and(&higher.not()).is_false() {
             report.witnesses.push(Witness {
                 kind: FindingKind::RuleVacuity,
+                severity: Severity::Error,
                 domain_text: format!("{name} is satisfiable but its conclusion is inert because higher-priority rules cover every matching input"),
                 region: space.region(&accepted[index], Some(rule.subject_class)),
                 suggestion: Some("narrow the higher-priority rules or remove the inert rule".into()),
@@ -1156,6 +1317,7 @@ fn verify_rule_termination(ontology: &Ontology, report: &mut ReportBuilder) {
             let name = compact_iri(ontology, rule.iri);
             report.witnesses.push(Witness {
                 kind: FindingKind::RuleTermination,
+                severity: Severity::Error,
                 domain_text: format!("{name} participates in a rule dependency cycle, so fixed-point termination is not proven"),
                 region: Region { subject_class: Some(compact_iri(ontology, rule.subject_class)), predicates: Vec::new() },
                 suggestion: Some("break the derived-property dependency cycle".into()),
@@ -1377,13 +1539,13 @@ fn conclusion_satisfies_full(ontology: &Ontology, conclusion: &Term, op: &Op) ->
 
 fn conclusion_satisfies(ontology: &Ontology, conclusion: &Term, op: &Op) -> bool {
     match op {
-        Op::Exceeds(bound) => compare_numeric_term(conclusion, bound).is_some_and(|v| v.is_gt()),
-        Op::Below(bound) => compare_numeric_term(conclusion, bound).is_some_and(|v| v.is_lt()),
-        Op::AtLeast(bound) => compare_numeric_term(conclusion, bound).is_some_and(|v| v.is_ge()),
-        Op::AtMost(bound) => compare_numeric_term(conclusion, bound).is_some_and(|v| v.is_le()),
+        Op::Exceeds(bound) => compare_term(conclusion, bound).is_some_and(|v| v.is_gt()),
+        Op::Below(bound) => compare_term(conclusion, bound).is_some_and(|v| v.is_lt()),
+        Op::AtLeast(bound) => compare_term(conclusion, bound).is_some_and(|v| v.is_ge()),
+        Op::AtMost(bound) => compare_term(conclusion, bound).is_some_and(|v| v.is_le()),
         Op::Between(low, high) => {
-            compare_numeric_term(conclusion, low).is_some_and(|v| v.is_ge())
-                && compare_numeric_term(conclusion, high).is_some_and(|v| v.is_le())
+            compare_term(conclusion, low).is_some_and(|v| v.is_ge())
+                && compare_term(conclusion, high).is_some_and(|v| v.is_le())
         }
         Op::Is(expected) | Op::Contains(expected) => {
             if let (Term::Literal(Value::String(value)), Term::Literal(Value::String(needle))) =
@@ -1403,11 +1565,11 @@ fn conclusion_satisfies(ontology: &Ontology, conclusion: &Term, op: &Op) -> bool
     }
 }
 
-fn compare_numeric_term(conclusion: &Term, bound: &Value) -> Option<std::cmp::Ordering> {
+fn compare_term(conclusion: &Term, bound: &Value) -> Option<std::cmp::Ordering> {
     let Term::Literal(value) = conclusion else {
         return None;
     };
-    Some(as_decimal(value)?.cmp(&as_decimal(bound)?))
+    compare_values(value, bound)
 }
 
 fn reaches(
@@ -1428,6 +1590,10 @@ fn reaches(
         .any(|next| reaches(*next, target, edges, seen, false))
 }
 
+/// Declared constraints that exclude nothing. An explicit `0..*` is a
+/// documented authored value (doc 02) that merely restates the default, so
+/// it is reported at info level; a bound that can never reject a value of
+/// the property's own type is a genuine authoring error.
 fn verify_constraint_vacuity(ontology: &Ontology, report: &mut ReportBuilder) {
     for property in ontology.schema().properties() {
         let property_name = local(ontology, property.iri);
@@ -1435,40 +1601,61 @@ fn verify_constraint_vacuity(ontology: &Ontology, report: &mut ReportBuilder) {
             .domain
             .map(|iri| compact_iri(ontology, iri))
             .unwrap_or_else(|| "the declared domain".into());
-        if property.cardinality == Some(Cardinality::ZeroOrMany) {
+        let region = Region {
+            subject_class: property.domain.map(|iri| compact_iri(ontology, iri)),
+            predicates: Vec::new(),
+        };
+        let typed = match property.range {
+            Some(PropertyRange::Datatype(kind)) => kind.to_string(),
+            Some(PropertyRange::Class(class)) => compact_iri(ontology, class),
+            None => "value".into(),
+        };
+        let mut push = |severity: Severity, domain_text: String, suggestion: &str| {
             report.witnesses.push(Witness {
                 kind: FindingKind::ConstraintVacuity,
-                domain_text: format!(
+                severity,
+                domain_text,
+                region: region.clone(),
+                suggestion: Some(suggestion.into()),
+            });
+        };
+        if property.cardinality == Some(Cardinality::ZeroOrMany) {
+            push(
+                Severity::Info,
+                format!(
                     "{property_name} horis:cardinality \"0..*\" excludes no value count on {domain}"
                 ),
-                region: Region {
-                    subject_class: property.domain.map(|iri| compact_iri(ontology, iri)),
-                    predicates: Vec::new(),
-                },
-                suggestion: Some(
-                    "remove the vacuous cardinality or declare a restrictive bound".into(),
-                ),
-            });
+                "omit the default cardinality or declare a restrictive bound",
+            );
         }
-        if property.pattern.as_deref().is_some_and(universal_pattern) {
-            let datatype = match property.range {
-                Some(PropertyRange::Datatype(kind)) => kind.to_string(),
-                _ => "value".into(),
-            };
-            report.witnesses.push(Witness {
-                kind: FindingKind::ConstraintVacuity,
-                domain_text: format!(
-                    "{property_name} horis:pattern {:?} excludes no {datatype} value on {domain}",
-                    property.pattern.as_deref().unwrap_or_default()
-                ),
-                region: Region {
-                    subject_class: property.domain.map(|iri| compact_iri(ontology, iri)),
-                    predicates: Vec::new(),
-                },
-                suggestion: Some(
-                    "remove the vacuous pattern or declare a restrictive expression".into(),
-                ),
-            });
+        for (name, bound) in [("horis:min", &property.min), ("horis:max", &property.max)] {
+            if let Some(bound) = bound
+                && gate_bound(property, Some(bound)).is_none()
+            {
+                push(
+                    Severity::Error,
+                    format!(
+                        "{property_name} {name} {} excludes no {typed} value on {domain}",
+                        bound.lexical_form().unwrap_or_default()
+                    ),
+                    "declare a numeric bound on a numeric property or remove it",
+                );
+            }
+        }
+        if let Some(pattern) = property.pattern.as_deref() {
+            let applies_to_range = matches!(
+                property.range,
+                None | Some(PropertyRange::Datatype(Datatype::String))
+            );
+            if !applies_to_range || universal_pattern(pattern) {
+                push(
+                    Severity::Error,
+                    format!(
+                        "{property_name} horis:pattern {pattern:?} excludes no {typed} value on {domain}"
+                    ),
+                    "remove the vacuous pattern or declare a restrictive expression",
+                );
+            }
         }
     }
 }
@@ -1501,6 +1688,7 @@ fn verify_workflows(space: &SymbolicSpace<'_>, formulas: &[Bdd], report: &mut Re
             result.terminating = false;
             report.witnesses.push(Witness {
                 kind: FindingKind::WorkflowTermination,
+                severity: Severity::Error,
                 domain_text: format!(
                     "{workflow_name} has a reachable {} and not every path reaches horis:terminal",
                     if cycle {
@@ -1529,6 +1717,7 @@ fn verify_workflows(space: &SymbolicSpace<'_>, formulas: &[Bdd], report: &mut Re
                 result.fallbacks_total = false;
                 report.witnesses.push(Witness {
                     kind: FindingKind::WorkflowFallback,
+                    severity: Severity::Error,
                     domain_text: format!("{step_name} can fail but declares no {edge} edge"),
                     region: Region::default(),
                     suggestion: Some(format!("declare {edge} on {step_name}")),
@@ -1545,6 +1734,7 @@ fn verify_workflows(space: &SymbolicSpace<'_>, formulas: &[Bdd], report: &mut Re
                 result.requires_satisfiable = false;
                 report.witnesses.push(Witness {
                     kind: FindingKind::WorkflowRequires,
+                    severity: Severity::Error,
                     domain_text: format!(
                         "{step_name} horis:requires has no satisfiable value under the declared schema bounds"
                     ),
@@ -1573,6 +1763,7 @@ fn verify_workflows(space: &SymbolicSpace<'_>, formulas: &[Bdd], report: &mut Re
                     result.choices_total = false;
                     report.witnesses.push(Witness {
                         kind: FindingKind::WorkflowChoice,
+                        severity: Severity::Error,
                         domain_text: format!(
                             "{step_name} horis:branches do not cover every reachable case and no horis:otherwise is declared"
                         ),
@@ -1590,6 +1781,7 @@ fn verify_workflows(space: &SymbolicSpace<'_>, formulas: &[Bdd], report: &mut Re
         let step_name = compact_iri(space.ontology, *step);
         report.witnesses.push(Witness {
             kind: FindingKind::WorkflowReachability,
+            severity: Severity::Error,
             domain_text: format!(
                 "{step_name} is not reachable from any horis:Workflow horis:startsAt"
             ),
@@ -1774,18 +1966,18 @@ fn literal_cube(
         })
 }
 
-fn strongest_lower(bound: &mut Option<(Decimal, bool)>, value: Decimal, inclusive: bool) {
-    if bound.is_none_or(|(current, current_inclusive)| {
-        value > current || (value == current && !inclusive && current_inclusive)
+fn strongest_lower(bound: &mut Option<(Threshold, bool)>, value: &Threshold, inclusive: bool) {
+    if bound.as_ref().is_none_or(|(current, current_inclusive)| {
+        value > current || (value == current && !inclusive && *current_inclusive)
     }) {
-        *bound = Some((value, inclusive));
+        *bound = Some((value.clone(), inclusive));
     }
 }
-fn strongest_upper(bound: &mut Option<(Decimal, bool)>, value: Decimal, inclusive: bool) {
-    if bound.is_none_or(|(current, current_inclusive)| {
-        value < current || (value == current && !inclusive && current_inclusive)
+fn strongest_upper(bound: &mut Option<(Threshold, bool)>, value: &Threshold, inclusive: bool) {
+    if bound.as_ref().is_none_or(|(current, current_inclusive)| {
+        value < current || (value == current && !inclusive && *current_inclusive)
     }) {
-        *bound = Some((value, inclusive));
+        *bound = Some((value.clone(), inclusive));
     }
 }
 

@@ -1,7 +1,8 @@
 //! Verification: BDD checks with witnesses, run before an ontology executes.
 //!
 //! Rule-conflict detection, workflow termination and reachability proofs,
-//! constraint-domain analysis. Port of the sigil-lang verifier.
+//! constraint-domain analysis. Adapts the BDD-verifier design described by
+//! PRP-005 to the ontology model; no prior-art source was consulted.
 //!
 //! Spec: `docs/framework/10-verification.md` · Owner: PRP-005 (schema checks
 //! land earlier with PRP-002)
@@ -51,7 +52,18 @@ pub enum FindingKind {
     WorkflowChoice,
 }
 
-/// One endpoint of a numeric witness interval.
+/// Whether a witness fails the report or merely informs the author.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Severity {
+    /// The finding makes `ok` false and the default-hard load fail.
+    Error,
+    /// An advisory note; the report still passes.
+    Info,
+}
+
+/// One endpoint of an ordered witness interval. Numbers, `xsd:dateTime`,
+/// and strings are each ordered as the runtime orders them.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 pub struct Bound {
     /// Exact authored lexical value; never rounded through `f64`.
@@ -98,12 +110,14 @@ pub struct Region {
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 pub struct Witness {
     pub kind: FindingKind,
+    pub severity: Severity,
     pub domain_text: String,
     pub region: Region,
     pub suggestion: Option<String>,
 }
 
-/// One overlapping pair of contradictory rule conclusions.
+/// One overlapping pair of contradictory rule conclusions, with the rule
+/// whose value stands on the overlap under the runtime's priority order.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 pub struct Conflict {
     pub first_rule: String,
@@ -111,13 +125,18 @@ pub struct Conflict {
     pub property: String,
     pub first_value: String,
     pub second_value: String,
+    pub first_priority: i64,
+    pub second_priority: i64,
+    pub winner: String,
     pub region: Region,
 }
 
 /// Per-workflow summary; detail remains in [`VerificationReport::witnesses`].
+/// Step reachability is reported globally through
+/// [`FindingKind::WorkflowReachability`] witnesses because an orphan step
+/// belongs to no workflow.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct WorkflowVerification {
-    pub reachable: bool,
     pub terminating: bool,
     pub requires_satisfiable: bool,
     pub fallbacks_total: bool,
@@ -127,7 +146,6 @@ pub struct WorkflowVerification {
 impl Default for WorkflowVerification {
     fn default() -> Self {
         Self {
-            reachable: true,
             terminating: true,
             requires_satisfiable: true,
             fallbacks_total: true,
@@ -182,6 +200,13 @@ impl VerificationReport {
 
     pub fn witnesses(&self) -> &[Witness] {
         &self.witnesses
+    }
+
+    /// The witnesses that make the report fail; info-level notes are excluded.
+    pub fn failures(&self) -> impl Iterator<Item = &Witness> {
+        self.witnesses
+            .iter()
+            .filter(|witness| witness.severity == Severity::Error)
     }
 
     pub fn assumptions(&self) -> &AssumptionManifest {
@@ -249,14 +274,16 @@ impl ReportBuilder {
         }
         self.witnesses.sort();
         self.witnesses.dedup();
-        let ok = self.witnesses.is_empty()
+        let ok = self
+            .witnesses
+            .iter()
+            .all(|witness| witness.severity == Severity::Info)
             && self.complete.values().all(|complete| *complete)
             && self.conflicts.is_empty()
             && self.dead_rules.is_empty()
             && self.terminating
             && self.workflows.values().all(|workflow| {
-                workflow.reachable
-                    && workflow.terminating
+                workflow.terminating
                     && workflow.requires_satisfiable
                     && workflow.fallbacks_total
                     && workflow.choices_total
@@ -281,7 +308,7 @@ mod tests {
     use biodivine_lib_bdd::BddVariableSet;
 
     use super::{
-        AssumptionManifest, Bound, FindingKind, Region, RegionPredicate, ReportBuilder,
+        AssumptionManifest, Bound, FindingKind, Region, RegionPredicate, ReportBuilder, Severity,
         VerificationReport, Witness,
     };
 
@@ -359,12 +386,14 @@ mod tests {
         let mut builder = ReportBuilder::new(AssumptionManifest::default());
         builder.witnesses.push(Witness {
             kind: FindingKind::WorkflowReachability,
+            severity: Severity::Error,
             domain_text: ":Orphan is unreachable from :Intake".into(),
             region: Region::default(),
             suggestion: None,
         });
         builder.witnesses.push(Witness {
             kind: FindingKind::Completeness,
+            severity: Severity::Error,
             domain_text: "no acuity assigned when heartRate ∈ (100, 120] and no Symptom present"
                 .into(),
             region: Region {
@@ -382,6 +411,29 @@ mod tests {
             report.witnesses()[0].domain_text,
             "no acuity assigned when heartRate ∈ (100, 120] and no Symptom present"
         );
+    }
+
+    #[test]
+    fn info_witnesses_are_reported_without_failing_the_report() {
+        let mut builder = ReportBuilder::new(AssumptionManifest::default());
+        builder.witnesses.push(Witness {
+            kind: FindingKind::ConstraintVacuity,
+            severity: Severity::Info,
+            domain_text: "tags horis:cardinality \"0..*\" excludes no value count on :Patient"
+                .into(),
+            region: Region::default(),
+            suggestion: None,
+        });
+        let report = builder.finish();
+
+        assert!(report.ok());
+        assert_eq!(report.exit_code(), 0);
+        assert_eq!(report.witnesses().len(), 1);
+        assert_eq!(report.failures().count(), 0);
+        let json: serde_json::Value =
+            serde_json::from_str(&report.to_json().expect("JSON")).expect("valid JSON");
+        assert_eq!(json["ok"], serde_json::json!(true));
+        assert_eq!(json["witnesses"][0]["severity"], serde_json::json!("info"));
     }
 
     #[test]
@@ -412,6 +464,7 @@ mod tests {
             let mut witnesses = vec![
                 Witness {
                     kind: FindingKind::Completeness,
+                    severity: Severity::Error,
                     domain_text: "same text".into(),
                     region: Region {
                         subject_class: Some(":Patient".into()),
@@ -421,6 +474,7 @@ mod tests {
                 },
                 Witness {
                     kind: FindingKind::Completeness,
+                    severity: Severity::Error,
                     domain_text: "same text".into(),
                     region: Region {
                         subject_class: Some(":Patient".into()),
@@ -460,7 +514,7 @@ mod tests {
 
 #[cfg(test)]
 mod rule_verification_tests {
-    use super::{AssumptionManifest, FindingKind, RegionPredicate, verify_ontology};
+    use super::{AssumptionManifest, FindingKind, RegionPredicate, Severity, verify_ontology};
     use crate::{Ontology, Value, World};
 
     const PRELUDE: &str = "@prefix : <https://example.org/verify#> .\n\
@@ -567,6 +621,21 @@ mod rule_verification_tests {
              :b a horis:Rule ; horis:priority 1 ; horis:when [ horis:subject :Patient ; horis:property :heartRate ; horis:exceeds 120 ] ; horis:then [ horis:property :acuity ; horis:value :Urgent ] ."
         ));
         assert_eq!(conflict.conflicts().len(), 1);
+        let found = &conflict.conflicts()[0];
+        assert_eq!(found.first_rule, ":a");
+        assert_eq!(found.second_rule, ":b");
+        assert_eq!(found.first_priority, 2);
+        assert_eq!(found.second_priority, 1);
+        assert_eq!(found.winner, ":a");
+        let witness = conflict
+            .witnesses()
+            .iter()
+            .find(|w| w.kind == FindingKind::Conflict)
+            .expect("the overlap carries a witness");
+        assert_eq!(
+            witness.domain_text,
+            ":a → :Immediate but :b → :Urgent for :acuity when heartRate ∈ (120, 300] and no Symptom present — :a wins by priority; confirm intended"
+        );
 
         let dead = report(&format!(
             "{TRIAGE_DOMAIN}\n\
@@ -658,17 +727,266 @@ mod rule_verification_tests {
                 horis:pattern " .* " .
             "#,
         );
-        let texts: Vec<&str> = result
+        let findings: Vec<(&str, Severity)> = result
             .witnesses()
             .iter()
             .filter(|w| w.kind == FindingKind::ConstraintVacuity)
+            .map(|w| (w.domain_text.as_str(), w.severity))
+            .collect();
+        assert_eq!(findings.len(), 2);
+        assert!(
+            findings
+                .iter()
+                .any(|(text, severity)| text.contains("code") && *severity == Severity::Error)
+        );
+        assert!(
+            findings
+                .iter()
+                .any(|(text, severity)| text.contains("tags") && *severity == Severity::Info)
+        );
+        assert!(!findings.iter().any(|(text, _)| text.contains("restricted")));
+        assert!(!findings.iter().any(|(text, _)| text.contains("spaced")));
+        assert!(!result.ok());
+    }
+
+    #[test]
+    fn explicit_zero_or_many_is_an_informational_note_that_still_loads() {
+        let body = r#"
+            :Patient a rdfs:Class .
+            :tags a rdf:Property ; rdfs:domain :Patient ; rdfs:range xsd:string ;
+                horis:cardinality "0..*" .
+        "#;
+        let ontology = Ontology::load_from_str(&format!("{PRELUDE}{body}"), |_| None)
+            .expect("the documented default cardinality loads under the fail-closed default");
+        let report = ontology.verify();
+        assert!(report.ok());
+        assert_eq!(report.exit_code(), 0);
+        assert_eq!(report.failures().count(), 0);
+        let note = &report.witnesses()[0];
+        assert_eq!(note.kind, FindingKind::ConstraintVacuity);
+        assert_eq!(note.severity, Severity::Info);
+        assert_eq!(
+            note.domain_text,
+            "tags horis:cardinality \"0..*\" excludes no value count on :Patient"
+        );
+
+        let canonical = Ontology::load(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../examples/triage/triage.ttl"
+        ))
+        .expect("canonical triage declares 0..* on hasSymptom and still loads");
+        let canonical_report = canonical.verify();
+        assert!(canonical_report.ok());
+        assert!(canonical_report.witnesses().iter().all(|witness| {
+            witness.severity == Severity::Info && witness.domain_text.starts_with("hasSymptom")
+        }));
+    }
+
+    #[test]
+    fn bounds_that_cannot_reject_a_typed_value_are_vacuous() {
+        let result = report(
+            r#"
+            :Patient a rdfs:Class .
+            :label a rdf:Property ; rdfs:domain :Patient ; rdfs:range xsd:string ;
+                horis:max 10 .
+            :flag a rdf:Property ; rdfs:domain :Patient ; rdfs:range xsd:boolean ;
+                horis:pattern "yes|no" .
+            :heartRate a rdf:Property ; rdfs:domain :Patient ; rdfs:range xsd:decimal ;
+                horis:min 0 ; horis:max 300 .
+            :note a rdf:Property ; rdfs:domain :Patient ; rdfs:range xsd:string ;
+                horis:pattern "A+" .
+            "#,
+        );
+        let texts: Vec<&str> = result
+            .witnesses()
+            .iter()
+            .filter(|w| w.kind == FindingKind::ConstraintVacuity && w.severity == Severity::Error)
             .map(|w| w.domain_text.as_str())
             .collect();
-        assert_eq!(texts.len(), 2);
-        assert!(texts.iter().any(|text| text.contains("code")));
-        assert!(texts.iter().any(|text| text.contains("tags")));
-        assert!(!texts.iter().any(|text| text.contains("restricted")));
-        assert!(!texts.iter().any(|text| text.contains("spaced")));
+        assert_eq!(
+            texts,
+            vec![
+                "flag horis:pattern \"yes|no\" excludes no xsd:boolean value on :Patient",
+                "label horis:max 10 excludes no xsd:string value on :Patient",
+            ]
+        );
+        assert!(!result.ok());
+    }
+
+    #[test]
+    fn datetime_and_string_orderings_follow_the_runtime() {
+        let datetime_domain = r#"
+            :Patient a rdfs:Class .
+            :queuedAt a rdf:Property ; rdfs:domain :Patient ; rdfs:range xsd:dateTime ;
+                horis:cardinality "0..1" .
+            :decision a rdf:Property ; rdfs:domain :Patient ; rdfs:range xsd:boolean ;
+                horis:assignedBy horis:RulesOnly ; horis:cardinality "0..1" .
+            :late a horis:Rule ; horis:priority 2 ;
+                horis:when [ horis:subject :Patient ; horis:property :queuedAt ; horis:exceeds "2026-01-01T00:00:00Z"^^xsd:dateTime ] ;
+                horis:then [ horis:property :decision ; horis:value true ] .
+            :none a horis:Rule ; horis:priority 0 ;
+                horis:when [ horis:subject :Patient ; horis:property :queuedAt ; horis:isEmpty true ] ;
+                horis:then [ horis:property :decision ; horis:value false ] .
+        "#;
+        let early_rule = r#"
+            :early a horis:Rule ; horis:priority 1 ;
+                horis:when [ horis:subject :Patient ; horis:property :queuedAt ; horis:atMost "2026-01-01T00:00:00Z"^^xsd:dateTime ] ;
+                horis:then [ horis:property :decision ; horis:value false ] .
+        "#;
+        let gap = report(datetime_domain);
+        assert!(gap.dead_rules().is_empty());
+        assert_eq!(gap.complete().get(":decision"), Some(&false));
+        let witness = gap
+            .witnesses()
+            .iter()
+            .find(|w| w.kind == FindingKind::Completeness)
+            .expect("the early region is uncovered");
+        assert_eq!(
+            witness.domain_text,
+            "no decision assigned when queuedAt ≤ 2026-01-01T00:00:00+00:00"
+        );
+
+        let source = format!("{PRELUDE}{datetime_domain}{early_rule}");
+        let ontology = Ontology::load_from_str(&source, |_| None)
+            .expect("a dateTime partition verifies under the fail-closed default");
+        let complete = ontology.verify();
+        assert!(complete.ok());
+        assert!(complete.dead_rules().is_empty());
+        let patient = ontology.node_ref(":Patient").expect(":Patient");
+        let queued_at = ontology.node_ref(":queuedAt").expect(":queuedAt");
+        let decision = ontology.node_ref(":decision").expect(":decision");
+        let mut world = World::new(&ontology);
+        let subject = world
+            .assert_instance(
+                patient,
+                [(
+                    queued_at,
+                    Value::parse_typed(
+                        "2026-02-01T00:00:00Z",
+                        crate::ontology::term::Datatype::DateTime,
+                    )
+                    .expect("valid dateTime"),
+                )],
+            )
+            .expect("the base input is valid");
+        assert_eq!(world.value(subject, decision), Some(&Value::Boolean(true)));
+
+        let strings = report(
+            r#"
+            :Patient a rdfs:Class .
+            :name a rdf:Property ; rdfs:domain :Patient ; rdfs:range xsd:string ;
+                horis:cardinality "1" .
+            :decision a rdf:Property ; rdfs:domain :Patient ; rdfs:range xsd:boolean ;
+                horis:assignedBy horis:RulesOnly ; horis:cardinality "0..1" .
+            :upper a horis:Rule ; horis:priority 3 ;
+                horis:when [ horis:subject :Patient ; horis:property :name ; horis:atLeast "M" ] ;
+                horis:then [ horis:property :decision ; horis:value true ] .
+            :lower a horis:Rule ; horis:priority 2 ;
+                horis:when [ horis:subject :Patient ; horis:property :name ; horis:below "M" ] ;
+                horis:then [ horis:property :decision ; horis:value false ] .
+            :contradictory a horis:Rule ; horis:priority 1 ; horis:when [ horis:all (
+                [ horis:subject :Patient ; horis:property :name ; horis:is "ready" ]
+                [ horis:subject :Patient ; horis:property :name ; horis:below "M" ]
+            ) ] ; horis:then [ horis:property :decision ; horis:value true ] .
+            "#,
+        );
+        assert_eq!(strings.complete().get(":decision"), Some(&true));
+        assert!(strings.conflicts().is_empty());
+        assert_eq!(strings.dead_rules(), &[":contradictory"]);
+
+        let incomparable = report(
+            r#"
+            :Patient a rdfs:Class .
+            :flag a rdf:Property ; rdfs:domain :Patient ; rdfs:range xsd:boolean ;
+                horis:cardinality "1" .
+            :tag a rdf:Property ; rdfs:domain :Patient ; rdfs:range xsd:string .
+            :never a horis:Rule ;
+                horis:when [ horis:subject :Patient ; horis:property :flag ; horis:exceeds 0 ] ;
+                horis:then [ horis:property :tag ; horis:value "x" ] .
+            "#,
+        );
+        assert_eq!(incomparable.dead_rules(), &[":never"]);
+    }
+
+    #[test]
+    fn boolean_partitions_are_closed_over_true_and_false() {
+        let body = r#"
+            :Patient a rdfs:Class .
+            :Decision a rdfs:Class ; horis:oneOf ( :A :B ) .
+            :flag a rdf:Property ; rdfs:domain :Patient ; rdfs:range xsd:boolean ;
+                horis:cardinality "1" .
+            :decision a rdf:Property ; rdfs:domain :Patient ; rdfs:range :Decision ;
+                horis:assignedBy horis:RulesOnly ; horis:cardinality "0..1" .
+            :yes a horis:Rule ; horis:priority 2 ;
+                horis:when [ horis:subject :Patient ; horis:property :flag ; horis:is true ] ;
+                horis:then [ horis:property :decision ; horis:value :A ] .
+            :no a horis:Rule ; horis:priority 1 ;
+                horis:when [ horis:subject :Patient ; horis:property :flag ; horis:is false ] ;
+                horis:then [ horis:property :decision ; horis:value :B ] .
+            :Flow a horis:Workflow ; horis:startsAt :Choose .
+            :Choose a horis:ChoiceStep ; horis:branches (
+                [ horis:when [ horis:property :flag ; horis:is true ] ; horis:next :Done ]
+                [ horis:when [ horis:property :flag ; horis:is false ] ; horis:next :Done ]
+            ) .
+            :Done a horis:Step ; horis:terminal true .
+        "#;
+        let ontology = Ontology::load_from_str(&format!("{PRELUDE}{body}"), |_| None)
+            .expect("a total true/false partition verifies under the fail-closed default");
+        let report = ontology.verify();
+        assert!(report.ok());
+        assert_eq!(report.complete().get(":decision"), Some(&true));
+        assert!(report.workflows()[":Flow"].choices_total);
+
+        let patient = ontology.node_ref(":Patient").expect(":Patient");
+        let flag = ontology.node_ref(":flag").expect(":flag");
+        let decision = ontology.node_ref(":decision").expect(":decision");
+        let expected = Value::Ref(crate::ontology::term::Ref::new(
+            ontology.node_ref(":B").expect(":B"),
+        ));
+        let mut world = World::new(&ontology);
+        let subject = world
+            .assert_instance(patient, [(flag, Value::Boolean(false))])
+            .expect("the base input is valid");
+        assert_eq!(world.value(subject, decision), Some(&expected));
+    }
+
+    #[test]
+    fn rule_conclusions_on_perception_allowed_properties_support_downstream_rules() {
+        let body = r#"
+            :Patient a rdfs:Class .
+            :input a rdf:Property ; rdfs:domain :Patient ; rdfs:range xsd:boolean ;
+                horis:cardinality "1" .
+            :score a rdf:Property ; rdfs:domain :Patient ; rdfs:range xsd:decimal ;
+                horis:min 0 ; horis:max 1 ; horis:cardinality "0..1" .
+            :decision a rdf:Property ; rdfs:domain :Patient ; rdfs:range xsd:boolean ;
+                horis:assignedBy horis:RulesOnly ; horis:cardinality "0..1" .
+            :scoreIt a horis:Rule ; horis:priority 2 ;
+                horis:when [ horis:subject :Patient ; horis:property :input ; horis:isAssigned true ] ;
+                horis:then [ horis:property :score ; horis:value 1 ] .
+            :decide a horis:Rule ; horis:priority 1 ;
+                horis:when [ horis:subject :Patient ; horis:property :score ; horis:isAssigned true ] ;
+                horis:then [ horis:property :decision ; horis:value true ] .
+        "#;
+        let unscored_rule = r#"
+            :unscored a horis:Rule ; horis:priority 0 ;
+                horis:when [ horis:subject :Patient ; horis:property :score ; horis:isEmpty true ] ;
+                horis:then [ horis:property :decision ; horis:value false ] .
+        "#;
+        let with_unscored = report(&format!("{body}{unscored_rule}"));
+        assert_eq!(with_unscored.complete().get(":decision"), Some(&true));
+        assert_eq!(with_unscored.dead_rules(), &[":unscored"]);
+
+        let ontology = Ontology::load_from_str(&format!("{PRELUDE}{body}"), |_| None)
+            .expect("a rule-established perception property completes the partition");
+        assert!(ontology.verify().ok());
+        let patient = ontology.node_ref(":Patient").expect(":Patient");
+        let input = ontology.node_ref(":input").expect(":input");
+        let decision = ontology.node_ref(":decision").expect(":decision");
+        let mut world = World::new(&ontology);
+        let subject = world
+            .assert_instance(patient, [(input, Value::Boolean(true))])
+            .expect("the base input is valid");
+        assert_eq!(world.value(subject, decision), Some(&Value::Boolean(true)));
     }
 
     #[test]
@@ -831,7 +1149,8 @@ mod workflow_verification_tests {
             "#,
         );
         let flow = &passing.workflows()[":Flow"];
-        assert!(flow.reachable && flow.terminating && flow.fallbacks_total);
+        assert!(flow.terminating && flow.fallbacks_total);
+        assert!(passing.ok());
 
         let unreachable = report(
             r#"
@@ -841,7 +1160,11 @@ mod workflow_verification_tests {
             :Orphan a horis:Step ; horis:terminal true .
             "#,
         );
-        assert!(unreachable.workflows()[":Flow"].reachable);
+        assert!(!unreachable.ok());
+        assert_eq!(
+            unreachable.workflows()[":Flow"],
+            super::WorkflowVerification::default()
+        );
         assert!(unreachable.witnesses().iter().any(|w| {
             w.kind == FindingKind::WorkflowReachability
                 && w.domain_text
@@ -862,7 +1185,7 @@ mod workflow_verification_tests {
             isolated
                 .workflows()
                 .values()
-                .all(|workflow| workflow.reachable)
+                .all(|workflow| *workflow == super::WorkflowVerification::default())
         );
         assert_eq!(
             isolated

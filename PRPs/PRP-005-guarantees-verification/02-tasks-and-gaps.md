@@ -135,6 +135,26 @@ Baseline: `5c45c0a3ac4c31ffa8d5d5ec90214d7d8b740e64` (`make verify` green,
   required Makefile gates, the wasm build, and the triage benchmark are green. The
   repo boards mark PRP-005 Done and also correct PRP-004 to Done after PR #8.
 
+## Post-review corrections (2026-09-03)
+
+- Ordered comparisons now discretize `xsd:dateTime` and string constants as
+  thresholds in their own opaque orders, mirroring the runtime's `compare`; an
+  incomparable operand (boolean, duration, mismatched datatype) never holds instead
+  of silently being classified as a dead rule.
+- `xsd:boolean` properties are closed over `true`/`false`, so `is true` / `is false`
+  partitions and choice branches verify as total.
+- Rule conclusions on perception-settable properties compose into downstream rule and
+  workflow conditions (input value or any standing conclusion).
+- Explicit `horis:cardinality "0..*"` is an info-severity note (`Witness.severity`);
+  hard `ConstraintVacuity` remains for universal patterns and for `horis:min`/`max`/
+  `pattern` that cannot reject a value of the property's type. Canonical triage
+  declares `0..*` on `:hasSymptom` again and still loads.
+- `WorkflowVerification.reachable` was removed (it could never be false); unreachable
+  steps remain global `WorkflowReachability` witnesses.
+- `Conflict` carries `first_priority`, `second_priority`, and `winner`; its witness
+  reads "r1 → v1 but r2 → v2 for p when … — r1 wins by priority; confirm intended".
+- PRP-004's own status record now reads Done (PR #8, 2026-08-25).
+
 ## Gaps discovered during implementation
 
 - 2026-09-02: the specified sibling prior-art checkout `../sigil-lang` is not present

@@ -165,7 +165,7 @@ pub(crate) fn value_eq(a: &Value, b: &Value) -> bool {
 /// (Integer/Decimal), `xsd:dateTime`, and lexicographic strings (sigil-lang
 /// `compare_values` precedent). Booleans, durations (partially ordered), and
 /// node references are incomparable → `None` → the comparison is `false`.
-fn compare(value: &Value, bound: &Value) -> Option<Ordering> {
+pub(crate) fn compare(value: &Value, bound: &Value) -> Option<Ordering> {
     match (value, bound) {
         (Value::Integer(a), Value::Integer(b)) => Some(a.cmp(b)),
         (Value::Decimal(a), Value::Decimal(b)) => Some(a.cmp(b)),

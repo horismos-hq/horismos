@@ -43,6 +43,7 @@ class Region:
 @dataclass(frozen=True)
 class Witness:
     kind: str
+    severity: str
     domain_text: str
     region: Region
     suggestion: str | None
@@ -55,12 +56,14 @@ class Conflict:
     property: str
     first_value: str
     second_value: str
+    first_priority: int
+    second_priority: int
+    winner: str
     region: Region
 
 
 @dataclass(frozen=True)
 class WorkflowVerification:
-    reachable: bool
     terminating: bool
     requires_satisfiable: bool
     fallbacks_total: bool
@@ -135,6 +138,9 @@ def _report(payload: str, exit_code: int) -> VerificationReport:
                 property=str(conflict["property"]),
                 first_value=str(conflict["first_value"]),
                 second_value=str(conflict["second_value"]),
+                first_priority=int(conflict["first_priority"]),
+                second_priority=int(conflict["second_priority"]),
+                winner=str(conflict["winner"]),
                 region=_region(conflict["region"]),
             )
             for conflict in value["conflicts"]
@@ -150,6 +156,7 @@ def _report(payload: str, exit_code: int) -> VerificationReport:
         witnesses=tuple(
             Witness(
                 kind=str(witness["kind"]),
+                severity=str(witness["severity"]),
                 domain_text=str(witness["domain_text"]),
                 region=_region(witness["region"]),
                 suggestion=witness.get("suggestion"),

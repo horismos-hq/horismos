@@ -70,8 +70,10 @@ print(world.explain(p, ":acuity").render())
 `VerificationReport` is an immutable Python value marshaled from one complete core JSON
 payload. It exposes `ok`, `complete`, `conflicts`, `dead_rules`, `terminating`,
 `workflows`, `witnesses`, `assumptions`, `exit_code`, and `to_json()`. Every witness has
-`kind`, `domain_text`, `region`, and `suggestion`; numeric region bounds retain their
-exact authored lexical values and units.
+`kind`, `severity` (`"error"` fails the report; `"info"` is advisory), `domain_text`,
+`region`, and `suggestion`; ordered region bounds retain their exact authored lexical
+values and units. Each `Conflict` names both rules, their values and priorities, the
+overlap region, and the `winner` whose value stands under priority order.
 
 The always-present `AssumptionManifest` has exactly five fields:
 `input_closure`, `external_profile_versions`, `mapping_version`, `supported_subset`,

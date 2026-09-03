@@ -199,7 +199,59 @@ def test_verify_cli_exit_zero_is_byte_deterministic() -> None:
     payload = json.loads(first.stdout)
     assert payload["ok"] is True
     assert payload["complete"] == {":acuity": True}
-    assert payload["witnesses"] == []
+    assert [(w["kind"], w["severity"]) for w in payload["witnesses"]] == [
+        ("constraint_vacuity", "info")
+    ]
+
+
+def test_informational_notes_do_not_fail_the_report(onto: Ontology) -> None:
+    report = onto.verify()
+    assert report.ok
+    assert report.exit_code == 0
+    assert [witness.severity for witness in report.witnesses] == ["info"]
+    assert report.witnesses[0].kind == "constraint_vacuity"
+    assert report.witnesses[0].domain_text.startswith("hasSymptom horis:cardinality")
+    assert set(report.workflows[":Triage"].__dict__) == {
+        "terminating",
+        "requires_satisfiable",
+        "fallbacks_total",
+        "choices_total",
+    }
+
+
+def test_conflicts_carry_the_priority_winner(tmp_path: Path) -> None:
+    conflicting = tmp_path / "conflict.ttl"
+    conflicting.write_text(
+        """\
+@prefix : <https://example.org/conflict#> .
+@prefix horis: <https://w3id.org/horismos#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+:Patient a rdfs:Class .
+:flag a rdf:Property ; rdfs:domain :Patient ; rdfs:range xsd:boolean ;
+    horis:cardinality "1" .
+:decision a rdf:Property ; rdfs:domain :Patient ; rdfs:range xsd:boolean ;
+    horis:assignedBy horis:RulesOnly ; horis:cardinality "0..1" .
+:high a horis:Rule ; horis:priority 10 ;
+    horis:when [ horis:subject :Patient ; horis:property :flag ; horis:isAssigned true ] ;
+    horis:then [ horis:property :decision ; horis:value true ] .
+:low a horis:Rule ; horis:priority 1 ;
+    horis:when [ horis:subject :Patient ; horis:property :flag ; horis:isAssigned true ] ;
+    horis:then [ horis:property :decision ; horis:value false ] .
+"""
+    )
+    with pytest.raises(HorismosVerificationError) as raised:
+        Ontology.load(conflicting)
+    report = raised.value.report
+    assert report.ok is False
+    (conflict,) = report.conflicts
+    assert (conflict.first_rule, conflict.second_rule) == (":high", ":low")
+    assert (conflict.first_priority, conflict.second_priority) == (10, 1)
+    assert conflict.winner == ":high"
+    (witness,) = [w for w in report.witnesses if w.kind == "conflict"]
+    assert witness.severity == "error"
+    assert witness.domain_text.endswith("— :high wins by priority; confirm intended")
 
 
 def test_a_missing_file_raises_an_ontology_error() -> None:

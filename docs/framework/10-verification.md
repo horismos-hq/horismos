@@ -27,10 +27,16 @@ than sigil-lang's: `horis:min/max` bound variable domains, `horis:oneOf` closes 
 sets, and the class hierarchy widens rule applicability through subsumption
 (a rule on `:ChestPain` covers the `:CrushingChestPain` region).
 
-Every authored constant or numeric boundary in rule conditions, workflow reasoning
+Every authored constant or ordered boundary in rule conditions, workflow reasoning
 goals, action `horis:requires`, and choice branches participates in that projection.
 A value used only by a workflow is therefore still represented exactly rather than
-being mistaken for an impossible input.
+being mistaken for an impossible input. Ordered comparisons follow the runtime's
+`compare`: numbers cross-type, `xsd:dateTime` by instant, and strings
+lexicographically, each in its own opaque order with no conversion; a comparison the
+runtime cannot order (a boolean, a duration, a mismatched datatype) never holds.
+`xsd:boolean` properties are closed over `true`/`false`, so an `is true` / `is false`
+pair is a complete partition. A rule may conclude on a property perception also sets;
+downstream conditions then see the input value *or* any standing rule conclusion.
 
 | Check | Question | Counterexample rendering |
 |-------|----------|--------------------------|
@@ -64,11 +70,15 @@ its steps require.
 report = onto.verify()
 report.ok                     # bool: all checks pass
 report.complete               # per-property completeness
-report.conflicts              # list[Conflict] with regions + priority resolution
+report.conflicts              # list[Conflict]: both rules, values, priorities,
+                              #   the region, and the priority `winner`
 report.dead_rules             # tuple[str, ...] of rule CURIEs
 report.terminating            # bool: rule chaining terminates
-report.workflows              # per-workflow reachability/termination/totality
+report.workflows              # per-workflow termination/requires/fallback/choice
+                              #   totality; unreachable steps are global witnesses
 report.witnesses              # every finding as a Witness:
+                              #   .severity     — "error" fails the report,
+                              #                   "info" is advisory only
                               #   .domain_text  — the SME-readable sentence
                               #   .region       — machine-readable bounds
                               #   .suggestion   — repair hint where derivable
@@ -101,7 +111,12 @@ nothing — the LASA/CHARGE "vacuous verification" failure mode
 (`horismos-research-s1/report.md` §1.7). The distinct non-vacuity pass flags a
 satisfiable condition whose conclusion adds no new fact and a constraint that excludes
 no value in the declared domain. Both findings carry a domain-term witness and a
-machine-readable region. Full spec:
+machine-readable region. A bound that can never reject a value of the property's own
+type — `horis:min`/`horis:max` on a non-numeric property, `horis:pattern` on a
+non-string property, or a universal pattern — is an error. An explicit
+`horis:cardinality "0..*"` is a documented authored value (doc 02) that restates the
+default, so it is reported at `info` severity: the note appears in `report.witnesses`
+but does not make `report.ok` false or block the default-hard load. Full spec:
 `PRPs/PRP-005-guarantees-verification/01-objective.md`
 §"Non-vacuity checks".
 
