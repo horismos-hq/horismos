@@ -27,6 +27,7 @@ const VTE_RECOMMENDATION: &str = "https://example.org/vte#recommendation";
 const PHARMACOLOGIC: &str = "https://example.org/vte#PharmacologicProphylaxis";
 const HOLD: &str = "https://example.org/vte#HoldProphylaxis";
 const PREFETCH_KEY: &str = "vte-closure";
+const PATIENT_CLOSURE_MEMBER: &str = "Patient/{{context.patientId}}";
 const EXTERNAL_RESULT: &str = "EligibleForVteAssessment";
 
 #[derive(Debug, Deserialize)]
@@ -140,7 +141,7 @@ impl VtePrototype {
             manifest.terminology.hash,
         )?;
         let expected_closure = [
-            "Patient/patient-1",
+            PATIENT_CLOSURE_MEMBER,
             "Observation/mobility",
             "Observation/cancer",
             "Observation/history",
@@ -226,6 +227,20 @@ impl VtePrototype {
         let patient_id = request_patient_id(request)?;
         validate_patient_bound_bundle(&bundle, patient_id)?;
         validate_vte_bundle_profile(&bundle, patient_id)?;
+        let closure = bind_closure(&self.closure, patient_id);
+        if let Some(key) = states
+            .keys()
+            .chain(etags.keys())
+            .find(|key| !closure.contains(key))
+        {
+            return Err(vte_error(
+                "horis:inputClosure",
+                key,
+                &format!(
+                    "recorded closure member is outside the declared closure for Patient/{patient_id}"
+                ),
+            ));
+        }
         let fact_subject = projection_subject(patient_id);
         let mut adapter_config = self.adapter_config;
         adapter_config.fact_subject.clone_from(&fact_subject);
@@ -240,7 +255,7 @@ impl VtePrototype {
             plan: self.plan,
             plan_identity: self.plan_identity,
             external_evaluator: self.external_evaluator,
-            closure: self.closure,
+            closure,
             fact_subject,
             recorded_prefetch: Some(bundle),
         })
@@ -882,6 +897,19 @@ fn request_patient_id(request: &CdsHookRequest) -> Result<&str, HostError> {
                 "context.patientId must be a valid non-empty FHIR id",
             )
         })
+}
+
+fn bind_closure(closure: &[String], patient_id: &str) -> Vec<String> {
+    closure
+        .iter()
+        .map(|member| {
+            if member == PATIENT_CLOSURE_MEMBER {
+                format!("Patient/{patient_id}")
+            } else {
+                member.clone()
+            }
+        })
+        .collect()
 }
 
 fn projection_subject(patient_id: &str) -> String {

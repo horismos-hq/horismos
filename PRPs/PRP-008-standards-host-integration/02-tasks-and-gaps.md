@@ -110,7 +110,7 @@
   receipts, and `horismos.integration-trace/1`; 9 focused tests and `make verify` green;
   senior review Approved with minors.
 - [x] U2. **Candidate-artifact runtime pipeline** — typed opaque envelope → deterministic
-  path/base-hash/syntax/permission policy → sandbox checks → symbolic authorization, with
+  path/base-hash/syntax/permission/kind policy → sandbox checks → symbolic authorization, with
   proof events and no semantic-correctness claim. Test: one seeded patch is accepted and
   one stale-base/path-invalid proposal is rejected before sandbox/application. **Done
   2026-09-03**: runtime-minted evidence is sealed; bounded V4A updates bind their embedded

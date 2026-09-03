@@ -91,6 +91,7 @@ pub enum RejectionStage {
     BaseHash,
     Syntax,
     Permission,
+    Kind,
     Sandbox,
     Authorization,
 }
@@ -221,6 +222,7 @@ impl ArtifactPipeline {
         self.validate_base_hash(artifact)?;
         self.validate_syntax(artifact)?;
         self.validate_permissions(artifact)?;
+        self.validate_kind(artifact)?;
 
         let policy = PolicyEvidence {
             evidence_type: CANDIDATE_POLICY_EVIDENCE.into(),
@@ -398,6 +400,21 @@ impl ArtifactPipeline {
                 "horis:artifactPolicy rejected {} at permission: {} is not allowed",
                 artifact.proposal_id,
                 denied.join(", ")
+            ),
+        ))
+    }
+
+    fn validate_kind(&self, artifact: &CandidateArtifact) -> Result<(), ArtifactRejection> {
+        if self.policy.authorizable_kinds.contains(&artifact.kind) {
+            return Ok(());
+        }
+        Err(ArtifactRejection::new(
+            artifact,
+            RejectionStage::Kind,
+            "horis:artifactPolicy",
+            format!(
+                "horis:artifactPolicy rejected {} at kind: {:?} artifacts are not authorizable",
+                artifact.proposal_id, artifact.kind
             ),
         ))
     }

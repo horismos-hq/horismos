@@ -126,12 +126,12 @@ fn denied_permissions_and_kinds_have_distinct_structured_stages() {
     not_authorizable.authorizable_kinds.clear();
     let error = ArtifactPipeline::new(not_authorizable)
         .evaluate(&patch("sha256:new", "src/lib.rs"), &sandbox)
-        .expect_err("kind fails at symbolic authorization");
-    assert_eq!(error.stage, RejectionStage::Authorization);
-    assert_eq!(sandbox.calls.get(), 1);
+        .expect_err("kind fails at policy before any sandbox execution");
+    assert_eq!(error.stage, RejectionStage::Kind);
+    assert_eq!(sandbox.calls.get(), 0);
     assert_eq!(
         error.domain_text(),
-        "horis:authorizationGranted is false for patch-1: Patch artifacts are not authorizable"
+        "horis:artifactPolicy rejected patch-1 at kind: Patch artifacts are not authorizable"
     );
 }
 

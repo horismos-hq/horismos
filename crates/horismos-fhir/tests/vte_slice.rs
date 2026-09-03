@@ -15,12 +15,29 @@ const TERMINOLOGY: &str = include_str!("../../../examples/vte/terminology-expans
 const MANIFEST: &str = include_str!("../../../examples/vte/manifest.json");
 
 fn request(bundle: Value) -> CdsHookRequest {
+    request_for("patient-1", bundle)
+}
+
+fn request_for(patient_id: &str, bundle: Value) -> CdsHookRequest {
     CdsHookRequest {
         hook: "patient-view".into(),
         hook_instance: "vte-run-1".into(),
-        context: json!({"patientId":"patient-1","encounterId":"encounter-1"}),
+        context: json!({"patientId":patient_id,"encounterId":"encounter-1"}),
         prefetch: BTreeMap::from([("vte-closure".into(), bundle)]),
     }
+}
+
+fn bundle_for(patient_id: &str) -> Value {
+    let mut bundle: Value = serde_json::from_str(BUNDLE).expect("bundle fixture");
+    let reference = json!(format!("Patient/{patient_id}"));
+    for entry in bundle["entry"].as_array_mut().expect("entries") {
+        if entry.pointer("/resource/resourceType") == Some(&json!("Patient")) {
+            entry["resource"]["id"] = json!(patient_id);
+        } else {
+            entry["resource"]["subject"]["reference"] = reference.clone();
+        }
+    }
+    bundle
 }
 
 fn states() -> BTreeMap<String, ClosureState> {
@@ -312,5 +329,59 @@ fn local_profile_rejects_an_invalid_observation() {
     assert_eq!(
         error.witness().expect("machine witness").constraint,
         "horis:fhirProfile"
+    );
+}
+
+#[test]
+fn recorded_states_for_another_patient_fail_before_hydration() {
+    let request = request_for("patient-2", bundle_for("patient-2"));
+
+    let error = prototype()
+        .recorded_service(&request, capability(), states(), etags())
+        .err()
+        .expect("recording bound to patient-1 cannot serve patient-2");
+
+    assert_eq!(
+        error.domain_text(),
+        "horis:inputClosure rejected Patient/patient-1: recorded closure member is outside the declared closure for Patient/patient-2"
+    );
+    let witness = error.witness().expect("machine witness");
+    assert_eq!(witness.constraint, "horis:inputClosure");
+    assert_eq!(witness.subject, "Patient/patient-1");
+}
+
+#[test]
+fn closure_patient_member_is_bound_from_the_request() {
+    let request = request_for("patient-2", bundle_for("patient-2"));
+    let rebind = |key: &String| {
+        if key == "Patient/patient-1" {
+            "Patient/patient-2".to_owned()
+        } else {
+            key.clone()
+        }
+    };
+    let states = states()
+        .iter()
+        .map(|(key, state)| (rebind(key), *state))
+        .collect();
+    let etags = etags()
+        .iter()
+        .map(|(key, etag)| (rebind(key), etag.clone()))
+        .collect();
+    let prototype = prototype();
+    let evaluator = RecordedVteBooleanEvaluator::new(prototype.external_evaluator().clone(), true);
+    let service = prototype
+        .recorded_service(&request, capability(), states, etags)
+        .expect("recording bound to patient-2");
+
+    let outcome = service
+        .invoke(&request, &evaluator)
+        .expect("bounded decision for the bound patient");
+
+    assert_eq!(outcome.response().cards.len(), 1);
+    assert_eq!(outcome.utility().present, 5);
+    assert_eq!(
+        outcome.effects().effects[0].payload["resource"]["subject"]["reference"],
+        "Patient/patient-2"
     );
 }
