@@ -111,7 +111,7 @@ wiki, and each is closed only in its owning PRP. The corpus keeps score:
 | Adjustments A1–A14 (shape-preserving, each with its measured basis) | 14 | [pivot-alignment](neurosymbolic-landscape/pivot-alignment.md#adjustments-worth-considering) | PRP-008 D1–D5, D8–D10; PRP-005; PRP-007; PRP-000; doc 06 / doc 15 |
 | RL-axis ranked moves 1–5 and the "do not build" list | 5 + 7 | [RL deep dive §4.4](reports/2026-09-02-rl-deep-dive.md#44-usefulness-ranking-what-would-make-horismos-most-useful-to-real-builders-at-this-intersection) | PRP-004, PRP-005, PRP-007, two "owner open" |
 | RL-axis open decisions OD-1–OD-4 | 4 | [RL deep dive §5](reports/2026-09-02-rl-deep-dive.md#5-open-decisions-captain-shaped-flagged-not-answered-here) | captain (OD-1, OD-2), PRP-002 text (OD-3), PRP-007 (OD-4) |
-| PRP-007 open items from the founding sweep (+1 from sweep #2) | 4 | [prp-007-open-items](ontology-authoring/prp-007-open-items.md) | PRP-007 |
+| PRP-007 open items from the founding sweep (+2 from sweep #2) | 5 | [prp-007-open-items](ontology-authoring/prp-007-open-items.md) | PRP-007 |
 | Required PRP-008 D-items proposed by the second opinion | 10 | [second opinion](reports/2026-08-24-thin-pivot-second-opinion.md#required-prp-008-decisions) | PRP-008 (now its D1–D10) |
 | Founding-sweep follow-ups | 5 | [founding sweep §5](reports/2026-08-24-founding-sweep.md#5-what-this-changes-concretely) | PRP-000, PRP-007, doc 02, scenario choice |
 
@@ -132,7 +132,7 @@ wiki, and each is closed only in its owning PRP. The corpus keeps score:
   isomorphic-relabeling invariance, a formal non-gameability statement, a permissiveness
   number).
 - **PRP-007.** Restating the gate rationale from accuracy to safety (X2, A10); the
-  staged-admission question for low-risk additive deltas (OD-4); the four tracked open
+  staged-admission question for low-risk additive deltas (OD-4); the five tracked open
   items.
 - **PRP-008.** D1–D5, D8, D9, D10, each narrowed by evidence in X7 and A1–A7.
 - **Doc 06 / PRP-004 / PRP-007.** Whether narration gains a deterministic conclusion

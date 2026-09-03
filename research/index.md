@@ -132,7 +132,7 @@ canonical — this site only points at it.
 | Full deep-dive reports, imported verbatim | 3 — [index](reports/index.md) |
 | Sources in the [reading log](reading-log.md) | 293 rows across seven sections (sweeps #1 and #2); the RL deep dive's 100-odd further sources are in its own [§6 source log](reports/2026-09-02-rl-deep-dive.md#6-source-log) |
 | Standing verdicts | 2 — pivot alignment (sweep #2) and the RL axis (deep dive) — see the [verdict history](verdict-history.md) |
-| Captain-held items indexed | 14 adjustments, 10 challenge lines, 4 open decisions, 5 ranked moves, 4 PRP-007 open items |
+| Captain-held items indexed | 14 adjustments, 10 challenge lines, 4 open decisions, 5 ranked moves, 5 PRP-007 open items |
 
 ## How it stays current
 

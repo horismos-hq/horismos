@@ -442,7 +442,8 @@ Repository inspection commands (read-only) included:
 
 ```text
 rg --files research PRPs docs/framework .claude/skills
-nl -ba ../horismos-research-s1/report.md   # the founding sweep report, now research/reports/2026-08-24-founding-sweep.md | sed -n '1,111p;340,440p;810,837p'
+# originally the untracked founding-sweep report file, imported to research/reports/ on 2026-09-03
+nl -ba research/reports/2026-08-24-founding-sweep.md | sed -n '1,111p;340,440p;810,837p'
 nl -ba research/formalization/{00-overview,glif,tnm-family,cql-cds-hooks-fhir}.md
 nl -ba research/scenarios/{00-catalog,vte-prophylaxis,news2-deterioration,sepsis-bundle-compliance,ruled-out}.md
 nl -ba PRPs/PRP-000-vision-positioning.md PRPs/PRP-005-guarantees-verification.md PRPs/PRP-006-packaging-distribution.md PRPs/PRP-007-authoring-agent.md

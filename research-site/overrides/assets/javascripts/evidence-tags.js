@@ -8,7 +8,7 @@
   "use strict";
 
   var TAG_RE = /\[(measured|inference|unverified|DECIDE)(\b[^\]]*)\]/g;
-  var SKIP = { CODE: 1, PRE: 1, SCRIPT: 1, STYLE: 1, KBD: 1, TEXTAREA: 1 };
+  var SKIP = { A: 1, CODE: 1, PRE: 1, SCRIPT: 1, STYLE: 1, KBD: 1, TEXTAREA: 1 };
 
   function shouldSkip(node) {
     for (var p = node.parentNode; p; p = p.parentNode) {
