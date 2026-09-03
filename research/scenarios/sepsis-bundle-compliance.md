@@ -18,7 +18,7 @@ evaluate 109 alerts to find one true, previously-untreated case
 A 2024 NEJM AI reanalysis found much of its apparent accuracy was label leakage —
 AUROC collapsed to 0.47 (coin-flip) once post-suspicion data were excluded
 ([ai.nejm.org](https://ai.nejm.org/doi/full/10.1056/AIoa2300032)). See
-`../validation/case-studies.md` for the full case history including the 2026 v2 update.
+[`../validation/case-studies.md`](../validation/case-studies.md) for the full case history including the 2026 v2 update.
 
 **[measured]** TREWS (Adams et al., Nature Medicine 2022), a prospective outcome-level
 sepsis-alert evaluation across 590,736 patients and 5 hospitals, found confirmed

@@ -31,11 +31,11 @@ assistance moves effort around rather than eliminating it
 mandatory expert sign-off achieved kappa 0.719 — the closest structural sibling to
 PRP-007's design found in the literature
 ([PMC12670841](https://pmc.ncbi.nlm.nih.gov/articles/PMC12670841/)); see
-`prp-007-open-items.md`.
+[`prp-007-open-items.md`](prp-007-open-items.md).
 
 ## Source
 
-See `../reading-log.md`, Q6 section.
+See [`../reading-log.md`](../reading-log.md), Q6 section.
 
 ## Confidence
 

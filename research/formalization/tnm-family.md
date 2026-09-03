@@ -46,7 +46,7 @@ evaluation was a small-scale patient trial (10 AF + 19 GDM patients)
 
 ## Source
 
-See per-claim citations above; all also listed in `../reading-log.md` under Q1.
+See per-claim citations above; all also listed in [`../reading-log.md`](../reading-log.md) under Q1.
 
 ## Confidence
 

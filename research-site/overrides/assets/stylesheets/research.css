@@ -1,0 +1,248 @@
+/* Horismos research site — visual layer over the research/ wiki.
+ * Palette echoes planning/board.html's tokens: symbolic blue, neural amber, gate teal,
+ * forbidden red. Evidence tags are the site's primary visual vocabulary. */
+
+:root {
+  --md-primary-fg-color: #1b2130;
+  --md-primary-fg-color--light: #2c3040;
+  --md-primary-fg-color--dark: #14161d;
+  --md-accent-fg-color: #3b5bdb;
+  --md-accent-fg-color--transparent: rgba(59, 91, 219, 0.1);
+
+  --hr-symbolic: #3b5bdb;
+  --hr-symbolic-soft: #e3e9fb;
+  --hr-neural: #c87b1b;
+  --hr-neural-soft: #f8ecd9;
+  --hr-gate: #17877b;
+  --hr-gate-soft: #dceeeb;
+  --hr-forbidden: #b4382e;
+  --hr-forbidden-soft: #f6e1de;
+  --hr-muted: #5a6072;
+  --hr-line: #dfe2ea;
+  --hr-panel: #ffffff;
+}
+
+[data-md-color-scheme="slate"] {
+  --md-primary-fg-color: #14161d;
+  --md-primary-fg-color--light: #1c1f29;
+  --md-primary-fg-color--dark: #0e1015;
+  --md-accent-fg-color: #7d93e8;
+  --md-accent-fg-color--transparent: rgba(125, 147, 232, 0.14);
+
+  --hr-symbolic: #7d93e8;
+  --hr-symbolic-soft: #232a44;
+  --hr-neural: #d99a4e;
+  --hr-neural-soft: #33291a;
+  --hr-gate: #4bb3a6;
+  --hr-gate-soft: #1a2f2c;
+  --hr-forbidden: #d66a60;
+  --hr-forbidden-soft: #3a1f1c;
+  --hr-muted: #9aa1b5;
+  --hr-line: #2c3040;
+  --hr-panel: #1c1f29;
+}
+
+/* Research-journal typography: serif display headings, wider measure for long prose. */
+.md-typeset h1,
+.md-typeset h2 {
+  font-family: "Iowan Old Style", "Palatino Nova", Palatino, Georgia, "Times New Roman", serif;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.md-typeset h1 {
+  font-size: 2.1rem;
+  line-height: 1.2;
+  color: var(--md-default-fg-color);
+}
+.md-typeset h2 {
+  font-size: 1.45rem;
+  border-bottom: 1px solid var(--hr-line);
+  padding-bottom: 0.25rem;
+}
+.md-grid {
+  max-width: 76rem;
+}
+.md-typeset {
+  font-size: 0.78rem;
+  line-height: 1.65;
+}
+
+/* Evidence tags — injected by evidence-tags.js around literal [measured] / [inference]
+ * / [unverified] / [DECIDE] text. Never applied inside code. */
+.ev {
+  display: inline-block;
+  font-family: ui-monospace, "SF Mono", "Cascadia Code", Menlo, monospace;
+  font-size: 0.66em;
+  font-weight: 600;
+  line-height: 1.5;
+  padding: 0 0.42em;
+  border-radius: 0.3em;
+  border: 1px solid transparent;
+  vertical-align: 0.1em;
+  white-space: nowrap;
+  letter-spacing: 0.01em;
+}
+.ev-measured {
+  color: var(--hr-gate);
+  background: var(--hr-gate-soft);
+  border-color: color-mix(in srgb, var(--hr-gate) 35%, transparent);
+}
+.ev-inference {
+  color: var(--hr-symbolic);
+  background: var(--hr-symbolic-soft);
+  border-color: color-mix(in srgb, var(--hr-symbolic) 35%, transparent);
+}
+.ev-unverified {
+  color: var(--hr-neural);
+  background: var(--hr-neural-soft);
+  border-color: color-mix(in srgb, var(--hr-neural) 40%, transparent);
+}
+.ev-decide {
+  color: var(--hr-forbidden);
+  background: var(--hr-forbidden-soft);
+  border-color: color-mix(in srgb, var(--hr-forbidden) 40%, transparent);
+}
+/* Long tags ("[measured — I verified this directly against the repo…]") wrap. */
+.ev.ev-long {
+  white-space: normal;
+  display: inline;
+}
+
+/* Provenance / verdict blockquotes at the top of reports and standing pages. */
+.md-typeset blockquote {
+  border-left: 0.2rem solid var(--hr-symbolic);
+  background: var(--hr-symbolic-soft);
+  color: var(--md-default-fg-color);
+  padding: 0.6rem 0.9rem;
+  border-radius: 0 0.3rem 0.3rem 0;
+}
+
+/* Verdict banner (home + verdict history). */
+.verdict {
+  display: grid;
+  grid-template-columns: minmax(12rem, 18rem) 1fr;
+  gap: 0.9rem;
+  align-items: center;
+  border: 1px solid var(--hr-line);
+  border-left: 0.35rem solid var(--hr-gate);
+  background: var(--hr-panel);
+  border-radius: 0.4rem;
+  padding: 0.9rem 1.1rem;
+  margin: 1.2rem 0;
+}
+.verdict .verdict-word {
+  font-family: "Iowan Old Style", "Palatino Nova", Palatino, Georgia, serif;
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: var(--hr-gate);
+  line-height: 1.1;
+}
+.verdict .verdict-meta {
+  color: var(--hr-muted);
+  font-size: 0.72rem;
+  margin-top: 0.15rem;
+}
+.verdict p {
+  margin: 0.2rem 0;
+}
+@media screen and (max-width: 44em) {
+  .verdict {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Corpus map cards (home). */
+.corpus-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+  gap: 0.8rem;
+  margin: 1rem 0 1.6rem;
+}
+.corpus-card {
+  border: 1px solid var(--hr-line);
+  border-radius: 0.4rem;
+  padding: 0.8rem 0.95rem;
+  background: var(--hr-panel);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.corpus-card:hover {
+  border-color: var(--hr-symbolic);
+  box-shadow: 0 2px 10px rgba(27, 33, 48, 0.08);
+}
+.corpus-card h3 {
+  margin: 0 0 0.3rem;
+  font-size: 0.95rem;
+  font-family: "Iowan Old Style", "Palatino Nova", Palatino, Georgia, serif;
+}
+.corpus-card p {
+  margin: 0.25rem 0;
+  font-size: 0.72rem;
+}
+.corpus-card .q {
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 0.62rem;
+  color: var(--hr-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+/* Timeline (verdict history). */
+.timeline {
+  list-style: none;
+  margin: 1rem 0 1.5rem 0.4rem;
+  padding: 0;
+  border-left: 2px solid var(--hr-line);
+}
+.timeline > li {
+  position: relative;
+  margin: 0 0 1rem 1.2rem;
+  padding-left: 0.2rem;
+}
+.timeline > li::before {
+  content: "";
+  position: absolute;
+  left: -1.55rem;
+  top: 0.45em;
+  width: 0.7rem;
+  height: 0.7rem;
+  border-radius: 50%;
+  background: var(--hr-symbolic);
+  border: 2px solid var(--hr-panel);
+}
+.timeline > li.gate::before {
+  background: var(--hr-gate);
+}
+.timeline > li.neural::before {
+  background: var(--hr-neural);
+}
+.timeline .when {
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 0.68rem;
+  color: var(--hr-muted);
+}
+
+/* Wide tables (the scenario catalog, the guarantee-boundary table, the RL table)
+ * scroll inside their own box instead of the page. */
+.md-typeset__table {
+  min-width: 100%;
+}
+.md-typeset table:not([class]) {
+  font-size: 0.7rem;
+}
+.md-typeset table:not([class]) th {
+  background: var(--hr-symbolic-soft);
+}
+
+/* Tag legend on the home page. */
+.tag-legend {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.45rem 0.9rem;
+  align-items: start;
+  margin: 0.8rem 0 1.2rem;
+  font-size: 0.74rem;
+}
+.tag-legend .ev {
+  font-size: 0.72rem;
+  justify-self: start;
+}

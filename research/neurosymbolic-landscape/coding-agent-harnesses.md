@@ -3,7 +3,7 @@
 ## Claim
 
 **[inference — summary of the tagged evidence below]** As of 2026-09-02 the positioning
-claim in `PRPs/PRP-000-vision-positioning.md`
+claim in [`PRPs/PRP-000-vision-positioning.md`](https://github.com/billaram/horismos/blob/main/PRPs/PRP-000-vision-positioning.md)
 §"Comparison" — that no surveyed harness "declare[s] a semantic domain graph with
 verified cross-tool preconditions/effects or maintain[s] a fixed point over repository
 state" — still holds, with four nuances that put some harnesses closer than the table
@@ -207,7 +207,7 @@ current framing: learned contracts (Contract2Tool) should be positioned as perce
 side *proposals* into a verified fragment, and effect constraints must cover the
 credentials and endpoints a tool can reach, not only file paths — several incidents are
 out-of-band network effects no path validator models (the sandbox stays necessary, as
-`docs/framework/15-security.md` already assumes).
+[`docs/framework/15-security.md`](https://github.com/billaram/horismos/blob/main/docs/framework/15-security.md) already assumes).
 
 ## Searched but not found
 
@@ -225,7 +225,7 @@ out-of-band network effects no path validator models (the sandbox stays necessar
 
 ## Source
 
-Per-claim citations inline; all rows in `../reading-log.md` § "Q7 — Coding-agent
+Per-claim citations inline; all rows in [`../reading-log.md`](../reading-log.md) § "Q7 — Coding-agent
 harness capability/policy structure (sweep #2)".
 
 ## Confidence

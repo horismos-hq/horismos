@@ -122,11 +122,11 @@ compile-vs-meaning gap and 41.2% typecheck-only detection; (c) FORGE's four anal
 a direct peer for PRP-005's rule-set checks, and its closed-world stance ("Any fact
 absent … may be treated as false") is the contrast that makes Horismos's
 absent-vs-not-fetched distinction a stated differentiator. Flagged in
-`../neurosymbolic-landscape/pivot-alignment.md` (A8, A14); owners unchanged.
+[`../neurosymbolic-landscape/pivot-alignment.md`](../neurosymbolic-landscape/pivot-alignment.md) (A8, A14); owners unchanged.
 
 ## Source
 
-See `../reading-log.md`, Q6 section.
+See [`../reading-log.md`](../reading-log.md), Q6 section.
 
 ## Confidence
 

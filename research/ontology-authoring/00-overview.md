@@ -8,7 +8,7 @@ verification." No system anywhere in the surveyed literature was found autonomou
 extending its own ontology with zero human review in real deployment — PRP-007's hard
 sign-off gate is, if anything, ahead of the field's own best practice. This is the
 single most concrete, actionable finding of the founding sweep; see
-`prp-007-open-items.md` for the specific gaps it implies.
+[`prp-007-open-items.md`](prp-007-open-items.md) for the specific gaps it implies.
 
 ## Evidence
 
@@ -33,22 +33,22 @@ argument *for* keeping PRP-007's gate hard rather than lightening it.
 calls, self-reporting 9th/13 on an OAEI benchmark
 ([github.com/fabio-rovai/open-ontologies](https://github.com/fabio-rovai/open-ontologies)).
 
-See `ontology-learning-benchmarks.md`, `autonomous-agents-failure-modes.md`,
-`verification-of-llm-drafted-artifacts.md`, and `prp-007-open-items.md` for the
+See [`ontology-learning-benchmarks.md`](ontology-learning-benchmarks.md), [`autonomous-agents-failure-modes.md`](autonomous-agents-failure-modes.md),
+[`verification-of-llm-drafted-artifacts.md`](verification-of-llm-drafted-artifacts.md), and [`prp-007-open-items.md`](prp-007-open-items.md) for the
 detailed findings this overview summarizes.
 
 ## Sweep #2 delta (2026-09-02)
 
-One page added this sweep: `kg-maintenance-and-agent-memory.md` — how the agent-memory
+One page added this sweep: [`kg-maintenance-and-agent-memory.md`](kg-maintenance-and-agent-memory.md) — how the agent-memory
 and knowledge-graph communities handle write-path control, admission gating, and
 versioned invalidation, and where that converges with or diverges from Horismos's
 commitments. Sweep #2 also appended delta sections to
-`autonomous-agents-failure-modes.md`, `verification-of-llm-drafted-artifacts.md`, and
-`prp-007-open-items.md` (items 4–5).
+[`autonomous-agents-failure-modes.md`](autonomous-agents-failure-modes.md), [`verification-of-llm-drafted-artifacts.md`](verification-of-llm-drafted-artifacts.md), and
+[`prp-007-open-items.md`](prp-007-open-items.md) (items 4–5).
 
 ## Source
 
-See `../reading-log.md`, Q6 section.
+See [`../reading-log.md`](../reading-log.md), Q6 section.
 
 ## Confidence
 

@@ -6,7 +6,7 @@ The Da Vinci Prior Authorization Support IG has the strongest FHIR prior art of 
 CIG-adjacent standard surveyed, but adoption is slow (only 35% of PA transactions
 fully electronic as of 2023) and the workflow itself is documented as a source of
 severe, litigated harm when automated opaquely — which is precisely why the scenario
-catalog rules it out as a first horismos build (see `../scenarios/ruled-out.md`).
+catalog rules it out as a first horismos build (see [`../scenarios/ruled-out.md`](../scenarios/ruled-out.md)).
 
 ## Evidence
 
@@ -22,7 +22,7 @@ architecture; X12-membership friction is a noted adoption barrier
 electronic, up from 28% the prior year
 ([caqh.org](https://caqh.org/hubfs/43908627/drupal/2024-01/2023_CAQH_Index_Report.pdf)).
 
-See `../scenarios/ruled-out.md` for the documented harms (UnitedHealth/naviHealth,
+See [`../scenarios/ruled-out.md`](../scenarios/ruled-out.md) for the documented harms (UnitedHealth/naviHealth,
 Cigna PXDX litigation) that make this a bad *first* horismos scenario despite the
 strong prior art.
 
