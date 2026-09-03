@@ -159,6 +159,11 @@ Baseline: `5c45c0a3ac4c31ffa8d5d5ec90214d7d8b740e64` (`make verify` green,
   perception property replaces the input value in downstream conditions (the gate's
   own replace semantics) rather than being unioned with it; thresholds of different
   kinds on a range-less property never share a cell.
+- Third review round: the priority-ordered, restart-on-growth fixed point already
+  gives a reader that outranks the writer its pre-replacement view (candidates only
+  grow), so the swapped-priority scenario reports its genuine conflict and the
+  `isEmpty` reader is live; both are pinned as behavioral regressions against a
+  World run rather than by restructuring the read model.
 - PRP-004's own status record now reads Done (PR #8, 2026-08-25).
 
 ## Gaps discovered during implementation

@@ -988,6 +988,105 @@ mod rule_verification_tests {
     }
 
     #[test]
+    fn a_reader_outranking_the_replacing_rule_fires_on_the_input_value() {
+        let body = r#"
+            :Patient a rdfs:Class .
+            :Decision a rdfs:Class ; horis:oneOf ( :X :Y ) .
+            :input a rdf:Property ; rdfs:domain :Patient ; rdfs:range xsd:boolean ;
+                horis:cardinality "1" .
+            :score a rdf:Property ; rdfs:domain :Patient ; rdfs:range xsd:decimal ;
+                horis:min 0 ; horis:max 1 ; horis:cardinality "1" .
+            :decision a rdf:Property ; rdfs:domain :Patient ; rdfs:range :Decision ;
+                horis:assignedBy horis:RulesOnly ; horis:cardinality "0..1" .
+            :half a horis:Rule ; horis:priority 4 ;
+                horis:when [ horis:subject :Patient ; horis:property :score ; horis:is 0.5 ] ;
+                horis:then [ horis:property :decision ; horis:value :X ] .
+            :rescore a horis:Rule ; horis:priority 3 ;
+                horis:when [ horis:subject :Patient ; horis:property :input ; horis:is true ] ;
+                horis:then [ horis:property :score ; horis:value 1 ] .
+            :full a horis:Rule ; horis:priority 1 ;
+                horis:when [ horis:subject :Patient ; horis:property :score ; horis:is 1 ] ;
+                horis:then [ horis:property :decision ; horis:value :Y ] .
+        "#;
+        let source = format!("{PRELUDE}{body}");
+        let error = Ontology::load_from_str(&source, |_| None)
+            .expect_err("the half rule reads the input score before rescore replaces it");
+        let crate::error::OntologyError::VerificationFailed { report } = error else {
+            panic!("expected the complete verification report");
+        };
+        assert_eq!(report.conflicts().len(), 1);
+        let conflict = &report.conflicts()[0];
+        assert_eq!(
+            (conflict.first_rule.as_str(), conflict.second_rule.as_str()),
+            (":half", ":full")
+        );
+        assert_eq!(conflict.winner.as_deref(), Some(":half"));
+        assert!(!report.dead_rules().iter().any(|rule| rule == ":half"));
+
+        let ontology = Ontology::load_from_str_allow_incomplete(&source, |_| None)
+            .expect("the explicit escape keeps the conflicting ontology runnable");
+        let patient = ontology.node_ref(":Patient").expect(":Patient");
+        let input = ontology.node_ref(":input").expect(":input");
+        let score = ontology.node_ref(":score").expect(":score");
+        let decision = ontology.node_ref(":decision").expect(":decision");
+        let expected = Value::Ref(crate::ontology::term::Ref::new(
+            ontology.node_ref(":X").expect(":X"),
+        ));
+        let mut world = World::new(&ontology);
+        let subject = world
+            .assert_instance(
+                patient,
+                [
+                    (input, Value::Boolean(true)),
+                    (score, Value::Decimal("0.5".parse().expect("decimal"))),
+                ],
+            )
+            .expect("the base input is valid");
+        assert_eq!(world.value(subject, score), Some(&Value::Integer(1)));
+        assert_eq!(world.value(subject, decision), Some(&expected));
+    }
+
+    #[test]
+    fn a_reader_outranking_the_writer_still_sees_the_empty_input() {
+        let body = r#"
+            :Patient a rdfs:Class .
+            :input a rdf:Property ; rdfs:domain :Patient ; rdfs:range xsd:boolean ;
+                horis:cardinality "1" .
+            :score a rdf:Property ; rdfs:domain :Patient ; rdfs:range xsd:decimal ;
+                horis:min 0 ; horis:max 1 ; horis:cardinality "0..1" .
+            :decision a rdf:Property ; rdfs:domain :Patient ; rdfs:range xsd:boolean ;
+                horis:assignedBy horis:RulesOnly ; horis:cardinality "0..1" .
+            :unscored a horis:Rule ; horis:priority 4 ;
+                horis:when [ horis:subject :Patient ; horis:property :score ; horis:isEmpty true ] ;
+                horis:then [ horis:property :decision ; horis:value true ] .
+            :rescore a horis:Rule ; horis:priority 3 ;
+                horis:when [ horis:subject :Patient ; horis:property :input ; horis:is true ] ;
+                horis:then [ horis:property :score ; horis:value 1 ] .
+            :scored a horis:Rule ; horis:priority 1 ;
+                horis:when [ horis:subject :Patient ; horis:property :score ; horis:isAssigned true ] ;
+                horis:then [ horis:property :decision ; horis:value false ] .
+        "#;
+        let source = format!("{PRELUDE}{body}");
+        let ontology =
+            Ontology::load_from_str_allow_incomplete(&source, |_| None).expect("fixture parses");
+        let report = ontology.verify();
+        assert!(!report.dead_rules().iter().any(|rule| rule == ":unscored"));
+        assert_eq!(report.conflicts().len(), 1);
+        assert_eq!(report.conflicts()[0].winner.as_deref(), Some(":unscored"));
+
+        let patient = ontology.node_ref(":Patient").expect(":Patient");
+        let input = ontology.node_ref(":input").expect(":input");
+        let score = ontology.node_ref(":score").expect(":score");
+        let decision = ontology.node_ref(":decision").expect(":decision");
+        let mut world = World::new(&ontology);
+        let subject = world
+            .assert_instance(patient, [(input, Value::Boolean(true))])
+            .expect("the base input is valid");
+        assert_eq!(world.value(subject, score), Some(&Value::Integer(1)));
+        assert_eq!(world.value(subject, decision), Some(&Value::Boolean(true)));
+    }
+
+    #[test]
     fn thresholds_of_different_kinds_never_share_a_cell() {
         let body = r#"
             :Patient a rdfs:Class .

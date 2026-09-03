@@ -39,6 +39,9 @@ pair is a complete partition. A rule may conclude on a property perception also 
 downstream conditions then see the store as the gate leaves it: on a mutable
 single-valued property a standing conclusion *replaces* the input value, while a
 multi-valued property holds the input value and every standing conclusion together.
+Reads follow the runtime's selection order: a rule that outranks the writer is
+evaluated before the replacement and therefore reads the input value, while
+workflow conditions always observe the final store.
 
 A conflict witness names the winner only when the two rules differ in priority.
 Rules sharing a priority resolve by firing order at runtime, so the witness reports

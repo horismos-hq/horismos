@@ -478,6 +478,9 @@ impl<'a> SymbolicSpace<'a> {
         while index < rule_count && updates < max_updates {
             // The runtime fires one candidate, then restarts its priority
             // scan. Mirror that restart whenever any symbolic support grows.
+            // Because candidates only ever grow, a rule that outranks a
+            // writer keeps the view it had before that writer fired: it
+            // reads the input value, exactly as the runtime selects it.
             let rule = &self.ontology.rules()[index];
             let standing_now = self.standing_rule_formulas(&accepted);
             let candidate = self
