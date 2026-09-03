@@ -41,6 +41,17 @@ impl HostError {
         }
     }
 
+    /// Construct a boundary failure in an outer adapter crate.
+    pub fn boundary(
+        text: impl Into<String>,
+        constraint: impl Into<String>,
+        subject: impl Into<String>,
+        state: Option<String>,
+        detail: impl Into<String>,
+    ) -> Self {
+        Self::new(text, constraint, subject, state, detail)
+    }
+
     /// The failure stated using the owning `horis:` boundary term.
     pub fn domain_text(&self) -> &str {
         &self.text

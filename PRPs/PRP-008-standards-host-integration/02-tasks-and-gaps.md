@@ -13,7 +13,9 @@
   remains a separate parallel lane; no PRP-005 file or verifier implementation is touched.
 - Task U1: complete (commit `9e8147c`, review Approved with minors; one coherent-fixture
   minor carried to U3).
-- Task U2: complete (senior review Approved after two hardening passes; commit pending).
+- Task U2: complete (commit `8d3f403`, senior review Approved after two hardening passes).
+- Task U3: complete (senior review Approved after fail-closed/conditional-write hardening;
+  commit pending).
 
 ## Decisions resolved before implementation
 
@@ -106,11 +108,16 @@
   path to the validated target; executable policy rejects shells for both artifacts and
   declared checks; sandbox sees only ordered typed checks; all ten success/rejection paths
   pin structured stages and domain text. Senior review Approved.
-- [ ] U3. **FHIR adapter** — create `horismos-fhir`; capability probing, prefetch closure
+- [x] U3. **FHIR adapter** — create `horismos-fhir`; capability probing, prefetch closure
   hydration, RDF-aligned bounded mapping with loss report/modifier-extension rejection,
   exact version evidence, proposed-resource labeling, and conditional commit with 409/412/
   weak-ETag drift equivalence. Test: deterministic recorded Bundle plus mutated-source
-  fixture; unsupported/missing data asserts machine witness and exact domain text.
+  fixture; unsupported/missing data asserts machine witness and exact domain text. **Done
+  2026-09-03**: the R4 adapter probes write posture, retains recommendation-only hydration,
+  enforces Bundle/closure/ETag consistency, emits total mapping loss, rejects recursive
+  modifiers, and requires a sealed proof-linked proposed-resource authorization. Its
+  transport contract atomically enforces the full read vector; weak ETags and both 409/412
+  conflict forms fail closed. Eleven focused tests and senior review Approved.
 - [ ] U4. **CDS Hooks and PlanDefinition/CQL boundary** — CDS-Hooks-shaped request/service
   response, bounded R4 PlanDefinition importer/executor, and typed external CQL results.
   Test: unsupported construct fails at load; VTE invocation returns a recommendation card
