@@ -461,7 +461,7 @@ mod tests {
 #[cfg(test)]
 mod rule_verification_tests {
     use super::{AssumptionManifest, FindingKind, RegionPredicate, verify_ontology};
-    use crate::Ontology;
+    use crate::{Ontology, Value, World};
 
     const PRELUDE: &str = "@prefix : <https://example.org/verify#> .\n\
         @prefix horis: <https://w3id.org/horismos#> .\n\
@@ -611,6 +611,36 @@ mod rule_verification_tests {
             .expect("the inert lower-priority rule must be caught");
         assert!(witness.domain_text.contains(":low"));
         assert!(witness.domain_text.contains("higher-priority"));
+    }
+
+    #[test]
+    fn distinct_multi_valued_conclusions_are_not_vacuously_shadowed() {
+        let body = r#"
+            :Patient a rdfs:Class .
+            :Decision a rdfs:Class ; horis:oneOf ( :A :B ) .
+            :flag a rdf:Property ; rdfs:domain :Patient ; rdfs:range xsd:boolean ; horis:cardinality "1" .
+            :decision a rdf:Property ; rdfs:domain :Patient ; rdfs:range :Decision ;
+                horis:assignedBy horis:RulesOnly .
+            :high a horis:Rule ; horis:priority 10 ;
+                horis:when [ horis:subject :Patient ; horis:property :flag ; horis:isAssigned true ] ;
+                horis:then [ horis:property :decision ; horis:value :A ] .
+            :low a horis:Rule ; horis:priority 1 ;
+                horis:when [ horis:subject :Patient ; horis:property :flag ; horis:isAssigned true ] ;
+                horis:then [ horis:property :decision ; horis:value :B ] .
+        "#;
+        let source = format!("{PRELUDE}{body}");
+        let ontology = Ontology::load_from_str(&source, |_| None)
+            .expect("distinct multi-valued conclusions are both effective");
+        assert!(ontology.verify().ok());
+
+        let patient = ontology.node_ref(":Patient").expect(":Patient");
+        let flag = ontology.node_ref(":flag").expect(":flag");
+        let decision = ontology.node_ref(":decision").expect(":decision");
+        let mut world = World::new(&ontology);
+        let subject = world
+            .assert_instance(patient, [(flag, Value::Boolean(true))])
+            .expect("both rule conclusions pass the gate");
+        assert_eq!(world.values(subject, decision).count(), 2);
     }
 
     #[test]
@@ -773,7 +803,8 @@ mod rule_verification_tests {
 #[cfg(test)]
 mod workflow_verification_tests {
     use super::{AssumptionManifest, FindingKind, verify_ontology};
-    use crate::Ontology;
+    use crate::error::OntologyError;
+    use crate::{Ontology, Value, World};
 
     const PRELUDE: &str = "@prefix : <https://example.org/workflow-verify#> .\n\
         @prefix horis: <https://w3id.org/horismos#> .\n\
@@ -894,6 +925,43 @@ mod workflow_verification_tests {
             "#,
         );
         assert!(!choice.workflows()[":Flow"].choices_total);
+    }
+
+    #[test]
+    fn workflow_only_string_and_numeric_values_are_discretized() {
+        let source = format!(
+            "{PRELUDE}{}",
+            r#"
+            :Patient a rdfs:Class .
+            :status a rdf:Property ; rdfs:domain :Patient ; rdfs:range xsd:string ; horis:cardinality "1" .
+            :score a rdf:Property ; rdfs:domain :Patient ; rdfs:range xsd:integer ;
+                horis:min 0 ; horis:max 10 ; horis:cardinality "1" .
+            :effect a rdf:Property ; rdfs:domain :Patient ; rdfs:range xsd:string .
+            :tool a horis:Tool ; horis:effect [ horis:asserts [ horis:property :effect ; horis:type xsd:string ] ] ; horis:binding "rust:test" .
+            :StringFlow a horis:Workflow ; horis:startsAt :StringAct .
+            :StringAct a horis:ActionStep ; horis:tool :tool ;
+                horis:requires [ horis:property :status ; horis:is "ready" ] ;
+                horis:onError :StringDone ; horis:onUnsatisfied :StringDone ; horis:next :StringDone .
+            :StringDone a horis:Step ; horis:terminal true .
+            :NumericFlow a horis:Workflow ; horis:startsAt :NumericAct .
+            :NumericAct a horis:ActionStep ; horis:tool :tool ;
+                horis:requires [ horis:property :score ; horis:exceeds 5 ] ;
+                horis:onError :NumericDone ; horis:onUnsatisfied :NumericDone ; horis:next :NumericDone .
+            :NumericDone a horis:Step ; horis:terminal true .
+            :ChoiceFlow a horis:Workflow ; horis:startsAt :Choose .
+            :Choose a horis:ChoiceStep ; horis:branches (
+                [ horis:when [ horis:property :status ; horis:is "ready" ] ; horis:next :ChoiceDone ]
+                [ horis:when [ horis:property :status ; horis:isNot "ready" ] ; horis:next :ChoiceDone ]
+            ) .
+            :ChoiceDone a horis:Step ; horis:terminal true .
+            "#
+        );
+        let ontology = Ontology::load_from_str(&source, |_| None)
+            .expect("workflow-only authored values are valid projection boundaries");
+        let report = ontology.verify();
+        assert!(report.workflows()[":StringFlow"].requires_satisfiable);
+        assert!(report.workflows()[":NumericFlow"].requires_satisfiable);
+        assert!(report.workflows()[":ChoiceFlow"].choices_total);
     }
 
     #[test]
@@ -1021,6 +1089,138 @@ mod workflow_verification_tests {
         );
         assert!(!report.workflows()[":Flow"].requires_satisfiable);
         assert!(report.dead_rules().contains(&":negative".to_owned()));
+    }
+
+    #[test]
+    fn workflow_requires_observes_only_the_standing_conflict_winner() {
+        let report = report(
+            r#"
+            :Patient a rdfs:Class .
+            :Decision a rdfs:Class ; horis:oneOf ( :A :B ) .
+            :flag a rdf:Property ; rdfs:domain :Patient ; rdfs:range xsd:boolean ; horis:cardinality "1" .
+            :decision a rdf:Property ; rdfs:domain :Patient ; rdfs:range :Decision ;
+                horis:assignedBy horis:RulesOnly ; horis:cardinality "0..1" .
+            :downstream a rdf:Property ; rdfs:domain :Patient ; rdfs:range xsd:boolean ;
+                horis:assignedBy horis:RulesOnly ; horis:cardinality "0..1" .
+            :high a horis:Rule ; horis:priority 10 ;
+                horis:when [ horis:subject :Patient ; horis:property :flag ; horis:isAssigned true ] ;
+                horis:then [ horis:property :decision ; horis:value :A ] .
+            :low a horis:Rule ; horis:priority 5 ;
+                horis:when [ horis:subject :Patient ; horis:property :flag ; horis:isAssigned true ] ;
+                horis:then [ horis:property :decision ; horis:value :B ] .
+            :usesLoser a horis:Rule ; horis:priority 0 ;
+                horis:when [ horis:subject :Patient ; horis:property :decision ; horis:is :B ] ;
+                horis:then [ horis:property :downstream ; horis:value true ] .
+            :effect a rdf:Property ; rdfs:domain :Patient ; rdfs:range xsd:string .
+            :tool a horis:Tool ; horis:effect [ horis:asserts [ horis:property :effect ; horis:type xsd:string ] ] ; horis:binding "rust:test" .
+            :DirectFlow a horis:Workflow ; horis:startsAt :DirectAct .
+            :DirectAct a horis:ActionStep ; horis:tool :tool ;
+                horis:requires [ horis:property :decision ; horis:is :B ] ;
+                horis:onError :DirectDone ; horis:onUnsatisfied :DirectDone ; horis:next :DirectDone .
+            :DirectDone a horis:Step ; horis:terminal true .
+            :ChainedFlow a horis:Workflow ; horis:startsAt :ChainedAct .
+            :ChainedAct a horis:ActionStep ; horis:tool :tool ;
+                horis:requires [ horis:property :downstream ; horis:isAssigned true ] ;
+                horis:onError :ChainedDone ; horis:onUnsatisfied :ChainedDone ; horis:next :ChainedDone .
+            :ChainedDone a horis:Step ; horis:terminal true .
+            "#,
+        );
+        assert_eq!(report.conflicts().len(), 1);
+        assert!(report.complete()[":decision"]);
+        assert!(!report.workflows()[":DirectFlow"].requires_satisfiable);
+        assert!(!report.workflows()[":ChainedFlow"].requires_satisfiable);
+        assert!(report.dead_rules().contains(&":usesLoser".to_owned()));
+    }
+
+    #[test]
+    fn immutable_value_set_before_a_late_high_priority_rule_remains_standing() {
+        let body = r#"
+            :Patient a rdfs:Class .
+            :Decision a rdfs:Class ; horis:oneOf ( :A :B ) .
+            :flag a rdf:Property ; rdfs:domain :Patient ; rdfs:range xsd:boolean ; horis:cardinality "1" .
+            :trigger a rdf:Property ; rdfs:domain :Patient ; rdfs:range xsd:boolean ;
+                horis:assignedBy horis:RulesOnly ; horis:cardinality "0..1" .
+            :decision a rdf:Property ; rdfs:domain :Patient ; rdfs:range :Decision ;
+                horis:assignedBy horis:RulesOnly ; horis:cardinality "0..1" ; horis:immutable true .
+            :lateHigh a horis:Rule ; horis:priority 20 ;
+                horis:when [ horis:subject :Patient ; horis:property :trigger ; horis:isAssigned true ] ;
+                horis:then [ horis:property :decision ; horis:value :A ] .
+            :firstLow a horis:Rule ; horis:priority 10 ;
+                horis:when [ horis:subject :Patient ; horis:property :flag ; horis:isAssigned true ] ;
+                horis:then [ horis:property :decision ; horis:value :B ] .
+            :enableHigh a horis:Rule ; horis:priority 5 ;
+                horis:when [ horis:subject :Patient ; horis:property :flag ; horis:isAssigned true ] ;
+                horis:then [ horis:property :trigger ; horis:value true ] .
+            :effect a rdf:Property ; rdfs:domain :Patient ; rdfs:range xsd:string .
+            :tool a horis:Tool ; horis:effect [ horis:asserts [ horis:property :effect ; horis:type xsd:string ] ] ; horis:binding "rust:test" .
+            :BFlow a horis:Workflow ; horis:startsAt :BAct .
+            :BAct a horis:ActionStep ; horis:tool :tool ; horis:requires [ horis:property :decision ; horis:is :B ] ;
+                horis:onError :BDone ; horis:onUnsatisfied :BDone ; horis:next :BDone .
+            :BDone a horis:Step ; horis:terminal true .
+            :AFlow a horis:Workflow ; horis:startsAt :AAct .
+            :AAct a horis:ActionStep ; horis:tool :tool ; horis:requires [ horis:property :decision ; horis:is :A ] ;
+                horis:onError :ADone ; horis:onUnsatisfied :ADone ; horis:next :ADone .
+            :ADone a horis:Step ; horis:terminal true .
+        "#;
+        let source = format!("{PRELUDE}{body}");
+        let ontology = Ontology::load_from_str_allow_incomplete(&source, |_| None)
+            .expect("the explicit escape keeps both workflow reports inspectable");
+        let report = ontology.verify();
+        assert!(report.workflows()[":BFlow"].requires_satisfiable);
+        assert!(!report.workflows()[":AFlow"].requires_satisfiable);
+        assert!(report.witnesses().iter().any(|witness| {
+            witness.kind == FindingKind::RuleVacuity
+                && witness.domain_text.contains(":lateHigh is satisfiable")
+        }));
+
+        let patient = ontology.node_ref(":Patient").expect(":Patient");
+        let flag = ontology.node_ref(":flag").expect(":flag");
+        let decision = ontology.node_ref(":decision").expect(":decision");
+        let expected = Value::Ref(crate::ontology::term::Ref::new(
+            ontology.node_ref(":B").expect(":B"),
+        ));
+        let mut world = World::new(&ontology);
+        let subject = world
+            .assert_instance(patient, [(flag, Value::Boolean(true))])
+            .expect("the base input and first immutable conclusion remain valid");
+        assert_eq!(world.value(subject, decision), Some(&expected));
+    }
+
+    #[test]
+    fn gate_rejected_conclusion_cannot_certify_completeness() {
+        let body = r#"
+            :Patient a rdfs:Class .
+            :Acuity a rdfs:Class ; horis:oneOf ( :Good ) .
+            :flag a rdf:Property ; rdfs:domain :Patient ; rdfs:range xsd:boolean ; horis:cardinality "1" .
+            :acuity a rdf:Property ; rdfs:domain :Patient ; rdfs:range :Acuity ;
+                horis:assignedBy horis:RulesOnly ; horis:cardinality "0..1" .
+            :invalid a horis:Rule ;
+                horis:when [ horis:subject :Patient ; horis:property :flag ; horis:isAssigned true ] ;
+                horis:then [ horis:property :acuity ; horis:value :Bad ] .
+        "#;
+        let source = format!("{PRELUDE}{body}");
+        let error = Ontology::load_from_str(&source, |_| None)
+            .expect_err("default-hard load must reject unrealizable coverage");
+        let OntologyError::VerificationFailed { report } = error else {
+            panic!("expected the complete verification report");
+        };
+        assert!(!report.complete()[":acuity"]);
+        assert!(report.witnesses().iter().any(|witness| {
+            witness.kind == FindingKind::RuleVacuity
+                && witness.domain_text.contains(":invalid is satisfiable")
+                && witness.domain_text.contains(":acuity :Bad")
+        }));
+
+        let ontology = Ontology::load_from_str_allow_incomplete(&source, |_| None)
+            .expect("the explicit escape keeps the invalid ontology inspectable");
+        let patient = ontology.node_ref(":Patient").expect(":Patient");
+        let flag = ontology.node_ref(":flag").expect(":flag");
+        let acuity = ontology.node_ref(":acuity").expect(":acuity");
+        let mut world = World::new(&ontology);
+        let subject = world
+            .assert_instance(patient, [(flag, Value::Boolean(true))])
+            .expect("the base input remains valid");
+        assert_eq!(world.value(subject, acuity), None);
     }
 }
 

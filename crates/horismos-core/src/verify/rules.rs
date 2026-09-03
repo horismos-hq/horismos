@@ -46,6 +46,16 @@ struct SymbolicSpace<'a> {
     reachable: Bdd,
 }
 
+/// Three distinct runtime moments for each rule. A satisfiable condition may
+/// still be rejected by the validation gate, and an accepted conclusion may
+/// later lose a single-valued conflict. Keeping those states separate avoids
+/// certifying a fact that is not standing at the runtime fixed point.
+struct RuleFormulas {
+    candidates: Vec<Bdd>,
+    accepted: Vec<Bdd>,
+    standing: Vec<Bdd>,
+}
+
 /// Verify all rule guarantees under a caller-supplied bounded-projection
 /// assumption manifest.
 pub fn verify_ontology(ontology: &Ontology, assumptions: AssumptionManifest) -> VerificationReport {
@@ -62,12 +72,17 @@ pub fn verify_ontology(ontology: &Ontology, assumptions: AssumptionManifest) -> 
     let formulas = space.established_rule_formulas();
     let mut report = ReportBuilder::new(assumptions);
 
-    verify_completeness(&space, &formulas, &mut report);
-    verify_conflicts(&space, &formulas, &mut report);
-    verify_dead_and_vacuous_rules(&space, &formulas, &mut report);
+    verify_completeness(&space, &formulas.standing, &mut report);
+    verify_conflicts(&space, &formulas.accepted, &mut report);
+    verify_dead_and_vacuous_rules(
+        &space,
+        &formulas.candidates,
+        &formulas.accepted,
+        &mut report,
+    );
     verify_rule_termination(ontology, &mut report);
     verify_constraint_vacuity(ontology, &mut report);
-    verify_workflows(&space, &formulas, &mut report);
+    verify_workflows(&space, &formulas.standing, &mut report);
 
     report.finish()
 }
@@ -113,6 +128,35 @@ impl<'a> SymbolicSpace<'a> {
                     &mut contains,
                     &mut string_atoms,
                 );
+            }
+        }
+        // Workflow predicates share the same bounded input projection as
+        // rule predicates. Collect their authored constants before creating
+        // BDD variables; otherwise a value used only by `horis:requires`, a
+        // reasoning goal, or a choice branch would be mistaken for an
+        // impossible value.
+        for workflow in ontology.workflows().values() {
+            for step in workflow.steps.values() {
+                let trees: Vec<&ConditionTree> = match &step.body {
+                    StepBody::Reasoning(body) => vec![&body.goal],
+                    StepBody::Action(body) => body.requires.iter().collect(),
+                    StepBody::Choice(body) => {
+                        body.branches.iter().map(|branch| &branch.when).collect()
+                    }
+                    _ => Vec::new(),
+                };
+                for tree in trees {
+                    for condition in tree.leaves() {
+                        collect_condition_values(
+                            ontology,
+                            condition,
+                            &mut thresholds,
+                            &mut atoms,
+                            &mut contains,
+                            &mut string_atoms,
+                        );
+                    }
+                }
             }
         }
 
@@ -296,11 +340,14 @@ impl<'a> SymbolicSpace<'a> {
             })
     }
 
-    fn established_rule_formulas(&self) -> Vec<Bdd> {
-        let mut formulas = vec![self.variables.mk_false(); self.ontology.rules().len()];
-        // Rule conclusions only add support. Starting with every RulesOnly
-        // fact absent and unioning each round computes the least fixed point
-        // that the forward engine can establish, including derived chains.
+    fn established_rule_formulas(&self) -> RuleFormulas {
+        let mut candidates = vec![self.variables.mk_false(); self.ontology.rules().len()];
+        let mut accepted = vec![self.variables.mk_false(); self.ontology.rules().len()];
+        // Accepted rule conclusions only add support while chaining. Starting
+        // with every RulesOnly fact absent and unioning each round computes
+        // the least firing fixed point, including derived chains. Candidate
+        // conditions are retained separately because the gate can make a
+        // satisfiable rule inert.
         let rule_count = self.ontology.rules().len();
         let max_updates = rule_count
             .saturating_mul(rule_count)
@@ -312,20 +359,122 @@ impl<'a> SymbolicSpace<'a> {
             // The runtime fires one candidate, then restarts its priority
             // scan. Mirror that restart whenever any symbolic support grows.
             let rule = &self.ontology.rules()[index];
+            let standing_now = self.standing_rule_formulas(&accepted);
             let candidate = self
                 .reachable
                 .and(&self.subject_is(rule.subject_class))
-                .and(&self.condition_tree_after_rules(&rule.when, &formulas));
-            let established = formulas[index].or(&candidate);
-            if established != formulas[index] {
-                formulas[index] = established;
+                .and(&self.condition_tree_after_rules(&rule.when, &standing_now));
+            let next_candidate = candidates[index].or(&candidate);
+            let admitted = self.admitted_candidate(index, candidate, &standing_now);
+            let next_accepted = accepted[index].or(&admitted);
+            if next_candidate != candidates[index] || next_accepted != accepted[index] {
+                candidates[index] = next_candidate;
+                accepted[index] = next_accepted;
                 updates += 1;
                 index = 0;
             } else {
                 index += 1;
             }
         }
-        formulas
+
+        // The firing fixed point above is monotone, like the runtime's
+        // no-re-fire history. Workflow conditions observe the final store,
+        // though: for a single-valued property, an earlier rule in the
+        // deterministic priority order suppresses every later conflicting
+        // conclusion in the region where both were accepted. A
+        // higher-priority rule enabled late is already present in `accepted`
+        // and therefore removes the lower value here, matching override.
+        let standing = self.standing_rule_formulas(&accepted);
+
+        RuleFormulas {
+            candidates,
+            accepted,
+            standing,
+        }
+    }
+
+    fn standing_rule_formulas(&self, accepted: &[Bdd]) -> Vec<Bdd> {
+        self.ontology
+            .rules()
+            .iter()
+            .enumerate()
+            .map(|(index, rule)| {
+                let property = self.ontology.schema().property(rule.then.property);
+                let replaceable_single_value = property.is_some_and(|property| {
+                    !property.immutable
+                        && property
+                            .cardinality
+                            .is_some_and(Cardinality::is_single_valued)
+                });
+                if !replaceable_single_value {
+                    return accepted[index].clone();
+                }
+                let winning_conflict = self
+                    .ontology
+                    .rules()
+                    .iter()
+                    .zip(accepted)
+                    .take(index)
+                    .filter(|(winner, _)| {
+                        winner.then.property == rule.then.property
+                            && !terms_equal(self.ontology, &winner.then.value, &rule.then.value)
+                    })
+                    .fold(self.variables.mk_false(), |bdd, (_, formula)| {
+                        bdd.or(formula)
+                    });
+                accepted[index].and(&winning_conflict.not())
+            })
+            .collect()
+    }
+
+    /// Restrict a satisfiable rule condition to the region where the
+    /// conclusion is actually admitted by the runtime gate. Most checks are
+    /// static, but `horis:immutable` depends on the value already standing
+    /// when this rule is considered. In particular, a higher-priority rule
+    /// enabled after a lower-priority immutable assignment is rejected; it
+    /// does not replace the earlier value.
+    fn admitted_candidate(&self, index: usize, candidate: Bdd, standing: &[Bdd]) -> Bdd {
+        let rule = &self.ontology.rules()[index];
+        if !conclusion_passes_gate(self.ontology, rule) {
+            return self.variables.mk_false();
+        }
+        let Some(property) = self.ontology.schema().property(rule.then.property) else {
+            return self.variables.mk_false();
+        };
+        if !property.immutable {
+            return candidate;
+        }
+
+        let (mut held_any, mut held_same) = if property.assigned_by == AssignedBy::PerceptionAllowed
+        {
+            let vars = self
+                .property_vars
+                .get(&rule.then.property)
+                .expect("every declared rule property has symbolic variables");
+            let assigned = self.variables.mk_var(vars.assigned);
+            (
+                assigned.clone(),
+                assigned.and(&self.term_matches(rule.then.property, &rule.then.value)),
+            )
+        } else {
+            (self.variables.mk_false(), self.variables.mk_false())
+        };
+
+        for (other, formula) in self.ontology.rules().iter().zip(standing) {
+            if other.then.property != rule.then.property {
+                continue;
+            }
+            held_any = held_any.or(formula);
+            if terms_equal(self.ontology, &other.then.value, &rule.then.value) {
+                held_same = held_same.or(formula);
+            }
+        }
+
+        // Re-asserting a value already held is a no-op even on a
+        // multi-valued immutable property. Only a non-empty store without
+        // the proposed value rejects the conclusion.
+        let immutable_conflict = held_any.and(&held_same.not());
+        candidate.and(&immutable_conflict.not())
     }
 
     fn condition_tree_after_rules(&self, tree: &ConditionTree, formulas: &[Bdd]) -> Bdd {
@@ -826,14 +975,105 @@ fn verify_conflicts(space: &SymbolicSpace<'_>, formulas: &[Bdd], report: &mut Re
     }
 }
 
+/// Whether this rule's constant conclusion can pass the same schema-level
+/// checks as [`crate::world::gate`]. Subject existence/cardinality-minimum
+/// are properties of the already-admitted input instance; one conclusion
+/// contributes exactly one value. The remaining checks are decidable from
+/// the immutable ontology and constant `horis:then` term.
+fn conclusion_passes_gate(ontology: &Ontology, rule: &Rule) -> bool {
+    let Some(property) = ontology.schema().property(rule.then.property) else {
+        return false;
+    };
+    if property.assigned_by == AssignedBy::ToolsOnly
+        || property
+            .domain
+            .is_some_and(|domain| !ontology.schema().is_subclass_of(rule.subject_class, domain))
+    {
+        return false;
+    }
+
+    let value = match &rule.then.value {
+        Term::Iri(iri) => Value::Ref(crate::ontology::term::Ref::new(*iri)),
+        Term::Literal(value) => value.clone(),
+    };
+    match property.range {
+        None => {}
+        Some(PropertyRange::Datatype(datatype)) if !literal_matches(&value, datatype) => {
+            return false;
+        }
+        Some(PropertyRange::Datatype(_)) => {}
+        Some(PropertyRange::Class(range)) => {
+            let Value::Ref(referent) = &value else {
+                return false;
+            };
+            if let Some(members) = ontology
+                .schema()
+                .class(range)
+                .and_then(|class| class.one_of.as_ref())
+            {
+                if !members.iter().any(|&member| {
+                    ontology.schema().canonical_iri(member)
+                        == ontology.schema().canonical_iri(referent.iri())
+                        || (ontology.schema().class_declared(referent.iri()).is_some()
+                            && ontology.schema().is_subclass_of(referent.iri(), member))
+                }) {
+                    return false;
+                }
+            } else if ontology
+                .schema()
+                .class_declared(referent.iri())
+                .is_none_or(|class| !ontology.schema().is_subclass_of(class, range))
+            {
+                return false;
+            }
+        }
+    }
+
+    if let (Some(minimum), Some(actual)) = (
+        property.min.as_ref().and_then(as_decimal),
+        as_decimal(&value),
+    ) && actual < minimum
+    {
+        return false;
+    }
+    if let (Some(maximum), Some(actual)) = (
+        property.max.as_ref().and_then(as_decimal),
+        as_decimal(&value),
+    ) && actual > maximum
+    {
+        return false;
+    }
+    if let Value::String(text) = &value
+        && ontology
+            .pattern(property.iri)
+            .is_some_and(|pattern| !pattern.is_match(text))
+    {
+        return false;
+    }
+    true
+}
+
+fn literal_matches(value: &Value, datatype: Datatype) -> bool {
+    matches!(
+        (value, datatype),
+        (Value::Decimal(_), Datatype::Decimal)
+            | (Value::Integer(_), Datatype::Decimal | Datatype::Integer)
+            | (Value::String(_), Datatype::String)
+            | (Value::Boolean(_), Datatype::Boolean)
+            | (Value::DateTime(_), Datatype::DateTime)
+            | (Value::Duration(_), Datatype::Duration)
+    )
+}
+
 fn verify_dead_and_vacuous_rules(
     space: &SymbolicSpace<'_>,
-    formulas: &[Bdd],
+    candidates: &[Bdd],
+    accepted: &[Bdd],
     report: &mut ReportBuilder,
 ) {
     for (index, rule) in space.ontology.rules().iter().enumerate() {
         let name = compact_iri(space.ontology, rule.iri);
-        if formulas[index].is_false() {
+        if candidates[index].is_false() {
             report.dead_rules.push(name.clone());
             report.witnesses.push(Witness {
                 kind: FindingKind::DeadRule,
@@ -848,23 +1088,51 @@ fn verify_dead_and_vacuous_rules(
             });
             continue;
         }
+        if accepted[index].is_false() {
+            let property = compact_iri(space.ontology, rule.then.property);
+            let value = display_atom(space.ontology, &term_text(space.ontology, &rule.then.value));
+            report.witnesses.push(Witness {
+                kind: FindingKind::RuleVacuity,
+                domain_text: format!(
+                    "{name} is satisfiable but its conclusion {property} {value} cannot pass the declared validation constraints"
+                ),
+                region: space.region(&candidates[index], Some(rule.subject_class)),
+                suggestion: Some(
+                    "change the conclusion to a gate-valid value or repair the property constraints"
+                        .into(),
+                ),
+            });
+            continue;
+        }
         let higher = space
             .ontology
             .rules()
             .iter()
-            .zip(formulas)
+            .zip(accepted)
             .take(index)
             .filter(|(candidate, _)| {
-                candidate.priority > rule.priority && candidate.then.property == rule.then.property
+                if candidate.then.property != rule.then.property {
+                    return false;
+                }
+                let property = space
+                    .ontology
+                    .schema()
+                    .property(rule.then.property)
+                    .expect("a parsed rule conclusion names a declared property");
+                property.immutable
+                    || property
+                        .cardinality
+                        .is_some_and(Cardinality::is_single_valued)
+                    || terms_equal(space.ontology, &candidate.then.value, &rule.then.value)
             })
             .fold(space.variables.mk_false(), |bdd, (_, formula)| {
                 bdd.or(formula)
             });
-        if !higher.is_false() && formulas[index].and(&higher.not()).is_false() {
+        if !higher.is_false() && accepted[index].and(&higher.not()).is_false() {
             report.witnesses.push(Witness {
                 kind: FindingKind::RuleVacuity,
                 domain_text: format!("{name} is satisfiable but its conclusion is inert because higher-priority rules cover every matching input"),
-                region: space.region(&formulas[index], Some(rule.subject_class)),
+                region: space.region(&accepted[index], Some(rule.subject_class)),
                 suggestion: Some("narrow the higher-priority rules or remove the inert rule".into()),
             });
         }
@@ -897,6 +1165,9 @@ fn verify_rule_termination(ontology: &Ontology, report: &mut ReportBuilder) {
 }
 
 fn rule_can_enable(ontology: &Ontology, source: &Rule, target: &Rule) -> bool {
+    if !conclusion_passes_gate(ontology, source) {
+        return false;
+    }
     if !target
         .when
         .leaves()

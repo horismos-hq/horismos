@@ -1,6 +1,6 @@
 # PRP-005 — Guarantees & Verification
 
-**Status**: Active (2026-09-02)
+**Status**: Done (2026-09-03)
 **Depends on**: PRP-001, PRP-002 (usable without PRP-004)
 
 ## Intent
@@ -58,8 +58,10 @@ correctness, or real-world tool behavior.
 
 ## Non-vacuity
 
-- A satisfiable rule is vacuous when every region where it could fire is already
-  assigned by a higher-priority rule, so its conclusion is inert.
+- A satisfiable rule is vacuous when its conclusion cannot add a standing fact: the
+  validation gate rejects it, or a higher-priority rule already establishes the same
+  semantic value, replaces it on a single-valued property, or wins an immutable write.
+  Distinct values on a mutable multi-valued property are independently effective.
 - A declared constraint is vacuous when it excludes no value or cardinality from the
   otherwise-typed space.
 - Both findings use ordinary domain-term witnesses and machine-readable regions.

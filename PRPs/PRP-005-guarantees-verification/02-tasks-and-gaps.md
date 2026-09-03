@@ -1,8 +1,11 @@
 # PRP-005 — Tasks & Gaps
 
-Plan: `PRPs/PRP-005-guarantees-verification/01-objective.md`  
-Branch: `fm/horismos-prp005-a1`  
-Worktree: `/Users/billaram/.treehouse/horismos-86ae5f/1/horismos`  
+Plan: `PRPs/PRP-005-guarantees-verification/01-objective.md`
+
+Branch: `fm/horismos-prp005-a1`
+
+Worktree: `/Users/billaram/.treehouse/horismos-86ae5f/1/horismos`
+
 Baseline: `5c45c0a3ac4c31ffa8d5d5ec90214d7d8b740e64` (`make verify` green,
 2026-09-02)
 
@@ -89,6 +92,9 @@ Baseline: `5c45c0a3ac4c31ffa8d5d5ec90214d7d8b740e64` (`make verify` green,
   a domain-error runtime backstop for explicitly incomplete ontologies. Batch review
   approved after global-orphan attribution and rule-established/chained precondition
   semantics were corrected to mirror the runtime's priority-and-restart fixed point.
+  Final review additionally pinned gate-rejected conclusions, mutable and immutable
+  standing-winner semantics, distinct multi-valued conclusions, and workflow-only
+  string/numeric discretization against real runtime outcomes.
 - Task U5: minor (deferred): add direct regressions for `allow_incomplete` propagation
   through `with_import` and execution of an incomplete workflow's missing-edge runtime
   backstop; the paths were inspected and approved during Batch 3 review.
@@ -117,14 +123,17 @@ Baseline: `5c45c0a3ac4c31ffa8d5d5ec90214d7d8b740e64` (`make verify` green,
   triage now verifies under ordinary fail-closed loading, while the gap regression
   removes the marked moderate/no-symptom rule from that same artifact and pins the
   exact sentence plus structured numeric and absence predicates. A test enforces the
-  one-second ceiling and Criterion measures load plus verification at approximately
-  0.47 ms on this worktree. Docs 09–12 cover the shipped report, CLI, load policy,
+  one-second ceiling and Criterion measures load plus verification below 1 ms on this
+  worktree. Docs 09–12 cover the shipped report, CLI, load policy,
   assumption manifest, fixed-point workflow composition, and durable trace annotation
-  for the explicit incomplete escape. `make verify` is green (291 Rust unit tests plus
+  for the explicit incomplete escape. `make verify` is green (296 Rust unit tests plus
   integration/property suites and 74 Python tests).
-- [ ] U8. **Finish sequence** — `make verify`, `make check-boundary`, and
+- [x] U8. **Finish sequence** — `make verify`, `make check-boundary`, and
   `make no-model-gate`; final whole-branch senior review; mark PRP Done and update
-  BOARD plus `planning/board.html`; commit the complete branch.
+  BOARD plus `planning/board.html`; commit the complete branch. **Done 2026-09-03**:
+  final review approved with no findings after runtime-alignment regressions; all
+  required Makefile gates, the wasm build, and the triage benchmark are green. The
+  repo boards mark PRP-005 Done and also correct PRP-004 to Done after PR #8.
 
 ## Gaps discovered during implementation
 

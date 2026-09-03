@@ -27,6 +27,11 @@ than sigil-lang's: `horis:min/max` bound variable domains, `horis:oneOf` closes 
 sets, and the class hierarchy widens rule applicability through subsumption
 (a rule on `:ChestPain` covers the `:CrushingChestPain` region).
 
+Every authored constant or numeric boundary in rule conditions, workflow reasoning
+goals, action `horis:requires`, and choice branches participates in that projection.
+A value used only by a workflow is therefore still represented exactly rather than
+being mistaken for an impossible input.
+
 | Check | Question | Counterexample rendering |
 |-------|----------|--------------------------|
 | **Completeness** | Does some rule assign the property for every reachable input region? | "No acuity assigned when heartRate ∈ (100, 120] and no Symptom present" |
