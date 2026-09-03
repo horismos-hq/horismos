@@ -134,6 +134,7 @@ fn integration_trace_keeps_the_five_assumptions_and_commit_lifecycle_together() 
         run_id: "run-7".into(),
         snapshot_id: snapshot.snapshot_id.clone(),
         versions: snapshot.versions.clone(),
+        profile: snapshot.profile.clone(),
         mapping: snapshot.mapping.clone(),
         package: snapshot.package.clone(),
         terminology: snapshot.terminology.clone(),

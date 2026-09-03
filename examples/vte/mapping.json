@@ -1,0 +1,10 @@
+{
+  "canonical": "https://example.org/horismos/mapping/vte-r4",
+  "version": "1.0.0",
+  "fields": [
+    {"closureKey": "Observation/mobility", "jsonPointer": "/valueBoolean", "property": "https://example.org/vte#reducedMobility", "kind": "boolean", "required": true},
+    {"closureKey": "Observation/cancer", "jsonPointer": "/valueBoolean", "property": "https://example.org/vte#activeCancer", "kind": "boolean", "required": true},
+    {"closureKey": "Observation/history", "jsonPointer": "/valueBoolean", "property": "https://example.org/vte#priorVte", "kind": "boolean", "required": true},
+    {"closureKey": "Observation/bleeding", "jsonPointer": "/valueBoolean", "property": "https://example.org/vte#bleedingRisk", "kind": "boolean", "required": true}
+  ]
+}

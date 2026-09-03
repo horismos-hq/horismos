@@ -38,6 +38,7 @@ pub struct IntegrationTrace {
     pub run_id: String,
     pub snapshot_id: String,
     pub versions: SourceVersionVector,
+    pub profile: ArtifactIdentity,
     pub mapping: ArtifactIdentity,
     pub package: ArtifactIdentity,
     pub terminology: Vec<TerminologyPackage>,

@@ -8,7 +8,7 @@ use std::collections::BTreeMap;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-use crate::AuthorizedFhirCommit;
+use crate::AuthorizedFhirProposal;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -54,7 +54,7 @@ pub struct CdsAction {
 }
 
 impl CdsCard {
-    pub fn recommendation(summary: impl Into<String>, proposal: &AuthorizedFhirCommit) -> Self {
+    pub fn recommendation(summary: impl Into<String>, proposal: &AuthorizedFhirProposal) -> Self {
         let summary = summary.into();
         let proof_ref = proposal.evidence().proof_ref();
         let actions = proposal

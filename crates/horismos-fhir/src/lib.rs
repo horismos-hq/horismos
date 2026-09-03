@@ -19,9 +19,11 @@ use serde_json::{Value, json};
 
 pub mod cds;
 pub mod plan;
+pub mod vte;
 
 pub use cds::*;
 pub use plan::*;
+pub use vte::*;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CapabilityStatement {
@@ -61,6 +63,7 @@ pub enum FhirValueKind {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct FhirFieldMapping {
     pub closure_key: String,
     pub json_pointer: String,
@@ -107,13 +110,27 @@ pub struct AuthorizedFhirCommit {
     evidence: FhirAuthorizationEvidence,
 }
 
-impl AuthorizedFhirCommit {
+/// A policy-validated proposed-resource envelope suitable for a recommendation card.
+/// Unlike [`AuthorizedFhirCommit`], it conveys no permission to write remotely.
+#[derive(Debug, Clone)]
+pub struct AuthorizedFhirProposal {
+    effects: ProposedEffectSet,
+    evidence: FhirAuthorizationEvidence,
+}
+
+impl AuthorizedFhirProposal {
     pub fn evidence(&self) -> &FhirAuthorizationEvidence {
         &self.evidence
     }
 
     pub(crate) fn effects(&self) -> &ProposedEffectSet {
         &self.effects
+    }
+}
+
+impl AuthorizedFhirCommit {
+    pub fn evidence(&self) -> &FhirAuthorizationEvidence {
+        &self.evidence
     }
 }
 
@@ -287,6 +304,41 @@ pub struct FhirAdapter<T> {
 }
 
 impl<T: FhirTransport> FhirAdapter<T> {
+    pub fn authorize_proposal(
+        &self,
+        effects: &ProposedEffectSet,
+    ) -> Result<AuthorizedFhirProposal, HostError> {
+        if effects.proof_ref.is_empty() {
+            return Err(fhir_error(
+                "horis:authorizationGranted",
+                "FHIR proposal",
+                "proof_ref is required",
+            ));
+        }
+        if effects.effects.is_empty() {
+            return Err(fhir_error(
+                "horis:authorizationGranted",
+                &effects.proof_ref,
+                "at least one proposed FHIR resource is required",
+            ));
+        }
+        for effect in &effects.effects {
+            validate_proposed_effect(effect, &effects.proof_ref, &self.config)?;
+        }
+        Ok(AuthorizedFhirProposal {
+            effects: effects.clone(),
+            evidence: FhirAuthorizationEvidence {
+                proof_ref: effects.proof_ref.clone(),
+                effect_ids: effects
+                    .effects
+                    .iter()
+                    .map(|effect| effect.id.clone())
+                    .collect(),
+                posture: "recommendation-authorized".into(),
+            },
+        })
+    }
+
     pub fn new(transport: T, config: AdapterConfig) -> Result<Self, HostError> {
         let capability = transport.capability_statement().map_err(transport_error)?;
         if capability.fhir_version != "4.0.1" {
@@ -335,32 +387,12 @@ impl<T: FhirTransport> FhirAdapter<T> {
                 "server lacks transaction or versioned-update support",
             ));
         }
-        if effects.proof_ref.is_empty() {
-            return Err(fhir_error(
-                "horis:authorizationGranted",
-                "FHIR commit",
-                "proof_ref is required",
-            ));
-        }
-        if effects.effects.is_empty() {
-            return Err(fhir_error(
-                "horis:authorizationGranted",
-                &effects.proof_ref,
-                "at least one proposed FHIR resource is required",
-            ));
-        }
-        for effect in &effects.effects {
-            validate_proposed_effect(effect, &effects.proof_ref, &self.config)?;
-        }
+        let proposal = self.authorize_proposal(effects)?;
         Ok(AuthorizedFhirCommit {
-            effects: effects.clone(),
+            effects: proposal.effects,
             evidence: FhirAuthorizationEvidence {
                 proof_ref: effects.proof_ref.clone(),
-                effect_ids: effects
-                    .effects
-                    .iter()
-                    .map(|effect| effect.id.clone())
-                    .collect(),
+                effect_ids: proposal.evidence.effect_ids,
                 posture: "conditional-write-authorized".into(),
             },
         })

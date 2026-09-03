@@ -7,12 +7,11 @@ license.workspace = true
 repository.workspace = true
 
 [dependencies]
+horismos-core.workspace = true
 horismos-host = { path = "../horismos-host" }
 serde.workspace = true
 serde_json.workspace = true
-
-[dev-dependencies]
-horismos-core.workspace = true
+sha2.workspace = true
 
 [lints]
 workspace = true

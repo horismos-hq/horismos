@@ -216,7 +216,7 @@ fn cds_hooks_wire_shape_round_trips_without_model_fields() {
         ],
     };
     let authorized = adapter
-        .authorize_commit(&proposal)
+        .authorize_proposal(&proposal)
         .expect("proposal is policy-authorized");
     let response = CdsHooksResponse {
         cards: vec![CdsCard::recommendation(

@@ -16,8 +16,10 @@
 - Task U2: complete (commit `8d3f403`, senior review Approved after two hardening passes).
 - Task U3: complete (commit `616a79b`, senior review Approved after fail-closed and
   conditional-write hardening).
-- Task U4: complete (senior review Approved after evaluator/envelope/linkage hardening;
-  commit pending).
+- Task U4: complete (commit `eac7d67`, senior review Approved after evaluator/envelope/
+  linkage hardening).
+- Task U5: complete (senior review Approved after patient/evidence/artifact integrity
+  hardening; commit pending).
 
 ## Decisions resolved before implementation
 
@@ -129,10 +131,18 @@
   vector. CDS Hooks wire types emit every authorized proposal and rebuild logical
   resource-targeted proof Provenance for suggestion actions. Five focused tests and senior
   review Approved.
-- [ ] U5. **VTE prophylaxis vertical slice** — package ontology, recorded FHIR Bundle,
+- [x] U5. **VTE prophylaxis vertical slice** — package ontology, recorded FHIR Bundle,
   closure/profile/terminology/mapping manifest, standalone runner, and end-to-end tests.
   Test: zero-network/zero-model decision, versions in proof/integration trace, drift abort,
-  and a benign-completion/fail-closed count reporting the closure utility tax.
+  and a benign-completion/fail-closed count reporting the closure utility tax. **Done
+  2026-09-03**: a patient-bound six-member closure admits atomically and drives the
+  higher-priority VTE risk/contraindication rules, a bounded PlanDefinition, and a
+  CDS Hooks-shaped recommendation. Real SHA-256 pins cover the ontology, local R4
+  StructureDefinition, owned mapping, PlanDefinition, offline terminology expansion,
+  and composite package. Proof/trace carry all identities and exact source versions;
+  sealed traced commits record acceptance or drift, recommendation-only posture remains
+  usable, and nine VTE integrity/E2E tests plus the standalone replay pass. Senior review
+  Approved after all patient-binding, outcome-coherence, profile, and digest findings.
 - [ ] U6. **Coding-harness adapter** — create `horismos-harness`; materialize branch,
   dirty paths, base hashes, test status, and path scopes through the same SPI and exercise
   the candidate-artifact pipeline. Test: both adapters satisfy one shared host-contract

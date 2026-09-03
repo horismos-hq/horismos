@@ -21,6 +21,7 @@ horismos-core = { path = "crates/horismos-core", version = "0.1.0", default-feat
 thiserror = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+sha2 = "0.10"
 async-trait = "0.1"
 proptest = "1"
 # Matching benchmarks (PRP-002 U8, decision D-1: naive vs Rete-lite is
