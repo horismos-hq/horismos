@@ -85,11 +85,16 @@
 
 ## Units of work
 
-- [ ] U1. **Generic host SPI** — create `horismos-host`; implement closure states,
+- [x] U1. **Generic host SPI** — create `horismos-host`; implement closure states,
   exact version vectors, mapping/package evidence, atomic `ExternalSnapshot::admit`,
   reversibility-typed proposed effects, assumption-manifest bridge, integration trace,
   and exact domain-term errors. Test: two format-neutral snapshots serialize identically;
-  a bad fact rejects admission without partial World state.
+  a bad fact rejects admission without partial World state. **Done 2026-09-03**:
+  `horismos-host` ships the pure SPI, validated wire values, atomic private-World
+  admission, forward-reference ordering/cycle rejection, five-field assumption bridge,
+  terminology expansion evidence, reversibility-typed effects, structured per-effect
+  receipts, and `horismos.integration-trace/1`; 9 focused tests and `make verify` green;
+  senior review Approved with minors.
 - [ ] U2. **Candidate-artifact runtime pipeline** — typed opaque envelope → deterministic
   path/base-hash/syntax/permission policy → sandbox checks → symbolic authorization, with
   proof events and no semantic-correctness claim. Test: one seeded patch is accepted and
@@ -114,4 +119,6 @@
 
 ## Gaps discovered during implementation
 
-- None at activation.
+- 2026-09-03, U1 minor (deferred to U3): make the integration-trace fixture's proposed
+  effects and mixed receipt effect ids coherent when the FHIR commit fixture supplies real
+  effects. The receipt representation itself is behaviorally round-tripped in U1.

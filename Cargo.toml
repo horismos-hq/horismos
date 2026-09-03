@@ -2,6 +2,7 @@
 resolver = "3"
 members = [
     "crates/horismos-core",
+    "crates/horismos-host",
     "crates/horismos-bridges",
     "crates/horismos-py",
 ]

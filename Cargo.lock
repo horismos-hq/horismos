@@ -632,6 +632,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "horismos-host"
+version = "0.1.0"
+dependencies = [
+ "horismos-core",
+ "serde",
+ "serde_json",
+ "thiserror",
+]
+
+[[package]]
 name = "horismos-py"
 version = "0.1.0"
 dependencies = [
