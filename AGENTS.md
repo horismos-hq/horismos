@@ -48,6 +48,11 @@ proof → NL). Delete the LLM and the kernel still runs.
   machine-readable structure.
 - **The validation gate has no back door**: every World mutation passes it,
   regardless of provenance (perception | rule | tool | api).
+- **Loads fail closed**: `Ontology::load` (Rust) and `Ontology.load` (Python) verify
+  and refuse an ontology with any error-severity finding. `LoadOptions { allow_incomplete }`
+  / the `*_allow_incomplete` helpers / `allow_incomplete=True` are the only escape; it is
+  stamped into every agent trace. Tests that build deliberately partial ontologies must
+  use it. Spec: `docs/framework/10-verification.md`.
 - **Truth maintenance**: derived facts are recomputed, never left stale — every
   external transaction (`assert_`, replace, `retract`) resets all standing
   derivations and re-chains to the fixed point of the resulting base facts, even

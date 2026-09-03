@@ -9,7 +9,7 @@ repository.workspace = true
 
 [features]
 default = ["verify", "sparql"]
-# BDD verification (will pull biodivine-lib-bdd when PRP-002/005 activate)
+# BDD verification (PRP-005): pure-Rust, WASM-safe, no SMT dependency (doc 10)
 verify = ["dep:biodivine-lib-bdd", "dep:getrandom02"]
 # The SPARQL query subset (docs/framework/03-world.md)
 sparql = []

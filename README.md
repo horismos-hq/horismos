@@ -14,7 +14,7 @@ and the kernel still runs.
 
 ## Status
 
-Pre-alpha: framework definition and skeleton. Nothing is implemented yet.
+Pre-alpha. Current, next, and shipped state live in `PRPs/BOARD.md`.
 
 - `docs/framework/` — the framework definition (docs 00–15), written in shipped voice
 - `PRPs/` — phase plans (PRP-000 vision → PRP-008 standards & host integration)
