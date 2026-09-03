@@ -53,6 +53,8 @@ research/
   reading-log.md               — canonical cross-topic source log
   _template/page.md            — standard page skeleton
   reports/                     — the full deep-dive reports, imported verbatim with provenance headers
+  index.md, verdict-history.md, sweeps.md, reports/index.md
+                               — site-only pages of the MkDocs rendering (see research-site/README.md)
 
   intake/                      — the URL-drop convention (see intake/README.md)
   formalization/                — Q1: guideline representation languages & standards

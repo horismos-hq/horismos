@@ -30,5 +30,5 @@ Append-only. One line per merged PR: date, PR link, summary.
   own pages (`index.md` home, `verdict-history.md`, `sweeps.md`, `reports/index.md`).
   Existing wiki pages changed only by link fixes: backtick path references became real
   links to the same targets (repo files link to GitHub), `README.md` gained invisible
-  snippet markers, a `reports/` line in its structure block, and a corrected closing
+  snippet markers, `reports/` and site-page lines in its structure block, and a corrected closing
   section (the founding report is now tracked). No claim text was rewritten or retagged.
