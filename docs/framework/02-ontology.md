@@ -124,7 +124,8 @@ Summarized here, specified in doc 05:
 ## Standard-artifact anchoring (declared-future, PRP-008)
 
 The pivot to a bounded projection kernel (`PRPs/PRP-000-vision-positioning.md`) keeps this
-profile exactly as specified above — no new `horis:` terms are minted in this document;
+profile exactly as specified above — no new `horis:` terms are minted for external
+terminology anchoring itself;
 every D-item below is owned by `PRPs/PRP-008-standards-host-integration/01-objective.md` and resolved
 there, per this repo's rule that vocabulary is never invented ad hoc. What changes is the
 *honesty* of the anchoring story: `owl:sameAs` alone is necessary but not sufficient for
@@ -147,6 +148,25 @@ this gap (`research/terminology/snomed-ct.md`). PRP-008 will extend anchoring wi
 None of this weakens the "compatible with standards" claim below into "the ontology is
 FHIR" — Horismos's rule, workflow, provenance, and gate semantics remain Horismos's own;
 standards supply domain identity and terminology, not Horismos's execution model.
+
+## Candidate-artifact runtime evidence
+
+PRP-008 mints only the runtime half of the joint PRP-007/008 boundary. The authoring
+envelope remains PRP-007's vocabulary; the runtime consumes it as opaque typed data and
+emits these evidence terms:
+
+| Term | Meaning |
+|------|---------|
+| `horis:CandidatePolicyEvidence` | Deterministic path/base-hash/syntax/permission result |
+| `horis:SandboxEvidence` | Ordered results of the proposal's declared checks |
+| `horis:AuthorizationEvidence` | Symbolic authorization result over the two prior stages |
+| `horis:policyAccepted` | Boolean policy verdict |
+| `horis:sandboxPassed` | Boolean declared-check verdict |
+| `horis:authorizationGranted` | Boolean authorization verdict |
+| `horis:evidenceFor` | Proposal identifier the evidence concerns |
+
+These terms prove policy legality and declared-check outcomes only. They never state that
+generated content is semantically correct.
 
 ## Imports and anchoring
 

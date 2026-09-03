@@ -132,6 +132,16 @@ const ALLOWED_HORIS: &[&str] = &[
     // ProposalStep (doc 05/07)
     "candidates",
     "rankBy",
+    // Candidate-artifact runtime evidence (PRP-008). PRP-007 owns the
+    // authoring-side envelope vocabulary; these terms state only what the
+    // deterministic policy/sandbox/authorization boundary established.
+    "CandidatePolicyEvidence",
+    "SandboxEvidence",
+    "AuthorizationEvidence",
+    "policyAccepted",
+    "sandboxPassed",
+    "authorizationGranted",
+    "evidenceFor",
     // Imports/versioning
     "imports",
     "version",

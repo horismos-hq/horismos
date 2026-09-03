@@ -11,6 +11,9 @@
   the source-clean baseline).
 - Pacing: six dependency-ordered units, approved by the captain's launch brief. PRP-005
   remains a separate parallel lane; no PRP-005 file or verifier implementation is touched.
+- Task U1: complete (commit `9e8147c`, review Approved with minors; one coherent-fixture
+  minor carried to U3).
+- Task U2: complete (senior review Approved after two hardening passes; commit pending).
 
 ## Decisions resolved before implementation
 
@@ -95,10 +98,14 @@
   terminology expansion evidence, reversibility-typed effects, structured per-effect
   receipts, and `horismos.integration-trace/1`; 9 focused tests and `make verify` green;
   senior review Approved with minors.
-- [ ] U2. **Candidate-artifact runtime pipeline** — typed opaque envelope → deterministic
+- [x] U2. **Candidate-artifact runtime pipeline** — typed opaque envelope → deterministic
   path/base-hash/syntax/permission policy → sandbox checks → symbolic authorization, with
   proof events and no semantic-correctness claim. Test: one seeded patch is accepted and
-  one stale-base/path-invalid proposal is rejected before sandbox/application.
+  one stale-base/path-invalid proposal is rejected before sandbox/application. **Done
+  2026-09-03**: runtime-minted evidence is sealed; bounded V4A updates bind their embedded
+  path to the validated target; executable policy rejects shells for both artifacts and
+  declared checks; sandbox sees only ordered typed checks; all ten success/rejection paths
+  pin structured stages and domain text. Senior review Approved.
 - [ ] U3. **FHIR adapter** — create `horismos-fhir`; capability probing, prefetch closure
   hydration, RDF-aligned bounded mapping with loss report/modifier-extension rejection,
   exact version evidence, proposed-resource labeling, and conditional commit with 409/412/
