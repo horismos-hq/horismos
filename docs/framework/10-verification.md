@@ -36,7 +36,13 @@ lexicographically, each in its own opaque order with no conversion; a comparison
 runtime cannot order (a boolean, a duration, a mismatched datatype) never holds.
 `xsd:boolean` properties are closed over `true`/`false`, so an `is true` / `is false`
 pair is a complete partition. A rule may conclude on a property perception also sets;
-downstream conditions then see the input value *or* any standing rule conclusion.
+downstream conditions then see the store as the gate leaves it: on a mutable
+single-valued property a standing conclusion *replaces* the input value, while a
+multi-valued property holds the input value and every standing conclusion together.
+
+A conflict witness names the winner only when the two rules differ in priority.
+Rules sharing a priority resolve by firing order at runtime, so the witness reports
+no winner and asks the author to raise one rule's priority instead.
 
 | Check | Question | Counterexample rendering |
 |-------|----------|--------------------------|
@@ -71,7 +77,9 @@ report = onto.verify()
 report.ok                     # bool: all checks pass
 report.complete               # per-property completeness
 report.conflicts              # list[Conflict]: both rules, values, priorities,
-                              #   the region, and the priority `winner`
+                              #   the region, and the priority `winner` (None
+                              #   when both share a priority: the standing
+                              #   value is then order-dependent)
 report.dead_rules             # tuple[str, ...] of rule CURIEs
 report.terminating            # bool: rule chaining terminates
 report.workflows              # per-workflow termination/requires/fallback/choice

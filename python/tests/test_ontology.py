@@ -253,6 +253,21 @@ def test_conflicts_carry_the_priority_winner(tmp_path: Path) -> None:
     assert witness.severity == "error"
     assert witness.domain_text.endswith("— :high wins by priority; confirm intended")
 
+    tied = tmp_path / "tie.ttl"
+    tied.write_text(conflicting.read_text().replace("horis:priority 10", "horis:priority 1"))
+    with pytest.raises(HorismosVerificationError) as tied_raised:
+        Ontology.load(tied)
+    (tie,) = tied_raised.value.report.conflicts
+    assert (tie.first_priority, tie.second_priority) == (1, 1)
+    assert tie.winner is None
+    assert json.loads(tied_raised.value.report.to_json())["conflicts"][0]["winner"] is None
+    (tie_witness,) = [w for w in tied_raised.value.report.witnesses if w.kind == "conflict"]
+    assert "wins by priority" not in tie_witness.domain_text
+    assert tie_witness.domain_text.endswith(
+        "— both share priority 1, so the standing value is order-dependent; "
+        "raise one rule's priority to make the resolution explicit"
+    )
+
 
 def test_a_missing_file_raises_an_ontology_error() -> None:
     with pytest.raises(HorismosOntologyError):

@@ -118,6 +118,8 @@ pub struct Witness {
 
 /// One overlapping pair of contradictory rule conclusions, with the rule
 /// whose value stands on the overlap under the runtime's priority order.
+/// `winner` is `None` when both rules share a priority: the standing value
+/// then depends on firing order rather than on an authored resolution.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 pub struct Conflict {
     pub first_rule: String,
@@ -127,7 +129,7 @@ pub struct Conflict {
     pub second_value: String,
     pub first_priority: i64,
     pub second_priority: i64,
-    pub winner: String,
+    pub winner: Option<String>,
     pub region: Region,
 }
 
@@ -626,7 +628,7 @@ mod rule_verification_tests {
         assert_eq!(found.second_rule, ":b");
         assert_eq!(found.first_priority, 2);
         assert_eq!(found.second_priority, 1);
-        assert_eq!(found.winner, ":a");
+        assert_eq!(found.winner.as_deref(), Some(":a"));
         let witness = conflict
             .witnesses()
             .iter()
@@ -635,6 +637,31 @@ mod rule_verification_tests {
         assert_eq!(
             witness.domain_text,
             ":a → :Immediate but :b → :Urgent for :acuity when heartRate ∈ (120, 300] and no Symptom present — :a wins by priority; confirm intended"
+        );
+
+        let tie = report(&format!(
+            "{TRIAGE_DOMAIN}\n\
+             :a a horis:Rule ; horis:priority 1 ; horis:when [ horis:subject :Patient ; horis:property :heartRate ; horis:exceeds 100 ] ; horis:then [ horis:property :acuity ; horis:value :Immediate ] .\n\
+             :b a horis:Rule ; horis:priority 1 ; horis:when [ horis:subject :Patient ; horis:property :heartRate ; horis:exceeds 120 ] ; horis:then [ horis:property :acuity ; horis:value :Urgent ] ."
+        ));
+        assert_eq!(tie.conflicts().len(), 1);
+        assert_eq!(tie.conflicts()[0].winner, None);
+        assert_eq!(tie.conflicts()[0].first_priority, 1);
+        assert_eq!(tie.conflicts()[0].second_priority, 1);
+        let tie_witness = tie
+            .witnesses()
+            .iter()
+            .find(|w| w.kind == FindingKind::Conflict)
+            .expect("the tied overlap carries a witness");
+        assert_eq!(
+            tie_witness.domain_text,
+            ":a → :Immediate but :b → :Urgent for :acuity when heartRate ∈ (120, 300] and no Symptom present — both share priority 1, so the standing value is order-dependent; raise one rule's priority to make the resolution explicit"
+        );
+        assert!(!tie_witness.domain_text.contains("wins by priority"));
+        assert_eq!(
+            serde_json::from_str::<serde_json::Value>(&tie.to_json().expect("JSON"))
+                .expect("valid JSON")["conflicts"][0]["winner"],
+            serde_json::Value::Null
         );
 
         let dead = report(&format!(
@@ -906,6 +933,79 @@ mod rule_verification_tests {
             "#,
         );
         assert_eq!(incomparable.dead_rules(), &[":never"]);
+    }
+
+    #[test]
+    fn a_rule_replacing_a_single_valued_input_value_hides_the_input_from_later_rules() {
+        let body = r#"
+            :Patient a rdfs:Class .
+            :Decision a rdfs:Class ; horis:oneOf ( :X :Y ) .
+            :input a rdf:Property ; rdfs:domain :Patient ; rdfs:range xsd:boolean ;
+                horis:cardinality "1" .
+            :score a rdf:Property ; rdfs:domain :Patient ; rdfs:range xsd:decimal ;
+                horis:min 0 ; horis:max 1 ; horis:cardinality "1" .
+            :decision a rdf:Property ; rdfs:domain :Patient ; rdfs:range :Decision ;
+                horis:assignedBy horis:RulesOnly ; horis:cardinality "0..1" .
+            :rescore a horis:Rule ; horis:priority 3 ;
+                horis:when [ horis:subject :Patient ; horis:property :input ; horis:is true ] ;
+                horis:then [ horis:property :score ; horis:value 1 ] .
+            :half a horis:Rule ; horis:priority 2 ;
+                horis:when [ horis:subject :Patient ; horis:property :score ; horis:is 0.5 ] ;
+                horis:then [ horis:property :decision ; horis:value :X ] .
+            :full a horis:Rule ; horis:priority 1 ;
+                horis:when [ horis:subject :Patient ; horis:property :score ; horis:is 1 ] ;
+                horis:then [ horis:property :decision ; horis:value :Y ] .
+            :other a horis:Rule ; horis:priority 0 ;
+                horis:when [ horis:subject :Patient ; horis:property :score ; horis:isNot 0.5 ] ;
+                horis:then [ horis:property :decision ; horis:value :Y ] .
+        "#;
+        let ontology = Ontology::load_from_str(&format!("{PRELUDE}{body}"), |_| None)
+            .expect("the replaced score never reaches the half rule, so nothing conflicts");
+        let report = ontology.verify();
+        assert!(report.ok());
+        assert!(report.conflicts().is_empty());
+        assert_eq!(report.complete().get(":decision"), Some(&true));
+
+        let patient = ontology.node_ref(":Patient").expect(":Patient");
+        let input = ontology.node_ref(":input").expect(":input");
+        let score = ontology.node_ref(":score").expect(":score");
+        let decision = ontology.node_ref(":decision").expect(":decision");
+        let expected = Value::Ref(crate::ontology::term::Ref::new(
+            ontology.node_ref(":Y").expect(":Y"),
+        ));
+        let mut world = World::new(&ontology);
+        let subject = world
+            .assert_instance(
+                patient,
+                [
+                    (input, Value::Boolean(true)),
+                    (score, Value::Decimal("0.5".parse().expect("decimal"))),
+                ],
+            )
+            .expect("the base input is valid");
+        assert_eq!(world.value(subject, score), Some(&Value::Integer(1)));
+        assert_eq!(world.value(subject, decision), Some(&expected));
+    }
+
+    #[test]
+    fn thresholds_of_different_kinds_never_share_a_cell() {
+        let body = r#"
+            :Patient a rdfs:Class .
+            :x a rdf:Property ; rdfs:domain :Patient .
+            :tag a rdf:Property ; rdfs:domain :Patient ; rdfs:range xsd:string .
+            :numeric a horis:Rule ;
+                horis:when [ horis:subject :Patient ; horis:property :x ; horis:exceeds 5 ] ;
+                horis:then [ horis:property :tag ; horis:value "n" ] .
+            :textual a horis:Rule ;
+                horis:when [ horis:subject :Patient ; horis:property :x ; horis:below "M" ] ;
+                horis:then [ horis:property :tag ; horis:value "t" ] .
+            :mixed a horis:Rule ; horis:when [ horis:all (
+                [ horis:subject :Patient ; horis:property :x ; horis:exceeds 5 ]
+                [ horis:subject :Patient ; horis:property :x ; horis:below "M" ]
+            ) ] ; horis:then [ horis:property :tag ; horis:value "impossible" ] .
+        "#;
+        let result = report(body);
+        assert_eq!(result.dead_rules(), &[":mixed"]);
     }
 
     #[test]

@@ -73,7 +73,8 @@ payload. It exposes `ok`, `complete`, `conflicts`, `dead_rules`, `terminating`,
 `kind`, `severity` (`"error"` fails the report; `"info"` is advisory), `domain_text`,
 `region`, and `suggestion`; ordered region bounds retain their exact authored lexical
 values and units. Each `Conflict` names both rules, their values and priorities, the
-overlap region, and the `winner` whose value stands under priority order.
+overlap region, and the `winner` whose value stands under priority order (`None` when
+both rules share a priority, since the outcome is then order-dependent).
 
 The always-present `AssumptionManifest` has exactly five fields:
 `input_closure`, `external_profile_versions`, `mapping_version`, `supported_subset`,

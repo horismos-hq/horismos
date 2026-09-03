@@ -33,7 +33,24 @@ enum Threshold {
     Text(String),
 }
 
+/// The order a threshold belongs to. Values of different kinds are never
+/// comparable at runtime, so cells are only ever formed within one kind.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+enum ThresholdKind {
+    Number,
+    DateTime,
+    Text,
+}
+
 impl Threshold {
+    fn kind(&self) -> ThresholdKind {
+        match self {
+            Self::Number(_) => ThresholdKind::Number,
+            Self::DateTime(_) => ThresholdKind::DateTime,
+            Self::Text(_) => ThresholdKind::Text,
+        }
+    }
+
     fn from_value(value: &Value) -> Option<Self> {
         match value {
             Value::Decimal(value) => Some(Self::Number(*value)),
@@ -87,6 +104,9 @@ struct OrderedVars {
 struct PropertyVars {
     assigned: BddVariable,
     ordered: BTreeMap<Threshold, OrderedVars>,
+    /// Which order the stored value belongs to; only a property without a
+    /// declared range can hold values of more than one kind.
+    kinds: BTreeMap<ThresholdKind, BddVariable>,
     atoms: BTreeMap<String, BddVariable>,
     atom_positions: BTreeMap<String, Threshold>,
     contains: BTreeMap<String, BddVariable>,
@@ -245,6 +265,17 @@ impl<'a> SymbolicSpace<'a> {
                     },
                 );
             }
+            let mut kinds = BTreeMap::new();
+            if property.range.is_none() {
+                let present: BTreeSet<ThresholdKind> =
+                    ordered.keys().map(Threshold::kind).collect();
+                for (index, kind) in present.into_iter().enumerate() {
+                    kinds.insert(
+                        kind,
+                        builder.make_variable(&format!("p{property_index}_k{index}")),
+                    );
+                }
+            }
             let mut exact = BTreeMap::new();
             for (index, atom) in atoms.get(&property.iri).into_iter().flatten().enumerate() {
                 exact.insert(
@@ -269,6 +300,7 @@ impl<'a> SymbolicSpace<'a> {
                 PropertyVars {
                     assigned,
                     ordered,
+                    kinds,
                     atoms: exact,
                     atom_positions: atom_positions.remove(&property.iri).unwrap_or_default(),
                     contains: substring,
@@ -322,7 +354,13 @@ impl<'a> SymbolicSpace<'a> {
                         .reachable
                         .and(&self.variables.mk_var(ordered.at_least).imp(&assigned));
                 }
-                let allowed = allowed_signatures(property, &vars.ordered, &self.variables);
+                for kind in vars.kinds.values() {
+                    self.reachable = self
+                        .reachable
+                        .and(&self.variables.mk_var(*kind).imp(&assigned));
+                }
+                let allowed =
+                    allowed_signatures(property, &vars.ordered, &vars.kinds, &self.variables);
                 self.reachable = self.reachable.and(&assigned.imp(&allowed));
             }
 
@@ -341,9 +379,10 @@ impl<'a> SymbolicSpace<'a> {
                     .cardinality
                     .is_some_and(Cardinality::is_single_valued);
                 for (threshold, ordered) in &vars.ordered {
+                    let comparable = threshold.kind() == position.kind();
                     for (holds, variable) in [
-                        (position > threshold, ordered.greater),
-                        (position >= threshold, ordered.at_least),
+                        (comparable && position > threshold, ordered.greater),
+                        (comparable && position >= threshold, ordered.at_least),
                     ] {
                         if holds || single_valued {
                             self.reachable = self
@@ -558,17 +597,25 @@ impl<'a> SymbolicSpace<'a> {
         candidate.and(&immutable_conflict.not())
     }
 
-    /// A condition over the store at the rule fixed point: facts the input
-    /// may carry (unless the property is `horis:RulesOnly`) together with
-    /// every standing rule conclusion on the same property.
+    /// A condition over the store at the rule fixed point. A `RulesOnly`
+    /// property holds exactly its standing rule conclusions. A mutable
+    /// single-valued property holds a standing conclusion when one exists
+    /// (the gate replaces the input value) and the input value otherwise.
+    /// Any other property accumulates the input value and every standing
+    /// conclusion; an immutable one only admits a conclusion when no input
+    /// value stands, so the union is exact there too.
     fn condition_tree_after_rules(&self, tree: &ConditionTree, formulas: &[Bdd]) -> Bdd {
         match tree {
             ConditionTree::Leaf(condition) => {
-                let rules_only = self
-                    .ontology
-                    .schema()
-                    .property(condition.property)
-                    .is_some_and(|property| property.assigned_by == AssignedBy::RulesOnly);
+                let property = self.ontology.schema().property(condition.property);
+                let rules_only =
+                    property.is_some_and(|property| property.assigned_by == AssignedBy::RulesOnly);
+                let replaced_by_rules = property.is_some_and(|property| {
+                    !property.immutable
+                        && property
+                            .cardinality
+                            .is_some_and(Cardinality::is_single_valued)
+                });
                 let assigning = self
                     .ontology
                     .rules()
@@ -583,24 +630,36 @@ impl<'a> SymbolicSpace<'a> {
                             bdd.or(formula)
                         })
                 };
+                let derived_any = derived_where(&|_| true);
                 let input = (!rules_only).then(|| self.condition(condition));
                 match &condition.op {
                     Op::IsEmpty => {
-                        let holds = derived_where(&|_| true).not();
+                        let holds = derived_any.not();
                         input.map_or(holds.clone(), |input| holds.and(&input))
                     }
                     Op::IsNot(expected) => {
-                        let holds = derived_where(&|rule| {
+                        let derived_expected = derived_where(&|rule| {
                             term_matches_static(self.ontology, &rule.then.value, expected)
-                        })
-                        .not();
-                        input.map_or(holds.clone(), |input| holds.and(&input))
+                        });
+                        match input {
+                            None => derived_expected.not(),
+                            Some(input) if replaced_by_rules => derived_any
+                                .and(&derived_expected.not())
+                                .or(&derived_any.not().and(&input)),
+                            Some(input) => derived_expected.not().and(&input),
+                        }
                     }
                     op => {
-                        let holds = derived_where(&|rule| {
+                        let derived_matching = derived_where(&|rule| {
                             conclusion_satisfies(self.ontology, &rule.then.value, op)
                         });
-                        input.map_or(holds.clone(), |input| holds.or(&input))
+                        match input {
+                            None => derived_matching,
+                            Some(input) if replaced_by_rules => {
+                                derived_matching.or(&derived_any.not().and(&input))
+                            }
+                            Some(input) => derived_matching.or(&input),
+                        }
                     }
                 }
             }
@@ -651,13 +710,13 @@ impl<'a> SymbolicSpace<'a> {
         let assigned = self.variables.mk_var(vars.assigned);
         let property = condition.property;
         match &condition.op {
-            Op::Exceeds(value) => assigned.and(&self.ordered(property, value, |v| v.greater)),
-            Op::Below(value) => assigned.and(&self.ordered(property, value, |v| v.at_least).not()),
-            Op::AtLeast(value) => assigned.and(&self.ordered(property, value, |v| v.at_least)),
-            Op::AtMost(value) => assigned.and(&self.ordered(property, value, |v| v.greater).not()),
-            Op::Between(low, high) => assigned
-                .and(&self.ordered(property, low, |v| v.at_least))
-                .and(&self.ordered(property, high, |v| v.greater).not()),
+            Op::Exceeds(value) => self.compared(property, value, |v| v.greater, true),
+            Op::Below(value) => self.compared(property, value, |v| v.at_least, false),
+            Op::AtLeast(value) => self.compared(property, value, |v| v.at_least, true),
+            Op::AtMost(value) => self.compared(property, value, |v| v.greater, false),
+            Op::Between(low, high) => self
+                .compared(property, low, |v| v.at_least, true)
+                .and(&self.compared(property, high, |v| v.greater, false)),
             Op::Is(term) => assigned.and(&self.term_matches(condition.property, term)),
             Op::Contains(Term::Literal(Value::String(needle)))
                 if matches!(
@@ -685,14 +744,17 @@ impl<'a> SymbolicSpace<'a> {
         }
     }
 
-    /// The boundary variable an ordered comparison against `value` reads.
-    /// A constant the runtime cannot order against this property (a class
-    /// reference, a duration, or a mismatched datatype) never holds.
-    fn ordered(
+    /// An ordered comparison of the stored value against `value`: the
+    /// selected boundary variable with the given polarity, on an assigned
+    /// value of the same kind. A constant the runtime cannot order against
+    /// this property (a class reference, a duration, or a mismatched
+    /// datatype) never holds, in either polarity.
+    fn compared(
         &self,
         property: Iri,
         value: &Value,
         select: impl FnOnce(OrderedVars) -> BddVariable,
+        polarity: bool,
     ) -> Bdd {
         let Some(vars) = self.property_vars.get(&property) else {
             return self.variables.mk_false();
@@ -702,12 +764,20 @@ impl<'a> SymbolicSpace<'a> {
             .schema()
             .property(property)
             .and_then(|declared| declared.range);
-        threshold_for(range, value)
-            .and_then(|threshold| vars.ordered.get(&threshold).copied())
-            .map_or_else(
-                || self.variables.mk_false(),
-                |boundary| self.variables.mk_var(select(boundary)),
-            )
+        let Some(threshold) = threshold_for(range, value) else {
+            return self.variables.mk_false();
+        };
+        let Some(boundary) = vars.ordered.get(&threshold).copied() else {
+            return self.variables.mk_false();
+        };
+        let same_kind = vars.kinds.get(&threshold.kind()).map_or_else(
+            || self.variables.mk_true(),
+            |kind| self.variables.mk_var(*kind),
+        );
+        self.variables
+            .mk_var(vars.assigned)
+            .and(&same_kind)
+            .and(&self.variables.mk_literal(select(boundary), polarity))
     }
 
     fn term_matches(&self, property: Iri, term: &Term) -> Bdd {
@@ -954,11 +1024,12 @@ enum Cell<'a> {
 
 impl Cell<'_> {
     /// Whether a stored value of `property` can fall in this cell: inside
-    /// the gate's `horis:min`/`horis:max`, and for `xsd:integer` only where
-    /// an integer actually exists.
-    fn is_inhabited(&self, property: &PropertyDecl) -> bool {
-        let minimum = gate_bound(property, property.min.as_ref());
-        let maximum = gate_bound(property, property.max.as_ref());
+    /// the gate's `horis:min`/`horis:max` (which only constrain numbers),
+    /// and for `xsd:integer` only where an integer actually exists.
+    fn is_inhabited(&self, property: &PropertyDecl, kind: ThresholdKind) -> bool {
+        let bounded = kind == ThresholdKind::Number;
+        let minimum = gate_bound(property, property.min.as_ref()).filter(|_| bounded);
+        let maximum = gate_bound(property, property.max.as_ref()).filter(|_| bounded);
         let within_bounds = match self {
             Cell::Below => minimum.is_none(),
             Cell::At(point) => {
@@ -991,7 +1062,7 @@ impl Cell<'_> {
 
     fn signature(
         &self,
-        boundaries: &BTreeMap<Threshold, OrderedVars>,
+        boundaries: &[(&Threshold, &OrderedVars)],
         variables: &BddVariableSet,
     ) -> Bdd {
         boundaries
@@ -999,8 +1070,8 @@ impl Cell<'_> {
             .fold(variables.mk_true(), |signature, (threshold, boundary)| {
                 let (greater, at_least) = match self {
                     Cell::Below => (false, false),
-                    Cell::At(point) => (*point > threshold, *point >= threshold),
-                    Cell::Between(low, _) => (*low >= threshold, *low >= threshold),
+                    Cell::At(point) => (point > threshold, point >= threshold),
+                    Cell::Between(low, _) => (low >= threshold, low >= threshold),
                     Cell::Above => (true, true),
                 };
                 signature
@@ -1010,30 +1081,67 @@ impl Cell<'_> {
     }
 }
 
-/// Every threshold signature some stored value of `property` can have.
+/// Every threshold signature some stored value of `property` can have. A
+/// value belongs to exactly one order, so it sits in one cell of its own
+/// kind and satisfies no comparison against any other kind. Where the
+/// property declares no range, a value may also belong to no discretized
+/// order at all, in which case no comparison holds.
 fn allowed_signatures(
     property: &PropertyDecl,
     boundaries: &BTreeMap<Threshold, OrderedVars>,
+    kind_vars: &BTreeMap<ThresholdKind, BddVariable>,
     variables: &BddVariableSet,
 ) -> Bdd {
-    let thresholds: Vec<&Threshold> = boundaries.keys().collect();
-    let mut cells = Vec::new();
-    if !thresholds.is_empty() {
-        cells.push(Cell::Below);
-        for (index, point) in thresholds.iter().enumerate() {
+    let all_false = |literals: &[BddVariable]| {
+        literals.iter().fold(variables.mk_true(), |bdd, variable| {
+            bdd.and(&variables.mk_not_var(*variable))
+        })
+    };
+    let kinds: BTreeSet<ThresholdKind> = boundaries.keys().map(Threshold::kind).collect();
+    let no_kind = if kind_vars.is_empty() {
+        variables.mk_false()
+    } else {
+        let every_literal: Vec<BddVariable> = boundaries
+            .values()
+            .flat_map(|boundary| [boundary.greater, boundary.at_least])
+            .chain(kind_vars.values().copied())
+            .collect();
+        all_false(&every_literal)
+    };
+    kinds.into_iter().fold(no_kind, |allowed, kind| {
+        let (own, foreign): (Vec<(&Threshold, &OrderedVars)>, Vec<_>) = boundaries
+            .iter()
+            .partition(|(threshold, _)| threshold.kind() == kind);
+        let foreign_literals: Vec<BddVariable> = foreign
+            .iter()
+            .flat_map(|(_, boundary)| [boundary.greater, boundary.at_least])
+            .chain(
+                kind_vars
+                    .iter()
+                    .filter(|(other, _)| **other != kind)
+                    .map(|(_, variable)| *variable),
+            )
+            .collect();
+        let this_kind = kind_vars.get(&kind).map_or_else(
+            || variables.mk_true(),
+            |variable| variables.mk_var(*variable),
+        );
+        let only_this_kind = this_kind.and(&all_false(&foreign_literals));
+        let mut cells = vec![Cell::Below];
+        for (index, (point, _)) in own.iter().enumerate() {
             cells.push(Cell::At(point));
-            if let Some(next) = thresholds.get(index + 1) {
+            if let Some((next, _)) = own.get(index + 1) {
                 cells.push(Cell::Between(point, next));
             }
         }
         cells.push(Cell::Above);
-    }
-    cells
-        .iter()
-        .filter(|cell| cell.is_inhabited(property))
-        .fold(variables.mk_false(), |allowed, cell| {
-            allowed.or(&cell.signature(boundaries, variables))
-        })
+        cells
+            .iter()
+            .filter(|cell| cell.is_inhabited(property, kind))
+            .fold(allowed, |allowed, cell| {
+                allowed.or(&cell.signature(&own, variables).and(&only_this_kind))
+            })
+    })
 }
 
 fn verify_completeness(space: &SymbolicSpace<'_>, formulas: &[Bdd], report: &mut ReportBuilder) {
@@ -1107,8 +1215,21 @@ fn verify_conflicts(space: &SymbolicSpace<'_>, formulas: &[Bdd], report: &mut Re
                 display_atom(space.ontology, &term_text(space.ontology, &a.then.value));
             let second_value =
                 display_atom(space.ontology, &term_text(space.ontology, &b.then.value));
-            let winner = first_rule.clone();
+            let winner = (a.priority != b.priority).then(|| first_rule.clone());
             let conditions = render_region_conditions(&region);
+            let (resolution, suggestion) = match &winner {
+                Some(winner) => (
+                    format!("{winner} wins by priority; confirm intended"),
+                    "make the conditions disjoint or align their conclusions",
+                ),
+                None => (
+                    format!(
+                        "both share priority {}, so the standing value is order-dependent; raise one rule's priority to make the resolution explicit",
+                        a.priority
+                    ),
+                    "raise one rule's priority, make the conditions disjoint, or align their conclusions",
+                ),
+            };
             report.conflicts.push(Conflict {
                 first_rule: first_rule.clone(),
                 second_rule: second_rule.clone(),
@@ -1117,17 +1238,17 @@ fn verify_conflicts(space: &SymbolicSpace<'_>, formulas: &[Bdd], report: &mut Re
                 second_value: second_value.clone(),
                 first_priority: a.priority,
                 second_priority: b.priority,
-                winner: winner.clone(),
+                winner,
                 region: region.clone(),
             });
             report.witnesses.push(Witness {
                 kind: FindingKind::Conflict,
                 severity: Severity::Error,
                 domain_text: format!(
-                    "{first_rule} → {first_value} but {second_rule} → {second_value} for {property_name} when {conditions} — {winner} wins by priority; confirm intended"
+                    "{first_rule} → {first_value} but {second_rule} → {second_value} for {property_name} when {conditions} — {resolution}"
                 ),
                 region,
-                suggestion: Some("make the conditions disjoint or align their conclusions".into()),
+                suggestion: Some(suggestion.into()),
             });
         }
     }

@@ -58,7 +58,7 @@ class Conflict:
     second_value: str
     first_priority: int
     second_priority: int
-    winner: str
+    winner: str | None
     region: Region
 
 
@@ -140,7 +140,7 @@ def _report(payload: str, exit_code: int) -> VerificationReport:
                 second_value=str(conflict["second_value"]),
                 first_priority=int(conflict["first_priority"]),
                 second_priority=int(conflict["second_priority"]),
-                winner=str(conflict["winner"]),
+                winner=conflict["winner"],
                 region=_region(conflict["region"]),
             )
             for conflict in value["conflicts"]

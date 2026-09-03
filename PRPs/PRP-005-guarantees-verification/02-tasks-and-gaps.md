@@ -153,6 +153,12 @@ Baseline: `5c45c0a3ac4c31ffa8d5d5ec90214d7d8b740e64` (`make verify` green,
   steps remain global `WorkflowReachability` witnesses.
 - `Conflict` carries `first_priority`, `second_priority`, and `winner`; its witness
   reads "r1 → v1 but r2 → v2 for p when … — r1 wins by priority; confirm intended".
+  When both rules share a priority, `winner` is `None` and the witness states that
+  the standing value is order-dependent and asks the author to raise one priority.
+- Second review round: a standing conclusion on a mutable single-valued
+  perception property replaces the input value in downstream conditions (the gate's
+  own replace semantics) rather than being unioned with it; thresholds of different
+  kinds on a range-less property never share a cell.
 - PRP-004's own status record now reads Done (PR #8, 2026-08-25).
 
 ## Gaps discovered during implementation
