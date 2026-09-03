@@ -28,8 +28,9 @@ proof → NL). Delete the LLM and the kernel still runs.
 - `mkdocs.yml` (repo root) + `docs/`: the developer-facing docs site (MkDocs Material;
   `docs/framework/` is mounted unchanged as its reference section). Build gate:
   `uvx --with mkdocs-material mkdocs build --strict`. Every plain ```` ```python ```` block on
-  the site's pages is executed verbatim by `python/tests/test_devdocs_snippets.py`, so a
-  docs edit can fail `make test`; illustrative code carries a fence title. Conventions:
+  the site's own pages (everything outside `docs/framework/`) is executed verbatim by
+  `python/tests/test_devdocs_snippets.py`, so a docs edit can fail `make test`;
+  illustrative code carries a fence title. Conventions:
   `docs/README.md`.
 - `research/README.md`: the research wiki — reality-checks the design against the field,
   every claim tagged `[measured]`/`[inference]`; consult before resolving a `[DECIDE]`.

@@ -52,7 +52,9 @@ uvx --with mkdocs-material mkdocs serve            # http://127.0.0.1:8000
 uvx --with mkdocs-material mkdocs build --strict   # the docs gate
 ```
 
-Every runnable snippet on the site is executed by `python/tests/test_devdocs_snippets.py`.
+Every runnable snippet on the site's own pages is executed by
+`python/tests/test_devdocs_snippets.py` (the framework reference's Python API page is exercised
+by `python/tests/test_quickstart.py`); conventions live in `docs/README.md`.
 
 ## License
 

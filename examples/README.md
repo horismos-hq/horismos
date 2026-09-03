@@ -1,6 +1,7 @@
 # Examples
 
-Planned example set (docs/framework/14-architecture.md):
+The example set — the planned entries come from docs/framework/14-architecture.md; the
+docs-site overlays ship today:
 
 | Example | Purpose | Arrives with |
 |---------|---------|--------------|

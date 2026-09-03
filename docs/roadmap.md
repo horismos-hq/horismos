@@ -22,7 +22,7 @@ Build order is a dependency DAG, not the numbering: 001 → 002 → 003 → 004 
 
 | Surface | Available now | Notes |
 |---|---|---|
-| Python: `Ontology.load`, `World.assert_` / `retract` / `query` / `value(s)` / `instances`, `explain`, `prove`, `snapshot` / `diff` / wire form, `subscribe`, the `HorismosError` hierarchy | **Yes** — every snippet on this site runs against it | `Ontology.verify()` returns a stub report until PRP-005 |
+| Python: `Ontology.load`, `World.assert_` / `retract` / `query` / `value(s)` / `instances`, `explain`, `prove`, `snapshot` / `diff` / wire form, `subscribe`, the `HorismosError` hierarchy | **Yes** — every runnable snippet on this site's guide pages runs against it | `Ontology.verify()` returns a stub report until PRP-005 |
 | Rust: the same kernel plus `workflow::Agent` (perception → reasoning → action → narration), `Tool` trait, `Bridge` trait, `MockBridge`, `OpenRouterBridge` | **Yes** — `make demo`, `make demo-live`, `crates/horismos-bridges/tests/agent_loop_dod.rs` | `ChoiceStep`, `ProposalStep`, `WaitStep`, `SubflowStep` parse and are traced but execution is deferred (`StepDeferred`) |
 | Python `Agent.run(...)` | Not yet | PRP-004 follow-up (U-Python) now that PRP-003 is merged |
 | `python:`, `http(s):`, `mcp://` tool bindings | Not yet | Only `rust:` bindings ship; URL and MCP allowlist mechanics are open decisions (PRP-004 D14/D15) |
