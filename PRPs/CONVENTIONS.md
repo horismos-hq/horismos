@@ -107,5 +107,5 @@ narrative on BOARD.md:
 - `BOARD.md` is the at-a-glance state (current / next / end goal). Any session that
   changes a PRP's status updates BOARD.md in the same commit.
 - The running example is clinical triage; every PRP's DoD is expressed against it.
-  PRP-008 adds a second, standards-anchored vertical slice (VTE prophylaxis) once
-  it activates — triage stays the primary example for docs 01–13.
+  PRP-008 added a second, standards-anchored vertical slice (VTE prophylaxis,
+  `examples/vte/`) — triage stays the primary example for docs 01–13.

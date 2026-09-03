@@ -14,7 +14,7 @@ and the kernel still runs.
 
 ## Status
 
-Pre-alpha: framework definition and skeleton. Nothing is implemented yet.
+Pre-alpha. Phase status lives in `PRPs/BOARD.md`; the shipped crates are listed below.
 
 - `docs/framework/` — the framework definition (docs 00–15), written in shipped voice
 - `PRPs/` — phase plans (PRP-000 vision → PRP-008 standards & host integration)
@@ -26,10 +26,14 @@ Pre-alpha: framework definition and skeleton. Nothing is implemented yet.
 | Path | What |
 |------|------|
 | `crates/horismos-core` | The symbolic engine: ontology, world, reasoner, workflows, traces, verification — zero LLM deps |
+| `crates/horismos-host` | Format-neutral host SPI (`ExternalSnapshot`, `ProposedEffectSet`, `HostAdapter`) and the candidate-artifact runtime policy |
+| `crates/horismos-fhir` | Bounded FHIR R4 adapter: hydration, mapping, conditional commit, CDS Hooks / PlanDefinition subset |
+| `crates/horismos-harness` | Coding-harness adapter: recorded repository projection, candidate-artifact handoff |
 | `crates/horismos-bridges` | Bridge implementations: provider clients (feature-gated), mock |
 | `crates/horismos-py` | PyO3 extension module — marshaling only, no logic |
 | `python/horismos` | The `horismos` Python package: pure-Python surface over the native module |
 | `examples/triage` | The running example: clinical triage (`triage.ttl`) |
+| `examples/vte` | The standards-anchored vertical slice: VTE prophylaxis over a recorded FHIR bundle (PRP-008) |
 
 ## Development
 

@@ -103,7 +103,9 @@ decides.
 5. **[DECIDE, joint with PRP-008]** The candidate-artifact envelope vocabulary: exact
    `horis:` terms for a typed patch/file/command proposal, and where the PRP-007 (mint
    vocabulary) / PRP-008 (validate, sandbox, authorize) boundary sits mechanically —
-   owned jointly per the captain ruling; resolved when PRP-008 activates.
+   owned jointly per the captain ruling. PRP-008 pinned the runtime half of the
+   boundary at its activation (`PRP-008-standards-host-integration/03-decisions.md`);
+   the authoring-side vocabulary remains open here.
 6. **[DECIDE]** Coverage-report format and the exact threshold at which a fragment may
    carry an "enforced" label vs. "advisory only."
 
