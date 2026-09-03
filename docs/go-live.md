@@ -90,7 +90,7 @@ Three things to read off this step:
 
 - **`model` names the bridge that really ran** (`openrouter:openai/gpt-4o-mini`), not the `claude:` prefix the ontology declares. Deployment maps prefix to bridge; the trace makes an override visible after the fact.
 - **`confidence` 0.9 cleared `threshold` 0.85**, so the proposal was accepted. Below the threshold nothing is asserted and the workflow takes `:Intake`'s `horis:fallback` edge — the model never guesses a patient into existence.
-- **Every `asserted` fact passed the validation gate before it landed**, with `provenance: perception` and its confidence attached. The gate checked range (`:CrushingChestPain` is a declared `:Symptom`), cardinality, `horis:min`/`horis:max` and RulesOnly. Had the model returned a heart rate of 1280, the instance would have been refused with `heartRate 1280 exceeds horis:max 300 (bpm) on :Patient`, no partial commit would remain, and the run would have taken the same fallback edge.
+- **Every `asserted` fact passed the validation gate before it landed**, with `provenance: perception` and its confidence attached. The gate checked range (`:CrushingChestPain` is a declared `:Symptom`), cardinality, `horis:min`/`horis:max` and RulesOnly. Had the model returned a heart rate of 1280, the instance would have been refused with `heartRate 1280 exceeds horis:max 300 (bpm) on :Patient` and no partial commit would remain — but unlike a below-threshold answer, a gate refusal does not go straight to the fallback. The step re-calls the bridge up to two more times (`:Intake` declares no `horis:retries`, so doc 06's default of 2 applies), each a paid model call, and only once those are exhausted does the workflow take `:Intake`'s `horis:fallback` edge.
 
 ### Reasoning — the rule decides
 
@@ -165,7 +165,7 @@ Three things to read off this step:
 }
 ```
 
-`:Route` requires `:acuity` to be assigned (a precondition the runtime checks, not a hint in a prompt) and invoked `:ehr.assign_queue`, a Rust stub in the demo. Its declared effects — `:queuedAt` stamped with the transaction's `horis:now`, `:queueRef` from the tool — were asserted with `provenance: tool` through the same gate as everything else.
+`:Route` requires `:acuity` to be assigned (a precondition the runtime checks, not a hint in a prompt) and invoked `:ehr.assign_queue`, a Rust stub in the demo. Its declared effects — `:queuedAt` stamped with the transaction's `horis:now`, `:queueRef` from the tool — were asserted with `provenance: tool` through the same gate as everything else. The demo pins the run's `horis:now` to a fixed instant (`2026-08-19T00:00:00Z`, passed as the `RunInput` timestamp) so the mock and live trajectories diff byte for byte, which is why `started_at` and `:queuedAt` in the committed trajectory predate the 2026-09-03 capture.
 
 ### Narration — the model renders the proof
 
