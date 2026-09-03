@@ -18,8 +18,9 @@
   conditional-write hardening).
 - Task U4: complete (commit `eac7d67`, senior review Approved after evaluator/envelope/
   linkage hardening).
-- Task U5: complete (senior review Approved after patient/evidence/artifact integrity
-  hardening; commit pending).
+- Task U5: complete (commit `576915d`, senior review Approved after patient/evidence/
+  artifact integrity hardening).
+- Task U6: complete (senior review Approved with no findings; commit pending).
 
 ## Decisions resolved before implementation
 
@@ -143,10 +144,17 @@
   sealed traced commits record acceptance or drift, recommendation-only posture remains
   usable, and nine VTE integrity/E2E tests plus the standalone replay pass. Senior review
   Approved after all patient-binding, outcome-coherence, profile, and digest findings.
-- [ ] U6. **Coding-harness adapter** — create `horismos-harness`; materialize branch,
+- [x] U6. **Coding-harness adapter** — create `horismos-harness`; materialize branch,
   dirty paths, base hashes, test status, and path scopes through the same SPI and exercise
   the candidate-artifact pipeline. Test: both adapters satisfy one shared host-contract
-  suite, proving the SPI has no FHIR-shaped fields.
+  suite, proving the SPI has no FHIR-shaped fields. **Done 2026-09-03**: the pure harness
+  adapter materializes branch/head, every file hash, dirty paths, typed test results, and
+  path scopes with an exact deterministic version vector. Only its exact current snapshot
+  can enter the existing policy → sandbox → symbolic authorization pipeline; reversible
+  artifact handoffs reject forged effects, proposal-id rebinding, changed/missing/added
+  sources, and preserve idempotent receipt coherence. One generic hydration-contract test
+  runs unchanged against both FHIR and harness adapters. Seven focused tests and senior
+  review Approved with no findings.
 
 ## Gaps discovered during implementation
 

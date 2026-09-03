@@ -46,7 +46,7 @@ does not rebuild them — it wraps them in a typed contract. Where the MCP tool'
 schema is looser than the `horis:takes`/`horis:effect` declaration, the declaration
 wins: out-of-contract calls can't be made, out-of-contract results can't land.
 
-## Adapter-mediated external commits (declared-future, PRP-008)
+## Adapter-mediated external commits
 
 Under the bounded-projection pivot (`PRPs/PRP-000-vision-positioning.md`), a tool effect
 that reaches an external system of record commits through an Adapter, not a bare
@@ -73,7 +73,7 @@ synchronous call, and the contract above extends with:
 None of this changes tools without an external commit (the shipped `rust:`/`python:`
 in-process bindings) — they keep the synchronous contract above unmodified.
 
-## The candidate-artifact boundary (declared-future, coding-agent use case)
+## The candidate-artifact boundary
 
 See `docs/framework/06-llm-boundaries.md` §"Candidate-artifact authoring" for the full
 statement. In tools terms: a model-generated patch/file/command is never an ordinary
@@ -82,8 +82,8 @@ passes through deterministic policy validation, sandboxed test execution, and a 
 authorization step before an `ActionStep`-like effect can land. This is captain-adopted
 design (`decisions/captain-pivot-ruling.md` item 3), owned jointly by `PRPs/PRP-007-
 authoring-agent.md` and `PRPs/PRP-008-standards-host-integration/01-objective.md`.
-PRP-008 owns the runtime validation/sandbox/authorization evidence; PRP-007 owns authoring
-and generation of the envelope.
+`horismos-host::artifact` owns the shipped runtime validation/sandbox/authorization evidence;
+PRP-007 owns authoring and generation of the envelope.
 
 ## Invocation semantics
 

@@ -105,7 +105,7 @@ retraction, queries. If a future feature proposes adding a neural step type, it 
 come with this document's level of contract: typed input, typed output, gate,
 fallback, trace visibility.
 
-## Candidate-artifact authoring (declared-future, coding-agent use case)
+## Candidate-artifact authoring
 
 A useful coding agent necessarily generates novel source text, patches, commands, and
 sometimes filenames — content an ordinary `ActionStep` cannot fit, because the current
@@ -120,6 +120,6 @@ validates target paths, base hashes, syntax, and permissions; a sandbox executes
 tests/checks; only then does a symbolic authorization step permit application. Semantic
 correctness of the generated content remains a review/test claim — the boundary proves the
 proposal was policy-legal and passed its declared checks, never that the code is right.
-PRP-008 implements the runtime half of this boundary; PRP-007 retains the authoring-side
+`horismos-host::artifact` implements the runtime half of this boundary; PRP-007 retains the authoring-side
 envelope vocabulary and generation semantics. The runtime consumes the envelope as opaque
 typed data rather than inventing an `eval`-shaped escape hatch.
