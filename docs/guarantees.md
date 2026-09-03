@@ -81,7 +81,7 @@ True
 stub until PRP-005: load-time checks (Turtle, RDFS-plus profile, schema, rules) already passed; BDD verification with witnesses is not yet implemented
 ```
 
-`ok=True` for any loaded ontology is honest rather than optimistic: everything verified at this point — Turtle well-formedness, the RDFS-plus profile, schema construction, rule validation, workflow edge resolution — already ran at load, and an `Ontology` value cannot exist otherwise. The BDD checks land with PRP-005 (in build; see the [roadmap](roadmap.md)).
+`ok=True` for any loaded ontology is honest rather than optimistic: everything verified at this point — Turtle well-formedness, the RDFS-plus profile, schema construction, rule validation, workflow edge resolution — already ran at load, and an `Ontology` value cannot exist otherwise. The BDD checks land with PRP-005 (Draft on the board; in build on branches — see the [roadmap](roadmap.md)).
 
 ## What is not claimed
 

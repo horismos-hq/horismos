@@ -21,6 +21,7 @@ docs_dir: docs
 site_dir: site
 exclude_docs: |
   README.md
+  assets/screenshots/
 
 theme:
   name: material

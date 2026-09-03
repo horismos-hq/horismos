@@ -65,6 +65,24 @@ def _run_page(page: str) -> str:
         os.chdir(cwd)
 
 
+def _pages_with_runnable_blocks() -> set[str]:
+    """Every site page outside docs/framework/ (which test_quickstart.py owns)
+    that carries at least one plain ```python fence."""
+    framework = DOCS / "framework"
+    return {
+        page.relative_to(DOCS).as_posix()
+        for page in DOCS.rglob("*.md")
+        if not page.is_relative_to(framework) and _runnable_blocks(page)
+    }
+
+
+def test_every_page_with_runnable_blocks_is_listed() -> None:
+    assert _pages_with_runnable_blocks() == set(PAGES), (
+        "a site page gained or lost plain ```python fences; update PAGES so every "
+        "runnable sample on the site is executed"
+    )
+
+
 @pytest.mark.parametrize(("page", "expected"), sorted(PAGES.items()))
 def test_the_page_runs_verbatim(page: str, expected: str) -> None:
     assert expected in _run_page(page)

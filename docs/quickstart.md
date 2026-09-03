@@ -241,11 +241,11 @@ Note the proof leaf: `asserted by perception`. The same rule, the same proof sha
 
 ## 10. Go live with one environment variable
 
-The OpenRouter bridge reads `OPENROUTER_API_KEY` from your environment (or, if unset, from a local file named by `OPENROUTER_API_KEY_FILE`). It never logs the key, never writes it to a trace, and nothing in the repository ever contains it. Pick a model with `OPENROUTER_MODEL` if you do not want the inexpensive default:
+`make demo-live` switches to the live bridge on exactly one signal: the `OPENROUTER_API_KEY` environment variable is set. The bridge itself also accepts a key from a local file named by `OPENROUTER_API_KEY_FILE`, but that is the bridge's own fallback — it does not put the demo binary into live mode, so with only the file variable set the demo runs the mock bridge. With no key at all it does not fail: it prints a warning and falls back to the mock bridge, so a run that says `mock` means the variable was not in the environment. The bridge never logs the key, never writes it to a trace, and nothing in the repository ever contains it. Pick a model with `OPENROUTER_MODEL` if you do not want the inexpensive default:
 
 ```sh
 export OPENROUTER_API_KEY=...        # your existing key; never hardcode or commit it
-make demo-live                      # same demo, OpenRouterBridge::from_env() swapped in
+make demo-live                      # same demo, OpenRouterBridge::from_env() swapped in; unset key → mock with a warning
 ```
 
 The ontology names a model prefix (`horis:model "claude:…"`); deployment maps that prefix to a bridge instance. Swapping providers is configuration, and the trace records the bridge actually invoked, so an override is visible after the fact.

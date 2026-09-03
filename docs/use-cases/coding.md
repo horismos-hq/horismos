@@ -69,7 +69,7 @@ In a full workflow, `:RerunOnce` is an `ActionStep` whose tool the runtime fires
 
 ### Why verification matters here
 
-Two rules here overlap on purpose: `rerunKnownFlakyOnce` (priority 50) and `flakyStillFailingEscalates` (priority 60) can both match a flaky test that has been rerun once and reproduced, and priority resolves it. PRP-005's conflict check would name that pair and its region so you confirm the intent rather than discover it; completeness would report the region with no disposition — a `:Build` failure on a known-flaky list, for instance — as a witness sentence. Non-vacuity would flag a rule whose conclusion never differs from what a higher-priority rule already assigns.
+Two rules here overlap on purpose: `rerunKnownFlakyOnce` (priority 50) requires `priorReruns` below 1, and `flakyStillFailingEscalates` (priority 60) requires `reproducesOnRerun` true, so both match a known-flaky test failure recorded with `priorReruns = 0` and `reproducesOnRerun = true` — a state the CI adapter should never produce, and priority resolves it in favour of escalation if it does. PRP-005's conflict check would name that pair and its region so you confirm the intent rather than discover it; completeness would report the region with no disposition — a `:Build` failure on a known-flaky list, for instance — as a witness sentence. Non-vacuity would flag a rule whose conclusion never differs from what a higher-priority rule already assigns.
 
 ### Status and honest edges
 
