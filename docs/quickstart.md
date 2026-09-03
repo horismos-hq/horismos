@@ -250,8 +250,8 @@ make demo-live                      # same demo, OpenRouterBridge::from_env() sw
 
 The ontology names a model prefix (`horis:model "claude:…"`); deployment maps that prefix to a bridge instance. Swapping providers is configuration, and the trace records the bridge actually invoked, so an override is visible after the fact.
 
-!!! warning "What you will see today on the live path"
-    In the two live runs made while writing this page (2026-09-02, default model and a Claude Sonnet model via OpenRouter), the perception step asserted the heart rate but not the symptom, the reasoning step's goal was therefore unreachable, and the run took the declared `onUnreachable` edge to `:EscalateToNurse` — it paged the nurse instead of guessing an acuity. That is the fail-closed contract working as specified. Carrying multi-valued properties through the live perception path is an open PRP-004 item (the runtime currently accepts a single value where the derived schema asks for an array); the mock-bridge path in step 9 is the reference behaviour until it lands.
+!!! tip "See a real run, step by step"
+    [Go live in 2 minutes](go-live.md) runs exactly this command with a key and walks through the captured trace: the perception call and the typed facts it produced, the gate they passed, the rule that fired, and the proof — with `terminal`, `decision` and the proof tree identical to the mock run above, character for character.
 
 ## Where next
 

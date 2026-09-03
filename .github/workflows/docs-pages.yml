@@ -1,0 +1,54 @@
+# Build the developer docs site and deploy it to GitHub Pages on merge to main.
+#
+# This is a deploy-on-merge workflow, not a pull-request check: PRP-006 owns
+# PR-triggered CI for this repository. The Pages site must be configured with
+# build type "GitHub Actions" in the repository settings for the deploy job to
+# succeed. The build mirrors the local command exactly:
+#
+#   uvx --with mkdocs-material mkdocs build --strict
+#
+# so a site that builds locally builds here, and vice versa.
+
+name: docs-pages
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - mkdocs.yml
+      - "docs/**"
+      - "examples/**"          # Turtle listings are pulled into pages via pymdownx.snippets
+      - .github/workflows/docs-pages.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: docs-pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - name: Build the site (strict)
+        run: uvx --with mkdocs-material mkdocs build --strict
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

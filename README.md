@@ -47,7 +47,8 @@ make verify    # everything above + the anti-wrapper no-model-gate
 
 The developer-facing docs (landing page, zero-key quickstart, "coming from LangGraph",
 the coding-agent change gate, a use-case gallery, and the framework reference) are an
-MkDocs Material site with sources in `docs/` and config at the repo root:
+MkDocs Material site with sources in `docs/` and config at the repo root, published at
+<https://billaram.github.io/horismos/> (deployed from `main` by `.github/workflows/docs-pages.yml`):
 
 ```sh
 uvx --with mkdocs-material mkdocs serve            # http://127.0.0.1:8000

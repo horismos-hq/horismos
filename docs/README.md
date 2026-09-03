@@ -18,6 +18,15 @@ uvx --with mkdocs-material mkdocs build --strict   # the gate: warnings are erro
 
 `mkdocs.yml` lives at the repo root; the build output goes to `site/` (gitignored).
 
+## Published site
+
+The site is published at <https://billaram.github.io/horismos/> by
+`.github/workflows/docs-pages.yml`: on every push to `main` that touches `mkdocs.yml`,
+`docs/` or `examples/` (and on manual dispatch) it runs the same strict build and
+deploys `site/` to GitHub Pages. It is a deploy-on-merge workflow, not a pull-request
+check — PRP-006 owns PR CI. The repository's Pages setting must be "GitHub Actions"
+for the deploy job to succeed. `site_url` in `mkdocs.yml` is that address.
+
 ## Conventions
 
 - **Runnable code is tested.** Every fenced block written exactly as ```` ```python ````
@@ -45,6 +54,7 @@ mkdocs.yml                     site config (repo root)
 docs/
   index.md                     landing page — the pitch
   quickstart.md                10 minutes, zero API keys
+  go-live.md                   the same demo on a real model — one env var, a real captured trace
   coming-from-langgraph.md     honest side-by-side
   governing-a-coding-agent.md  the change-gate story (examples/change-gate/)
   use-cases/                   one page per domain, same template (examples/gallery/)
@@ -54,4 +64,6 @@ docs/
   framework/                   the framework definition (unchanged, mounted)
   stylesheets/extra.css        small additions over Material defaults
   assets/screenshots/          PR-body screenshots
+.github/workflows/docs-pages.yml   deploys the strict build to GitHub Pages on merge to main
+examples/triage/runs/          real trajectories quoted by the site (horismos.trace/2)
 ```
