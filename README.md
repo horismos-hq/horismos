@@ -41,6 +41,19 @@ make lint      # fmt check, clippy, ruff, mypy
 make verify    # everything above + the anti-wrapper no-model-gate
 ```
 
+## Documentation site
+
+The developer-facing docs (landing page, zero-key quickstart, "coming from LangGraph",
+the coding-agent change gate, a use-case gallery, and the framework reference) are an
+MkDocs Material site with sources in `docs/` and config at the repo root:
+
+```sh
+uvx --with mkdocs-material mkdocs serve            # http://127.0.0.1:8000
+uvx --with mkdocs-material mkdocs build --strict   # the docs gate
+```
+
+Every runnable snippet on the site is executed by `python/tests/test_devdocs_snippets.py`.
+
 ## License
 
 MIT OR Apache-2.0 (final license decision tracked in PRP-000).

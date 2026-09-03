@@ -1,0 +1,111 @@
+# Horismos developer docs — MkDocs Material.
+#
+#   uvx --with mkdocs-material mkdocs serve            # live preview at http://127.0.0.1:8000
+#   uvx --with mkdocs-material mkdocs build --strict   # what CI should run
+#
+# Sources live in docs/. docs/framework/ is the shipped-voice framework definition
+# and is mounted here unchanged as the "Framework reference" section. See
+# docs/README.md for the site conventions (runnable vs illustrative snippets,
+# how the snippet test guards the code samples).
+
+site_name: Horismos
+site_description: >-
+  Ontology-first decision kernel for LLM agents. Your rules decide; the model translates.
+  Rust core, Python bindings, a proof for every conclusion.
+repo_url: https://github.com/billaram/horismos
+repo_name: billaram/horismos
+edit_uri: edit/main/docs/
+copyright: Horismos is dual-licensed MIT OR Apache-2.0.
+
+docs_dir: docs
+site_dir: site
+exclude_docs: |
+  README.md
+
+theme:
+  name: material
+  font: false                       # system font stack — no external font requests
+  icon:
+    logo: material/hexagon-multiple-outline
+    repo: fontawesome/brands/github
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: deep purple
+      accent: amber
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: deep purple
+      accent: amber
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.tabs
+    - navigation.tabs.sticky
+    - navigation.sections
+    - navigation.indexes
+    - navigation.top
+    - navigation.footer
+    - toc.follow
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - content.tabs.link
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.details
+  - pymdownx.highlight:
+      anchor_linenums: false
+  - pymdownx.inlinehilite
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.snippets:
+      base_path: ["."]            # repo root: code blocks pull the real example files
+      check_paths: true
+
+extra_css:
+  - stylesheets/extra.css
+
+nav:
+  - Home: index.md
+  - Quickstart: quickstart.md
+  - From LangGraph: coming-from-langgraph.md
+  - Coding agents: governing-a-coding-agent.md
+  - Use cases:
+      - use-cases/index.md
+      - Health: use-cases/health.md
+      - Coding: use-cases/coding.md
+      - Insurance: use-cases/insurance.md
+      - Physical AI: use-cases/physical-ai.md
+      - Customer operations: use-cases/customer-ops.md
+  - Guarantees: guarantees.md
+  - Architecture: architecture.md
+  - Roadmap: roadmap.md
+  - Framework reference:
+      - framework/00-index.md
+      - Concepts: framework/01-concepts.md
+      - The Ontology: framework/02-ontology.md
+      - The World: framework/03-world.md
+      - Reasoning: framework/04-reasoning.md
+      - Workflows: framework/05-workflows.md
+      - LLM Boundaries: framework/06-llm-boundaries.md
+      - Tools: framework/07-tools.md
+      - The Bridge: framework/08-bridge.md
+      - Traces: framework/09-traces.md
+      - Verification: framework/10-verification.md
+      - Python API: framework/11-python-api.md
+      - Rust API: framework/12-rust-api.md
+      - Authoring: framework/13-authoring.md
+      - Architecture internals: framework/14-architecture.md
+      - Security & Trust: framework/15-security.md
