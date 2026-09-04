@@ -1,7 +1,7 @@
 # Horismos developer docs — MkDocs Material.
 #
 #   uvx --with mkdocs-material mkdocs serve            # live preview at http://127.0.0.1:8000
-#   uvx --with mkdocs-material mkdocs build --strict   # what CI should run
+#   uvx --with mkdocs-material mkdocs build --strict   # what .github/workflows/docs-pages.yml runs
 #
 # Sources live in docs/. docs/framework/ is the shipped-voice framework definition
 # and is mounted here unchanged as the "Framework reference" section. See

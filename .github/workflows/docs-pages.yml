@@ -17,7 +17,7 @@ on:
     paths:
       - mkdocs.yml
       - "docs/**"
-      - "examples/**"          # Turtle listings are pulled into pages via pymdownx.snippets
+      - "examples/**"          # Turtle and JSON listings are pulled into pages via pymdownx.snippets
       - .github/workflows/docs-pages.yml
   workflow_dispatch:
 

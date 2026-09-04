@@ -26,11 +26,11 @@ Build order is a dependency DAG, not the numbering: 001 → 002 → 003 → 004 
 | Rust: the same kernel plus `workflow::Agent` (perception → reasoning → action → narration), `Tool` trait, `Bridge` trait, `MockBridge`, `OpenRouterBridge` | **Yes** — `make demo`, `make demo-live`, `crates/horismos-bridges/tests/agent_loop_dod.rs` | `ChoiceStep`, `ProposalStep`, `WaitStep`, `SubflowStep` parse and are traced but execution is deferred (`StepDeferred`) |
 | Python `Agent.run(...)` | Not yet | PRP-004 follow-up (U-Python) now that PRP-003 is merged |
 | `python:`, `http(s):`, `mcp://` tool bindings | Not yet | Only `rust:` bindings ship; URL and MCP allowlist mechanics are open decisions (PRP-004 D14/D15) |
-| Live perception with multi-valued properties | Partial | See the quickstart's live-path note; the mock path is the reference behaviour |
+| Live perception with multi-valued properties | **Yes** — a real `make demo-live` run reaches `:Done` with the `r1` proof ([Go live in 2 minutes](go-live.md)) | Array-valued perception answers were dropped until 2026-09-03; regression tests in `crates/horismos-core/src/workflow/agent.rs` |
 | Verification witnesses, assumption manifest | Not yet | PRP-005 |
 | FHIR / repository hydration, conditional commit, CDS Hooks surface | Not yet | PRP-008 |
 | `pip install horismos` / `cargo add horismos-core` from public registries | Not yet | PRP-006; today: `make develop` from a clone |
-| This docs site published at a public URL | Not yet | PRP-006 wires the CI build; today: `uvx --with mkdocs-material mkdocs serve` |
+| This docs site published at a public URL | **Yes** — <https://billaram.github.io/horismos/>, deployed from `main` by `.github/workflows/docs-pages.yml` | Deploy-on-merge only; PR-triggered CI (this site's `--strict` build as a check) is still PRP-006 |
 
 ## The end state
 
