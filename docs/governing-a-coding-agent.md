@@ -62,9 +62,17 @@ gate(":pr-42", proposed_by=":Bot",
 ```
 
 ```text
-:gateDecision = :NeedsHuman   via protectedNeedsHuman — "Protected paths need at least one human approval"
-  ├─ touchesProtectedPath true is true   (asserted by the api)
-  └─ humanApprovals 0 below 1   (asserted by the api)
+:gateDecision = :NeedsHuman   via unreviewedChangeNeedsHuman — "Green checks, but no human approval and the change is outside the routine envelope — a reviewer is required"
+  ├─ baseMatchesHead true is true   (asserted by the api)
+  ├─ testsPassed true is true   (asserted by the api)
+  ├─ lintPassed true is true   (asserted by the api)
+  ├─ none of:
+  │  └─ humanApprovals atLeast 1   (not held)
+  └─ any of:
+     ├─ none of:
+     │  └─ touchesProtectedPath is false   (not held)
+     └─ none of:   (not held)
+        └─ linesChanged 30 atMost 400   (asserted by the api)
 ```
 
 **A stale base is rejected** even with everything else green — the highest-priority rule wins, and the proof names the clause:
@@ -105,10 +113,17 @@ gate(":pr-45", base_matches_head=False)       # main moved; the hash no longer m
 ```
 
 ```text
-:gateDecision = :NeedsHuman   via largeBotDiffNeedsHuman — "A bot-authored change over 400 lines needs a human reviewer"
-  ├─ proposedBy :Bot is :Bot   (asserted by the api)
-  ├─ linesChanged 900 exceeds 400   (asserted by the api)
-  └─ humanApprovals 0 below 1   (asserted by the api)
+:gateDecision = :NeedsHuman   via unreviewedChangeNeedsHuman — "Green checks, but no human approval and the change is outside the routine envelope — a reviewer is required"
+  ├─ baseMatchesHead true is true   (asserted by the api)
+  ├─ testsPassed true is true   (asserted by the api)
+  ├─ lintPassed true is true   (asserted by the api)
+  ├─ none of:
+  │  └─ humanApprovals atLeast 1   (not held)
+  └─ any of:
+     ├─ none of:   (not held)
+     │  └─ touchesProtectedPath false is false   (asserted by the api)
+     └─ none of:
+        └─ linesChanged atMost 400   (not held)
 
 :gateDecision = :Approved   via approveReviewedChange — "Fresh base, green checks, and a human approved it"
   ├─ baseMatchesHead true is true   (asserted by the api)
@@ -120,7 +135,7 @@ gate(":pr-45", base_matches_head=False)       # main moved; the hash no longer m
   └─ baseMatchesHead false is false   (asserted by the api)
 ```
 
-**Missing facts produce no decision**, never a default approval. A proposal the harness could not fully observe simply has no `:gateDecision`, and a workflow's `onUnreachable` edge sends it to a person:
+**Missing facts never produce a default approval** — and they no longer produce silence either. An earlier draft of this gate left a proposal the harness could not fully observe with no `:gateDecision` at all, and relied on the caller to read that absence as *stop*. `verify()`'s completeness check reported the region, and closing it required a rule: `:unrecordedCheckNeedsHuman` derives an explicit `:NeedsHuman` whose proof names the checks that never reported, while `:Approved` stays unreachable from missing evidence. A workflow routes that decision to a person on a stated reason, not on a value that failed to arrive:
 
 ```python
 gate(":pr-46", proposed_by=":Human")
@@ -128,7 +143,15 @@ print(world.query(":ChangeProposal", gate_decision=":Approved"))
 ```
 
 ```text
-:pr-46: no rule fired — no decision
+:gateDecision = :NeedsHuman   via unrecordedCheckNeedsHuman — "A required check never reported — the gate cannot approve on evidence it does not have"
+  ├─ baseMatchesHead isNot false   (closed world)
+  ├─ testsPassed isNot false   (closed world)
+  ├─ lintPassed isNot false   (closed world)
+  └─ any of:
+     ├─ baseMatchesHead isEmpty   (closed world)
+     ├─ testsPassed isEmpty   (closed world)
+     └─ lintPassed isEmpty   (closed world)
+
 [Ref(:pr-41)]
 ```
 

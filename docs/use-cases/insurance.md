@@ -45,6 +45,8 @@ adjudicate(":clm-1003", policy_active_on_service_date=False, service_covered=Tru
      └─ priorAuthOnFile is true   (not held)
 
 :adjudication = :Pended   via pendMissingPriorAuth — "Prior authorization is required and none is on file — pend for documentation, do not deny"
+  ├─ policyActiveOnServiceDate true is true   (asserted by the api)
+  ├─ serviceCovered true is true   (asserted by the api)
   ├─ priorAuthRequired true is true   (asserted by the api)
   └─ priorAuthOnFile false is false   (asserted by the api)
 
@@ -84,6 +86,8 @@ except HorismosValidationError as e:
 
 ```text
 :adjudication = :Pended   via pendHighDollar — "Billed amount exceeds the auto-adjudication ceiling — human review"
+  ├─ policyActiveOnServiceDate true is true   (asserted by the api)
+  ├─ serviceCovered true is true   (asserted by the api)
   └─ billedAmount 48000 exceeds 10000   (asserted by the api)
 
 [provenance_refused] adjudication may only be assigned by rules (horis:assignedBy horis:RulesOnly); assertion came from the api

@@ -41,23 +41,26 @@ admit(":adm-3", padua_score=2, active_bleeding=False, platelet_count=250,
 
 ```text
 :prophylaxis = :Pharmacologic   via highRisk — "Padua score 4 or more with no bleeding contraindication — pharmacologic prophylaxis"
+  ├─ onTherapeuticAnticoagulation isNot true   (closed world)
   ├─ paduaScore 5 atLeast 4   (asserted by the api)
   ├─ activeBleeding false is false   (asserted by the api)
   └─ plateletCount 210 atLeast 50   (asserted by the api)
 
 :prophylaxis = :MechanicalOnly   via highRiskWithContraindication — "High VTE risk but pharmacologic prophylaxis is contraindicated — mechanical prophylaxis only"
+  ├─ onTherapeuticAnticoagulation isNot true   (closed world)
   ├─ paduaScore 6 atLeast 4   (asserted by the api)
   └─ any of:
      ├─ activeBleeding is true   (not held)
      └─ plateletCount 38 below 50   (asserted by the api)
 
 :prophylaxis = :NoneIndicated   via lowRisk — "Padua score below 4 — routine prophylaxis not indicated"
+  ├─ onTherapeuticAnticoagulation isNot true   (closed world)
   └─ paduaScore 2 below 4   (asserted by the api)
 ```
 
 The second proof is worth a second look: a disjunction renders both branches and says which one held. A pharmacist reading it knows the recommendation rests on the platelet count, not on bleeding.
 
-Incomplete facts produce no recommendation; an out-of-range lab value never enters; and nothing but a rule can write the recommendation:
+A high-risk admission whose bleeding contraindication was never assessed gets `:InsufficientData` — the overlay declines to recommend and the proof names the observations that are missing; an out-of-range lab value never enters; and nothing but a rule can write the recommendation:
 
 ```python
 admit(":adm-4", padua_score=7)                    # no bleeding or platelet facts yet
@@ -69,7 +72,16 @@ for bad in (dict(platelet_count=-1), dict(padua_score=5, prophylaxis=":Pharmacol
 ```
 
 ```text
-:adm-4: no recommendation — facts incomplete
+:prophylaxis = :InsufficientData   via contraindicationNotAssessed — "High VTE risk but the bleeding contraindication was not assessed — no recommendation until it is"
+  ├─ onTherapeuticAnticoagulation isNot true   (closed world)
+  ├─ paduaScore 7 atLeast 4   (asserted by the api)
+  ├─ activeBleeding isNot true   (closed world)
+  ├─ none of:
+  │  └─ plateletCount below 50   (not held)
+  └─ any of:
+     ├─ activeBleeding isEmpty   (closed world)
+     └─ plateletCount isEmpty   (closed world)
+
 [min] plateletCount -1 is below horis:min 0 (10^9/L) on :Admission
 [provenance_refused] prophylaxis may only be assigned by rules (horis:assignedBy horis:RulesOnly); assertion came from the api
 ```
@@ -82,6 +94,7 @@ admit(":adm-4", active_bleeding=False, platelet_count=180, on_therapeutic_antico
 
 ```text
 :prophylaxis = :Pharmacologic   via highRisk — "Padua score 4 or more with no bleeding contraindication — pharmacologic prophylaxis"
+  ├─ onTherapeuticAnticoagulation isNot true   (closed world)
   ├─ paduaScore 7 atLeast 4   (asserted by the api)
   ├─ activeBleeding false is false   (asserted by the api)
   └─ plateletCount 180 atLeast 50   (asserted by the api)

@@ -28,7 +28,7 @@ Build order is a dependency DAG, not the numbering: 001 → 002 → 003 → 004 
 | `python:`, `http(s):`, `mcp://` tool bindings | Not yet | Only `rust:` bindings ship; URL and MCP allowlist mechanics are open decisions (PRP-004 D14/D15) |
 | Live perception with multi-valued properties | **Yes** — a real `make demo-live` run reaches `:Done` with the `r1` proof ([Go live in 2 minutes](go-live.md)) | Array-valued perception answers were dropped until 2026-09-03; regression tests in `crates/horismos-core/src/workflow/agent.rs` |
 | Verification witnesses, assumption manifest | **Yes** | PRP-005 |
-| FHIR / repository hydration, conditional commit, CDS Hooks surface | Not yet | PRP-008 |
+| FHIR / repository hydration, conditional commit, CDS Hooks surface | **Yes** — `crates/horismos-fhir` (`FhirHydrationRequest`, the conditional-commit types, the CDS Hooks card module) over the generic host SPI in `crates/horismos-host`; `examples/vte` runs the VTE slice over a recorded bundle | PRP-008 (PR #15). Structured-input adapters against recorded fixtures — no live EHR connection ships |
 | `pip install horismos` / `cargo add horismos-core` from public registries | Not yet | PRP-006; today: `make develop` from a clone |
 | This docs site published at a public URL | **Yes** — <https://horismos-hq.github.io/horismos/>, deployed from `main` by `.github/workflows/docs-pages.yml` | Deploy-on-merge only; PR-triggered CI (this site's `--strict` build as a check) is still PRP-006 |
 

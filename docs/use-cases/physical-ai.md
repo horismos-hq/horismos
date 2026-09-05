@@ -37,10 +37,12 @@ shield(":cmd-3", requested_speed=0.2, nearest_human_distance=0.3,
 
 ```text
 :verdict = :Permitted   via permitOpenFloor — "Open floor with clear separation — command permitted as proposed"
+  ├─ eStopEngaged false is false   (asserted by the api)
   ├─ zone :OpenFloor is :OpenFloor   (asserted by the api)
   └─ nearestHumanDistance 3.4 atLeast 1.0   (asserted by the api)
 
 :verdict = :Attenuated   via attenuateInSharedCell — "Shared cell with a person present — speed is capped, command is attenuated"
+  ├─ eStopEngaged false is false   (asserted by the api)
   ├─ zone :SharedCell is :SharedCell   (asserted by the api)
   ├─ requestedSpeed 0.8 exceeds 0.25   (asserted by the api)
   └─ nearestHumanDistance 1.1 atLeast 0.5   (asserted by the api)
@@ -49,7 +51,7 @@ shield(":cmd-3", requested_speed=0.2, nearest_human_distance=0.3,
   └─ nearestHumanDistance 0.3 below 0.5   (asserted by the api)
 ```
 
-Three things a prompt cannot give you. A command over the mechanical limit is refused *before* any rule runs, in the units the ontology declared. The policy network cannot mark its own command safe. And a command with no distance reading gets no verdict — which, at the actuator, means it does not move:
+Three things a prompt cannot give you. A command over the mechanical limit is refused *before* any rule runs, in the units the ontology declared. The policy network cannot mark its own command safe. And a command with no distance reading is refused *explicitly*. An earlier draft of this overlay gave that command no verdict at all and called it safe, on the grounds that an actuator which receives nothing does not move. That is safety resting on silence: it holds only for as long as every consumer downstream — the controller, the retry logic, the operator's dashboard — happens to treat absence as refusal, and nothing in the system says so. `verify()` reported the region, and closing it required `:noProximityReadingBlocks`: a `:Blocked` verdict with a proof that names the reading that never arrived. At an actuator boundary that is the stronger design, because the refusal is now a fact — recomputed with the world, written into the trace, and readable by the auditor — rather than an inference each consumer has to make, correctly, about a value it never saw:
 
 ```python
 for bad in (dict(requested_speed=3.5, nearest_human_distance=5.0, e_stop_engaged=False, zone=":OpenFloor"),
@@ -65,7 +67,10 @@ shield(":cmd-5", requested_speed=0.1, e_stop_engaged=False, zone=":OpenFloor")
 ```text
 [max] requestedSpeed 3.5 exceeds horis:max 2.0 (m/s) on :MotionCommand
 [provenance_refused] verdict may only be assigned by rules (horis:assignedBy horis:RulesOnly); assertion came from the api
-:cmd-5: no verdict — command does not proceed
+:verdict = :Blocked   via noProximityReadingBlocks — "No proximity reading — the minimum separation distance cannot be established, so motion is refused"
+  ├─ eStopEngaged false is false   (asserted by the api)
+  ├─ zone isNot :Restricted   (closed world)
+  └─ nearestHumanDistance isEmpty   (closed world)
 ```
 
 The emergency stop is engaged while `:cmd-1` is standing. Its verdict is recomputed in the transaction that recorded the stop — there is no window in which a previously permitted command remains permitted under a changed world:

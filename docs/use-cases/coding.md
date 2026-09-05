@@ -34,6 +34,7 @@ triage(":run-903", failing_stage=":Deploy", known_flaky=False)
 
 ```text
 :disposition = :RerunOnce   via rerunKnownFlakyOnce — "Known-flaky test, not yet rerun — one rerun is allowed"
+  ├─ reproducesOnRerun isNot true   (closed world)
   ├─ failingStage :Test is :Test   (asserted by the api)
   ├─ knownFlaky true is true   (asserted by the api)
   └─ priorReruns 0 below 1   (asserted by the api)
@@ -59,6 +60,7 @@ except HorismosValidationError as e:
 
 ```text
 :disposition = :EscalateToOwner   via flakyStillFailingEscalates — "The flaky test failed again on rerun — it is no longer flaky, escalate to the owner"
+  ├─ failingStage isNot :Deploy   (closed world)
   ├─ knownFlaky true is true   (asserted by the api)
   └─ reproducesOnRerun true is true   (asserted by the api)
 

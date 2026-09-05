@@ -26,5 +26,5 @@ All thresholds in the gallery overlays are illustrative teaching values, not cli
 - A decision property marked `horis:assignedBy horis:RulesOnly`. No model, tool, or API caller can set it; only a rule firing can.
 - A refusal, shown, when something tries.
 - Proof trees whose leaves name the provenance of every fact they rest on.
-- A fail-closed default: when the facts a rule needs are missing, there is no decision at all — never a silent default.
+- A fail-closed default: when the facts a rule needs are missing, a rule decides that case explicitly and the proof names the missing observation — never a silent default, and `verify()` refuses to load an overlay that leaves any region undecided.
 - Rules written against concepts, so coverage grows with the vocabulary (see the quickstart's SNOMED step) rather than with the prompt.

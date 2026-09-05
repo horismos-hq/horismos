@@ -37,13 +37,27 @@ request(":req-3", fare_class=":Economy", hours_since_booking=200,
 
 ```text
 :eligibility = :FreeChange   via freeWithin24h — "Booked within the last 24 hours and departure is at least 7 days out — free change"
+  ├─ none of:
+  │  └─ segmentsFlown exceeds 0   (not held)
   ├─ hoursSinceBooking 6 atMost 24   (asserted by the api)
   └─ hoursToDeparture 400 atLeast 168   (asserted by the api)
 
 :eligibility = :NotEligible   via basicLocked — "Basic economy fares cannot be changed after the 24-hour window"
+  ├─ any of:
+  │  ├─ none of:
+  │  │  └─ hoursSinceBooking atMost 24   (not held)
+  │  └─ none of:   (not held)
+  │     └─ hoursToDeparture 400 atLeast 168   (asserted by the api)
   └─ fareClass :BasicEconomy is :BasicEconomy   (asserted by the api)
 
 :eligibility = :ChangeWithFee   via economyFee — "Economy fare, more than 24 hours before departure — change permitted with fee"
+  ├─ none of:
+  │  └─ segmentsFlown exceeds 0   (not held)
+  ├─ any of:
+  │  ├─ none of:
+  │  │  └─ hoursSinceBooking atMost 24   (not held)
+  │  └─ none of:
+  │     └─ hoursToDeparture atLeast 168   (not held)
   ├─ fareClass :Economy is :Economy   (asserted by the api)
   └─ hoursToDeparture 30 atLeast 24   (asserted by the api)
 ```
