@@ -134,7 +134,7 @@ Stating the edges plainly is part of the offer.
 - **[Coming from LangGraph](coming-from-langgraph.md)** — the same decision written both ways, and the ten lines that let a graph node call the kernel.
 - **[Governing a coding agent](governing-a-coding-agent.md)** — a 25-term change gate where the bot cannot grant itself merge permission.
 - **[Use cases](use-cases/index.md)** — health, coding, insurance, physical AI, customer operations: one template, five runnable overlays.
-- **[The guarantees, honestly](guarantees.md)** — what `verify()` will prove, what is explicitly not claimed.
+- **[The guarantees, honestly](guarantees.md)** — what `verify()` proves, what is explicitly not claimed.
 - **[Framework reference](framework/00-index.md)** — the shipped-voice definition, docs 00–15.
 
 </div>
