@@ -34,6 +34,12 @@ for the deploy job to succeed. `site_url` in `mkdocs.yml` is that address.
   executed verbatim, in order, from the repo root (`make test-py`, or
   `uv run pytest python/tests/test_devdocs_snippets.py`). A docs edit that breaks a
   sample breaks the build.
+- **Shown output is pinned.** A ```` ```text ```` fence that immediately follows a
+  runnable ```` ```python ```` fence (same indent, only blank lines between) is the
+  output the page shows for that sample, and the same test asserts it appears verbatim
+  in the page's real stdout. Regenerate the block from the sample's stdout rather
+  than hand-editing it; a diagram or shell transcript elsewhere on the page is not
+  matched.
 - **Illustrative code is labelled.** Anything that does not run against the installed
   package today — a LangGraph sketch, an API that lands with a later PRP — is fenced
   with a title, e.g. ```` ```python title="Illustrative — lands with PRP-008" ````, which
