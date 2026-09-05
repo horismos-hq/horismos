@@ -30,14 +30,14 @@ don't decide the answer.
 ## Trust boundaries
 
 Five places cross from something Horismos does not control into something it does (the
-fifth added 2026-08-24 with the bounded-projection pivot, declared-future — see §5):
+fifth added 2026-08-24 with the bounded-projection pivot — see §5):
 
 1. **Perception input** — arbitrary NL, doc 06.
 2. **Tool bindings** — `python:`, `rust:`, `http:`/`https:`, `mcp://`, doc 07.
 3. **Authoring file writes** — the authoring agent's `write_draft`/`write_file` tools, doc 13.
 4. **Provider APIs** — outbound Bridge calls carrying credentials, doc 08.
 5. **The external system of record / host harness** — the FHIR server, CIS, or repository
-   an Adapter hydrates from and commits to, doc 03/07/14 (declared-future, PRP-008).
+   an Adapter hydrates from and commits to, doc 03/07/14.
 
 Everything symbolic — rule firing, workflow transitions, tool *selection*, query
 evaluation, verification, retraction — happens after these boundaries and is not
@@ -233,12 +233,11 @@ and rotating/storing provider credentials outside the process environment are
 infrastructure concerns Horismos exposes hooks for (the pluggable store, deployer-
 constructed Bridges) but does not implement itself in v1.
 
-## 5. The external system of record / host harness (declared-future, PRP-008)
+## 5. The external system of record / host harness
 
-**Not built in v1.** Stated here now, ahead of implementation, so the threat model exists
-before the mechanism does — the same discipline this document already applies to
-boundaries 1–4. Owned by `PRPs/PRP-008-standards-host-integration.md`; its D-items resolve
-the exact mitigations, not this document.
+PRP-008 builds this boundary as a bounded prototype. Its exact mitigations are recorded in
+`PRPs/PRP-008-standards-host-integration/03-decisions.md`; this section states the threat
+model and distinguishes what the library enforces from what a deployer still owns.
 
 **Threats:**
 
@@ -265,17 +264,19 @@ the exact mitigations, not this document.
 - **Over-broad write scopes** — a conditional commit authorized to write more of the
   external record than the specific proposed effect requires.
 
-**Intended mitigation shape (design intent, not yet built):** source-version vectors and
-conditional writes (doc 03) address TOCTOU; the declared input closure (doc 03/04) bounds
-stale-read risk by making completeness explicit rather than assumed; authorization scopes
-are checked before a call, not inferred from its response (doc 07); mapping/package
-identity is hashed and carried in the trace (doc 09) so a supply-chain change is
-detectable after the fact even where it can't be prevented outright. Exact mechanism
-(scope configuration surface, subscription-signature verification, tenant-isolation
-enforcement point) is PRP-008 D-item territory, resolved via the repo's brainstorming
-protocol at that PRP's activation — not decided here.
+**Library-enforced mitigation shape:** source-version vectors and conditional writes (doc
+03) address TOCTOU; the declared input closure (doc 03/04) bounds
+stale-read risk by making completeness explicit rather than assumed; adapter-local
+resource write permissions are checked before a conditional call, not inferred from its
+response (doc 07); mapping/package identity is hashed and carried in the trace (doc 09) so
+a supply-chain change is detectable after the fact even where it can't be prevented
+outright. The prototype also binds FHIR input to the requested patient, rejects modifier
+extensions, validates an explicit local R4 profile, and seals each authorization to its
+proof and proposed resource. Subscription-signature verification, SMART scope enforcement,
+and production tenant/auth integration remain deployment work; the recorded transport
+makes no live-server security claim.
 
-**Deployer-owned (anticipated, restated when PRP-008 activates):** the external system's
+**Deployer-owned:** the external system's
 own access-control configuration, network segmentation between Horismos and the system of
 record, and incident response for a compromised external system are infrastructure
 concerns Horismos's adapter narrows what it *itself* can be tricked into doing with, not
@@ -297,9 +298,10 @@ These are permanent v1 design positions, not oversights:
 - **General deployment/network security** (TLS termination, firewall rules, secret
   manager choice, physical access) — standard infrastructure hygiene, out of scope
   for a framework doc same as for any other library.
-- **The entire §5 boundary (external system of record/host harness)** — no mitigation
-  there is built in v1; it is declared ahead of implementation (PRP-008) so the threat
-  model isn't retrofitted after the mechanism ships, not because it's considered solved.
+- **Production transport and deployment controls for §5** — the bounded recorded FHIR
+  and coding-harness adapters exercise closure, mapping, authorization, and drift
+  invariants, but do not provide TLS termination, SMART launch validation, webhook
+  signature verification, or tenant isolation for a live deployment.
 
 Dated: as of 2026-08-19, the two open **[DECIDE]** items on trace encryption/access
 and MCP-server allowlisting are unresolved by design — they need evidence (a real

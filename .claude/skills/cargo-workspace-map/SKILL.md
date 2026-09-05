@@ -24,7 +24,9 @@ disagree, the doc wins — then fix this skill.
 | Bridge implementations (mock, anthropic, openai, onnx) | `horismos-bridges` | 08 | PRP-004 |
 | Python marshaling — **no logic** | `horismos-py` (`_horismos` cdylib) | 11 | PRP-003 |
 | Pure-Python surface, proxies, stubs | `python/horismos/` | 11 | PRP-003 |
-| *(declared-future)* FHIR/host adapter — hydrate/commit only, same posture as `horismos-bridges` | `horismos-fhir` (reserved, not built) | 14 | PRP-008 |
+| Format-neutral external snapshot/effect SPI + artifact runtime policy | `horismos-host` | 03, 06, 07, 09, 14 | PRP-008 |
+| FHIR R4 hydration/mapping/conditional commit + CDS/Plan surface | `horismos-fhir` | 03, 14 | PRP-008 |
+| Recorded coding-harness projection + candidate handoff | `horismos-harness` | 03, 06, 07, 14 | PRP-008 |
 
 ## Dependency rules (mechanically enforced)
 
@@ -32,7 +34,9 @@ disagree, the doc wins — then fix this skill.
 horismos-core     → nothing model-related, no network, no provider SDKs. EVER.
 horismos-bridges  → horismos-core + provider SDKs (feature-gated)
 horismos-py       → horismos-core + horismos-bridges
-horismos-fhir     → horismos-core + an HTTP client (feature-gated); declared-future, PRP-008
+horismos-host     → horismos-core; pure types/policy, no network or process execution
+horismos-fhir     → horismos-host + horismos-core; any future HTTP client is feature-gated
+horismos-harness  → horismos-host; recorded projection, no filesystem/process execution
 ```
 
 - Adding any dependency to `crates/horismos-core/Cargo.toml`: it must not be a

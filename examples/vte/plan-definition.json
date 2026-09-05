@@ -1,0 +1,17 @@
+{
+  "resourceType": "PlanDefinition",
+  "id": "vte-prophylaxis",
+  "url": "https://example.org/PlanDefinition/vte-prophylaxis",
+  "version": "1.0.0",
+  "status": "active",
+  "title": "VTE prophylaxis",
+  "action": [{
+    "id": "assess-vte",
+    "title": "Assess VTE prophylaxis",
+    "description": "Apply the bounded VTE risk and contraindication rules",
+    "condition": [{
+      "kind": "applicability",
+      "expression": {"language": "text/cql-identifier", "expression": "EligibleForVteAssessment"}
+    }]
+  }]
+}

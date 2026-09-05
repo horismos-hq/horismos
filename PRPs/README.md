@@ -19,7 +19,7 @@ the bounded-projection-kernel positioning (pivot adopted 2026-08-24), and
 | [PRP-003](PRP-003-python-bindings/01-objective.md) | Python bindings & API | PyO3 wheels; the Pythonic front door |
 | [PRP-004](PRP-004-agent-loop/01-objective.md) | Ontology-first agent loop | Workflow execution, perception/narration boundaries, tools, Bridge |
 | [PRP-005](PRP-005-guarantees-verification/01-objective.md) | Guarantees & verification | BDD checks with witnesses, an assumption manifest, and non-vacuity, surfaced in both APIs |
-| [PRP-008](PRP-008-standards-host-integration.md) | Standards & host integration | FHIR hydration/commit, terminology provenance, CDS-Hooks/PlanDefinition/CQL composition, the candidate-artifact boundary, the generic host SPI |
+| [PRP-008](PRP-008-standards-host-integration/01-objective.md) | Standards & host integration | FHIR hydration/commit, terminology provenance, CDS-Hooks/PlanDefinition/CQL composition, the candidate-artifact boundary, the generic host SPI |
 | [PRP-006](PRP-006-packaging-distribution.md) | Packaging & distribution | crates.io, PyPI, CI, docs site — activates after PRP-008 has a real integration surface to document |
 | [PRP-007](PRP-007-authoring-agent.md) | Ontology authoring agent | Import/align/overlay-first; SMEs converse; Claude drafts Turtle; the verifier gatekeeps |
 
@@ -33,8 +33,8 @@ PRPs, tracks, the dependency-DAG sequencing rule). At-a-glance state: [BOARD.md]
   [`docs/framework/15-security.md`](../docs/framework/15-security.md) is the v1
   threat model; PRP-004, PRP-006, and PRP-007 each carry a **Security acceptance
   surface** subsection stating what their DoD must prove, plus owned **[DECIDE]**
-  markers for the genuinely open mechanism choices. PRP-008 adds a fifth trust
-  boundary (the external system of record/host harness, doc 15) as declared-future.
+  markers for the genuinely open mechanism choices. PRP-008 implements the fifth trust
+  boundary (the external system of record/host harness, doc 15) as a bounded prototype.
 
 - PRPs are **very high level** — intent, scope, non-goals, key decisions, definition
   of done. Far-future Drafts are one page each; from PRP-002 onward the next-up/Active
@@ -49,7 +49,7 @@ PRPs, tracks, the dependency-DAG sequencing rule). At-a-glance state: [BOARD.md]
   Reading order table above states the actual activation order.
 - The running example across all PRPs is **clinical triage** (`docs/framework/` uses it
   throughout), extended by PRP-008 with a second, standards-anchored vertical slice
-  (VTE prophylaxis) once it activates. The proving-ground benchmark decision (τ-Bench
+  (VTE prophylaxis). The proving-ground benchmark decision (τ-Bench
   airline vs. triage-first) is recorded in PRP-000 as an open decision.
 - Prior art: `../../sigil-lang` is the proving ground this framework inherits from
   (Rete-lite matcher, BDD verifier, constraint solver, trace design, neural bridge,

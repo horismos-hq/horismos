@@ -27,10 +27,9 @@ horismos/
 │   ├── horismos-core/            # ontology/ world/ reason/ workflow/ verify/ trace/ bridge/ error wasm
 │   ├── horismos-bridges/         # mock + feature-gated anthropic/openai/onnx stubs
 │   ├── horismos-py/              # PyO3 cdylib `_horismos` — marshaling only
-│   └── horismos-fhir/            # [declared-future, PRP-008] host adapter crate — same
-│                                   #   dependency posture as horismos-bridges (depends on
-│                                   #   horismos-core, never the reverse; free to depend on
-│                                   #   an HTTP client); reserved here, built there
+│   ├── horismos-host/            # format-neutral host SPI + artifact runtime
+│   ├── horismos-fhir/            # bounded FHIR R4/CDS/PlanDefinition adapter
+│   └── horismos-harness/         # repository projection adapter proof
 ├── python/horismos/              # pure-Python surface, py.typed, _horismos.pyi
 ├── python/tests/              # pytest (smoke: native roundtrip)
 ├── examples/triage/           # triage.ttl seeded from docs 02–05; grows with every PRP
@@ -38,17 +37,17 @@ horismos/
 └── .claude/skills/            # project-local skills (roster below)
 ```
 
-**Pivot note (2026-08-24)**: the `horismos-fhir` crate above is a layout reservation only
-— no code, no `Cargo.toml` member, no gate. Building it, and the "no network inside
-evaluation" fixtures/gates that would prove the anti-wrapper boundary still holds once it
-exists, are `PRPs/PRP-008-standards-host-integration.md`'s implementation work, not this
-skeleton's. See `docs/framework/14-architecture.md` §"Two-boundary data flow" for the
-mechanism this crate will implement.
+**Pivot note (2026-09-03)**: PRP-008 built the three host-integration crates above. Their
+recorded fixtures prove that all external input is materialized before evaluation and
+that proposed effects leave the kernel before any host commit. See
+`docs/framework/14-architecture.md` §"Two-boundary data flow" for the dependency and data
+flow.
 
-Crate stubs are **docs-only** (module trees + ownership doc-comments, no premature
-API): each module states its spec doc and owning PRP. The only real code is the
-version roundtrip (`horismos_core::VERSION` → `horismos.__version__`) proving the
-PyO3/maturin pipeline works.
+At skeleton creation, crate stubs were **docs-only** (module trees + ownership
+doc-comments, no premature API), and the version roundtrip
+(`horismos_core::VERSION` → `horismos.__version__`) was the only real code. Subsequent
+PRPs implement those owned modules; the host-integration crates above are PRP-008's
+shipped additions.
 
 ## Tooling decisions
 

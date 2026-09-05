@@ -117,7 +117,7 @@
     fragment; the runtime evaluates it as a verified, versioned projection over an
     existing system of record. LLMs live only at declared perception/narration
     boundaries.</p>
-    <p class="stamp">Updated 2026-09-03 · PRP-005 Done · PRP-004 Done via PR #8 · mirrors <code>PRPs/BOARD.md</code></p>
+    <p class="stamp">Updated 2026-09-05 · PRP-004 Done via PR #8 · PRP-005 Done · PRP-008 Done via PR #15 · mirrors <code>PRPs/BOARD.md</code></p>
   </header>
 
   <section aria-label="Pivot note" style="margin-top:1.5rem;padding:1rem 1.25rem;background:var(--panel);border:1px solid var(--symbolic);border-radius:10px;">
@@ -128,8 +128,10 @@
     overlaying an existing system of record — see
     <code>PRPs/PRP-000-vision-positioning.md</code> §"Snapshot-scoped guarantees". New
     <code>PRP-008</code> (Standards &amp; Host Integration) sequenced after PRP-005, before
-    PRP-006/007. Documentation/spec-only this pass — no runtime code changed, no PRP-001–004
-    DoD rewritten.</p>
+    PRP-006/007. Completed 2026-09-03: VTE prophylaxis now exercises the bounded
+    projection end to end, with its PRP-005 assumption coupling isolated in
+    <code>horismos-host::assumptions</code> — the parallel verifier lane has since landed,
+    so that isolation is now a conversion seam to converge rather than a placeholder.</p>
   </section>
 
   <section class="highlights" aria-label="Highlights">
@@ -144,10 +146,11 @@
     </div>
     <div class="hl hl-next">
       <p class="hl-label">Next · The immediate goal</p>
-      <h3>PRP-008 next — standards &amp; host integration</h3>
+      <h3>PRP-008 Done — the VTE bounded projection runs end to end</h3>
       <ul>
-        <li><strong>Dependency-DAG step</strong>: activate the bounded-projection adapter surface after PRP-005 and before PRP-006/007.</li>
-        <li><strong>Integration target</strong>: versioned external snapshots, anchored terminology mappings, typed proposed effects, and conditional commit semantics.</li>
+        <li><strong>Dependency-DAG step delivered</strong>: the bounded-projection adapter surface — versioned external snapshots, anchored terminology mappings, typed proposed effects, conditional commit — lands after PRP-005 and before PRP-006/007.</li>
+        <li><strong>Integration track shipped</strong>: generic host SPI, candidate-artifact runtime gate, FHIR hydration and conditional commit, CDS Hooks and bounded PlanDefinition, the VTE prophylaxis slice, and a coding-harness adapter proof.</li>
+        <li><strong>Next integration seam</strong>: converge the isolated five-field <code>horismos-host::assumptions</code> manifest with the now-landed <code>horismos-core::verify</code> type; PRP-006 now has a real integration surface to package and document.</li>
         <li><strong>Human side quests</strong>: register <code>horismos.dev</code>; file the <code>w3id.org/horismos</code> PR; reserve registry names; merge PR #3.</li>
       </ul>
     </div>
@@ -169,6 +172,12 @@
       <p>Concepts, RDFS-plus profile, World + gate, reasoning, workflows, LLM boundaries, tools, Bridge, traces, verification, both APIs, authoring, architecture.</p></div>
     <div class="re"><h4>Engine (PRP-001 + PRP-002)</h4>
       <p><code>horismos-core::ontology</code> (terms, Turtle, profile, schema, imports/anchoring) + <code>horismos-core::world</code> (store, five-check gate, provenance, snapshots, queries) + <code>horismos-core::reason</code> (rules, matchers, chaining, proofs) + <code>horismos-core::trace</code>; <code>horismos-bridges</code> (mock + gated providers), <code>horismos-py</code> (version roundtrip works).</p></div>
+    <div class="re"><h4>Verification (PRP-005)</h4>
+      <p><code>horismos-core::verify</code>: BDD rule/workflow checks with domain-term witnesses, the five-field assumption manifest, fail-closed loads in both APIs and the stamped <code>allow_incomplete</code> escape.</p></div>
+    <div class="re"><h4>Integration (PRP-008)</h4>
+      <p><code>horismos-host</code> (host SPI, candidate-artifact policy), <code>horismos-fhir</code> (FHIR R4 hydration/commit, CDS Hooks / PlanDefinition subset, the VTE slice), <code>horismos-harness</code> (coding-harness adapter).</p></div>
+    <div class="re"><h4>Docs sites</h4>
+      <p>The developer site (<code>mkdocs.yml</code> + <code>docs/</code>, published to GitHub Pages by <code>.github/workflows/docs-pages.yml</code>) and the research site (<code>mkdocs-research.yml</code> + <code>research/</code>).</p></div>
     <div class="re"><h4>Tooling</h4>
       <p>Cargo workspace (edition 2024, clippy -D warnings), uv + maturin abi3 wheel, ruff + mypy strict, Makefile as single entry point.</p></div>
     <div class="re"><h4>Conventions</h4>
@@ -207,7 +216,7 @@
             <td><span class="chip chip-done">Done · 2026-08-25</span></td></tr>
         <tr><td class="track-cell">Integration</td>
             <td>PRP-008 · Standards &amp; host integration<span class="why">FHIR hydration/commit, terminology provenance, CDS-Hooks/PlanDefinition/CQL composition, candidate-artifact boundary, generic host SPI — sequenced after 005, before 006/007</span></td>
-            <td><span class="chip chip-draft">Draft · new 2026-08-24</span></td></tr>
+            <td><span class="chip chip-done">Done · 2026-09-03</span></td></tr>
         <tr><td class="track-cell">Ship &amp; Author</td>
             <td>PRP-006 · Packaging &amp; docs<span class="why">crates.io + PyPI + docs site + zero-key CI gates — activates after PRP-008</span></td>
             <td><span class="chip chip-draft">Draft</span></td></tr>
@@ -247,6 +256,7 @@ flowchart LR
   as any PRP status change), <code>PRPs/CONVENTIONS.md</code> (lifecycle &amp; folder
   form), <code>docs/framework/</code> (the spec). This page is regenerated from those —
   if they disagree, the repo wins. PRP-004 merged as PR #8 on 2026-08-25; PRP-005
-  completed on 2026-09-03; see their folder records under <code>PRPs/</code>. The hosted
+  completed on 2026-09-03; PRP-008 completed on 2026-09-03 (PR #15); see their folder
+  records under <code>PRPs/</code>. The hosted
   artifact is republished externally after this status change merges.</p>
 </div>

@@ -65,7 +65,7 @@ runs with **no Bridge configured at all** — CI enforces this configuration wor
 **Under the bounded-projection pivot** (`PRPs/PRP-000-vision-positioning.md`), this
 bypass is promoted to the **primary structured-input path** for a standards-hydrated
 deployment: an Adapter's `ExternalSnapshot` (FHIR resources, repository/tool observations
-— declared-future, `PRPs/PRP-008-standards-host-integration.md`) is admitted exactly this
+— `PRPs/PRP-008-standards-host-integration/01-objective.md`) is admitted exactly this
 way, with provenance `api`, never through perception. Mapping a FHIR resource or repo
 observation into ontology facts is **deterministic adapter code, checked before runtime —
 never a perception shortcut**. An LLM never infers what a structured standard resource
@@ -105,7 +105,7 @@ retraction, queries. If a future feature proposes adding a neural step type, it 
 come with this document's level of contract: typed input, typed output, gate,
 fallback, trace visibility.
 
-## Candidate-artifact authoring (declared-future, coding-agent use case)
+## Candidate-artifact authoring
 
 A useful coding agent necessarily generates novel source text, patches, commands, and
 sometimes filenames — content an ordinary `ActionStep` cannot fit, because the current
@@ -114,12 +114,12 @@ code generation is a normal ActionStep would weaken the neural-proposes/symbolic
 principle by stealth. The honest extension, captain-adopted alongside the bounded-
 projection pivot (`decisions/captain-pivot-ruling.md` item 3) and owned jointly by
 `PRPs/PRP-007-authoring-agent.md` (vocabulary) and `PRPs/PRP-008-standards-host-
-integration.md` (runtime): a **candidate-artifact boundary**. Model output is a typed
+integration/01-objective.md` (runtime): a **candidate-artifact boundary**. Model output is a typed
 patch/file/command *proposal envelope*, not a tool argument; deterministic policy
 validates target paths, base hashes, syntax, and permissions; a sandbox executes required
 tests/checks; only then does a symbolic authorization step permit application. Semantic
 correctness of the generated content remains a review/test claim — the boundary proves the
 proposal was policy-legal and passed its declared checks, never that the code is right.
-This boundary is **not built in v1**; it is declared here so a future implementation has a
-named, gated shape to fill rather than inventing an `eval`-shaped escape hatch under
-pressure.
+`horismos-host::artifact` implements the runtime half of this boundary; PRP-007 retains the authoring-side
+envelope vocabulary and generation semantics. The runtime consumes the envelope as opaque
+typed data rather than inventing an `eval`-shaped escape hatch.

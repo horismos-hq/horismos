@@ -111,19 +111,17 @@ stable tagged format with masks applied, and emits dataset cards documenting the
 ontology version and filter criteria. The NL→Turtle authoring corpus (doc 13) uses
 the same exporter with a different template.
 
-## Trace schema evolution for standards integration (declared-future, PRP-008)
+## Standards-integration trace envelope
 
-The bounded-projection pivot (`PRPs/PRP-000-vision-positioning.md`) adds fields no
-existing `horismos.trace/1` step carries: package/mapping identity hashes, the source
-resource `versionId`/ETag vector, the declared input-closure statement, external request
-correlation, the proposed effect set, and — critically — **commit status as a state
-distinct from decision completion** ("decision produced" ≠ "commit attempted" ≠ "commit
-accepted" ≠ "commit failed/conflicted", doc 03). Design rule 1 above is unconditional: if
-these fields are not additive under `trace::migrate`, this is a new `horismos.trace/2`
-schema with a converter, decided and built in PRP-008, never a silent reinterpretation of
-`/1`. FHIR payloads and coding-repo contents also raise retention/secrets questions beyond
-the raw-NL case §"Storage & privacy" already covers below — PRP-008 revisits redaction
-scope for this reason, not because the existing policy was wrong for its original case.
+The bounded projection adds adapter evidence that is not a new meaning for a core reasoning
+step. `horismos.integration-trace/1` therefore wraps an unchanged core trace and carries the
+snapshot closure, resource version vector, profile/mapping/package/terminology identities,
+proof reference, proposed effects, and remote receipts. Commit state remains distinct from
+decision completion: `decision-produced`, `commit-attempted`, `commit-accepted`,
+`commit-conflicted`, and `commit-failed` are separately observable. A later incompatible
+change to this envelope requires its own explicit migration; it never silently changes
+`horismos.trace/1` or `/2`. FHIR payloads and coding-repository contents remain subject to
+the deployment's retention and redaction policy in addition to the core trace rules below.
 
 ## Storage & privacy
 

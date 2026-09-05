@@ -1,0 +1,11 @@
+{
+  "fhirBaseline": "4.0.1",
+  "ontology": {"canonical":"https://example.org/horismos/ontology/vte","version":"1.0.0","hash":"sha256:bb470126fa6f33321ce43a8e4ed83f026bb213dc2c782b7eb07903ce8fa74c58"},
+  "profile": {"canonical":"https://example.org/fhir/StructureDefinition/vte-r4","version":"1.0.0","hash":"sha256:911b98339b3b60db6e9f319b7d572f0c04163d2a070910d54cabc72d2c086ebc"},
+  "mapping": {"canonical":"https://example.org/horismos/mapping/vte-r4","version":"1.0.0","hash":"sha256:5b1a4d19951aa2e88237027757341b79a399aca5b83d5528838ac92f12870745"},
+  "package": {"canonical":"https://example.org/horismos/package/vte","version":"1.0.0","hash":"sha256:773cf6ea9400ae7447f9a3704d37efb8e04b109687de186adcb32ac3cf60bf7c"},
+  "planDefinition": {"canonical":"https://example.org/PlanDefinition/vte-prophylaxis","version":"1.0.0","hash":"sha256:371c5709e19fdecce9cff1e9840e7746f83be182d8ee3e53270a3ff9e853f6ca"},
+  "terminology": {"canonical":"http://snomed.info/sct?fhir_vs=vte","codeSystemVersion":"http://snomed.info/sct/900000000000207008/version/20260731","expansionTimestamp":"2026-08-01T00:00:00Z","hash":"sha256:0c7b48f54f4de9d7bd32257496af0ff2b336126d5dc49959f223039cb407de92","parameters":{"check-system-version":"true"}},
+  "externalEvaluator": {"canonical":"https://example.org/cql-evaluator","version":"2.4.0","hash":"sha256:cql-evaluator-2.4.0"},
+  "closure": ["Patient/{{context.patientId}}","Observation/mobility","Observation/cancer","Observation/history","Observation/bleeding","Observation/platelets"]
+}

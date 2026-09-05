@@ -8,8 +8,8 @@ may execute — comes from the ontology. Changing the loop means editing `.ttl`,
 Horismos workflow is best understood as an **optional decision microflow**, not a
 requirement that Horismos own a deployment's entire longitudinal process. A host may
 invoke one workflow fragment at a decision point — behind a CDS-Hooks-style call, or as a
-bounded PlanDefinition-subset mapping (both declared-future, `PRPs/PRP-008-standards-host-
-integration.md`) — while continuing to own waits, longitudinal state, scheduling, and user
+bounded PlanDefinition-subset mapping (`PRPs/PRP-008-standards-host-integration/01-objective.md`)
+— while continuing to own waits, longitudinal state, scheduling, and user
 interaction itself. Totality (below) applies to the invoked fragment, not to the whole
 care pathway or coding session it may be one step of. Nothing below changes for a
 deployment that *does* want Horismos to own the full loop, as the shipped triage example

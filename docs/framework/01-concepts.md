@@ -14,7 +14,7 @@
 ## The nouns
 
 Four nouns added by the bounded-projection pivot (2026-08-24) sit alongside the original
-seven; declared-future ones name mechanism `PRPs/PRP-008-standards-host-integration.md`
+seven; host-integration ones name mechanism `PRPs/PRP-008-standards-host-integration/01-objective.md`
 owns, not new `horis:` vocabulary minted here (`docs/framework/02-ontology.md`):
 
 | Noun | What it is | Lives in |
@@ -26,10 +26,10 @@ owns, not new `horis:` vocabulary minted here (`docs/framework/02-ontology.md`):
 | **Agent** | The runtime that executes a Workflow against a World, calling Bridges and Tools where the ontology says to | `horismos-core` |
 | **Bridge** | A model client behind a uniform contract (Anthropic, OpenAI, local, mock) with confidence and timeout semantics | `horismos-bridges` |
 | **Trace** | The trajectory of a run: every step, typed | Emitted by every run |
-| **System of Record** *(declared-future, PRP-008)* | The external authority Horismos overlays — a FHIR server, a repository/tool registry — which owns durable state and the enterprise workflow; Horismos never replaces it | Outside Horismos, reached only through an adapter |
-| **Adapter** *(declared-future, PRP-008)* | The boundary code that hydrates a declared, versioned closure from a System of Record into an `ExternalSnapshot`, and conditionally commits a `ProposedEffectSet` back | A new crate outside `horismos-core` (e.g. `horismos-fhir`) |
-| **Decision Package** *(declared-future, PRP-008)* | The versioned unit Horismos evaluates: an ontology overlay + a source-version vector + a declared input closure | Produced by an Adapter, consumed by World admission |
-| **Projection / Evaluation Epoch** *(declared-future, PRP-008)* | The bound between one admitted World and the Decision Package/source-version vector it was hydrated for; a new external mutation invalidates the epoch until re-hydration | `docs/framework/03-world.md` |
+| **System of Record** | The external authority Horismos overlays — a FHIR server, a repository/tool registry — which owns durable state and the enterprise workflow; Horismos never replaces it | Outside Horismos, reached only through an adapter |
+| **Adapter** | The boundary code that hydrates a declared, versioned closure from a System of Record into an `ExternalSnapshot`, and conditionally commits a `ProposedEffectSet` back | `horismos-fhir` or another crate outside `horismos-core` |
+| **Decision Package** | The versioned unit Horismos evaluates: an ontology overlay + a source-version vector + a declared input closure | Produced by an Adapter, consumed by World admission |
+| **Projection / Evaluation Epoch** | The bound between one admitted World and the Decision Package/source-version vector it was hydrated for; a new external mutation invalidates the epoch until re-hydration | `docs/framework/03-world.md` |
 
 Dependency direction is strict: `Trace ← Agent ← (Workflow, Bridge, Tools)`,
 `Agent ← Reasoner ← World ← Ontology`. The Ontology depends on nothing; the symbolic
@@ -74,10 +74,10 @@ coding-agent harnesses.
 ```
 author (SME + authoring agent, doc 13 — import/align/overlay-first)
   → verify (BDD checks + witnesses + assumption manifest, doc 10)   [design time]
-  → [declared-future, PRP-008] hydrate (Adapter → ExternalSnapshot, doc 03)
+  → hydrate (Adapter → ExternalSnapshot, doc 03)
   → load (Ontology + World, docs 02–03)
   → run  (Agent executes Workflow, docs 05–08)     [runtime, repeated]
-  → [declared-future, PRP-008] commit (ProposedEffectSet → System of Record, conditional)
+  → commit (ProposedEffectSet → System of Record, conditional)
   → trace (audit / replay / training, doc 09)
   → revise (ontology diff, re-verify, redeploy)
 ```

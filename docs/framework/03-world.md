@@ -11,7 +11,7 @@ below — the gate, truth maintenance, snapshots, transactions — is unchanged 
 *for one admitted projection*; what's new is stating plainly what stays true only inside
 that boundary, and what an external system's own concurrent writers can invalidate.
 
-## World as a transaction projection (declared-future mechanism, PRP-008)
+## World as a transaction projection
 
 For a standalone deployment (structured facts asserted directly via the API, the shipped
 triage pattern), a World *is* effectively the whole record for that session — nothing
@@ -19,7 +19,7 @@ below changes for that case. For a deployment overlaying an external system of r
 (FHIR, a repository), a World is instead the local, closed evaluation workspace for **one
 decision epoch**:
 
-- **Hydration** (owned by PRP-008's Adapter): an external read materializes a declared,
+- **Hydration** (`horismos-host::ExternalSnapshot` plus an adapter): an external read materializes a declared,
   versioned closure into a canonical `ExternalSnapshot` *before* any World transaction —
   no adapter performs a network read from inside matching, chaining, verification, or a
   transaction in progress (doc 14's anti-wrapper boundary, unchanged and enforced here

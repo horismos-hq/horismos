@@ -1,0 +1,21 @@
+[package]
+name = "horismos-harness"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+horismos-host = { path = "../horismos-host" }
+serde.workspace = true
+serde_json.workspace = true
+sha2.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+horismos-core.workspace = true
+horismos-fhir = { path = "../horismos-fhir" }
+
+[lints]
+workspace = true

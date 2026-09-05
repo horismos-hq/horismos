@@ -121,17 +121,19 @@ Summarized here, specified in doc 05:
 `horis:ActionStep`, `horis:NarrationStep`, `horis:ProposalStep`, `horis:next`,
 `horis:goal`, `horis:requires`, `horis:fallback`, `horis:terminal`.
 
-## Standard-artifact anchoring (declared-future, PRP-008)
+## Standard-artifact anchoring
 
 The pivot to a bounded projection kernel (`PRPs/PRP-000-vision-positioning.md`) keeps this
-profile exactly as specified above — no new `horis:` terms are minted in this document;
-every D-item below is owned by `PRPs/PRP-008-standards-host-integration.md` and resolved
-there, per this repo's rule that vocabulary is never invented ad hoc. What changes is the
+profile exactly as specified above — no new `horis:` terms are minted for external
+terminology anchoring itself;
+the governing D-items are resolved in
+`PRPs/PRP-008-standards-host-integration/03-decisions.md`, per this repo's rule that
+vocabulary is never invented ad hoc. What changes is the
 *honesty* of the anchoring story: `owl:sameAs` alone is necessary but not sufficient for
 real interoperability. A single-parent, unversioned anchor (`:ChestPain owl:sameAs
 sct:29857009`, no edition) loses SNOMED CT's polyhierarchy and cannot express "which
 release this anchor was checked against" — the current triage fixture demonstrates exactly
-this gap (`research/terminology/snomed-ct.md`). PRP-008 will extend anchoring with:
+this gap (`research/terminology/snomed-ct.md`). PRP-008 extends anchoring with:
 
 - **versioned mappings** — which standard-vocabulary edition/version an anchor was
   verified against, not just the bare IRI;
@@ -147,6 +149,25 @@ this gap (`research/terminology/snomed-ct.md`). PRP-008 will extend anchoring wi
 None of this weakens the "compatible with standards" claim below into "the ontology is
 FHIR" — Horismos's rule, workflow, provenance, and gate semantics remain Horismos's own;
 standards supply domain identity and terminology, not Horismos's execution model.
+
+## Candidate-artifact runtime evidence
+
+PRP-008 mints only the runtime half of the joint PRP-007/008 boundary. The authoring
+envelope remains PRP-007's vocabulary; the runtime consumes it as opaque typed data and
+emits these evidence terms:
+
+| Term | Meaning |
+|------|---------|
+| `horis:CandidatePolicyEvidence` | Deterministic path/base-hash/syntax/permission result |
+| `horis:SandboxEvidence` | Ordered results of the proposal's declared checks |
+| `horis:AuthorizationEvidence` | Symbolic authorization result over the two prior stages |
+| `horis:policyAccepted` | Boolean policy verdict |
+| `horis:sandboxPassed` | Boolean declared-check verdict |
+| `horis:authorizationGranted` | Boolean authorization verdict |
+| `horis:evidenceFor` | Proposal identifier the evidence concerns |
+
+These terms prove policy legality and declared-check outcomes only. They never state that
+generated content is semantically correct.
 
 ## Imports and anchoring
 

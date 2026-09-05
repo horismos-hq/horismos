@@ -17,9 +17,9 @@ horismos/                          (workspace)
 │   │   └── wasm.rs             #   [wasm] HorismosRuntime
 │   ├── horismos-bridges/          # provider clients ([bridges-*] features), mock
 │   ├── horismos-py/               # PyO3 bindings only — no logic
-│   └── horismos-fhir/             # [declared-future, PRP-008] FHIR/host adapter crate —
-│                                   #   hydration, mapping, conditional commit; outside
-│                                   #   horismos-core, same dependency posture as -bridges
+│   ├── horismos-host/             # format-neutral snapshot/effect SPI + artifact policy
+│   ├── horismos-fhir/             # R4 hydration/mapping/conditional commit + CDS surface
+│   └── horismos-harness/          # recorded repository projection + artifact handoff
 ├── python/horismos/               # pure-Python surface: proxies, testing utils, export
 ├── docs/framework/             # ← you are here (becomes the docs site)
 ├── PRPs/                       # phase plans
@@ -35,7 +35,10 @@ horismos/                          (workspace)
 
 ```
 horismos-core        →  (nothing model-related)          # compiles & tests with zero LLM deps
+horismos-host        →  horismos-core                     # pure format-neutral host values
 horismos-bridges     →  provider SDKs
+horismos-fhir        →  horismos-host + horismos-core     # transport remains adapter-local
+horismos-harness     →  horismos-host                     # no filesystem/process execution
 horismos-py          →  horismos-core (+ optional bridges)
 ```
 
@@ -65,7 +68,7 @@ interned IRIs. There is **no cross-language chatter inside a transaction** — t
 sigil-lang benchmark lesson (PyO3 marshaling dominated small workloads) is designed
 out: Python/WASM hand a whole input over, get a whole outcome back.
 
-## Two-boundary data flow for a standards-hydrated deployment (declared-future, PRP-008)
+## Two-boundary data flow for a standards-hydrated deployment
 
 The diagram above is the *inner* box, unchanged. A standards-hydrated deployment wraps it
 with two more boundaries, both outside `horismos-core`, both entirely before/after the
@@ -81,10 +84,11 @@ FHIR/CIS or repo/harness ──Adapter (hydrate)──▶ ExternalSnapshot ─�
 
 This is the reference data flow from the adopted design
 (`horismos-thin-pivot-s1/report.md` §"Reference data flow"). It changes nothing about the
-dependency invariant above: an Adapter lives in its own crate (`horismos-fhir`, or a
-coding-harness adapter), depends on `horismos-core` (never the reverse), and — same rule
-as `horismos-bridges` — is free to depend on an HTTP client precisely because it sits
-outside the boundary `make check-boundary`/`make no-model-gate` enforce.
+dependency invariant above: the format-neutral contract lives in `horismos-host`; adapters
+live in their own crates (`horismos-fhir` and `horismos-harness`) and depend inward, never
+the reverse. A future HTTP transport may exist only in the FHIR adapter behind a feature;
+the shipped recorded transport and harness prototype have no network, filesystem-mutation,
+or process-execution dependency.
 
 ## Performance posture
 
@@ -94,7 +98,7 @@ outside the boundary `make check-boundary`/`make no-model-gate` enforce.
 | `prove` / `explain` | < 1 ms | Depth-capped, indexed rule heads |
 | Load + verify | < 1 s | Authoring-loop interactivity (doc 13) |
 | Perception step | Bridge latency + < 5 ms overhead | The model call dominates by orders of magnitude |
-| *(declared-future)* Adapter hydration/commit | External I/O latency, not core-budgeted | A FHIR read/write is bounded by the external system, not the kernel — measured and reported separately, never blended into the deterministic-kernel numbers above |
+| Adapter hydration/commit | External I/O latency, not core-budgeted | A live FHIR read/write is bounded by the external system, not the kernel — measured and reported separately, never blended into the deterministic-kernel numbers above |
 
 Benchmarks (criterion) are CI-tracked from PRP-002 onward; regressions fail builds.
 Scaling beyond (10³+ rules, 10⁵+ facts) is measured, not promised — the Rete-lite →
@@ -143,7 +147,7 @@ unaffected.
 | 12 Rust API surface polish, packaging, docs site | PRP-006 |
 | 13 Authoring | PRP-007 |
 | 15 Security & Trust | PRP-004, PRP-006, PRP-007, PRP-008 (per boundary — see doc 15) |
-| Standards/host-integration additions across 00–03, 06, 07, 09, 10, 13, 14 (declared-future) | PRP-008 |
+| Standards/host-integration additions across 00–03, 06, 07, 09, 10, 13, 14 | PRP-008 |
 
 Every **[DECIDE]** marker in these docs is owned by exactly one PRP; activating a PRP
 begins by resolving its markers.

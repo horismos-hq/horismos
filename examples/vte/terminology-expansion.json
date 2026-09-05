@@ -1,0 +1,13 @@
+{
+  "resourceType": "ValueSet",
+  "url": "http://snomed.info/sct?fhir_vs=vte",
+  "version": "http://snomed.info/sct/900000000000207008/version/20260731",
+  "status": "active",
+  "expansion": {
+    "timestamp": "2026-08-01T00:00:00Z",
+    "parameter": [{"name": "check-system-version", "valueBoolean": true}],
+    "contains": [
+      {"system": "http://snomed.info/sct", "version": "http://snomed.info/sct/900000000000207008/version/20260731", "code": "placeholder-vte-prophylaxis", "display": "Synthetic VTE prophylaxis fixture concept"}
+    ]
+  }
+}

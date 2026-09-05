@@ -1,0 +1,11 @@
+{
+  "resourceType": "Bundle",
+  "type": "collection",
+  "entry": [
+    {"resource":{"resourceType":"Patient","id":"patient-1","meta":{"versionId":"11"},"active":true}},
+    {"resource":{"resourceType":"Observation","id":"mobility","meta":{"versionId":"7"},"status":"final","code":{"text":"Reduced mobility"},"subject":{"reference":"Patient/patient-1"},"valueBoolean":true}},
+    {"resource":{"resourceType":"Observation","id":"cancer","meta":{"versionId":"4"},"status":"final","code":{"text":"Active cancer"},"subject":{"reference":"Patient/patient-1"},"valueBoolean":false}},
+    {"resource":{"resourceType":"Observation","id":"history","meta":{"versionId":"2"},"status":"final","code":{"text":"Prior VTE"},"subject":{"reference":"Patient/patient-1"},"valueBoolean":false}},
+    {"resource":{"resourceType":"Observation","id":"bleeding","meta":{"versionId":"3"},"status":"final","code":{"text":"Bleeding risk"},"subject":{"reference":"Patient/patient-1"},"valueBoolean":false}}
+  ]
+}
