@@ -1,0 +1,88 @@
+# Gallery overlay: CI failure triage for a coding agent. The agent sees a red
+# build; these rules decide what it is allowed to do about it — and a rerun
+# is a tool the runtime fires, never a judgment call the model makes.
+# Illustrative policy.
+
+@prefix :      <https://example.org/ci#> .
+@prefix horis: <https://w3id.org/horismos#> .
+@prefix rdf:   <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs:  <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd:   <http://www.w3.org/2001/XMLSchema#> .
+
+## Domain (doc 02)
+
+:BuildFailure a rdfs:Class ;
+    rdfs:label "Failed CI run" .
+
+:Stage a rdfs:Class ;
+    horis:oneOf ( :Lint :Test :Build :Deploy ) .
+
+:failingStage a rdf:Property ;
+    rdfs:domain :BuildFailure ; rdfs:range :Stage ;
+    horis:cardinality "1" .
+
+:knownFlaky a rdf:Property ;
+    rdfs:domain :BuildFailure ; rdfs:range xsd:boolean ;
+    rdfs:comment "The failing test is on the repo's tracked flaky list." ;
+    horis:cardinality "0..1" .
+
+:reproducesOnRerun a rdf:Property ;
+    rdfs:domain :BuildFailure ; rdfs:range xsd:boolean ;
+    horis:cardinality "0..1" .
+
+:priorReruns a rdf:Property ;
+    rdfs:domain :BuildFailure ; rdfs:range xsd:integer ;
+    horis:min 0 ;
+    horis:cardinality "0..1" .
+
+:Disposition a rdfs:Class ;
+    horis:oneOf ( :RerunOnce :FixForward :EscalateToOwner :RollBack ) .
+
+:disposition a rdf:Property ;
+    rdfs:domain :BuildFailure ; rdfs:range :Disposition ;
+    horis:cardinality "0..1" ;
+    horis:assignedBy horis:RulesOnly .
+
+## Rules (doc 04)
+
+:deployFailuresRollBack a horis:Rule ;
+    horis:priority 100 ;
+    horis:when [
+        horis:subject :BuildFailure ; horis:property :failingStage ; horis:is :Deploy
+    ] ;
+    horis:then [ horis:property :disposition ; horis:value :RollBack ] ;
+    horis:explain "A failed deploy stage rolls back first and investigates second" .
+
+:rerunKnownFlakyOnce a horis:Rule ;
+    horis:priority 50 ;
+    horis:when [
+        horis:all (
+            [ horis:subject :BuildFailure ; horis:property :failingStage ; horis:is :Test ]
+            [ horis:subject :BuildFailure ; horis:property :knownFlaky ; horis:is true ]
+            [ horis:subject :BuildFailure ; horis:property :priorReruns ; horis:below 1 ]
+        )
+    ] ;
+    horis:then [ horis:property :disposition ; horis:value :RerunOnce ] ;
+    horis:explain "Known-flaky test, not yet rerun — one rerun is allowed" .
+
+:flakyStillFailingEscalates a horis:Rule ;
+    horis:priority 60 ;
+    horis:when [
+        horis:all (
+            [ horis:subject :BuildFailure ; horis:property :knownFlaky ; horis:is true ]
+            [ horis:subject :BuildFailure ; horis:property :reproducesOnRerun ; horis:is true ]
+        )
+    ] ;
+    horis:then [ horis:property :disposition ; horis:value :EscalateToOwner ] ;
+    horis:explain "The flaky test failed again on rerun — it is no longer flaky, escalate to the owner" .
+
+:deterministicFailuresFixForward a horis:Rule ;
+    horis:priority 10 ;
+    horis:when [
+        horis:all (
+            [ horis:subject :BuildFailure ; horis:property :failingStage ; horis:inList ( :Lint :Test :Build ) ]
+            [ horis:subject :BuildFailure ; horis:property :knownFlaky ; horis:is false ]
+        )
+    ] ;
+    horis:then [ horis:property :disposition ; horis:value :FixForward ] ;
+    horis:explain "Deterministic lint/test/build failure — the agent may propose a fix through the change gate" .
