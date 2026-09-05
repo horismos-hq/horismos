@@ -1,6 +1,6 @@
 # PRP-004 — Ontology-First Agent Loop
 
-**Status**: Active (2026-08-18)
+**Status**: Done (2026-08-25, merged as PR #8; record corrected 2026-09-03)
 **Depends on**: PRP-001, PRP-002, PRP-003 (claim-only — see *Coordination with PRP-003* below)
 
 This PRP is **teaching-grade** (`CONVENTIONS.md` § Teaching-grade PRPs): the five spec

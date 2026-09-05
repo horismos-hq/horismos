@@ -119,6 +119,14 @@ impl HorismosError {
 /// Errors from `horismos_core::ontology` — parsing terms and typed values.
 #[derive(Debug, Error, Clone, PartialEq, Eq)]
 pub enum OntologyError {
+    /// The ontology is structurally valid but fails one or more formal
+    /// guarantees. The complete machine-readable report is retained.
+    #[cfg(feature = "verify")]
+    #[error("ontology verification failed with {} finding(s)", .report.failures().count())]
+    VerificationFailed {
+        report: Box<crate::verify::VerificationReport>,
+    },
+
     /// A lexical form did not match the grammar of its declared datatype.
     #[error("{lexical:?} is not a valid {datatype} lexical form")]
     InvalidLexicalForm { datatype: String, lexical: String },
@@ -505,6 +513,11 @@ impl OntologyError {
     /// caller sees the full list without unwrapping the variant itself.
     pub fn domain_text(&self) -> String {
         match self {
+            #[cfg(feature = "verify")]
+            Self::VerificationFailed { report } => report
+                .failures()
+                .next()
+                .map_or_else(|| self.to_string(), |witness| witness.domain_text.clone()),
             Self::ProfileViolations(violations) => violations
                 .iter()
                 .map(OntologyError::domain_text)

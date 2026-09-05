@@ -73,6 +73,59 @@
     horis:then [ horis:property :acuity ; horis:value :Immediate ] ;
     horis:explain "Tachycardia with chest pain — immediate track" .
 
+:r2 a horis:Rule ;
+    horis:priority 9 ;
+    horis:when [
+        horis:all (
+            [ horis:subject :Patient ; horis:property :heartRate ; horis:exceeds 100 ]
+            [ horis:subject :Patient ; horis:property :heartRate ; horis:atMost 120 ]
+            [ horis:subject :Patient ; horis:property :hasSymptom ; horis:is :Symptom ]
+        )
+    ] ;
+    horis:then [ horis:property :acuity ; horis:value :Urgent ] ;
+    horis:explain "Moderate tachycardia with a symptom — urgent track" .
+
+:r3 a horis:Rule ;
+    horis:priority 8 ;
+    horis:when [
+        horis:subject :Patient ; horis:property :heartRate ; horis:atMost 100
+    ] ;
+    horis:then [ horis:property :acuity ; horis:value :Standard ] ;
+    horis:explain "Heart rate at most 100 — standard track" .
+
+:r4 a horis:Rule ;
+    horis:priority 7 ;
+    horis:when [
+        horis:all (
+            [ horis:subject :Patient ; horis:property :heartRate ; horis:exceeds 120 ]
+            [ horis:subject :Patient ; horis:property :hasSymptom ; horis:isNot :ChestPain ]
+        )
+    ] ;
+    horis:then [ horis:property :acuity ; horis:value :Urgent ] ;
+    horis:explain "Tachycardia without chest pain — urgent track" .
+
+# PRP-005 completeness-cover:start
+:r6 a horis:Rule ;
+    horis:priority 6 ;
+    horis:when [
+        horis:all (
+            [ horis:subject :Patient ; horis:property :heartRate ; horis:exceeds 100 ]
+            [ horis:subject :Patient ; horis:property :heartRate ; horis:atMost 120 ]
+            [ horis:subject :Patient ; horis:property :hasSymptom ; horis:isEmpty true ]
+        )
+    ] ;
+    horis:then [ horis:property :acuity ; horis:value :Urgent ] ;
+    horis:explain "Moderate tachycardia without a symptom — urgent track" .
+# PRP-005 completeness-cover:end
+
+:r5 a horis:Rule ;
+    horis:priority 5 ;
+    horis:when [
+        horis:subject :Patient ; horis:property :heartRate ; horis:isEmpty true
+    ] ;
+    horis:then [ horis:property :acuity ; horis:value :Standard ] ;
+    horis:explain "No heart-rate reading — standard track" .
+
 ## Workflow (doc 05)
 
 :Triage a horis:Workflow ;

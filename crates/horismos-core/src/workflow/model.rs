@@ -136,7 +136,7 @@ pub struct PerceptionStep {
     pub extracts: Vec<Iri>,
     pub model: Option<String>,
     pub confidence: f64,
-    pub fallback: Iri,
+    pub fallback: Option<Iri>,
     pub next: Iri,
     pub retries: u32,
 }
@@ -144,7 +144,7 @@ pub struct PerceptionStep {
 #[derive(Debug, Clone)]
 pub struct ReasoningStep {
     pub goal: ConditionTree,
-    pub on_unreachable: Iri,
+    pub on_unreachable: Option<Iri>,
     pub next: Iri,
 }
 
@@ -152,7 +152,7 @@ pub struct ReasoningStep {
 pub struct ActionStep {
     pub tool: Iri,
     pub requires: Option<ConditionTree>,
-    pub on_error: Iri,
+    pub on_error: Option<Iri>,
     pub on_unsatisfied: Option<Iri>,
     /// `None` when this step is terminal (doc 05's `:EscalateToNurse`).
     pub next: Option<Iri>,
@@ -181,7 +181,7 @@ pub struct ProposalStep {
     pub rank_by: Option<String>,
     pub model: Option<String>,
     pub confidence: f64,
-    pub fallback: Iri,
+    pub fallback: Option<Iri>,
     pub next: Iri,
 }
 
@@ -224,7 +224,7 @@ pub fn parse_workflows(
     schema: &Schema,
     tools: &BTreeMap<Iri, Tool>,
     interner: &Interner,
-) -> Result<BTreeMap<Iri, Workflow>, OntologyError> {
+) -> Result<(BTreeMap<Iri, Workflow>, Vec<Iri>), OntologyError> {
     let graph = SubjectGraph::collect(documents.iter().copied(), interner);
 
     let mut workflow_ids = Vec::new();
@@ -302,6 +302,15 @@ pub fn parse_workflows(
         workflows.insert(wf_iri, workflow);
     }
 
+    let claimed: BTreeSet<Iri> = workflows
+        .values()
+        .flat_map(|workflow| workflow.steps.keys().copied())
+        .collect();
+    let orphaned: Vec<Iri> = step_ids
+        .keys()
+        .filter(|step| !claimed.contains(step))
+        .copied()
+        .collect();
     // Second pass: SubflowStep.workflow must name a *different* declared
     // workflow whose own steps contain no SubflowStep (D6 — depth capped at
     // one, checked here since it needs every workflow parsed first).
@@ -330,7 +339,7 @@ pub fn parse_workflows(
         }
     }
 
-    Ok(workflows)
+    Ok((workflows, orphaned))
 }
 
 fn parse_one_workflow(
@@ -437,14 +446,14 @@ fn steps_snapshot_edges(steps: &BTreeMap<Iri, Step>) -> BTreeMap<Iri, Vec<Iri>> 
         .map(|(&iri, step)| {
             let targets = match &step.body {
                 StepBody::Bare => vec![],
-                StepBody::Perception(p) => vec![p.fallback, p.next],
-                StepBody::Reasoning(r) => vec![r.on_unreachable, r.next],
-                StepBody::Action(a) => [Some(a.on_error), a.on_unsatisfied, a.next]
+                StepBody::Perception(p) => p.fallback.into_iter().chain([p.next]).collect(),
+                StepBody::Reasoning(r) => r.on_unreachable.into_iter().chain([r.next]).collect(),
+                StepBody::Action(a) => [a.on_error, a.on_unsatisfied, a.next]
                     .into_iter()
                     .flatten()
                     .collect(),
                 StepBody::Narration(n) => vec![n.next],
-                StepBody::Proposal(p) => vec![p.fallback, p.next],
+                StepBody::Proposal(p) => p.fallback.into_iter().chain([p.next]).collect(),
                 StepBody::Choice(c) => c
                     .branches
                     .iter()
@@ -487,15 +496,21 @@ fn check_step_edges(
     match &step.body {
         StepBody::Bare => {}
         StepBody::Perception(p) => {
-            check(p.fallback, "horis:fallback")?;
+            if let Some(fallback) = p.fallback {
+                check(fallback, "horis:fallback")?;
+            }
             check(p.next, "horis:next")?;
         }
         StepBody::Reasoning(r) => {
-            check(r.on_unreachable, "horis:onUnreachable")?;
+            if let Some(on_unreachable) = r.on_unreachable {
+                check(on_unreachable, "horis:onUnreachable")?;
+            }
             check(r.next, "horis:next")?;
         }
         StepBody::Action(a) => {
-            check(a.on_error, "horis:onError")?;
+            if let Some(on_error) = a.on_error {
+                check(on_error, "horis:onError")?;
+            }
             if let Some(u) = a.on_unsatisfied {
                 check(u, "horis:onUnsatisfied")?;
             }
@@ -507,7 +522,9 @@ fn check_step_edges(
             check(n.next, "horis:next")?;
         }
         StepBody::Proposal(p) => {
-            check(p.fallback, "horis:fallback")?;
+            if let Some(fallback) = p.fallback {
+                check(fallback, "horis:fallback")?;
+            }
             check(p.next, "horis:next")?;
         }
         StepBody::Choice(c) => {
@@ -693,7 +710,7 @@ fn parse_perception(
         extracts,
         model: optional_string(iri, graph, HORIS_MODEL, interner),
         confidence: required_confidence(iri, graph, interner)?,
-        fallback: required_iri(iri, graph, HORIS_FALLBACK, "horis:fallback", interner)?,
+        fallback: optional_iri(iri, graph, HORIS_FALLBACK, interner),
         next: required_iri(iri, graph, HORIS_NEXT, "horis:next", interner)?,
         retries,
     })
@@ -724,13 +741,7 @@ fn parse_reasoning(
     )?;
     Ok(ReasoningStep {
         goal,
-        on_unreachable: required_iri(
-            iri,
-            graph,
-            HORIS_ON_UNREACHABLE,
-            "horis:onUnreachable",
-            interner,
-        )?,
+        on_unreachable: optional_iri(iri, graph, HORIS_ON_UNREACHABLE, interner),
         next: required_iri(iri, graph, HORIS_NEXT, "horis:next", interner)?,
     })
 }
@@ -766,7 +777,7 @@ fn parse_action(
     Ok(ActionStep {
         tool,
         requires,
-        on_error: required_iri(iri, graph, HORIS_ON_ERROR, "horis:onError", interner)?,
+        on_error: optional_iri(iri, graph, HORIS_ON_ERROR, interner),
         on_unsatisfied: optional_iri(iri, graph, HORIS_ON_UNSATISFIED, interner),
         next: optional_iri(iri, graph, HORIS_NEXT, interner),
     })
@@ -857,7 +868,7 @@ fn parse_proposal(
         rank_by: optional_string(iri, graph, HORIS_RANK_BY, interner),
         model: optional_string(iri, graph, HORIS_MODEL, interner),
         confidence: required_confidence(iri, graph, interner)?,
-        fallback: required_iri(iri, graph, HORIS_FALLBACK, "horis:fallback", interner)?,
+        fallback: optional_iri(iri, graph, HORIS_FALLBACK, interner),
         next: required_iri(iri, graph, HORIS_NEXT, "horis:next", interner)?,
     })
 }
@@ -1211,7 +1222,7 @@ mod tests {
         );
         assert_eq!(intake.model.as_deref(), Some("claude:claude-fable-5"));
         assert_eq!(intake.confidence, 0.85);
-        assert_eq!(intake.fallback, iri(&onto, "EscalateToNurse"));
+        assert_eq!(intake.fallback, Some(iri(&onto, "EscalateToNurse")));
         assert_eq!(intake.next, iri(&onto, "Assess"));
 
         let assess = match &wf.step(iri(&onto, "Assess")).expect(":Assess").body {
@@ -1226,7 +1237,7 @@ mod tests {
                 unit: None,
             })
         );
-        assert_eq!(assess.on_unreachable, iri(&onto, "EscalateToNurse"));
+        assert_eq!(assess.on_unreachable, Some(iri(&onto, "EscalateToNurse")));
         assert_eq!(assess.next, iri(&onto, "Route"));
 
         let route = match &wf.step(iri(&onto, "Route")).expect(":Route").body {
@@ -1235,7 +1246,7 @@ mod tests {
         };
         assert_eq!(route.tool, iri(&onto, "ehr.assign_queue"));
         assert!(route.requires.is_some());
-        assert_eq!(route.on_error, iri(&onto, "EscalateToNurse"));
+        assert_eq!(route.on_error, Some(iri(&onto, "EscalateToNurse")));
         assert_eq!(route.next, Some(iri(&onto, "Explain")));
 
         let explain = match &wf.step(iri(&onto, "Explain")).expect(":Explain").body {
@@ -1260,7 +1271,7 @@ mod tests {
             other => panic!("expected ActionStep, got {other:?}"),
         };
         assert_eq!(escalate_body.tool, iri(&onto, "paging.notify_nurse"));
-        assert_eq!(escalate_body.on_error, iri(&onto, "PagingFailed"));
+        assert_eq!(escalate_body.on_error, Some(iri(&onto, "PagingFailed")));
         assert_eq!(escalate_body.next, None);
 
         let paging_failed = wf.step(iri(&onto, "PagingFailed")).expect(":PagingFailed");
@@ -1270,7 +1281,7 @@ mod tests {
 
     #[test]
     fn a_dangling_next_edge_is_a_domain_term_error() {
-        let err = Ontology::load_from_str(
+        let err = Ontology::load_from_str_allow_incomplete(
             "@prefix : <https://example.org/t#> .\n\
              @prefix horis: <https://w3id.org/horismos#> .\n\
              @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .\n\
@@ -1314,7 +1325,7 @@ mod tests {
              :A a horis:SubflowStep ; horis:workflow :Sub ; horis:next :B .\n\
              :B a horis:Step ; horis:terminal true .\n"
         );
-        let onto = Ontology::load_from_str(&source, |_| None)
+        let onto = Ontology::load_from_str_allow_incomplete(&source, |_| None)
             .expect("a genuine one-level subflow must load cleanly");
 
         let sub_iri = onto
@@ -1351,7 +1362,7 @@ mod tests {
              :A a horis:SubflowStep ; horis:workflow :Sub ; horis:next :B .\n\
              :B a horis:Step ; horis:terminal true .\n"
         );
-        let err = Ontology::load_from_str(&source, |_| None)
+        let err = Ontology::load_from_str_allow_incomplete(&source, |_| None)
             .expect_err("two levels of subflow nesting must be rejected (D6)");
         assert!(
             matches!(err, OntologyError::SubflowNestingTooDeep { .. }),

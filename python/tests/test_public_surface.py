@@ -5,6 +5,9 @@ import horismos
 
 EXPECTED = {
     "PROFILE_VERSION",
+    "AssumptionManifest",
+    "Bound",
+    "Conflict",
     "Diff",
     "Fact",
     "HorismosBridgeError",
@@ -17,10 +20,14 @@ EXPECTED = {
     "Ontology",
     "ProofNode",
     "Ref",
+    "Region",
+    "RegionPredicate",
     "Rule",
     "Snapshot",
     "Subscription",
     "VerificationReport",
+    "Witness",
+    "WorkflowVerification",
     "World",
     "__version__",
 }

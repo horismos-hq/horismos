@@ -69,15 +69,66 @@ struct Inner {
     /// Every `horis:Workflow`, parsed and validated at load (PRP-004 U2),
     /// keyed by workflow IRI.
     workflows: BTreeMap<Iri, Workflow>,
+    /// Step declarations unreachable from every workflow root. They are
+    /// global verification evidence, never owned by an arbitrary workflow.
+    unreachable_workflow_steps: Vec<Iri>,
+    /// Preserved so `with_import` keeps the caller's explicit authoring
+    /// posture and traces can later annotate incomplete execution.
+    allow_incomplete: bool,
+}
+
+/// Explicit load policy. Ordinary loads use [`LoadOptions::default`] and
+/// therefore fail closed on any verification finding.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct LoadOptions {
+    pub allow_incomplete: bool,
 }
 
 impl Ontology {
     /// The filesystem convenience (doc 12: `Ontology::load("triage.ttl")?`):
     /// reads `path` and every import it declares, transitively.
     pub fn load(path: impl AsRef<Path>) -> Result<Ontology, OntologyError> {
+        Self::load_with_options(path, LoadOptions::default())
+    }
+
+    pub fn load_with_options(
+        path: impl AsRef<Path>,
+        options: LoadOptions,
+    ) -> Result<Ontology, OntologyError> {
         let mut interner = Interner::new();
         let set = OntologySet::load(path, &mut interner)?;
-        Ontology::assemble(set, interner)
+        Ontology::assemble(set, interner, options)
+    }
+
+    /// Loads a root plus explicit undeclared imports as one verification
+    /// transaction. This avoids verifying a deliberately partial root before
+    /// the caller-provided graphs have been assembled.
+    pub fn load_with_imports_and_options<I, P>(
+        path: impl AsRef<Path>,
+        imports: I,
+        options: LoadOptions,
+    ) -> Result<Ontology, OntologyError>
+    where
+        I: IntoIterator<Item = P>,
+        P: AsRef<Path>,
+    {
+        let mut interner = Interner::new();
+        let mut set = OntologySet::load(path, &mut interner)?;
+        for import in imports {
+            set = set.with_import(import, &mut interner)?;
+        }
+        Ontology::assemble(set, interner, options)
+    }
+
+    /// Explicit authoring/debug escape for filesystem loads. Verification still
+    /// runs and its complete report remains available through [`Ontology::verify`].
+    pub fn load_allow_incomplete(path: impl AsRef<Path>) -> Result<Ontology, OntologyError> {
+        Self::load_with_options(
+            path,
+            LoadOptions {
+                allow_incomplete: true,
+            },
+        )
     }
 
     /// The pure, wasm-safe constructor: parses `source` as the root graph and
@@ -88,9 +139,32 @@ impl Ontology {
         source: &str,
         resolve: impl FnMut(&str) -> Option<String>,
     ) -> Result<Ontology, OntologyError> {
+        Self::load_from_str_with_options(source, resolve, LoadOptions::default())
+    }
+
+    pub fn load_from_str_with_options(
+        source: &str,
+        resolve: impl FnMut(&str) -> Option<String>,
+        options: LoadOptions,
+    ) -> Result<Ontology, OntologyError> {
         let mut interner = Interner::new();
         let set = OntologySet::load_from_str(source, &mut interner, resolve)?;
-        Ontology::assemble(set, interner)
+        Ontology::assemble(set, interner, options)
+    }
+
+    /// Explicit authoring/debug escape that still runs verification and
+    /// leaves the complete report available through [`Ontology::verify`].
+    pub fn load_from_str_allow_incomplete(
+        source: &str,
+        resolve: impl FnMut(&str) -> Option<String>,
+    ) -> Result<Ontology, OntologyError> {
+        Self::load_from_str_with_options(
+            source,
+            resolve,
+            LoadOptions {
+                allow_incomplete: true,
+            },
+        )
     }
 
     /// Adds one *undeclared* import from the filesystem (doc 12:
@@ -107,29 +181,39 @@ impl Ontology {
             rules: shared.rules.clone(),
             tools: shared.tools.clone(),
             workflows: shared.workflows.clone(),
+            unreachable_workflow_steps: shared.unreachable_workflow_steps.clone(),
+            allow_incomplete: shared.allow_incomplete,
         });
+        let options = LoadOptions {
+            allow_incomplete: inner.allow_incomplete,
+        };
         let mut interner = inner.interner;
         let set = inner.set.with_import(path, &mut interner)?;
-        Ontology::assemble(set, interner)
+        Ontology::assemble(set, interner, options)
     }
 
     /// Validates, builds, and derives — the one construction path every
     /// constructor above funnels through.
-    fn assemble(set: OntologySet, interner: Interner) -> Result<Ontology, OntologyError> {
+    fn assemble(
+        set: OntologySet,
+        interner: Interner,
+        options: LoadOptions,
+    ) -> Result<Ontology, OntologyError> {
         set.validate(&interner)?;
         let schema = Schema::build_all(set.documents(), &interner)?;
         let patterns = compile_patterns(&schema, &interner)?;
         let rules = parse_rules(set.documents(), &schema, &interner)?;
         let docs: Vec<&crate::ontology::turtle::Document> = set.documents().collect();
         let tools = parse_tools(&docs, &schema, &interner)?;
-        let workflows = parse_workflows(&docs, &schema, &tools, &interner)?;
+        let (workflows, unreachable_workflow_steps) =
+            parse_workflows(&docs, &schema, &tools, &interner)?;
 
         let mut compaction = set.prefixes.clone();
         compaction.sort_by(|(a_name, a_ns), (b_name, b_ns)| {
             b_ns.len().cmp(&a_ns.len()).then_with(|| a_name.cmp(b_name))
         });
 
-        Ok(Ontology {
+        let ontology = Ontology {
             inner: Arc::new(Inner {
                 set,
                 schema,
@@ -139,8 +223,33 @@ impl Ontology {
                 rules,
                 tools,
                 workflows,
+                unreachable_workflow_steps,
+                allow_incomplete: options.allow_incomplete,
             }),
-        })
+        };
+        #[cfg(feature = "verify")]
+        {
+            let report = ontology.verify();
+            if !report.ok() && !options.allow_incomplete {
+                return Err(OntologyError::VerificationFailed {
+                    report: Box::new(report),
+                });
+            }
+        }
+        Ok(ontology)
+    }
+
+    /// Re-runs the complete deterministic verification pass.
+    #[cfg(feature = "verify")]
+    pub fn verify(&self) -> crate::verify::VerificationReport {
+        crate::verify::verify_ontology(self, crate::verify::AssumptionManifest::default())
+    }
+
+    /// Whether this ontology was admitted through the explicit incomplete
+    /// authoring/debug escape. Agent traces expose this posture so an
+    /// incomplete run can never look like a verified deployment run.
+    pub fn allows_incomplete(&self) -> bool {
+        self.inner.allow_incomplete
     }
 
     /// The queryable schema (U4) — classes, the `subClassOf` closure,
@@ -252,6 +361,10 @@ impl Ontology {
         &self.inner.workflows
     }
 
+    pub(crate) fn unreachable_workflow_steps(&self) -> &[Iri] {
+        &self.inner.unreachable_workflow_steps
+    }
+
     /// The `horis:Workflow` named `iri`, if this ontology declares one —
     /// what [`crate::workflow::agent::AgentBuilder::workflow`] resolves
     /// against.
@@ -344,7 +457,7 @@ mod tests {
          @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .\n";
 
     fn load(source: &str) -> Result<Ontology, OntologyError> {
-        Ontology::load_from_str(&format!("{PRELUDE}{source}\n"), |_| None)
+        Ontology::load_from_str_allow_incomplete(&format!("{PRELUDE}{source}\n"), |_| None)
     }
 
     fn triage() -> Ontology {
@@ -376,7 +489,7 @@ mod tests {
 
     #[test]
     fn load_from_str_rejects_an_out_of_profile_document() {
-        let err = Ontology::load_from_str(
+        let err = Ontology::load_from_str_allow_incomplete(
             "@prefix owl: <http://www.w3.org/2002/07/owl#> .\n\
              @prefix : <https://example.org/t#> .\n\
              :Foo a owl:Restriction .\n",

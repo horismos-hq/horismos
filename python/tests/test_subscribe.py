@@ -50,7 +50,7 @@ def test_a_mutation_from_a_callback_is_its_own_later_transaction(
         # Re-entrant mutation: a new transaction, dispatched after this one.
         companion.append(world.assert_(":Patient", heart_rate=60))
 
-    world.subscribe("acuity", on_acuity)
+    world.subscribe("acuity", on_acuity, value=onto.ref(":Immediate"))
     world.assert_(":Patient", heart_rate=128, has_symptom=[":CrushingChestPain"])
     order.append("after")
 
@@ -70,7 +70,7 @@ def test_two_threads_share_a_world_without_deadlocking(onto: Ontology, world: Wo
     def writer() -> None:
         try:
             while time.perf_counter() < deadline:
-                world.assert_(":Patient", heart_rate=100)
+                world.assert_(":Patient", subject=":writer", heart_rate=100)
         except BaseException as e:
             failures.append(e)
 

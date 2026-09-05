@@ -63,7 +63,8 @@ mod tests {
 
     fn load(source: &str) -> Ontology {
         let full = format!("{PRELUDE}{source}");
-        Ontology::load_from_str(&full, |_| None).expect("a valid deferred-step fixture loads")
+        Ontology::load_from_str_allow_incomplete(&full, |_| None)
+            .expect("a valid deferred-step fixture loads")
     }
 
     fn iri(onto: &Ontology, local: &str) -> Iri {

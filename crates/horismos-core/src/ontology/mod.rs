@@ -12,4 +12,4 @@ pub mod schema;
 pub mod term;
 pub mod turtle;
 
-pub use facade::Ontology;
+pub use facade::{LoadOptions, Ontology};

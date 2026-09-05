@@ -313,6 +313,7 @@ impl<'a> Agent<'a> {
             iri: ontology_namespace(self.onto, self.workflow.iri),
             version: self.workflow.version.clone(),
             hash: None,
+            allow_incomplete: self.onto.allows_incomplete(),
         });
         trace.workflow = Some(self.onto.compact(self.onto.resolve(self.workflow.iri)));
         trace.started_at = Some(input.now.to_rfc3339());
@@ -463,6 +464,12 @@ impl<'a> Agent<'a> {
         p: &PerceptionStep,
         input: &RunInput,
     ) -> Result<StepOutcome, WorkflowError> {
+        let fallback = p
+            .fallback
+            .ok_or_else(|| WorkflowError::MissingFailureEdge {
+                step: step_name.to_owned(),
+                edge: "horis:fallback".to_owned(),
+            })?;
         let bridge = self.bridge_for(p.model.as_deref())?;
         let schema = derive_extract_schema(self.onto, world.ontology().schema(), &p.extracts);
         let model = Some(bridge.id().to_owned());
@@ -480,11 +487,11 @@ impl<'a> Agent<'a> {
                 // A transport-level failure carries no confidence/instance
                 // data worth recording — the fallback edge is the whole
                 // trace-visible signal for this case.
-                Err(_) => return Ok(self.fallback_outcome(p.fallback)),
+                Err(_) => return Ok(self.fallback_outcome(fallback)),
             };
             let accepted = result.confidence >= p.confidence;
             if !accepted {
-                let mut outcome = self.fallback_outcome(p.fallback);
+                let mut outcome = self.fallback_outcome(fallback);
                 outcome.trace_step = Some(crate::trace::perception_step(
                     world,
                     Some(step_name),
@@ -509,7 +516,7 @@ impl<'a> Agent<'a> {
                     return Ok(outcome);
                 }
                 Err(_) if attempt < p.retries => attempt += 1,
-                Err(_) => return Ok(self.fallback_outcome(p.fallback)),
+                Err(_) => return Ok(self.fallback_outcome(fallback)),
             }
         }
     }
@@ -641,7 +648,15 @@ impl<'a> Agent<'a> {
         let mut outcome = if reached {
             StepOutcome::new(r.next, false, Some(case))
         } else {
-            StepOutcome::new(r.on_unreachable, true, Some(case))
+            StepOutcome::new(
+                r.on_unreachable
+                    .ok_or_else(|| WorkflowError::MissingFailureEdge {
+                        step: step_name.to_owned(),
+                        edge: "horis:onUnreachable".to_owned(),
+                    })?,
+                true,
+                Some(case),
+            )
         };
         outcome.trace_step = trace_step;
         Ok(outcome)
@@ -671,7 +686,14 @@ impl<'a> Agent<'a> {
         let outcome = self.invoke_tool(world, case, a.tool, now);
         match outcome {
             Ok(effects) => {
-                let mut outcome = StepOutcome::new(a.next.unwrap_or(a.on_error), false, Some(case));
+                let next =
+                    a.next
+                        .or(a.on_error)
+                        .ok_or_else(|| WorkflowError::MissingFailureEdge {
+                            step: step_name.to_owned(),
+                            edge: "horis:onError".to_owned(),
+                        })?;
+                let mut outcome = StepOutcome::new(next, false, Some(case));
                 let effects: Vec<crate::trace::AssertedEffect> = effects
                     .into_iter()
                     .map(|(property, value)| crate::trace::AssertedEffect {
@@ -691,7 +713,15 @@ impl<'a> Agent<'a> {
             // A rejected/failed invocation has no confirmed effect to
             // record — `horis:onError` is the whole trace-visible signal,
             // same posture as perception's transport-failure branch.
-            Err(_) => Ok(StepOutcome::new(a.on_error, true, Some(case))),
+            Err(_) => Ok(StepOutcome::new(
+                a.on_error
+                    .ok_or_else(|| WorkflowError::MissingFailureEdge {
+                        step: step_name.to_owned(),
+                        edge: "horis:onError".to_owned(),
+                    })?,
+                true,
+                Some(case),
+            )),
         }
     }
 
@@ -1183,7 +1213,11 @@ mod tests {
     /// reaches `:Done` with `acuity :Immediate`.
     #[test]
     fn the_immediate_track_reaches_done_with_acuity_immediate() {
-        let onto = triage();
+        let onto = Ontology::load_allow_incomplete(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../examples/triage/triage.ttl"
+        ))
+        .expect("the explicit authoring posture still loads verified triage");
 
         let bridge = StubBridge {
             id: "mock:triage".to_owned(),
@@ -1269,6 +1303,18 @@ mod tests {
             crate::trace::Step::Narration { text: Some(t), .. } if t == "narrated"
         ));
         assert_eq!(outcome.trace.run_id, "run_immediate");
+        let ontology_ref = outcome
+            .trace
+            .ontology
+            .as_ref()
+            .expect("agent traces identify their ontology");
+        assert!(ontology_ref.allow_incomplete);
+        assert_eq!(
+            serde_json::from_str::<serde_json::Value>(&outcome.trace.to_json())
+                .expect("trace JSON is valid")["ontology"]["allow_incomplete"],
+            true,
+            "the explicit escape is durable trace evidence"
+        );
         assert_eq!(
             crate::trace::Trace::from_json(&outcome.trace.to_json()).expect("trace round-trips"),
             outcome.trace

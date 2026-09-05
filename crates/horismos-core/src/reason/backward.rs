@@ -331,7 +331,7 @@ mod tests {
              \x20 horis:then [ horis:property :needsCardiacMonitor ; horis:value true ] ;\n\
              \x20 horis:explain \"Immediate track — continuous cardiac monitoring\" .\n"
         );
-        let onto = Ontology::load_from_str(&source, |_| None).expect("valid");
+        let onto = Ontology::load_from_str_allow_incomplete(&source, |_| None).expect("valid");
         World::new(&onto)
     }
 
@@ -514,7 +514,7 @@ mod tests {
              \x20   [ horis:subject :Patient ; horis:property :flagA ; horis:is true ] ) ] ;\n\
              \x20 horis:then [ horis:property :flagB ; horis:value true ] .\n"
         );
-        let onto = Ontology::load_from_str(&source, |_| None).expect("valid");
+        let onto = Ontology::load_from_str_allow_incomplete(&source, |_| None).expect("valid");
         let mut world = World::new(&onto);
         let patient = t(&mut world, "Patient");
         let flag_a = t(&mut world, "flagA");
@@ -549,7 +549,7 @@ mod tests {
             ));
         }
         let source = format!("{PRELUDE}:Patient a rdfs:Class .\n{decls}{rules}");
-        let onto = Ontology::load_from_str(&source, |_| None).expect("valid");
+        let onto = Ontology::load_from_str_allow_incomplete(&source, |_| None).expect("valid");
         let mut world = World::new(&onto);
         let patient = t(&mut world, "Patient");
         let lvl0 = t(&mut world, "lvl0");
@@ -630,7 +630,7 @@ mod branch_rollback_tests {
              \x20   [ horis:subject :Patient ; horis:property :marker ; horis:isNot true ] ) ] ;\n\
              \x20 horis:then [ horis:property :verdict ; horis:value :Ok ] .\n"
         );
-        let onto = Ontology::load_from_str(&source, |_| None).expect("valid");
+        let onto = Ontology::load_from_str_allow_incomplete(&source, |_| None).expect("valid");
         let mut world = World::new(&onto);
         let patient = t(&mut world, "Patient");
         let heart_rate = t(&mut world, "heartRate");

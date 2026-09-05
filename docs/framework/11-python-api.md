@@ -41,7 +41,7 @@ from horismos import Ontology, World
 
 onto = Ontology.load("examples/triage/triage.ttl",
                      imports=["examples/triage/snomed-ct-subset.ttl"])
-assert onto.verify().ok            # stub until PRP-005: load-time checks only
+assert onto.verify().ok
 assert onto.namespaces[""] == "https://example.org/triage#"   # the : prefix
 
 world = World(onto)
@@ -57,13 +57,41 @@ print(world.explain(p, ":acuity").render())
 
 | Member | Signature | Notes |
 |--------|-----------|-------|
-| `load` | `(path, *, imports=[], verify=True, allow_incomplete=False) -> Ontology` | Parses Turtle, resolves imports, verifies (doc 10) |
+| `load` | `(path, *, imports=None, allow_incomplete=False) -> Ontology` | Parses the root and explicit imports as one unit, then verifies; failure raises `HorismosVerificationError` unless the explicit authoring escape is set |
 | `verify` | `() -> VerificationReport` | Re-run on demand |
 | `classes` / `properties` / `rules` / `workflows` | introspection collections | Iterable, indexable by CURIE |
 | `ns` | `NamespaceMap` | `onto.ns.triage.Patient` → IRI |
 | `schema_for` | `(class_or_step) -> dict` | The derived JSON Schema (doc 06) — inspectable |
 | `diff` | `(other) -> OntologyDiff` | Domain-term rendered diff |
 | `version` / `hash` | `str` | Deployment identity, stamped into traces — deferred (2026-08-18): no ontology-level version vocabulary exists to bind yet; PRP-004's trace stamping is the consumer (gap note in `PRPs/PRP-003-python-bindings/02-tasks-and-gaps.md`) |
+
+### `VerificationReport`
+
+`VerificationReport` is an immutable Python value marshaled from one complete core JSON
+payload. It exposes `ok`, `complete`, `conflicts`, `dead_rules`, `terminating`,
+`workflows`, `witnesses`, `assumptions`, `exit_code`, and `to_json()`. Every witness has
+`kind`, `severity` (`"error"` fails the report; `"info"` is advisory), `domain_text`,
+`region`, and `suggestion`; ordered region bounds retain their exact authored lexical
+values and units. Each `Conflict` names both rules, their values and priorities, the
+overlap region, and the `winner` whose value stands under priority order (`None` when
+both rules share a priority, since the outcome is then order-dependent).
+
+The always-present `AssumptionManifest` has exactly five fields:
+`input_closure`, `external_profile_versions`, `mapping_version`, `supported_subset`,
+and `unverified_external_effects`. Their current collection/string types are
+provisional pending PRP-008; the fields themselves are permanent.
+
+For CI and authoring tools:
+
+```console
+python -m horismos verify examples/triage/triage.ttl
+```
+
+The command prints the canonical report JSON and exits `0` for a passing report or `1`
+for verification findings. `--import path` may be repeated. There is no switch that
+disables verification; `allow_incomplete=True` is the explicit authoring/debug escape,
+and every agent trace produced from such an ontology records
+`ontology.allow_incomplete: true`.
 
 ## Typed instance construction
 

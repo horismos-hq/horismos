@@ -2,18 +2,22 @@
 
 Verification is what separates "framework with tests" from "framework with
 guarantees": before an ontology runs, Horismos proves properties of its rule set and
-workflows, and renders violations as counterexamples an SME can read. The engine is
-a port-and-adapt of sigil-lang's BDD verifier (`biodivine-lib-bdd`; pure Rust,
-WASM-safe, 50 tests of prior art; the Z3 rejection stands — no 200MB C++ dependency).
+workflows, and renders violations as counterexamples an SME can read. The engine adapts
+the sigil-lang BDD-verifier design described by PRP-005 using
+`biodivine-lib-bdd`: the implementation is pure Rust and WASM-safe, and deliberately
+has no SMT/Z3 dependency.
 
 ## When it runs
 
 - **Load time**: `Ontology.load` runs verification by default; failures block
   deployment unless explicitly overridden (`allow_incomplete=True` — annotated in
-  every subsequent trace). **[DECIDE: confirm default-hard policy — PRP-005]**
+  every subsequent trace). The default-hard policy is fixed; `allow_incomplete` is
+  the explicit authoring/debug escape (decided 2026-09-02, PRP-005 D1).
 - **Authoring time**: every draft the authoring agent produces (doc 13) — target
   <1s interactive on triage-sized ontologies.
-- **CI**: `horismos verify path/` exit codes; JSON output for tooling.
+- **CI**: `python -m horismos verify path/to/ontology.ttl` emits deterministic JSON
+  and exits `0` only when every check passes. Repeat `--import path` for explicit
+  undeclared imports.
 
 ## Rule-set checks
 
@@ -22,6 +26,26 @@ threshold predicates and encoded as BDDs. The ontology makes the encoding *tight
 than sigil-lang's: `horis:min/max` bound variable domains, `horis:oneOf` closes value
 sets, and the class hierarchy widens rule applicability through subsumption
 (a rule on `:ChestPain` covers the `:CrushingChestPain` region).
+
+Every authored constant or ordered boundary in rule conditions, workflow reasoning
+goals, action `horis:requires`, and choice branches participates in that projection.
+A value used only by a workflow is therefore still represented exactly rather than
+being mistaken for an impossible input. Ordered comparisons follow the runtime's
+`compare`: numbers cross-type, `xsd:dateTime` by instant, and strings
+lexicographically, each in its own opaque order with no conversion; a comparison the
+runtime cannot order (a boolean, a duration, a mismatched datatype) never holds.
+`xsd:boolean` properties are closed over `true`/`false`, so an `is true` / `is false`
+pair is a complete partition. A rule may conclude on a property perception also sets;
+downstream conditions then see the store as the gate leaves it: on a mutable
+single-valued property a standing conclusion *replaces* the input value, while a
+multi-valued property holds the input value and every standing conclusion together.
+Reads follow the runtime's selection order: a rule that outranks the writer is
+evaluated before the replacement and therefore reads the input value, while
+workflow conditions always observe the final store.
+
+A conflict witness names the winner only when the two rules differ in priority.
+Rules sharing a priority resolve by firing order at runtime, so the witness reports
+no winner and asks the author to raise one rule's priority instead.
 
 | Check | Question | Counterexample rendering |
 |-------|----------|--------------------------|
@@ -44,8 +68,10 @@ Completeness is relative to declared reachability: constraints define the input 
 | **Choice totality** | Do ChoiceStep branches + `otherwise` cover all cases? |
 
 The precondition check is the composition point: workflow verification *uses* the
-rule-set BDDs. A workflow is proven to never stall only because the rules are proven
-to always assign what its steps require.
+rule-set BDDs. Facts established by rules are computed with the runtime's exact
+priority order and restart-to-highest-priority fixed point, including derived-from-derived
+support. A workflow is proven to never stall only because those rules establish what
+its steps require.
 
 ## The report
 
@@ -53,12 +79,22 @@ to always assign what its steps require.
 report = onto.verify()
 report.ok                     # bool: all checks pass
 report.complete               # per-property completeness
-report.conflicts              # list[Conflict] with regions + priority resolution
-report.dead_rules             # list[DeadRule]
+report.conflicts              # list[Conflict]: both rules, values, priorities,
+                              #   the region, and the priority `winner` (None
+                              #   when both share a priority: the standing
+                              #   value is then order-dependent)
+report.dead_rules             # tuple[str, ...] of rule CURIEs
+report.terminating            # bool: rule chaining terminates
+report.workflows              # per-workflow termination/requires/fallback/choice
+                              #   totality; unreachable steps are global witnesses
 report.witnesses              # every finding as a Witness:
+                              #   .severity     — "error" fails the report,
+                              #                   "info" is advisory only
                               #   .domain_text  — the SME-readable sentence
                               #   .region       — machine-readable bounds
-                              #   .suggest      — repair hint where derivable
+                              #   .suggestion   — repair hint where derivable
+report.assumptions            # always-present five-field manifest
+report.exit_code              # 0 when ok, otherwise 1
 report.to_json()
 ```
 
@@ -68,10 +104,14 @@ authoring agent (structured region → generates a repair draft), and CI (JSON d
 
 ## The assumption manifest (added 2026-08-24, bounded-projection pivot)
 
-Every `VerificationReport` carries an explicit assumption manifest alongside `report.ok`
-— input closure, external profile/version, mapping version, supported artifact subset,
-and unverified external effects — so scope is machine-readable, not implied by silence.
-Full spec: `PRPs/PRP-005-guarantees-verification.md` §"Assumption manifest". This section
+Every `VerificationReport` carries an explicit `assumptions` manifest alongside
+`report.ok`: `input_closure`, `external_profile_versions`, `mapping_version`,
+`supported_subset`, and `unverified_external_effects`. Each field is populated or
+explicitly empty, so scope is machine-readable rather than implied by silence. The
+container is the provisional PRP-005 shape; PRP-008 may replace its value types with
+`ExternalSnapshot`-native types, but the five fields are fixed.
+Full spec: `PRPs/PRP-005-guarantees-verification/01-objective.md`
+§"Assumption manifest". This section
 exists precisely so the "does not claim" list below is enforced structurally, not just
 stated in prose.
 
@@ -79,9 +119,16 @@ stated in prose.
 
 A rule or constraint can be internally consistent and BDD-verifiable while binding
 nothing — the LASA/CHARGE "vacuous verification" failure mode
-(`horismos-research-s1/report.md` §1.7). Verification adds a pass, distinct from
-consistency-checking, that flags a satisfiable-but-inert rule or a constraint that
-excludes no reachable value. Full spec: `PRPs/PRP-005-guarantees-verification.md`
+(`horismos-research-s1/report.md` §1.7). The distinct non-vacuity pass flags a
+satisfiable condition whose conclusion adds no new fact and a constraint that excludes
+no value in the declared domain. Both findings carry a domain-term witness and a
+machine-readable region. A bound that can never reject a value of the property's own
+type — `horis:min`/`horis:max` on a non-numeric property, `horis:pattern` on a
+non-string property, or a universal pattern — is an error. An explicit
+`horis:cardinality "0..*"` is a documented authored value (doc 02) that restates the
+default, so it is reported at `info` severity: the note appears in `report.witnesses`
+but does not make `report.ok` false or block the default-hard load. Full spec:
+`PRPs/PRP-005-guarantees-verification/01-objective.md`
 §"Non-vacuity checks".
 
 ## Imported-artifact and capability checks (declared-future, PRP-008/PRP-007)

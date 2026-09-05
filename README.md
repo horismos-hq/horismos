@@ -14,9 +14,9 @@ and the kernel still runs.
 
 ## Status
 
-Pre-alpha: the symbolic core (PRP-001/002), the Python bindings (PRP-003) and the Rust
-agent loop (PRP-004) are merged; verification (PRP-005) and standards/host integration
-(PRP-008) are in build on branches — see `PRPs/BOARD.md`.
+Pre-alpha; current, next, and shipped state live in `PRPs/BOARD.md`. The symbolic core
+(PRP-001/002), the Python bindings (PRP-003) and the Rust agent loop (PRP-004) are merged;
+verification (PRP-005) and standards/host integration (PRP-008) are in build on branches.
 
 - `docs/framework/` — the framework definition (docs 00–15), written in shipped voice
 - `PRPs/` — phase plans (PRP-000 vision → PRP-008 standards & host integration)

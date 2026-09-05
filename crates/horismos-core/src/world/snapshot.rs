@@ -610,7 +610,7 @@ mod tests {
     /// A world over an inline ontology spanning every literal datatype plus
     /// an object property — `:` = `https://example.org/t#`.
     fn spread_world() -> World {
-        let onto = Ontology::load_from_str(
+        let onto = Ontology::load_from_str_allow_incomplete(
             &format!(
                 "{PRELUDE}\
                  :Patient a rdfs:Class .\n\
@@ -1266,8 +1266,11 @@ mod tests {
             .expect("a bare patient is valid");
         let snapshot = world.snapshot();
 
-        let other = Ontology::load_from_str(&format!("{PRELUDE}:Zebra a rdfs:Class .\n"), |_| None)
-            .expect("the other ontology must load");
+        let other = Ontology::load_from_str_allow_incomplete(
+            &format!("{PRELUDE}:Zebra a rdfs:Class .\n"),
+            |_| None,
+        )
+        .expect("the other ontology must load");
         let err = World::from_snapshot(&other, snapshot.clone())
             .expect_err("a foreign ontology must be refused");
         match err {
