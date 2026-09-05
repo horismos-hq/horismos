@@ -11,7 +11,10 @@ trajectories are TIR/CIR-grade data).
 {
   "schema": "horismos.trace/1",                 // versioned FOREVER — traces outlive releases
   "run_id": "run_01J…",
-  "ontology": { "iri": "…/triage", "version": "1.2.0", "hash": "sha256:…" },
+  "ontology": {
+    "iri": "…/triage", "version": "1.2.0", "hash": "sha256:…",
+    "allow_incomplete": true                 // present only for the explicit escape
+  },
   "workflow": "triage:Triage",
   "started_at": "2026-07-28T09:14:03Z",
   "input": { "kind": "nl", "text": "58M, crushing chest pain 20 min, HR 128…" },
@@ -74,6 +77,11 @@ trajectories are TIR/CIR-grade data).
 4. **Provenance everywhere.** Every asserted fact in a trace carries its provenance
    and (for perception) confidence — the neuro-symbolic seam stays visible at the
    per-fact level.
+5. **Verification posture is durable.** Ordinary loads fail before execution when
+   verification finds a gap. If an author explicitly loads with `allow_incomplete`,
+   every resulting agent trace carries `ontology.allow_incomplete: true`; absence
+   retains the verified-deployment meaning. This is additive-optional under the
+   versioning policy, not a reinterpretation of an existing field.
 
 ## Replay
 

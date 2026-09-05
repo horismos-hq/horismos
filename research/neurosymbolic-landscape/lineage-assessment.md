@@ -55,7 +55,7 @@ a roadmap conversation.
 **[measured]** Under the pivot the inherited positioning statement is "a deterministic,
 ontology-first decision and capability kernel that evaluates a versioned projection of
 an existing system, proves why an effect is allowed, and conditionally commits through
-standards-native adapters" (`PRPs/PRP-000-vision-positioning.md`). The closest
+standards-native adapters" ([`PRPs/PRP-000-vision-positioning.md`](https://github.com/billaram/horismos/blob/main/PRPs/PRP-000-vision-positioning.md)). The closest
 architectural precedents found this sweep: ATA — offline LLM ingestion into a
 human-verifiable symbolic knowledge base, an online symbolic decision engine "without
 invoking the LLM," claiming perfect determinism and prompt-injection immunity
@@ -71,7 +71,7 @@ counterparts: WorldEvolver, which gates its own foresight by confidence
 treats a MIMIC-IV patient-state KG as a "predictive patient-state representation" with
 JEPA latent refinement ([arXiv:2608.22583](https://arxiv.org/abs/2608.22583)). A shipped
 neighbour of the "provenance semirings" direction noted above: lemmalog, a Datalog
-agent-memory engine with semiring provenance (`../ontology-authoring/kg-maintenance-and-agent-memory.md`).
+agent-memory engine with semiring provenance ([`../ontology-authoring/kg-maintenance-and-agent-memory.md`](../ontology-authoring/kg-maintenance-and-agent-memory.md)).
 
 **[inference]** The lineage claim above is unchanged by the pivot. What the pivot adds
 to positioning: "a symbolic world model is the snapshot you can prove over; a learned
@@ -83,7 +83,7 @@ worth naming explicitly when it comes up.
 
 ## Source
 
-See `../reading-log.md`, Q3 section.
+See [`../reading-log.md`](../reading-log.md), Q3 section.
 
 ## Confidence
 

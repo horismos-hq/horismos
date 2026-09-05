@@ -25,10 +25,20 @@ proof → NL). Delete the LLM and the kernel still runs.
 - `PRPs/README.md`: phase plans. Open design questions are marked **[DECIDE]** in the
   docs, each owned by exactly one PRP — resolve them in the owning PRP, never ad hoc.
 - `PRPs/foundational-skeleton.md`: this skeleton — layout, tooling, skills roster.
+- `mkdocs.yml` (repo root) + `docs/`: the developer-facing docs site (MkDocs Material;
+  `docs/framework/` is mounted unchanged as its reference section). Build gate:
+  `uvx --with mkdocs-material mkdocs build --strict`. Every plain ```` ```python ```` block on
+  the site's own pages (everything outside `docs/framework/`) is executed verbatim by
+  `python/tests/test_devdocs_snippets.py`, so a docs edit can fail `make test`;
+  illustrative code carries a fence title. Conventions:
+  `docs/README.md`.
 - `research/README.md`: the research wiki — reality-checks the design against the field,
   every claim tagged `[measured]`/`[inference]`; consult before resolving a `[DECIDE]`.
   `research/neurosymbolic-landscape/pivot-alignment.md` is the standing verdict on the
   bounded-projection pivot, re-issued each weekly sweep.
+  The corpus is browsable as its own MkDocs site (not the dev docs):
+  `uvx --with mkdocs-material mkdocs serve -f mkdocs-research.yml -a 127.0.0.1:8001`;
+  conventions and the strict-build check in `research-site/README.md`.
 - Prior art: `../sigil-lang` (sibling repo) — the proving ground this framework
   inherits from; PRPs cite what to port.
 
@@ -48,6 +58,11 @@ proof → NL). Delete the LLM and the kernel still runs.
   machine-readable structure.
 - **The validation gate has no back door**: every World mutation passes it,
   regardless of provenance (perception | rule | tool | api).
+- **Loads fail closed**: `Ontology::load` (Rust) and `Ontology.load` (Python) verify
+  and refuse an ontology with any error-severity finding. `LoadOptions { allow_incomplete }`
+  / the `*_allow_incomplete` helpers / `allow_incomplete=True` are the only escape; it is
+  stamped into every agent trace. Tests that build deliberately partial ontologies must
+  use it. Spec: `docs/framework/10-verification.md`.
 - **Truth maintenance**: derived facts are recomputed, never left stale — every
   external transaction (`assert_`, replace, `retract`) resets all standing
   derivations and re-chains to the fixed point of the resulting base facts, even

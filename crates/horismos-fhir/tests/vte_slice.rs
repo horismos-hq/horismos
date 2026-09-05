@@ -265,6 +265,37 @@ fn bleeding_contraindication_selects_the_higher_priority_hold_rule() {
 }
 
 #[test]
+fn no_risk_factor_records_an_assessment_rather_than_a_medication_order() {
+    let mut bundle: Value = serde_json::from_str(BUNDLE).expect("bundle fixture");
+    let mobility = bundle["entry"]
+        .as_array_mut()
+        .expect("entries")
+        .iter_mut()
+        .find(|entry| entry.pointer("/resource/id").and_then(Value::as_str) == Some("mobility"))
+        .expect("mobility fixture");
+    mobility["resource"]["valueBoolean"] = json!(false);
+    let request = request(bundle);
+    let prototype = prototype();
+    let evaluator = RecordedVteBooleanEvaluator::new(prototype.external_evaluator().clone(), true);
+    let service = prototype
+        .recorded_service(&request, capability(), states(), etags())
+        .expect("recorded adapter");
+
+    let outcome = service
+        .invoke(&request, &evaluator)
+        .expect("no-prophylaxis decision");
+
+    assert_eq!(
+        outcome.response().cards[0].summary,
+        "Record that VTE prophylaxis is not indicated"
+    );
+    assert!(outcome.proof().rendered.contains("no-risk-factor"));
+    let resource = &outcome.effects().effects[0].payload["resource"];
+    assert_eq!(resource["resourceType"], "RiskAssessment");
+    assert_eq!(resource["subject"]["reference"], "Patient/patient-1");
+}
+
+#[test]
 fn prefetch_resources_must_be_bound_to_the_requested_patient() {
     let mut bundle: Value = serde_json::from_str(BUNDLE).expect("bundle fixture");
     bundle["entry"][1]["resource"]["subject"]["reference"] = json!("Patient/patient-2");

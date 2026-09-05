@@ -370,7 +370,7 @@ mod tests {
              \x20 ) ] ;\n\
              \x20 horis:then [ horis:property :acuity ; horis:value :Discharged ] .\n"
         );
-        let onto = Ontology::load_from_str(&source, |_| None)
+        let onto = Ontology::load_from_str_allow_incomplete(&source, |_| None)
             .expect("r9 is well-formed (its sin is semantic)");
         let mut world = World::new(&onto);
         let patient = t(&mut world, "Patient");
@@ -436,7 +436,7 @@ mod tests {
              \x20   [ horis:subject :Patient ; horis:property :needsCardiacMonitor ; horis:is true ] ) ] ;\n\
              \x20 horis:then [ horis:property :acuity ; horis:value :Immediate ] .\n"
         );
-        let onto = Ontology::load_from_str(&source, |_| None).expect("valid");
+        let onto = Ontology::load_from_str_allow_incomplete(&source, |_| None).expect("valid");
         let mut world = World::new(&onto);
         let patient = t(&mut world, "Patient");
         let has_symptom = t(&mut world, "hasSymptom");
@@ -493,7 +493,7 @@ mod tests {
              \x20   horis:cardinality \"0..*\" .\n\
              {rules_source}"
         );
-        let onto = Ontology::load_from_str(&source, |_| None).expect("valid");
+        let onto = Ontology::load_from_str_allow_incomplete(&source, |_| None).expect("valid");
         let mut world = World::new(&onto);
         let patient = t(&mut world, "Patient");
         let heart_rate = t(&mut world, "heartRate");
@@ -662,7 +662,7 @@ mod override_gate_tests {
              \x20   [ horis:subject :Patient ; horis:property :needsCardiacMonitor ; horis:is true ] ) ] ;\n\
              \x20 horis:then [ horis:property :acuity ; horis:value :Discharged ] .\n"
         );
-        let onto = Ontology::load_from_str(&source, |_| None).expect("valid");
+        let onto = Ontology::load_from_str_allow_incomplete(&source, |_| None).expect("valid");
         let mut world = World::new(&onto);
         let patient = t(&mut world, "Patient");
         let has_symptom = t(&mut world, "hasSymptom");

@@ -55,7 +55,7 @@ fn load_with_spoiler() -> Ontology {
          \x20   ) ] ;\n\
          \x20   horis:then [ horis:property :acuity ; horis:value :Standard ] ;\n\
          \x20   horis:explain \"Baseline — local to this test only, outranks r1\" .\n";
-    Ontology::load_from_str(&format!("{triage_source}{spoiler}"), |_| None)
+    Ontology::load_from_str_allow_incomplete(&format!("{triage_source}{spoiler}"), |_| None)
         .expect("triage.ttl plus the local spoiler rule must load")
         .with_import(SNOMED)
         .expect("the SNOMED subset must import")

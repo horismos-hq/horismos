@@ -1,0 +1,87 @@
+# Gallery overlay: VTE prophylaxis recommendation for a hospital admission.
+# Illustrative — the thresholds are teaching values, not clinical guidance.
+# The Padua score arithmetic lives upstream (your CQL library or adapter,
+# PRP-008 composes with an evaluator rather than rebuilding one); Horismos
+# consumes the typed score and decides, with a proof, what it implies.
+
+@prefix :      <https://example.org/vte#> .
+@prefix horis: <https://w3id.org/horismos#> .
+@prefix rdf:   <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs:  <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd:   <http://www.w3.org/2001/XMLSchema#> .
+
+## Domain (doc 02)
+
+:Admission a rdfs:Class ;
+    rdfs:label "Inpatient admission" .
+
+:paduaScore a rdf:Property ;
+    rdfs:domain :Admission ; rdfs:range xsd:integer ;
+    horis:min 0 ; horis:max 20 ;
+    horis:cardinality "0..1" .
+
+:activeBleeding a rdf:Property ;
+    rdfs:domain :Admission ; rdfs:range xsd:boolean ;
+    horis:cardinality "0..1" .
+
+:plateletCount a rdf:Property ;
+    rdfs:domain :Admission ; rdfs:range xsd:integer ;
+    horis:unit "10^9/L" ;
+    horis:min 0 ; horis:max 2000 ;
+    horis:cardinality "0..1" .
+
+:onTherapeuticAnticoagulation a rdf:Property ;
+    rdfs:domain :Admission ; rdfs:range xsd:boolean ;
+    horis:cardinality "0..1" .
+
+:ProphylaxisPlan a rdfs:Class ;
+    horis:oneOf ( :Pharmacologic :MechanicalOnly :NoneIndicated :AlreadyCovered ) .
+
+:prophylaxis a rdf:Property ;
+    rdfs:domain :Admission ; rdfs:range :ProphylaxisPlan ;
+    horis:cardinality "0..1" ;
+    horis:assignedBy horis:RulesOnly .   # never set by perception or an API caller
+
+## Rules (doc 04)
+
+:alreadyAnticoagulated a horis:Rule ;
+    horis:priority 100 ;
+    horis:when [
+        horis:subject :Admission ; horis:property :onTherapeuticAnticoagulation ; horis:is true
+    ] ;
+    horis:then [ horis:property :prophylaxis ; horis:value :AlreadyCovered ] ;
+    horis:explain "Already on therapeutic anticoagulation — no additional prophylaxis order" .
+
+:highRiskWithContraindication a horis:Rule ;
+    horis:priority 90 ;
+    horis:when [
+        horis:all (
+            [ horis:subject :Admission ; horis:property :paduaScore ; horis:atLeast 4 ]
+            [ horis:any (
+                [ horis:subject :Admission ; horis:property :activeBleeding ; horis:is true ]
+                [ horis:subject :Admission ; horis:property :plateletCount ; horis:below 50 ]
+            ) ]
+        )
+    ] ;
+    horis:then [ horis:property :prophylaxis ; horis:value :MechanicalOnly ] ;
+    horis:explain "High VTE risk but pharmacologic prophylaxis is contraindicated — mechanical prophylaxis only" .
+
+:highRisk a horis:Rule ;
+    horis:priority 50 ;
+    horis:when [
+        horis:all (
+            [ horis:subject :Admission ; horis:property :paduaScore ; horis:atLeast 4 ]
+            [ horis:subject :Admission ; horis:property :activeBleeding ; horis:is false ]
+            [ horis:subject :Admission ; horis:property :plateletCount ; horis:atLeast 50 ]
+        )
+    ] ;
+    horis:then [ horis:property :prophylaxis ; horis:value :Pharmacologic ] ;
+    horis:explain "Padua score 4 or more with no bleeding contraindication — pharmacologic prophylaxis" .
+
+:lowRisk a horis:Rule ;
+    horis:priority 10 ;
+    horis:when [
+        horis:subject :Admission ; horis:property :paduaScore ; horis:below 4
+    ] ;
+    horis:then [ horis:property :prophylaxis ; horis:value :NoneIndicated ] ;
+    horis:explain "Padua score below 4 — routine prophylaxis not indicated" .

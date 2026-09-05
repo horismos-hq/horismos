@@ -9,30 +9,30 @@
 test assertion" is incompatible with a live terminology-server call during reasoning).
 **[measured — verified directly against the repo]** But the currently-shipped fixture
 already shows the failure mode the pattern is supposed to avoid: single-parent structure
-with no version provenance. See `snomed-ct.md` for the detailed finding and
+with no version provenance. See [`snomed-ct.md`](snomed-ct.md) for the detailed finding and
 recommendation.
 
 ## Evidence
 
-**[measured — local repo, `examples/triage/snomed-ct-subset.ttl`, re-verified
+**[measured — local repo, [`examples/triage/snomed-ct-subset.ttl`](https://github.com/billaram/horismos/blob/main/examples/triage/snomed-ct-subset.ttl), re-verified
 2026-09-02]** The fixture declares 50 `rdfs:subClassOf` links, no concept carries more
 than one parent, and the file records no SNOMED release, edition, or version anywhere;
 its own header says "the fixture's point is the structure, not registry fidelity." The
-hard rules the pattern must stay compatible with are stated in `CLAUDE.md` § Hard rules
-(anti-wrapper boundary, determinism) and `docs/framework/14-architecture.md`.
+hard rules the pattern must stay compatible with are stated in [`CLAUDE.md`](https://github.com/billaram/horismos/blob/main/CLAUDE.md) § Hard rules
+(anti-wrapper boundary, determinism) and [`docs/framework/14-architecture.md`](https://github.com/billaram/horismos/blob/main/docs/framework/14-architecture.md).
 
 **[measured]** SNOMED International's own vendor guidance calls infrequently-updated
 custom subsets "a consistent weakness of existing systems not using a terminology
 server" and recommends a terminology server plus ECL/ValueSets over hand-rolled subsets
 ([docs.snomed.org](https://docs.snomed.org/implementation-guides/implementation-fact-sheets/implementation-dilemmas/do-i-need-an-external-interface-terminology-to-implement-snomed-ct)).
 
-**[inference]** Those two facts together are why the recommendation in `snomed-ct.md` is
+**[inference]** Those two facts together are why the recommendation in [`snomed-ct.md`](snomed-ct.md) is
 to make extraction a build-time, versioned, reproducible pipeline — not to change the
 architecture. Under the bounded-projection pivot this is now owned work: PRP-008's
 "Terminology provenance" scope item and its D8 (terminology service / build-time
-expansion policy) — see `PRPs/PRP-008-standards-host-integration/01-objective.md`.
+expansion policy) — see [`PRPs/PRP-008-standards-host-integration/01-objective.md`](https://github.com/billaram/horismos/blob/main/PRPs/PRP-008-standards-host-integration/01-objective.md).
 
-See `snomed-ct.md` for the full analysis. `loinc.md` and `rxnorm.md` cover the other two
+See [`snomed-ct.md`](snomed-ct.md) for the full analysis. [`loinc.md`](loinc.md) and [`rxnorm.md`](rxnorm.md) cover the other two
 terminology systems horismos may need.
 
 ## Sweep #2 delta (2026-09-02): how the field pins terminology versions
@@ -59,12 +59,12 @@ expansions ([releases](https://github.com/FirelyTeam/firely-cql-sdk/releases)).
 frozen expansions that deliberately lag "latest" — the shape PRP-008's terminology-
 provenance scope item and D8 describe. `check-system-version` is the fail-closed knob
 for hydration and `expansion.parameter` the natural carrier for pinned versions in the
-trace (`../neurosymbolic-landscape/pivot-alignment.md`, A7). SNOMED-specific release
-changes: `snomed-ct.md` (sweep #2 delta).
+trace ([`../neurosymbolic-landscape/pivot-alignment.md`](../neurosymbolic-landscape/pivot-alignment.md), A7). SNOMED-specific release
+changes: [`snomed-ct.md`](snomed-ct.md) (sweep #2 delta).
 
 ## Source
 
-See `../reading-log.md`, Q5 section; repo facts cite `local repo` paths inline above.
+See [`../reading-log.md`](../reading-log.md), Q5 section; repo facts cite `local repo` paths inline above.
 
 ## Confidence
 
@@ -74,5 +74,5 @@ correct" judgment and the pipeline recommendation are [inference].
 ## Last-verified
 
 2026-09-02 (repo facts re-checked against current HEAD; sweep #2 tag fix — the page
-previously carried no evidence tags, deferred from PR #9 per `../CHANGELOG.md`; sweep #2
+previously carried no evidence tags, deferred from PR #9 per [`../CHANGELOG.md`](../CHANGELOG.md); sweep #2
 delta appended)

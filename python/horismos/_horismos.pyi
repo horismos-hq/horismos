@@ -1,7 +1,10 @@
 """Type stubs for the native module (kept in the same change as the surface)."""
 
 from os import PathLike
-from typing import Any, final
+from typing import TYPE_CHECKING, Any, final
+
+if TYPE_CHECKING:
+    from horismos._ontology import VerificationReport
 
 __version__: str
 PROFILE_VERSION: str
@@ -12,7 +15,11 @@ class HorismosError(Exception):
     data: dict[str, Any]
 
 class HorismosOntologyError(HorismosError): ...
-class HorismosVerificationError(HorismosError): ...
+
+class HorismosVerificationError(HorismosError):
+    report_json: str
+    exit_code: int
+    report: VerificationReport
 
 class HorismosValidationError(HorismosError):
     constraint: str
@@ -50,7 +57,12 @@ class Rule:
 @final
 class Ontology:
     @staticmethod
-    def load(path: str | PathLike[str], imports: list[str | PathLike[str]] = ...) -> Ontology: ...
+    def load(
+        path: str | PathLike[str],
+        imports: list[str | PathLike[str]] = ...,
+        allow_incomplete: bool = ...,
+    ) -> Ontology: ...
+    def verification_payload(self) -> tuple[str, int]: ...
     def namespaces(self) -> dict[str, str]: ...
     def expand(self, term: str) -> str: ...
     def compact(self, iri: str) -> str: ...

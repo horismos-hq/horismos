@@ -165,7 +165,7 @@ pub(crate) fn value_eq(a: &Value, b: &Value) -> bool {
 /// (Integer/Decimal), `xsd:dateTime`, and lexicographic strings (sigil-lang
 /// `compare_values` precedent). Booleans, durations (partially ordered), and
 /// node references are incomparable → `None` → the comparison is `false`.
-fn compare(value: &Value, bound: &Value) -> Option<Ordering> {
+pub(crate) fn compare(value: &Value, bound: &Value) -> Option<Ordering> {
     match (value, bound) {
         (Value::Integer(a), Value::Integer(b)) => Some(a.cmp(b)),
         (Value::Decimal(a), Value::Decimal(b)) => Some(a.cmp(b)),
@@ -555,7 +555,7 @@ mod tests {
     #[test]
     fn contains_does_substring_on_strings() {
         let mut world = World::new(
-            &Ontology::load_from_str(
+            &Ontology::load_from_str_allow_incomplete(
                 "@prefix : <https://example.org/t#> .\n\
                  @prefix horis: <https://w3id.org/horismos#> .\n\
                  @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .\n\

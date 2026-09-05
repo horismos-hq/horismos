@@ -18,7 +18,7 @@ the bounded-projection-kernel positioning (pivot adopted 2026-08-24), and
 | [PRP-002](PRP-002-reasoning-substrate/01-objective.md) | Reasoning substrate | Chaining, subsumption, constraints, proof trees, training-ready traces |
 | [PRP-003](PRP-003-python-bindings/01-objective.md) | Python bindings & API | PyO3 wheels; the Pythonic front door |
 | [PRP-004](PRP-004-agent-loop/01-objective.md) | Ontology-first agent loop | Workflow execution, perception/narration boundaries, tools, Bridge |
-| [PRP-005](PRP-005-guarantees-verification.md) | Guarantees & verification | BDD checks with witnesses, an assumption manifest, and non-vacuity, surfaced in both APIs |
+| [PRP-005](PRP-005-guarantees-verification/01-objective.md) | Guarantees & verification | BDD checks with witnesses, an assumption manifest, and non-vacuity, surfaced in both APIs |
 | [PRP-008](PRP-008-standards-host-integration/01-objective.md) | Standards & host integration | FHIR hydration/commit, terminology provenance, CDS-Hooks/PlanDefinition/CQL composition, the candidate-artifact boundary, the generic host SPI |
 | [PRP-006](PRP-006-packaging-distribution.md) | Packaging & distribution | crates.io, PyPI, CI, docs site — activates after PRP-008 has a real integration surface to document |
 | [PRP-007](PRP-007-authoring-agent.md) | Ontology authoring agent | Import/align/overlay-first; SMEs converse; Claude drafts Turtle; the verifier gatekeeps |

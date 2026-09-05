@@ -25,7 +25,7 @@ collaboration, two encoders of the same guideline produced non-interchangeable
 representations, because of an "encoding-variability" and "vocabulary problem" its own
 authors named explicitly
 ([PMC61313](https://pmc.ncbi.nlm.nih.gov/articles/PMC61313/)). See
-`glif.md`.
+[`glif.md`](glif.md).
 
 **[measured]** EON's clinical instantiation (ATHENA-HTN, a real multi-site VA RCT)
 found decision support alone produced no significant difference in blood-pressure
@@ -33,13 +33,13 @@ control versus a reminder-only control arm
 ([PMC2243943](https://pmc.ncbi.nlm.nih.gov/articles/PMC2243943/)). SAGE (5-year,
 NIST-funded, six-institution) has no evidence of continuation after funding ended
 around 2006. GLARE is self-described by its own authors as a "domain-independent
-prototypical system." See `tnm-family.md`.
+prototypical system." See [`tnm-family.md`](tnm-family.md).
 
 **[measured]** CQL (CMS-mandated quality reporting), CDS Hooks (broad EHR-vendor
 support: Epic, Cerner, Allscripts, athenahealth), and FHIR PlanDefinition/
 ActivityDefinition (the Da Vinci prior-authorization substrate) won specifically by
 being thin, composable layers on top of FHIR and the already-dominant vendor CIS. See
-`cql-cds-hooks-fhir.md`.
+[`cql-cds-hooks-fhir.md`](cql-cds-hooks-fhir.md).
 
 **[inference — the single most important comparative judgment in the founding
 sweep]** Horismos's core bet — one ontology owning domain, rules, and workflow, with
@@ -66,7 +66,7 @@ formalism literature, each targeting a documented, named historical failure:
   are the literal opposite: an unguarded, per-institution bypass around standard rule
   logic, and that bypass is exactly what defeated Arden's portability
   ([Samwald et al. 2012](https://pubmed.ncbi.nlm.nih.gov/22342733/)). See
-  `arden-syntax.md`.
+  [`arden-syntax.md`](arden-syntax.md).
 - **Truth maintenance with fixed-point recomputation on every transaction** has no CIG
   precedent at all — it directly answers the field's best-documented empirical CDS
   failure mode: Wright et al.'s taxonomy of 68 alert malfunctions across 14 US sites
@@ -109,7 +109,7 @@ threaten horismos:
 
 ## Source
 
-See `../reading-log.md`, Q1 section, for the full citation list.
+See [`../reading-log.md`](../reading-log.md), Q1 section, for the full citation list.
 
 ## Confidence
 

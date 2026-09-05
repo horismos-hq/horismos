@@ -16,7 +16,7 @@
     horis:cardinality "1" .
 
 :VteRecommendation a rdfs:Class ;
-    horis:oneOf ( :PharmacologicProphylaxis :HoldProphylaxis ) .
+    horis:oneOf ( :PharmacologicProphylaxis :HoldProphylaxis :NoProphylaxisIndicated ) .
 :recommendation a rdf:Property ; rdfs:domain :VteCase ; rdfs:range :VteRecommendation ;
     horis:cardinality "0..1" ; horis:assignedBy horis:RulesOnly .
 
@@ -40,3 +40,18 @@
     ) ] ;
     horis:then [ horis:property :recommendation ; horis:value :PharmacologicProphylaxis ] ;
     horis:explain "VTE risk factor without bleeding contraindication" .
+
+# PRP-005 completeness-cover:start
+# Without this rule the most common case — no risk factor and no bleeding risk — leaves
+# :recommendation unassigned, and verification rejects the ontology as incomplete.
+:no-risk-factor a horis:Rule ;
+    horis:priority 5 ;
+    horis:when [ horis:all (
+        [ horis:subject :VteCase ; horis:property :reducedMobility ; horis:is false ]
+        [ horis:subject :VteCase ; horis:property :activeCancer ; horis:is false ]
+        [ horis:subject :VteCase ; horis:property :priorVte ; horis:is false ]
+        [ horis:subject :VteCase ; horis:property :bleedingRisk ; horis:is false ]
+    ) ] ;
+    horis:then [ horis:property :recommendation ; horis:value :NoProphylaxisIndicated ] ;
+    horis:explain "No VTE risk factor recorded — pharmacologic prophylaxis not indicated" .
+# PRP-005 completeness-cover:end

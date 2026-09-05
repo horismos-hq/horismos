@@ -3,13 +3,17 @@
 At-a-glance project state. Updated in the same commit as any PRP status change
 (`CONVENTIONS.md`). Visual version:
 [Horismos Board artifact](https://claude.ai/code/artifact/dc7ee691-4c9f-40a7-b235-0760de8ff17d)
-(source: `planning/board.html`, republished to the same URL on updates).
+(source: `planning/board.html`, republished externally after status changes merge).
 
-_Last updated: 2026-09-03 (PRP-008 completed on its isolated branch; VTE prophylaxis,
-the generic host SPI, candidate-artifact pipeline, and FHIR/harness adapters pass the
-full local verification gate). Previously: 2026-09-02 (PRP-008 activated in parallel
-with PRP-005; VTE prophylaxis confirmed and D1–D10 resolved). Previously: 2026-08-24
-(bounded-projection-kernel pivot adopted; new PRP-008 drafted). Previously: 2026-08-19 (PRP-004's
+_Last updated: 2026-09-05 (PRP-008 merged into `main`'s state: the branch's host SPI,
+candidate-artifact pipeline, FHIR/harness adapters and VTE slice now sit on top of the
+landed PRP-005 verifier and both documentation sites). Previously: 2026-09-03 (PRP-005
+Done; PRP-004 corrected to Done after PR #8 merged 2026-08-25; PRP-008 completed on its
+isolated branch). Previously: 2026-09-02 (PRP-008 activated in parallel with PRP-005;
+VTE prophylaxis confirmed and D1–D10 resolved). Previously: 2026-08-24
+(bounded-projection-kernel pivot adopted; new PRP-008 drafted;
+PRP-000/001/002/003/004/005/007 and framework docs 00–15 amended for the new positioning —
+no PRP-001–004 DoD rewritten, no runtime code changed). Previously: 2026-08-19 (PRP-004's
 U7–U15 critical path implemented, PR #8 open pending review; PRP-002 truth-maintenance
 defect fixed on `main` (PR #7) — no longer an open captain hold)._
 
@@ -26,72 +30,44 @@ source-version drift. Full statement: `PRPs/PRP-000-vision-positioning.md` §"Sn
 scoped guarantees". This is a **documentation/spec-only** change in this pass — no
 `horismos-core`/`horismos-py` code changed, no PRP-001–004 Done/Active DoD rewritten
 (each gained a non-normative "Pivot note" reinterpreting scope, not altering what was
-built or verified). `PRPs/PRP-008-standards-host-integration/` is Done on its isolated
-branch: VTE prophylaxis now exercises the bounded projection end to end, with the
-five-field PRP-005 assumption coupling isolated for reconciliation when that parallel
-verifier lane lands. PRP-008 remains sequenced before PRP-006/007.
+built or verified). `PRPs/PRP-008-standards-host-integration/` is Done: VTE prophylaxis
+now exercises the bounded projection end to end, with the five-field PRP-005 assumption
+coupling isolated in `horismos-host::assumptions` — the parallel verifier lane has since
+landed, so that isolation is now a conversion seam to converge rather than a placeholder.
+PRP-008 remains sequenced before PRP-006/007.
 
 ## Current state
 
-**The Python front door is real: PRP-003 is Done (2026-08-18).** `pip install`
-of the locally built abi3 wheel runs the doc-11 symbolic triage quickstart
-verbatim, zero LLM: `Ontology.load` (+ SNOMED import), `World` with
-whole-transaction `assert_` (gate + chaining inside one crossing, GIL
-released, lock acquired GIL-safely), snake_case kwargs construction (D1:
-dict-like generic form shipped; proxies prototyped and rejected on
-evidence), the tier-2 pattern query (D2: core `World::query_pattern`;
-textual SPARQL deferred), post-commit subscriptions (003/004 split pinned),
-`HorismosError` hierarchy where `str(exc)` is `domain_text()` and the
-structured attributes are the machine contract, proof trees rendering
-byte-identically to the Rust suite, snapshots/diffs/wire form, stubs
-`mypy --strict` clean, Hypothesis boundary invariants, CI wheel-matrix
-config (execution is PRP-006's). 70 pytest + ~248 Rust tests, `make verify`
-green. Branch: `fm/horismos-prp003-a1`. PRP-002 was recorded Done here
-2026-08-18 (merged 2026-08-05 as PR #4; folder record in PR #3, open).
-**Former captain hold, now resolved**: derived-fact truth maintenance (plan
-review, finding 2) — fixed on `main` (PR #7, 2026-08-19, recompute/invalidate
-on retraction); PRP-003 already bound current behavior without endorsing it,
-so nothing there needed to change.
+**PRP-005 (guarantees & verification) is Done (2026-09-03).** The pure-Rust,
+WASM-safe BDD verifier checks rule completeness/conflicts/deadness/termination,
+workflow reachability/termination/requires/fallbacks/choices, and rule/constraint
+non-vacuity. Every deterministic report carries the five-field assumption manifest and
+domain-term machine witnesses. Ordinary Rust and Python loads verify and fail closed;
+the explicit `allow_incomplete` authoring escape remains visible in every subsequent
+agent trace. Canonical triage is complete, its seeded gap has the exact required
+witness, and load plus verification benchmarks below 1 ms here.
+
+**PRP-004 (agent loop) is Done.** PR #8 merged on 2026-08-25, shipping the workflow
+engine, Bridge/tool boundaries, trace/2 emission, and the triage DoD run. This corrects
+the board's stale Active status; its future-binding security decisions remain owned by
+the later PRP that adds those binding schemes.
+
+The Python front door remains Done under PRP-003, and the derived-fact truth-maintenance
+fix remains landed on `main` through PR #7.
 
 ## Next goal
 
 **PRP-008 (standards & host integration) is Done** (2026-09-03, branch
-`fm/horismos-prp008-a1`). The generic host SPI, candidate-artifact runtime boundary,
-FHIR adapter, CDS Hooks/PlanDefinition subset, VTE slice, and coding-harness proof all
-ship together. PRP-005 coupling remains isolated to its provisional five-field
-`report.assumptions` shape for reconciliation when that parallel lane lands; PRP-006 is
-the next phase unlocked by this integration surface.
-
-**PRP-004 (agent loop) is Active** (2026-08-18, branch `fm/horismos-prp004-a1`),
-implementing the workflow engine, Bridge, and tools against merged `main`
-directly (not against PRP-003's now-Done Python surface, per its own
-coordination note) — with **PRP-005 (verification) startable in parallel**
-(it needs only 001+002). PRP-004 inherits the pinned 003/004 subscription
-split (core transactional notification stage), the `Ontology.version`/`hash`
-deferral (trace stamping is its consumer), and doc 11's Agent surface. An
-independent review (`data/horismos-prp-review-s1/report.md`) found the
-planning surface a phase behind merged code at the time and flagged the
-truth-maintenance defect above (since fixed) and an open trace-schema
-question for workflow step kinds beyond perception/reasoning/action/
-narration (since resolved as D13 in PRP-004's `02-tasks-and-gaps.md` — mint
-`horismos.trace/2`) — both tracked there rather than fixed ad hoc.
-
-**Update 2026-08-19**: the U7–U15 critical path (Agent interpreter, trace/2
-emission wiring, tool-effect validation, the live triage demo, the DoD test
-module) is implemented, the U9/U12 contractor branch is integrated, and
-[PR #8](https://github.com/billaram/horismos/pull/8) is open against `main`,
-pending human review — `make verify` green throughout. Two open decisions
-(D14/D15: URL allowlist and MCP-server allowlist mechanics for future
-`http:`/`https:`/`mcp:` tool bindings) surfaced from the doc-15 security
-workstream landing on `main` mid-branch and are gap-noted in
-`02-tasks-and-gaps.md`, not blocking — this PRP ships only `rust:` bindings.
-Also recorded there, not silently absorbed: the `:EscalateToNurse`
-case-subject gap (a low-confidence perception fallback has no case to page
-against — a future design decision, not a bug in the runtime's refusal to
-guess), and that this repo has no CI wired to run on pull requests yet
-(`.github/workflows/wheels.yml` is `workflow_dispatch`-only by design,
-PRP-006's to wire up) — the PR's validation bar is review + `make verify`
-until then.
+`fm/horismos-prp008-a1`; merged with `main` 2026-09-05). It supplies the
+bounded-projection adapter types and the first standards-anchored vertical slice before
+PRP-006/007, per the captain-adopted dependency DAG: the generic host SPI,
+candidate-artifact runtime boundary, FHIR adapter, CDS Hooks/PlanDefinition subset, VTE
+slice, and coding-harness proof all ship together. PRP-005 has since landed on `main`,
+so the one remaining coupling is bookkeeping: `horismos-host::assumptions` still carries
+its own five-field `AssumptionManifest` (same five fields, adapter-native types)
+alongside the shipped `horismos-core::verify::AssumptionManifest`; converging the two is
+gap-noted in PRP-008's `02-tasks-and-gaps.md`, not a behaviour gap. **PRP-006
+(packaging & distribution) is the next phase unlocked by this integration surface.**
 
 Human side quests: register `horismos.dev`; file the w3id.org/horismos PR;
 reserve crates.io/PyPI names early; merge PR #3 (PRP-002 folder record).
@@ -136,10 +112,10 @@ provenance semirings over the Datalog-shaped subset (Type 5), GNN guidance.
 | Standing | [PRP-000 vision](PRP-000-vision-positioning.md) | ✅ Decisions closed | Pitch, personas, honest Kautz 2–3 placement; naming/license/benchmark resolved |
 | Engine | [PRP-001 ontology core](PRP-001-ontology-core/01-objective.md) | ✅ Done (2026-07-29) | Load/validate ontology, typed World, five-check gate, snapshots, queries |
 | Engine | [PRP-002 reasoning](PRP-002-reasoning-substrate/01-objective.md) | ✅ Done (2026-08-05, PR #4; recorded 2026-08-18) | Chaining, subsumption, proof trees, training-grade traces |
-| Engine | [PRP-005 verification](PRP-005-guarantees-verification.md) | ⬜ Draft | BDD checks + domain-term witnesses (needs only 001+002) |
+| Engine | [PRP-005 verification](PRP-005-guarantees-verification/01-objective.md) | ✅ Done (2026-09-03) | BDD checks + domain-term witnesses, five-field assumptions, non-vacuity |
 | Surface | [PRP-003 python bindings](PRP-003-python-bindings/01-objective.md) | ✅ Done (2026-08-18) | `pip install horismos`; the Pythonic front door |
-| Runtime | [PRP-004 agent loop](PRP-004-agent-loop/01-objective.md) | 🟦 Active (2026-08-18) | Workflow engine, perception/narration boundaries, tools, Bridge |
-| Integration | [PRP-008 standards & host integration](PRP-008-standards-host-integration/01-objective.md) | ✅ Done (2026-09-03) | VTE slice; FHIR hydration/commit, CDS-Hooks/PlanDefinition/CQL composition, candidate-artifact boundary, generic host SPI |
+| Runtime | [PRP-004 agent loop](PRP-004-agent-loop/01-objective.md) | ✅ Done (2026-08-25, PR #8) | Workflow engine, perception/narration boundaries, tools, Bridge |
+| Integration | [PRP-008 standards & host integration](PRP-008-standards-host-integration/01-objective.md) | ✅ Done (2026-09-03, PR #15) | VTE slice; FHIR hydration/commit, terminology provenance, CDS-Hooks/PlanDefinition/CQL composition, candidate-artifact boundary, generic host SPI |
 | Ship & Author | [PRP-006 packaging](PRP-006-packaging-distribution.md) | ⬜ Draft | crates.io + PyPI + docs site + CI gates — activates after PRP-008 |
 | Ship & Author | [PRP-007 authoring agent](PRP-007-authoring-agent.md) | ⬜ Draft (amended 2026-08-24) | Import/align/overlay-first; SMEs converse; Claude drafts Turtle; verifier gatekeeps |
 
@@ -160,8 +136,17 @@ and before 006/007 despite its higher number.
   operators, naive + Rete-lite matchers, forward/backward chaining, proof
   trees) and `horismos-core::trace` (`horismos.trace/1`), property-tested;
   fixtures `examples/triage/{triage,snomed-ct-subset}.ttl`.
+- **Verification (PRP-005)**: `horismos-core::verify` — BDD rule/workflow checks with
+  domain-term witnesses, the five-field assumption manifest, fail-closed loads in both
+  APIs and the stamped `allow_incomplete` escape.
+- **Integration (PRP-008)**: `horismos-host` (host SPI, candidate-artifact policy,
+  assumptions coupling), `horismos-fhir` (FHIR R4 hydration/commit, CDS Hooks /
+  PlanDefinition subset, the VTE slice), `horismos-harness` (coding-harness adapter).
 - **Skeleton**: `horismos-bridges` (mock + gated provider stubs), `horismos-py`
   (version roundtrip), `python/horismos`, Makefile — all green.
+- **Docs sites**: the developer site (`mkdocs.yml` + `docs/`, published to GitHub Pages
+  by `.github/workflows/docs-pages.yml`) and the research site (`mkdocs-research.yml` +
+  `research/`, `research-site/`).
 - **Conventions**: CLAUDE.md hard rules; PRP lifecycle in
   [CONVENTIONS.md](CONVENTIONS.md).
 - **Skills**: cargo-workspace-map, ontology-modeling-conventions, pyo3-boundary,

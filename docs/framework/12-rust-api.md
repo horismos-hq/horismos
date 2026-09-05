@@ -19,9 +19,12 @@ inputs before admission and consume whole proposed-effect sets afterward.
 use horismos_core::{Ontology, World, Agent, RunInput};
 use horismos_bridges::OpenRouterBridge;
 
-let onto = Ontology::load("triage.ttl")?
-    .with_import("snomed-ct-subset.ttl")?;
-onto.verify()?.assert_ok()?;                     // refuse to run unverified
+let onto = Ontology::load_with_imports_and_options(
+    "triage.ttl",
+    ["snomed-ct-subset.ttl"],
+    Default::default(),
+)?;                                              // load verifies and fails closed
+assert!(onto.verify().ok());                     // deterministic re-verification
 
 let mut world = World::new(&onto);
 let agent = Agent::builder(&onto)
@@ -45,6 +48,7 @@ println!("{}", outcome.trace.to_json_pretty());
 | `reason` (module) | Deterministic inference; driven through `World` | `world.prove(subject, prop, &value)`, `world.explain(subject, prop)` |
 | `Agent` | Workflow interpreter | Built per-(ontology, bindings); `run` borrows a `World`, returns `RunOutcome` |
 | `Trace` | The trajectory | `serde` to/from `horismos.trace/1` or `/2`; `RunOutcome.trace` is always a `/2` |
+| `VerificationReport` | Deterministic BDD and workflow findings | `ok()`, typed witnesses/regions, canonical `to_json()`, `exit_code()`, and an always-present five-field `AssumptionManifest` |
 | `Iri`, `Ref`, `Value` | Interned identifiers and typed values | `Value` mirrors the XSD subset + IRIs |
 
 ## Key traits
@@ -78,6 +82,13 @@ The flag discipline is inherited directly from sigil-lang's proven `pyo3-ext`/`w
 isolation: PyO3-touching code is gated at module level; the symbolic core compiles
 for `wasm32-unknown-unknown` with `--no-default-features --features verify`.
 
+Ordinary `Ontology::load` and `Ontology::load_from_str` verify and fail closed.
+`LoadOptions { allow_incomplete: true }` and the named `*_allow_incomplete` helpers are
+the explicit authoring/debug escape; verification still runs, `verify()` remains
+available, and any agent trace records `ontology.allow_incomplete: true`. Re-verification
+is currently a complete deterministic pass. Numeric discretization compares exact
+authored values only within the same opaque unit; v1 performs no unit conversion.
+
 ## WASM
 
 ```rust
@@ -105,6 +116,7 @@ perception (the structured-input pattern, doc 06).
 
 ## Errors
 
-`HorismosError` enum mirroring the Python hierarchy (`OntologyError`,
-`VerificationFailed { report }`, `ValidationRejected { witness }`, `WorkflowError`,
-`BridgeError`, `ToolError`), all `thiserror`-derived, all carrying `domain_text()`.
+Errors are `thiserror`-derived domain errors. Verification failure is
+`OntologyError::VerificationFailed { report }`; validation, workflow, bridge, and tool
+errors likewise preserve domain vocabulary through `domain_text()` rather than reducing
+findings to opaque strings.

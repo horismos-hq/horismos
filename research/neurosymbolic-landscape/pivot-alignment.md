@@ -24,13 +24,13 @@ D-items to evidence that now exists. None requires changing the pivot's shape.
 
 ## The commitments assessed
 
-**[measured — local repo]** The pivot is stated in `PRPs/PRP-000-vision-positioning.md`
-§"Snapshot-scoped guarantees", `PRPs/PRP-008-standards-host-integration/01-objective.md`,
-`docs/framework/03-world.md` §"World as a transaction projection",
-`docs/framework/06-llm-boundaries.md` §"Candidate-artifact authoring",
-`docs/framework/07-tools.md` §"Adapter-mediated external commits",
-`docs/framework/10-verification.md` §"The assumption manifest", and
-`docs/framework/13-authoring.md` §"Skills-to-fragment loop and trace-mining". This page
+**[measured — local repo]** The pivot is stated in [`PRPs/PRP-000-vision-positioning.md`](https://github.com/billaram/horismos/blob/main/PRPs/PRP-000-vision-positioning.md)
+§"Snapshot-scoped guarantees", [`PRPs/PRP-008-standards-host-integration/01-objective.md`](https://github.com/billaram/horismos/blob/main/PRPs/PRP-008-standards-host-integration/01-objective.md),
+[`docs/framework/03-world.md`](https://github.com/billaram/horismos/blob/main/docs/framework/03-world.md) §"World as a transaction projection",
+[`docs/framework/06-llm-boundaries.md`](https://github.com/billaram/horismos/blob/main/docs/framework/06-llm-boundaries.md) §"Candidate-artifact authoring",
+[`docs/framework/07-tools.md`](https://github.com/billaram/horismos/blob/main/docs/framework/07-tools.md) §"Adapter-mediated external commits",
+[`docs/framework/10-verification.md`](https://github.com/billaram/horismos/blob/main/docs/framework/10-verification.md) §"The assumption manifest", and
+[`docs/framework/13-authoring.md`](https://github.com/billaram/horismos/blob/main/docs/framework/13-authoring.md) §"Skills-to-fragment loop and trace-mining". This page
 assesses eight commitments drawn from those texts:
 
 - **C1 — Snapshot-scoped guarantee**: hydrate a declared, versioned input closure into a
@@ -214,7 +214,7 @@ Gemini CLI's policy engine predicates over `toolName`, `argsPattern`, `commandPr
 the MCP maintainers write that annotations "are not guaranteed to faithfully describe
 tool behavior" and clients should "implement deterministic controls rather than relying
 solely on hints" ([MCP blog](https://blog.modelcontextprotocol.io/posts/2026-03-16-tool-annotations/)).
-Full harness survey: `coding-agent-harnesses.md`.
+Full harness survey: [`coding-agent-harnesses.md`](coding-agent-harnesses.md).
 
 ### C7 — candidate-artifact boundary
 
@@ -279,7 +279,7 @@ edges" with lifecycle states
 KGC 2026 notes record "The ontology stops being the output of the LLM and becomes the
 harness around it" and a seven-step method ending in an explicit Release step
 ([Futia, Medium](https://medium.com/@giuseppefutia/notes-from-kgc-2026-c9b4ac8569e5)).
-Detail: `../ontology-authoring/autonomous-agents-failure-modes.md` (sweep #2 delta).
+Detail: [`../ontology-authoring/autonomous-agents-failure-modes.md`](../ontology-authoring/autonomous-agents-failure-modes.md) (sweep #2 delta).
 
 ## What it CHALLENGES, or where the field moved differently
 
@@ -359,7 +359,7 @@ unchanged (0.57 → 0.53), and "the only defense that drives their rate to zero 
 enforcement, which reports ρ(v) in place of the model conclusion"
 ([arXiv:2606.19588](https://arxiv.org/abs/2606.19588)). **[inference]** The pivot
 *helps* here: it promotes the structured-input bypass to the primary path
-(`docs/framework/06-llm-boundaries.md`), moving the highest-risk boundary out of the
+([`docs/framework/06-llm-boundaries.md`](https://github.com/billaram/horismos/blob/main/docs/framework/06-llm-boundaries.md)), moving the highest-risk boundary out of the
 main flow for standards-hydrated deployments. It does not address narration; a
 deterministic conclusion monitor (proof verdict vs narrated conclusion) is the missing
 piece (see A8).
@@ -461,7 +461,7 @@ would decide it. None is applied by this wiki.
   `expansion.parameter` in the trace.** Rests on: R6 `$expand` parameters; 2027 eCQM's
   pinned vector (SNOMED CT US 2025-09, LOINC 2.81, RxNorm 2026-01); VSAC labeled
   expansions; SNOMED's 255→4096 description-length change and monthly International
-  cadence. Owner: PRP-008 D8. Detail: `../terminology/00-overview.md` (sweep #2 delta).
+  cadence. Owner: PRP-008 D8. Detail: [`../terminology/00-overview.md`](../terminology/00-overview.md) (sweep #2 delta).
 - **A8 — Add a deterministic conclusion monitor at the narration boundary.** Compare the
   narrated conclusion to the proof's verdict/effect set and report the kernel's verdict
   when they differ. Rests on: the Narration Gap paper's Theorem 3.1 (a conclusion
@@ -478,14 +478,14 @@ would decide it. None is applied by this wiki.
   ([arXiv:2606.12290](https://arxiv.org/abs/2606.12290)), and approval-verdict staleness.
   For PRP-007: a consistency check is not a security gate — SME semantic-diff review plus
   non-vacuity plus per-fact provenance. Owner: doc 15's security workstream / PRP-008;
-  PRP-007 (see `../ontology-authoring/prp-007-open-items.md`, item 4 added this sweep).
+  PRP-007 (see [`../ontology-authoring/prp-007-open-items.md`](../ontology-authoring/prp-007-open-items.md), item 4 added this sweep).
 - **A11 — Name the fragment's export surfaces and widen its effect model.** Claude Code
   `SKILL.md` `hooks` (a `PreToolUse` command/http hook) with `metadata` carrying the
   fragment IRI; Gemini CLI `toolAnnotations` matching; MCP `tools/resolve` (draft
   SEP-1862) as a future preflight surface; DeepSeek Harness's Claude Code/Codex hook
   bridge as a single deployment path. Effect constraints must cover credentials and
   endpoints, not only file paths (PocketOS). Owner: PRP-007 capability-fragment compiler
-  mode / PRP-008 coding-harness adapter. Detail: `coding-agent-harnesses.md`.
+  mode / PRP-008 coding-harness adapter. Detail: [`coding-agent-harnesses.md`](coding-agent-harnesses.md).
 - **A12 — Wrap an existing patch format and put the base-hash check in the policy
   stage.** The envelope can carry Codex V4A verbatim plus base hash and declared checks;
   the hash check belongs outside the editing tool (OpenCode's tool-local check failed
@@ -500,8 +500,8 @@ would decide it. None is applied by this wiki.
 ## Open questions (decision-shaped — flagged, not answered here)
 
 - Which scenario (VTE / NEWS2 / sepsis-compliance) is PRP-008's first vertical slice —
-  captain call per `PRPs/BOARD.md`. Nothing in this sweep bears on the choice; Epic's
-  CRD launch is prior-authorization, which `../scenarios/ruled-out.md` deprioritizes as
+  captain call per [`PRPs/BOARD.md`](https://github.com/billaram/horismos/blob/main/PRPs/BOARD.md). Nothing in this sweep bears on the choice; Epic's
+  CRD launch is prior-authorization, which [`../scenarios/ruled-out.md`](../scenarios/ruled-out.md) deprioritizes as
   a first slice.
 - PRP-008 D1–D5, D8, D9, D10 — evidence above (X7, A1–A7) narrows them; resolution stays
   in PRP-008 via the brainstorming protocol.
@@ -532,7 +532,7 @@ boundary; they do not move the line.
 
 ## Source
 
-Per-claim citations inline; every source is also logged in `../reading-log.md` (sweep
+Per-claim citations inline; every source is also logged in [`../reading-log.md`](../reading-log.md) (sweep
 #2 rows, 2026-09-02, sections Q1, Q3, Q4, Q5, Q6 and the new Q7). Repo facts cite
 `local repo` paths.
 

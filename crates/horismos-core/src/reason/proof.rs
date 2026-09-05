@@ -489,7 +489,7 @@ mod tests {
              \x20   [ horis:subject :Patient ; horis:property :needsCardiacMonitor ; horis:is true ] ) ] ;\n\
              \x20 horis:then [ horis:property :acuity ; horis:value :Immediate ] .\n"
         );
-        let onto = Ontology::load_from_str(&source, |_| None).expect("valid");
+        let onto = Ontology::load_from_str_allow_incomplete(&source, |_| None).expect("valid");
         let mut world = World::new(&onto);
         let patient = t(&mut world, "Patient");
         let has_symptom = t(&mut world, "hasSymptom");

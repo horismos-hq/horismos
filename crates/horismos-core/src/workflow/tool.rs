@@ -385,7 +385,7 @@ mod tests {
 
     #[test]
     fn a_tool_missing_horis_effect_is_a_domain_term_error() {
-        let err = Ontology::load_from_str(
+        let err = Ontology::load_from_str_allow_incomplete(
             "@prefix : <https://example.org/t#> .\n\
              @prefix horis: <https://w3id.org/horismos#> .\n\
              @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .\n\

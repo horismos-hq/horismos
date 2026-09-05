@@ -40,7 +40,7 @@ mutates the ontology), and no action ever fires off a raw prediction — only of
 symbolically-checked preconditions. Where horismos is genuinely *behind* is the
 learning axis: v1 has no path at all from accumulated execution traces back into
 candidate ontology edits. See
-`../intake/filed/2026-08-24-markovic-learnable-ontologies.md` for the fuller version
+[`../intake/filed/2026-08-24-markovic-learnable-ontologies.md`](../intake/filed/2026-08-24-markovic-learnable-ontologies.md) for the fuller version
 of this argument, worked through against a captain-supplied source.
 
 ## Sweep #2 delta (2026-09-02): the learnable-ontology thread, one sweep on
@@ -66,7 +66,7 @@ computation the kernel does not declare." Reported: TravelPlanner 59.31% vs ReAc
 ([arXiv:2608.22974](https://arxiv.org/abs/2608.22974)). ASKS lets a schema/hub layer
 emerge from embedding geometry and controls drift by measuring churn, not by a gate
 ([arXiv:2608.29612](https://arxiv.org/abs/2608.29612); see
-`kg-maintenance-and-agent-memory.md`). **[measured]** The security counterweight: on a
+[`kg-maintenance-and-agent-memory.md`](kg-maintenance-and-agent-memory.md)). **[measured]** The security counterweight: on a
 205-entity medical KG, targeted poisoning reaches break-even symbolic-integrity
 violation at an injection budget of 5, and "single-axiom OWL edits achieve 93.3% SIV
 success with 100% Pellet-consistency stealth," with STIX-based detection at 50% —
@@ -94,7 +94,7 @@ and its documented agent pattern is "Agents propose; they do not execute directl
 [Huang & Gupta](https://kenhuangus.substack.com/p/a-technical-follow-up-building-an)).
 
 **[inference]** Two consequences for PRP-007's gate, filed as item 4 in
-`prp-007-open-items.md`: the gate must be argued on safety (stealth-consistent edits,
+[`prp-007-open-items.md`](prp-007-open-items.md): the gate must be argued on safety (stealth-consistent edits,
 drift) rather than accuracy, since OaK and ASKS show accuracy gains without one; and the
 verifier's consistency pass is necessary but not sufficient — a Pellet/HermiT-consistent
 edit can flip downstream conclusions 93% of the time. The sweep #1 recommendation
@@ -109,7 +109,7 @@ product notes.
 
 ## Source
 
-See `../reading-log.md`, Q6 section.
+See [`../reading-log.md`](../reading-log.md), Q6 section.
 
 ## Confidence
 

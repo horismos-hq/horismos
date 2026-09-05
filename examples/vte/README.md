@@ -13,6 +13,15 @@ The prototype validates the local R4 profile's Bundle constraint and its narrowe
 requirements (resource identities, versions, patient references, final boolean Observations)
 before hydration. It does not claim external FHIR certification.
 
+The rule set assigns `:recommendation` for every input region, so the ontology passes
+verification without the `allow_incomplete` escape. The third value,
+`:NoProphylaxisIndicated`, covers the most common case — no recorded risk factor and no
+bleeding risk — and it still writes to the record: a `RiskAssessment` proposal stating
+that VTE risk was assessed and pharmacologic prophylaxis is not indicated. Recording that
+decision is what quality reporting asks for; a silent absence reads as an oversight rather
+than a decision. The low-risk path deliberately proposes no medication order, and early
+ambulation or mechanical measures remain a host decision this fixture does not make.
+
 Run the standalone CDS Hooks-shaped invocation with:
 
 ```console

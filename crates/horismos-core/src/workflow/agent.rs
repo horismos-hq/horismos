@@ -313,6 +313,7 @@ impl<'a> Agent<'a> {
             iri: ontology_namespace(self.onto, self.workflow.iri),
             version: self.workflow.version.clone(),
             hash: None,
+            allow_incomplete: self.onto.allows_incomplete(),
         });
         trace.workflow = Some(self.onto.compact(self.onto.resolve(self.workflow.iri)));
         trace.started_at = Some(input.now.to_rfc3339());
@@ -463,6 +464,12 @@ impl<'a> Agent<'a> {
         p: &PerceptionStep,
         input: &RunInput,
     ) -> Result<StepOutcome, WorkflowError> {
+        let fallback = p
+            .fallback
+            .ok_or_else(|| WorkflowError::MissingFailureEdge {
+                step: step_name.to_owned(),
+                edge: "horis:fallback".to_owned(),
+            })?;
         let bridge = self.bridge_for(p.model.as_deref())?;
         let schema = derive_extract_schema(self.onto, world.ontology().schema(), &p.extracts);
         let model = Some(bridge.id().to_owned());
@@ -480,11 +487,11 @@ impl<'a> Agent<'a> {
                 // A transport-level failure carries no confidence/instance
                 // data worth recording — the fallback edge is the whole
                 // trace-visible signal for this case.
-                Err(_) => return Ok(self.fallback_outcome(p.fallback)),
+                Err(_) => return Ok(self.fallback_outcome(fallback)),
             };
             let accepted = result.confidence >= p.confidence;
             if !accepted {
-                let mut outcome = self.fallback_outcome(p.fallback);
+                let mut outcome = self.fallback_outcome(fallback);
                 outcome.trace_step = Some(crate::trace::perception_step(
                     world,
                     Some(step_name),
@@ -509,7 +516,7 @@ impl<'a> Agent<'a> {
                     return Ok(outcome);
                 }
                 Err(_) if attempt < p.retries => attempt += 1,
-                Err(_) => return Ok(self.fallback_outcome(p.fallback)),
+                Err(_) => return Ok(self.fallback_outcome(fallback)),
             }
         }
     }
@@ -565,15 +572,26 @@ impl<'a> Agent<'a> {
                 let Some(decl) = schema.property(property) else {
                     continue;
                 };
-                let value = match decl.range {
-                    Some(PropertyRange::Class(_)) => json_value
-                        .as_str()
-                        .and_then(|name| self.onto.node_ref(name).ok())
-                        .map(|iri| Value::Ref(Ref::new(iri))),
-                    _ => json_to_value(json_value, decl),
+                // `derive_class_schema` asks for a JSON array wherever the
+                // property is multi-valued, so a schema-conforming answer
+                // carries one element per proposed value. Each element is
+                // one candidate fact; cardinality stays the gate's call
+                // (`assert_instance_as` below), never decided here.
+                let candidates: Vec<&serde_json::Value> = match json_value {
+                    serde_json::Value::Array(items) => items.iter().collect(),
+                    scalar => vec![scalar],
                 };
-                if let Some(value) = value {
-                    properties.push((property, value));
+                for candidate in candidates {
+                    let value = match decl.range {
+                        Some(PropertyRange::Class(_)) => candidate
+                            .as_str()
+                            .and_then(|name| self.onto.node_ref(name).ok())
+                            .map(|iri| Value::Ref(Ref::new(iri))),
+                        _ => json_to_value(candidate, decl),
+                    };
+                    if let Some(value) = value {
+                        properties.push((property, value));
+                    }
                 }
             }
             let fact_confidence = result
@@ -630,7 +648,15 @@ impl<'a> Agent<'a> {
         let mut outcome = if reached {
             StepOutcome::new(r.next, false, Some(case))
         } else {
-            StepOutcome::new(r.on_unreachable, true, Some(case))
+            StepOutcome::new(
+                r.on_unreachable
+                    .ok_or_else(|| WorkflowError::MissingFailureEdge {
+                        step: step_name.to_owned(),
+                        edge: "horis:onUnreachable".to_owned(),
+                    })?,
+                true,
+                Some(case),
+            )
         };
         outcome.trace_step = trace_step;
         Ok(outcome)
@@ -660,7 +686,14 @@ impl<'a> Agent<'a> {
         let outcome = self.invoke_tool(world, case, a.tool, now);
         match outcome {
             Ok(effects) => {
-                let mut outcome = StepOutcome::new(a.next.unwrap_or(a.on_error), false, Some(case));
+                let next =
+                    a.next
+                        .or(a.on_error)
+                        .ok_or_else(|| WorkflowError::MissingFailureEdge {
+                            step: step_name.to_owned(),
+                            edge: "horis:onError".to_owned(),
+                        })?;
+                let mut outcome = StepOutcome::new(next, false, Some(case));
                 let effects: Vec<crate::trace::AssertedEffect> = effects
                     .into_iter()
                     .map(|(property, value)| crate::trace::AssertedEffect {
@@ -680,7 +713,15 @@ impl<'a> Agent<'a> {
             // A rejected/failed invocation has no confirmed effect to
             // record — `horis:onError` is the whole trace-visible signal,
             // same posture as perception's transport-failure branch.
-            Err(_) => Ok(StepOutcome::new(a.on_error, true, Some(case))),
+            Err(_) => Ok(StepOutcome::new(
+                a.on_error
+                    .ok_or_else(|| WorkflowError::MissingFailureEdge {
+                        step: step_name.to_owned(),
+                        edge: "horis:onError".to_owned(),
+                    })?,
+                true,
+                Some(case),
+            )),
         }
     }
 
@@ -1172,7 +1213,11 @@ mod tests {
     /// reaches `:Done` with `acuity :Immediate`.
     #[test]
     fn the_immediate_track_reaches_done_with_acuity_immediate() {
-        let onto = triage();
+        let onto = Ontology::load_allow_incomplete(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../examples/triage/triage.ttl"
+        ))
+        .expect("the explicit authoring posture still loads verified triage");
 
         let bridge = StubBridge {
             id: "mock:triage".to_owned(),
@@ -1258,6 +1303,18 @@ mod tests {
             crate::trace::Step::Narration { text: Some(t), .. } if t == "narrated"
         ));
         assert_eq!(outcome.trace.run_id, "run_immediate");
+        let ontology_ref = outcome
+            .trace
+            .ontology
+            .as_ref()
+            .expect("agent traces identify their ontology");
+        assert!(ontology_ref.allow_incomplete);
+        assert_eq!(
+            serde_json::from_str::<serde_json::Value>(&outcome.trace.to_json())
+                .expect("trace JSON is valid")["ontology"]["allow_incomplete"],
+            true,
+            "the explicit escape is durable trace evidence"
+        );
         assert_eq!(
             crate::trace::Trace::from_json(&outcome.trace.to_json()).expect("trace round-trips"),
             outcome.trace
@@ -1480,5 +1537,146 @@ mod tests {
             "the first instance's commit must be rolled back when a later instance in the \
              same perception attempt is gate-rejected"
         );
+    }
+
+    /// Regression target: `derive_class_schema` asks the bridge for a JSON
+    /// array wherever a property is multi-valued (`:hasSymptom`, `0..*`),
+    /// so a schema-conforming answer is `"hasSymptom": [":CrushingChestPain"]`.
+    /// `assert_perceived` used to resolve class-ranged values with
+    /// `as_str()` only, silently dropping the array — `:Assess` was then
+    /// unreachable on every live run and the loop took the `onUnreachable`
+    /// escalation. The array shape must reach `:Done` exactly like the
+    /// bare-string shape the mock bridge sends.
+    #[test]
+    fn the_immediate_track_reaches_done_when_perception_returns_an_array_of_symptoms() {
+        let onto = triage();
+        let bridge = StubBridge {
+            id: "mock:triage".to_owned(),
+            confidence: 0.9,
+            instances: vec![serde_json::json!({
+                "class": ":Patient",
+                "heartRate": 128,
+                "hasSymptom": [":CrushingChestPain"]
+            })],
+        };
+        let agent = Agent::builder(&onto)
+            .workflow(":Triage")
+            .expect("Triage is declared")
+            .bridge("claude", bridge)
+            .tool(
+                "assign_queue",
+                StubTool(vec![
+                    onto.node_ref(":queueRef").expect(":queueRef is declared"),
+                ]),
+            )
+            .tool(
+                "notify_nurse",
+                StubTool(vec![
+                    onto.node_ref(":pagedTo").expect(":pagedTo is declared"),
+                ]),
+            )
+            .build()
+            .expect("every binding is registered");
+
+        let mut world = World::new(&onto);
+        let now = chrono::DateTime::parse_from_rfc3339("2026-08-19T00:00:00Z")
+            .expect("a fixed RFC3339 literal parses");
+        let outcome = block_on(agent.run(
+            &mut world,
+            RunInput::new(
+                "run_immediate_array",
+                "58M, crushing chest pain, heart rate 128",
+                now,
+            ),
+        ))
+        .expect("the immediate track must complete");
+
+        assert_eq!(
+            onto.resolve(outcome.terminal),
+            "https://example.org/triage#Done",
+            "an array-valued symptom must not leave :Assess unreachable"
+        );
+        assert!(!outcome.fallback_taken);
+        let acuity = onto.node_ref(":acuity").expect(":acuity is declared");
+        let immediate = onto.node_ref(":Immediate").expect(":Immediate is declared");
+        assert_eq!(
+            outcome.decision,
+            Some((acuity, Value::Ref(Ref::new(immediate))))
+        );
+    }
+
+    /// Every element of an array-valued perception answer is one proposed
+    /// fact: all of them land on the subject and all of them are recorded
+    /// as perceived facts in the trace. Cardinality is still the gate's
+    /// call — nothing here bypasses it.
+    #[test]
+    fn an_array_valued_perception_asserts_every_element() {
+        let onto = triage();
+        let bridge = StubBridge {
+            id: "mock:triage".to_owned(),
+            confidence: 0.9,
+            instances: vec![],
+        };
+        let agent = Agent::builder(&onto)
+            .workflow(":Triage")
+            .expect("Triage is declared")
+            .bridge("claude", bridge)
+            .tool(
+                "assign_queue",
+                StubTool(vec![
+                    onto.node_ref(":queueRef").expect(":queueRef is declared"),
+                ]),
+            )
+            .tool(
+                "notify_nurse",
+                StubTool(vec![
+                    onto.node_ref(":pagedTo").expect(":pagedTo is declared"),
+                ]),
+            )
+            .build()
+            .expect("every binding is registered");
+
+        let mut world = World::new(&onto);
+        let result = PerceiveResult {
+            instances: vec![serde_json::json!({
+                "class": ":Patient",
+                "heartRate": 128,
+                "hasSymptom": [":CrushingChestPain", ":ChestPain"]
+            })],
+            confidence: 0.9,
+            fact_confidence: BTreeMap::new(),
+            accounting: Default::default(),
+        };
+
+        let (primary, facts) = agent
+            .assert_perceived(&mut world, &result)
+            .expect("two declared symptoms in an array are a well-formed instance");
+        let subject = primary.expect("the instance is the primary subject");
+        let has_symptom = onto
+            .node_ref(":hasSymptom")
+            .expect(":hasSymptom is declared");
+        let symptoms: Vec<&Value> = world.values(subject, has_symptom).collect();
+        let expected = [
+            Value::Ref(Ref::new(
+                onto.node_ref(":ChestPain").expect(":ChestPain is declared"),
+            )),
+            Value::Ref(Ref::new(
+                onto.node_ref(":CrushingChestPain")
+                    .expect(":CrushingChestPain is declared"),
+            )),
+        ];
+        assert_eq!(symptoms.len(), 2, "both symptoms must stand: {symptoms:?}");
+        for value in &expected {
+            assert!(
+                symptoms.contains(&value),
+                "{value:?} missing from {symptoms:?}"
+            );
+        }
+        assert_eq!(
+            facts.iter().filter(|f| f.property == has_symptom).count(),
+            2,
+            "both array elements must be recorded as perceived facts: {facts:?}"
+        );
+        assert_eq!(facts.len(), 3, "heartRate plus two symptoms: {facts:?}");
     }
 }

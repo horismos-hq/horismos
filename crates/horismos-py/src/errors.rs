@@ -118,7 +118,17 @@ pub(crate) fn ontology_err(py: Python<'_>, err: OntologyError) -> PyErr {
 }
 
 fn ontology_err_with(py: Python<'_>, text: String, err: &OntologyError) -> PyErr {
-    let class = py.get_type::<HorismosOntologyError>();
+    let class = match err {
+        OntologyError::VerificationFailed { .. } => py.get_type::<HorismosVerificationError>(),
+        _ => py.get_type::<HorismosOntologyError>(),
+    };
+    let report_json = match err {
+        OntologyError::VerificationFailed { report } => match report.to_json() {
+            Ok(json) => Some((json, report.exit_code())),
+            Err(error) => return internal_err(py, error.to_string()),
+        },
+        _ => None,
+    };
     match build(py, &class, &text, |inst| {
         // The machine-readable structure (B3) for the variants a running
         // program can hit through the boundary's own naming paths; the
@@ -126,6 +136,13 @@ fn ontology_err_with(py: Python<'_>, text: String, err: &OntologyError) -> PyErr
         // structured surfacing is a recorded gap, 02-tasks-and-gaps.md).
         let data = PyDict::new(py);
         match err {
+            OntologyError::VerificationFailed { .. } => {
+                if let Some((json, exit_code)) = &report_json {
+                    inst.setattr("report_json", json)?;
+                    inst.setattr("exit_code", *exit_code)?;
+                    data.set_item("report", json)?;
+                }
+            }
             OntologyError::UnknownPrefix { term, prefix } => {
                 data.set_item("term", term)?;
                 data.set_item("prefix", prefix)?;

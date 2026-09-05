@@ -502,3 +502,24 @@ the same commit as this file.
   `agent.rs`: all others operate only on load-time-declared IRIs (workflow/step/
   tool/property IRIs, present in both interners by construction), never on a
   runtime `Ref` — no further instances of this bug in the file.
+- **2026-09-03 — found on the live path while building the developer docs site,
+  fixed here: `assert_perceived` dropped array-valued perception answers.**
+  `derive_class_schema` emits `{"type": "array", "items": …}` for every multi-valued
+  property (`:hasSymptom`, `0..*`), so a schema-conforming bridge answers
+  `"hasSymptom": [":CrushingChestPain"]` — but `assert_perceived` resolved
+  class-ranged values with `json_value.as_str()` alone (and `json_to_value` likewise
+  for datatypes), so an array produced no fact at all. `MockBridge` sends a bare
+  string, which is why `make demo` reached `:Done` while every live `make demo-live`
+  run (two models tried on 2026-09-02) asserted only `:heartRate`, found `:Assess`
+  unreachable and took the `onUnreachable` edge to `:EscalateToNurse` — fail-closed
+  as declared, but never the decision. Fixed in
+  `crates/horismos-core/src/workflow/agent.rs`: an array proposes one candidate per
+  element, each converted exactly as a scalar would be; cardinality stays the gate's
+  call. Regression tests `the_immediate_track_reaches_done_when_perception_returns_an_array_of_symptoms`
+  and `an_array_valued_perception_asserts_every_element` both failed before the fix.
+  The first live run to reach `:Done` is committed as
+  `examples/triage/runs/live-openrouter-2026-09-03.trajectory.json` and walked
+  through on the docs site (`docs/go-live.md`). Noted, not fixed: with
+  `OPENROUTER_API_KEY` set, `make demo` (built without `bridges-openrouter`) prints
+  the `live (OpenRouter)` header before warning and falling back to the mock bridge —
+  the header keys on the variable, not on the bridge actually registered.

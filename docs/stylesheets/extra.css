@@ -1,0 +1,65 @@
+/* Horismos docs — small additions over Material defaults. No external assets. */
+
+:root {
+  --horis-accent: #7e57c2;
+}
+
+/* Landing hero */
+.horis-hero {
+  padding: 1.5rem 0 0.5rem;
+}
+.horis-hero h1 {
+  font-size: 2.4rem;
+  line-height: 1.15;
+  margin-bottom: 0.4rem;
+}
+.horis-hero .horis-tagline {
+  font-size: 1.15rem;
+  max-width: 44rem;
+  opacity: 0.9;
+}
+.horis-hero .md-button {
+  margin: 0.4rem 0.6rem 0.4rem 0;
+}
+
+/* Status chips */
+.horis-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0.6rem 0 1.2rem;
+}
+.horis-chips span {
+  border: 1px solid var(--md-default-fg-color--lightest);
+  border-radius: 999px;
+  padding: 0.1rem 0.7rem;
+  font-size: 0.72rem;
+  letter-spacing: 0.02em;
+}
+
+/* The flow diagram on the landing page and the kernel SVG */
+.horis-flow {
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+.horis-diagram svg {
+  width: 100%;
+  height: auto;
+  max-width: 62rem;
+  color: var(--md-default-fg-color);
+}
+.horis-diagram {
+  overflow-x: auto;
+  margin: 1rem 0;
+}
+
+/* Side-by-side comparison columns collapse on narrow screens (via the tabbed
+   extension); tables with long cells wrap instead of forcing horizontal scroll */
+.md-typeset table:not([class]) td {
+  vertical-align: top;
+}
+
+/* Status legend used on the roadmap */
+.horis-status-merged   { color: #2e7d32; font-weight: 600; }
+.horis-status-building { color: #ef6c00; font-weight: 600; }
+.horis-status-planned  { color: #616161; font-weight: 600; }

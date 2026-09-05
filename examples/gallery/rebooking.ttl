@@ -1,0 +1,105 @@
+# Gallery overlay: airline change/refund eligibility — the shape of the
+# tau-bench airline tasks. Illustrative fare rules, not any carrier's policy.
+# The model reads the customer's message; these rules decide what the fare
+# allows; a ProposalStep (doc 07) can then let the model rank the legal
+# rebooking options — it cannot add one.
+
+@prefix :      <https://example.org/air#> .
+@prefix horis: <https://w3id.org/horismos#> .
+@prefix rdf:   <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs:  <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd:   <http://www.w3.org/2001/XMLSchema#> .
+
+## Domain (doc 02)
+
+:ChangeRequest a rdfs:Class ;
+    rdfs:label "Change or refund request" .
+
+:FareClass a rdfs:Class ;
+    horis:oneOf ( :BasicEconomy :Economy :Business ) .
+
+:fareClass a rdf:Property ;
+    rdfs:domain :ChangeRequest ; rdfs:range :FareClass ;
+    horis:cardinality "1" .
+
+:hoursSinceBooking a rdf:Property ;
+    rdfs:domain :ChangeRequest ; rdfs:range xsd:integer ;
+    horis:min 0 ;
+    horis:cardinality "0..1" .
+
+:hoursToDeparture a rdf:Property ;
+    rdfs:domain :ChangeRequest ; rdfs:range xsd:integer ;
+    horis:min 0 ;
+    horis:cardinality "0..1" .
+
+:segmentsFlown a rdf:Property ;
+    rdfs:domain :ChangeRequest ; rdfs:range xsd:integer ;
+    horis:min 0 ;
+    horis:cardinality "0..1" .
+
+:Eligibility a rdfs:Class ;
+    horis:oneOf ( :FreeChange :ChangeWithFee :NotEligible ) .
+
+:eligibility a rdf:Property ;
+    rdfs:domain :ChangeRequest ; rdfs:range :Eligibility ;
+    horis:cardinality "0..1" ;
+    horis:assignedBy horis:RulesOnly .   # the model never decides what the fare allows
+
+## Rules (doc 04)
+
+:alreadyFlown a horis:Rule ;
+    horis:priority 100 ;
+    horis:when [
+        horis:subject :ChangeRequest ; horis:property :segmentsFlown ; horis:exceeds 0
+    ] ;
+    horis:then [ horis:property :eligibility ; horis:value :NotEligible ] ;
+    horis:explain "Travel has begun — the ticket can no longer be changed or refunded" .
+
+:freeWithin24h a horis:Rule ;
+    horis:priority 90 ;
+    horis:when [
+        horis:all (
+            [ horis:subject :ChangeRequest ; horis:property :hoursSinceBooking ; horis:atMost 24 ]
+            [ horis:subject :ChangeRequest ; horis:property :hoursToDeparture ; horis:atLeast 168 ]
+        )
+    ] ;
+    horis:then [ horis:property :eligibility ; horis:value :FreeChange ] ;
+    horis:explain "Booked within the last 24 hours and departure is at least 7 days out — free change" .
+
+:businessFlexible a horis:Rule ;
+    horis:priority 50 ;
+    horis:when [
+        horis:subject :ChangeRequest ; horis:property :fareClass ; horis:is :Business
+    ] ;
+    horis:then [ horis:property :eligibility ; horis:value :FreeChange ] ;
+    horis:explain "Business fares are fully flexible" .
+
+:basicLocked a horis:Rule ;
+    horis:priority 50 ;
+    horis:when [
+        horis:subject :ChangeRequest ; horis:property :fareClass ; horis:is :BasicEconomy
+    ] ;
+    horis:then [ horis:property :eligibility ; horis:value :NotEligible ] ;
+    horis:explain "Basic economy fares cannot be changed after the 24-hour window" .
+
+:economyFee a horis:Rule ;
+    horis:priority 40 ;
+    horis:when [
+        horis:all (
+            [ horis:subject :ChangeRequest ; horis:property :fareClass ; horis:is :Economy ]
+            [ horis:subject :ChangeRequest ; horis:property :hoursToDeparture ; horis:atLeast 24 ]
+        )
+    ] ;
+    horis:then [ horis:property :eligibility ; horis:value :ChangeWithFee ] ;
+    horis:explain "Economy fare, more than 24 hours before departure — change permitted with fee" .
+
+:economyLate a horis:Rule ;
+    horis:priority 40 ;
+    horis:when [
+        horis:all (
+            [ horis:subject :ChangeRequest ; horis:property :fareClass ; horis:is :Economy ]
+            [ horis:subject :ChangeRequest ; horis:property :hoursToDeparture ; horis:below 24 ]
+        )
+    ] ;
+    horis:then [ horis:property :eligibility ; horis:value :NotEligible ] ;
+    horis:explain "Economy fare inside 24 hours of departure — no changes" .

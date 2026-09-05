@@ -121,6 +121,15 @@ pub struct OntologyRef {
     pub version: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none", default)]
     pub hash: Option<String>,
+    /// `true` only when the ontology was loaded through the explicit
+    /// authoring/debug escape. Its omission preserves the historic meaning:
+    /// verification passed before execution began.
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub allow_incomplete: bool,
+}
+
+fn is_false(value: &bool) -> bool {
+    !*value
 }
 
 /// The run's input (doc 09) — natural language or structured.

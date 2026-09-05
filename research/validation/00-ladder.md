@@ -11,7 +11,7 @@ attempted.
 ## Evidence
 
 **[measured]** Formal verification does not prove the medicine is right. Horismos's
-own verification documentation (`docs/framework/10-verification.md`) already states
+own verification documentation ([`docs/framework/10-verification.md`](https://github.com/billaram/horismos/blob/main/docs/framework/10-verification.md)) already states
 the limit: verification proves the reasoner is total and sound *around whatever
 perception does*, and claims nothing about tool implementations or anything
 probabilistic. **[inference]** The clinically load-bearing corollary: verification
@@ -48,7 +48,7 @@ calibration silently fails, and AUROC alone is blind to it
 
 ## Source
 
-See `../reading-log.md`, Q4 section.
+See [`../reading-log.md`](../reading-log.md), Q4 section.
 
 ## Confidence
 

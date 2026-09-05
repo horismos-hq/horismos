@@ -26,6 +26,7 @@ const VTE_CLASS: &str = "https://example.org/vte#VteCase";
 const VTE_RECOMMENDATION: &str = "https://example.org/vte#recommendation";
 const PHARMACOLOGIC: &str = "https://example.org/vte#PharmacologicProphylaxis";
 const HOLD: &str = "https://example.org/vte#HoldProphylaxis";
+const NO_PROPHYLAXIS: &str = "https://example.org/vte#NoProphylaxisIndicated";
 const PREFETCH_KEY: &str = "vte-closure";
 const PATIENT_CLOSURE_MEMBER: &str = "Patient/{{context.patientId}}";
 const EXTERNAL_RESULT: &str = "EligibleForVteAssessment";
@@ -200,6 +201,7 @@ impl VtePrototype {
                 allowed_write_resource_types: BTreeSet::from([
                     "MedicationRequest".into(),
                     "DetectedIssue".into(),
+                    "RiskAssessment".into(),
                 ]),
             },
             closure: manifest.closure,
@@ -479,6 +481,7 @@ impl<T: FhirTransport> VteService<T> {
             iri: self.ontology_identity.canonical.clone(),
             version: Some(self.ontology_identity.version.clone()),
             hash: Some(self.ontology_identity.hash.clone()),
+            allow_incomplete: self.ontology.allows_incomplete(),
         });
         core_trace.steps.push(trace::reasoning_step(
             admitted.world(),
@@ -1018,6 +1021,32 @@ fn recommendation_effect(
                 Reversibility::Bufferable,
             )?;
             Ok(("Hold pharmacologic VTE prophylaxis".into(), effect))
+        }
+        NO_PROPHYLAXIS => {
+            // The absence of a prophylaxis order is itself a documented decision: a
+            // silent absence reads as an oversight. The record is assessment-shaped,
+            // never a medication order.
+            let id = format!("{run_id}-no-prophylaxis");
+            let target = format!("RiskAssessment/{id}");
+            let resource = json!({
+                "resourceType":"RiskAssessment",
+                "id":id,
+                "status":"preliminary",
+                "code":{"text":"VTE risk assessed — pharmacologic prophylaxis not indicated; early ambulation and mechanical measures remain a host decision"},
+                "subject":{"reference":format!("Patient/{patient_id}")}
+            });
+            let effect = proposed_fhir_effect(
+                format!("vte-effect-{run_id}"),
+                target,
+                format!("vte:{run_id}:no-prophylaxis"),
+                proof_ref,
+                resource,
+                Reversibility::Bufferable,
+            )?;
+            Ok((
+                "Record that VTE prophylaxis is not indicated".into(),
+                effect,
+            ))
         }
         other => Err(vte_error(
             "horis:recommendation",

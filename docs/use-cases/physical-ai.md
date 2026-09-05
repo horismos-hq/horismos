@@ -1,0 +1,92 @@
+# Physical AI
+
+## The scene
+
+A learned policy — a VLA model, an RL controller, an LLM planner — proposes a motion command for a mobile manipulator. The proposal is probably fine. "Probably" is not the standard for a robot arm moving near a person. The established pattern is a **shield**: a deterministic layer between the policy and the actuator that checks each proposed action against a specification of safe states and blocks or attenuates the ones that violate it (Alshiekh et al., "Safe Reinforcement Learning via Shielding", AAAI 2018). The policy stays free to be clever inside the envelope; the envelope is not negotiable.
+
+The 2026 agent-safety literature the research wiki tracks converges on the same shape for software agents — deterministic pre-execution gates over declared constraints and current state (`research/neurosymbolic-landscape/pivot-alignment.md`, C6): SMT policies checked before a call, temporal-logic monitors over action traces, in-kernel enforcement because "tool-call guardrails cannot intercept system actions that bypass the tool layer," and freshness-bounded approval because a verdict "correct at check time" can be "stale by actuation." A robot makes every one of those concerns physical.
+
+## The overlay
+
+Typed preconditions over the world state gate the command. The gate's range constraint on `requestedSpeed` means a command above the mechanical limit never becomes a fact at all; the rules decide the rest:
+
+```turtle
+--8<-- "examples/gallery/safety-envelope.ttl"
+```
+
+## The decision, with proof
+
+```python
+from horismos import HorismosValidationError, Ontology, World
+
+onto = Ontology.load("examples/gallery/safety-envelope.ttl")
+world = World(onto)
+
+def shield(subject: str, **state: object) -> None:
+    ref = world.assert_(":MotionCommand", subject=subject, **state)
+    proof = world.explain(ref, ":verdict")
+    print(proof.render() if proof else f"{subject}: no verdict — command does not proceed")
+
+shield(":cmd-1", requested_speed=1.2, nearest_human_distance=3.4,
+       e_stop_engaged=False, zone=":OpenFloor")
+shield(":cmd-2", requested_speed=0.8, nearest_human_distance=1.1,
+       e_stop_engaged=False, zone=":SharedCell")
+shield(":cmd-3", requested_speed=0.2, nearest_human_distance=0.3,
+       e_stop_engaged=False, zone=":SharedCell")
+```
+
+```text
+:verdict = :Permitted   via permitOpenFloor — "Open floor with clear separation — command permitted as proposed"
+  ├─ zone :OpenFloor is :OpenFloor   (asserted by the api)
+  └─ nearestHumanDistance 3.4 atLeast 1.0   (asserted by the api)
+
+:verdict = :Attenuated   via attenuateInSharedCell — "Shared cell with a person present — speed is capped, command is attenuated"
+  ├─ zone :SharedCell is :SharedCell   (asserted by the api)
+  ├─ requestedSpeed 0.8 exceeds 0.25   (asserted by the api)
+  └─ nearestHumanDistance 1.1 atLeast 0.5   (asserted by the api)
+
+:verdict = :Blocked   via blockTooClose — "A person is inside the minimum separation distance"
+  └─ nearestHumanDistance 0.3 below 0.5   (asserted by the api)
+```
+
+Three things a prompt cannot give you. A command over the mechanical limit is refused *before* any rule runs, in the units the ontology declared. The policy network cannot mark its own command safe. And a command with no distance reading gets no verdict — which, at the actuator, means it does not move:
+
+```python
+for bad in (dict(requested_speed=3.5, nearest_human_distance=5.0, e_stop_engaged=False, zone=":OpenFloor"),
+            dict(requested_speed=0.1, e_stop_engaged=False, zone=":OpenFloor", verdict=":Permitted")):
+    try:
+        world.assert_(":MotionCommand", subject=":cmd-4", **bad)
+    except HorismosValidationError as e:
+        print(f"[{e.constraint}] {e}")
+
+shield(":cmd-5", requested_speed=0.1, e_stop_engaged=False, zone=":OpenFloor")
+```
+
+```text
+[max] requestedSpeed 3.5 exceeds horis:max 2.0 (m/s) on :MotionCommand
+[provenance_refused] verdict may only be assigned by rules (horis:assignedBy horis:RulesOnly); assertion came from the api
+:cmd-5: no verdict — command does not proceed
+```
+
+The emergency stop is engaged while `:cmd-1` is standing. Its verdict is recomputed in the transaction that recorded the stop — there is no window in which a previously permitted command remains permitted under a changed world:
+
+```python
+shield(":cmd-1", e_stop_engaged=True)
+```
+
+```text
+:verdict = :Blocked   via blockOnEStop — "Emergency stop is engaged — no motion"
+  └─ eStopEngaged true is true   (asserted by the api)
+```
+
+## Why verification matters here
+
+A shield is only as good as its coverage, and coverage is exactly what PRP-005 proves. Completeness asks whether every reachable combination of zone, speed, distance and e-stop state gets a verdict — this overlay deliberately has none for `:SharedCell` with no distance reading, and the witness would say so before a robot does. Conflict-freedom names every pair of rules that can match one command with different verdicts. Here `blockOnEStop` (priority 100) and `permitOpenFloor` (priority 10) both match an open-floor command with clear separation while the e-stop is engaged — exactly the `:cmd-1` transition above — and priority resolves it; the check would report "blockOnEStop wins by priority; confirm intended" so the ordering is confirmed rather than discovered. Dead-rule detection would catch a speed threshold above `horis:max`. Non-vacuity would flag a constraint that excludes no reachable value.
+
+What it does not claim: anything about the sensor that produced `nearestHumanDistance`, the controller that executes an attenuated command, or the physical world between check and actuation. Those are the adapter's and the deployer's, and the assumption manifest lists the unverified external effects explicitly.
+
+## Status and honest edges
+
+- Runs today with structured input at the decision level. Nothing in Horismos runs at control-loop rates or replaces a certified safety PLC; this is the supervisory decision layer between a planner and an actuator interface, and the framework's own posture is that OS- and hardware-level isolation stays the deployer's.
+- The freshness concern is the physical version of the snapshot-scoped guarantee: a verdict is exact for the world state it was given, and the runtime recomputes on every change it is told about. What it is not told about, it cannot gate ([Guarantees](../guarantees.md)).
+- Thresholds are teaching values. A real cell derives them from its risk assessment and the applicable standards; the overlay shape is what stays the same.

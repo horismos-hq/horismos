@@ -83,6 +83,11 @@ pub enum WorkflowError {
     #[error("step {step}'s horis:requires is unsatisfiable and it declares no horis:onUnsatisfied")]
     RequiresUnsatisfiable { step: String },
 
+    /// An explicitly `allow_incomplete` ontology reached a fallible step
+    /// whose required failure edge verification had already reported.
+    #[error("step {step} can fail but declares no {edge} edge")]
+    MissingFailureEdge { step: String, edge: String },
+
     /// A `NarrationStep` declaring `horis:required true` failed (D7).
     #[error("required narration step {step} failed: {reason}")]
     NarrationFailed { step: String, reason: String },

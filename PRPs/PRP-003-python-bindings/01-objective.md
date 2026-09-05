@@ -211,7 +211,7 @@ from horismos import Ontology, World
 
 onto = Ontology.load("examples/triage/triage.ttl",
                      imports=["examples/triage/snomed-ct-subset.ttl"])
-assert onto.verify().ok            # stub until PRP-005: load-time checks only
+assert onto.verify().ok
 assert onto.namespaces[""] == "https://example.org/triage#"   # the : prefix
 
 world = World(onto)

@@ -70,7 +70,7 @@ checkbox.
 
 ## Source
 
-See `../reading-log.md`, Q4 section.
+See [`../reading-log.md`](../reading-log.md), Q4 section.
 
 ## Confidence
 

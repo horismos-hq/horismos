@@ -48,7 +48,8 @@ const EXAMPLE_1: &str = "@prefix : <https://example.org/t#> .\n\
      \x20 horis:explain \"Immediate track — continuous cardiac monitoring\" .\n";
 
 fn example_world() -> World {
-    let onto = Ontology::load_from_str(EXAMPLE_1, |_| None).expect("Example 1 loads");
+    let onto =
+        Ontology::load_from_str_allow_incomplete(EXAMPLE_1, |_| None).expect("Example 1 loads");
     World::new(&onto)
 }
 
@@ -204,7 +205,7 @@ fn a_retraction_that_trips_the_iteration_cap_rolls_back_the_whole_transaction() 
          \x20   horis:cardinality \"0..*\" .\n\
          {rules_source}"
     );
-    let onto = Ontology::load_from_str(&source, |_| None).expect("valid");
+    let onto = Ontology::load_from_str_allow_incomplete(&source, |_| None).expect("valid");
     let mut world = World::new(&onto);
     let patient = t(&mut world, "Patient");
     let heart_rate = t(&mut world, "heartRate");

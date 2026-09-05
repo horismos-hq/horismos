@@ -860,8 +860,9 @@ mod tests {
 
     /// A world over the inline test ontology (`:` = `https://example.org/t#`).
     fn world_of(source: &str) -> World {
-        let onto = Ontology::load_from_str(&format!("{PRELUDE}{source}\n"), |_| None)
-            .expect("the test ontology must load");
+        let onto =
+            Ontology::load_from_str_allow_incomplete(&format!("{PRELUDE}{source}\n"), |_| None)
+                .expect("the test ontology must load");
         World::new(&onto)
     }
 
@@ -1866,10 +1867,15 @@ mod tests {
 
     #[test]
     fn retraction_passes_the_same_provenance_policy() {
-        let mut world = triage_world();
-        let patient = tri(&mut world, "Patient");
-        let acuity = tri(&mut world, "acuity");
-        let immediate = Value::Ref(Ref::new(tri(&mut world, "Immediate")));
+        let mut world = world_of(
+            ":Patient a rdfs:Class .\n\
+             :AcuityLevel a rdfs:Class ; horis:oneOf ( :Immediate ) .\n\
+             :acuity a rdf:Property ; rdfs:domain :Patient ; rdfs:range :AcuityLevel ;\n\
+             \x20   horis:cardinality \"0..1\" ; horis:assignedBy horis:RulesOnly .",
+        );
+        let patient = t(&mut world, "Patient");
+        let acuity = t(&mut world, "acuity");
+        let immediate = Value::Ref(Ref::new(t(&mut world, "Immediate")));
 
         let p = world
             .assert_instance_as(
@@ -2067,7 +2073,7 @@ mod retraction_ruling_tests {
     /// the retract-then-assert bypass is closed.
     #[test]
     fn an_immutable_fact_refuses_retraction_in_the_documented_wording() {
-        let onto = Ontology::load_from_str(
+        let onto = Ontology::load_from_str_allow_incomplete(
             "@prefix : <https://example.org/t#> .\n\
              @prefix horis: <https://w3id.org/horismos#> .\n\
              @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .\n\
@@ -2181,7 +2187,7 @@ mod retraction_ruling_tests {
     /// its local twin is enumerated — the PRP-001 spurious reject is gone.
     #[test]
     fn one_of_accepts_a_same_as_anchored_member() {
-        let onto = Ontology::load_from_str(
+        let onto = Ontology::load_from_str_allow_incomplete(
             "@prefix : <https://example.org/t#> .\n\
              @prefix horis: <https://w3id.org/horismos#> .\n\
              @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .\n\

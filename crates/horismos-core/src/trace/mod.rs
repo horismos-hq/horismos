@@ -137,7 +137,7 @@ mod tests {
              \x20 ) ] ;\n\
              \x20 horis:then [ horis:property :acuity ; horis:value :Discharged ] .\n"
         );
-        let onto = Ontology::load_from_str(&source, |_| None).expect("loads");
+        let onto = Ontology::load_from_str_allow_incomplete(&source, |_| None).expect("loads");
         let mut world = World::new(&onto);
         let patient = t(&mut world, "Patient");
         let has_symptom = t(&mut world, "hasSymptom");
