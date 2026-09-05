@@ -9,7 +9,7 @@
 # how the snippet test guards the code samples).
 
 site_name: Horismos
-site_url: https://billaram.github.io/horismos/
+site_url: https://horismos-hq.github.io/horismos/
 site_description: >-
   Ontology-first decision kernel for LLM agents. Your rules decide; the model translates.
   Rust core, Python bindings, a proof for every conclusion.

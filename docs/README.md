@@ -20,7 +20,7 @@ uvx --with mkdocs-material mkdocs build --strict   # the gate: warnings are erro
 
 ## Published site
 
-The site is published at <https://billaram.github.io/horismos/> by
+The site is published at <https://horismos-hq.github.io/horismos/> by
 `.github/workflows/docs-pages.yml`: on every push to `main` that touches `mkdocs.yml`,
 `docs/` or `examples/` (and on manual dispatch) it runs the same strict build and
 deploys `site/` to GitHub Pages. It is a deploy-on-merge workflow, not a pull-request

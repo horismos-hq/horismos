@@ -30,7 +30,7 @@ Build order is a dependency DAG, not the numbering: 001 → 002 → 003 → 004 
 | Verification witnesses, assumption manifest | Not yet | PRP-005 |
 | FHIR / repository hydration, conditional commit, CDS Hooks surface | Not yet | PRP-008 |
 | `pip install horismos` / `cargo add horismos-core` from public registries | Not yet | PRP-006; today: `make develop` from a clone |
-| This docs site published at a public URL | **Yes** — <https://billaram.github.io/horismos/>, deployed from `main` by `.github/workflows/docs-pages.yml` | Deploy-on-merge only; PR-triggered CI (this site's `--strict` build as a check) is still PRP-006 |
+| This docs site published at a public URL | **Yes** — <https://horismos-hq.github.io/horismos/>, deployed from `main` by `.github/workflows/docs-pages.yml` | Deploy-on-merge only; PR-triggered CI (this site's `--strict` build as a check) is still PRP-006 |
 
 ## The end state
 
