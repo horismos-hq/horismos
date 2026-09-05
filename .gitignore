@@ -21,5 +21,8 @@ dist/
 # owning PRP's 02-tasks-and-gaps.md (AGENTS.md § Conventions)
 .superpowers/
 
+# MkDocs build output (docs site sources live in docs/, config in mkdocs.yml)
+/site/
+
 # MkDocs build output (research site: mkdocs-research.yml)
 /site-research/

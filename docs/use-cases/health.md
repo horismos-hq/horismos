@@ -1,0 +1,110 @@
+# Health
+
+Three scenes: VTE prophylaxis (the recommended first standards-anchored vertical slice for PRP-008), the triage flagship you met in the quickstart, and prior authorization — which is precisely the kind of decision that needs an appealable proof, and precisely why it is not the first build.
+
+## VTE prophylaxis
+
+### The scene
+
+A patient is admitted. Hospital-acquired venous thromboembolism is a leading preventable cause of in-hospital death, and the intervention is well understood: stratify risk, check contraindications, order prophylaxis. A randomized trial of a computerized alert for exactly this decision (Kucher et al., NEJM 2005; 1,255 vs. 1,251 patients) markedly reduced DVT and PE — the mechanism class works when it fires reliably. An LLM agent reading the chart can tell you the risk factors; what it cannot give you is a guarantee that it applied the protocol the same way for every patient, or a reason a pharmacist can audit.
+
+The research wiki ranks this scenario first for Horismos (`research/scenarios/vte-prophylaxis.md`): the inputs are almost entirely structured EHR facts, the logic is bounded (a published score plus a contraindication check), and the action is a typed order. That is the structured-input path — no model in the loop at all.
+
+### The overlay
+
+The Padua score arithmetic is not in the rules. Summing risk factors is the job of your CQL library or adapter (PRP-008's position is to compose with an evaluator, not rebuild one); Horismos consumes the typed score and decides what it implies:
+
+```turtle
+--8<-- "examples/gallery/vte-prophylaxis.ttl"
+```
+
+### The decision, with proof
+
+```python
+from horismos import HorismosValidationError, Ontology, World
+
+onto = Ontology.load("examples/gallery/vte-prophylaxis.ttl")
+world = World(onto)
+
+def admit(subject: str, **facts: object) -> None:
+    ref = world.assert_(":Admission", subject=subject, **facts)
+    proof = world.explain(ref, ":prophylaxis")
+    print(proof.render() if proof else f"{subject}: no recommendation — facts incomplete")
+
+admit(":adm-1", padua_score=5, active_bleeding=False, platelet_count=210,
+      on_therapeutic_anticoagulation=False)
+admit(":adm-2", padua_score=6, active_bleeding=False, platelet_count=38,
+      on_therapeutic_anticoagulation=False)
+admit(":adm-3", padua_score=2, active_bleeding=False, platelet_count=250,
+      on_therapeutic_anticoagulation=False)
+```
+
+```text
+:prophylaxis = :Pharmacologic   via highRisk — "Padua score 4 or more with no bleeding contraindication — pharmacologic prophylaxis"
+  ├─ paduaScore 5 atLeast 4   (asserted by the api)
+  ├─ activeBleeding false is false   (asserted by the api)
+  └─ plateletCount 210 atLeast 50   (asserted by the api)
+
+:prophylaxis = :MechanicalOnly   via highRiskWithContraindication — "High VTE risk but pharmacologic prophylaxis is contraindicated — mechanical prophylaxis only"
+  ├─ paduaScore 6 atLeast 4   (asserted by the api)
+  └─ any of:
+     ├─ activeBleeding is true   (not held)
+     └─ plateletCount 38 below 50   (asserted by the api)
+
+:prophylaxis = :NoneIndicated   via lowRisk — "Padua score below 4 — routine prophylaxis not indicated"
+  └─ paduaScore 2 below 4   (asserted by the api)
+```
+
+The second proof is worth a second look: a disjunction renders both branches and says which one held. A pharmacist reading it knows the recommendation rests on the platelet count, not on bleeding.
+
+Incomplete facts produce no recommendation; an out-of-range lab value never enters; and nothing but a rule can write the recommendation:
+
+```python
+admit(":adm-4", padua_score=7)                    # no bleeding or platelet facts yet
+for bad in (dict(platelet_count=-1), dict(padua_score=5, prophylaxis=":Pharmacologic")):
+    try:
+        world.assert_(":Admission", subject=":adm-5", **bad)
+    except HorismosValidationError as e:
+        print(f"[{e.constraint}] {e}")
+```
+
+```text
+:adm-4: no recommendation — facts incomplete
+[min] plateletCount -1 is below horis:min 0 (10^9/L) on :Admission
+[provenance_refused] prophylaxis may only be assigned by rules (horis:assignedBy horis:RulesOnly); assertion came from the api
+```
+
+When the labs arrive, the recommendation follows — in the same transaction, with no stale intermediate state:
+
+```python
+admit(":adm-4", active_bleeding=False, platelet_count=180, on_therapeutic_anticoagulation=False)
+```
+
+```text
+:prophylaxis = :Pharmacologic   via highRisk — "Padua score 4 or more with no bleeding contraindication — pharmacologic prophylaxis"
+  ├─ paduaScore 7 atLeast 4   (asserted by the api)
+  ├─ activeBleeding false is false   (asserted by the api)
+  └─ plateletCount 180 atLeast 50   (asserted by the api)
+```
+
+### Why verification matters here
+
+PRP-005's completeness check asks: *for every reachable combination of Padua score, bleeding status and platelet count, does some rule assign a recommendation?* This overlay has a deliberate gap — a high-risk patient with `activeBleeding` unknown and platelets known gets nothing — and the check would render it as a witness in domain terms rather than leaving it to be discovered on a ward. Conflict-freedom would confirm that `highRisk` and `highRiskWithContraindication` cannot both fire on one admission; dead-rule detection would catch a threshold that `horis:min`/`horis:max` make unreachable. The assumption manifest would state which SNOMED edition and which FHIR profile the closure assumed.
+
+What it would not do: say anything about whether the Padua thresholds are clinically right, whether the upstream score computation is correct, or whether the EHR record was complete. Those live outside the declared closure, and the manifest says so.
+
+### Status and honest edges
+
+- The overlay runs today with structured input. Hydrating it from FHIR (Observation, Condition, MedicationStatement) with source versions in the proof, and committing a proposed order back conditionally, is PRP-008's vertical slice — which scenario it builds first (VTE, NEWS2, sepsis-bundle compliance) is a pending captain decision recorded in `PRPs/BOARD.md`.
+- Thresholds here are illustrative. Padua ≥ 4 is the published high-risk cutoff; the contraindication values are teaching numbers.
+- No head-to-head clinical trial of a hard-gated ontology system exists in the literature the wiki surveyed. Horismos's safety argument is architectural, not yet measured for itself.
+
+## Triage (the flagship)
+
+The quickstart runs it end to end. The point it makes for health specifically: a rule written against `:ChestPain` fires for a SNOMED-coded unstable angina it never mentioned, and the proof shows the subsumption step. See `examples/triage/triage.ttl` and the [Quickstart](../quickstart.md).
+
+## Prior authorization — later, on purpose
+
+Prior authorization has the strongest FHIR prior art of anything surveyed (Da Vinci CRD/DTR/PAS is literally the use case), CMS-0057-F mandates FHIR PA APIs, and Epic put hook-triggered third-party coverage-requirements services into production in August 2026. The shape fits Horismos exactly: structured inputs, bounded rules, a typed determination, and a proof tree that makes every denial appealable.
+
+The research wiki nonetheless rules it out as a *first* build (`research/scenarios/ruled-out.md`): the documented harms — a litigated "known 90% error rate" in one Medicare Advantage tool, 300,000 claims batch-denied at about 1.2 seconds each in another — came from opaque automation in an adversarial payer workflow, and a pre-alpha framework has no business there until it has a trust record. The [Insurance](insurance.md) page shows the adjudication shape with a proof per denial; the operating decision about when to deploy it is a human one.

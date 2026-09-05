@@ -1,0 +1,121 @@
+{
+  "schema": "horismos.trace/2",
+  "run_id": "triage_demo_run",
+  "ontology": {
+    "iri": "https://example.org/triage",
+    "version": "1.2.0"
+  },
+  "workflow": ":Triage",
+  "started_at": "2026-08-19T00:00:00+00:00",
+  "input": {
+    "kind": "nl",
+    "text": "58M, crushing chest pain, heart rate 128"
+  },
+  "steps": [
+    {
+      "kind": "perception",
+      "step": ":Intake",
+      "model": "openrouter:openai/gpt-4o-mini",
+      "confidence": 0.9,
+      "threshold": 0.85,
+      "accepted": true,
+      "asserted": [
+        {
+          "s": "<https://w3id.org/horismos/.well-known/genid/0>",
+          "p": ":hasSymptom",
+          "o": ":CrushingChestPain",
+          "provenance": "perception",
+          "conf": 0.9
+        },
+        {
+          "s": "<https://w3id.org/horismos/.well-known/genid/0>",
+          "p": ":heartRate",
+          "o": "128",
+          "provenance": "perception",
+          "conf": 0.9
+        }
+      ],
+      "loss_mask": false
+    },
+    {
+      "kind": "reasoning",
+      "step": ":Assess",
+      "fired": [
+        {
+          "rule": ":r1",
+          "bindings": {
+            "?p": "<https://w3id.org/horismos/.well-known/genid/0>"
+          },
+          "derived": [
+            {
+              "s": "<https://w3id.org/horismos/.well-known/genid/0>",
+              "p": ":acuity",
+              "o": ":Immediate",
+              "provenance": "rule"
+            }
+          ],
+          "proof": {
+            "goal": "<https://w3id.org/horismos/.well-known/genid/0> :acuity :Immediate",
+            "via": ":r1",
+            "explain": "Tachycardia with chest pain — immediate track",
+            "conditions": [
+              {
+                "goal": "<https://w3id.org/horismos/.well-known/genid/0> heartRate exceeds 120",
+                "via": "asserted",
+                "provenance": "perception"
+              },
+              {
+                "goal": "<https://w3id.org/horismos/.well-known/genid/0> hasSymptom is :ChestPain",
+                "via": "subsumption(:CrushingChestPain)",
+                "provenance": "perception"
+              }
+            ]
+          }
+        }
+      ],
+      "suppressed": [],
+      "passes": 2,
+      "goal_reached": true,
+      "loss_mask": true
+    },
+    {
+      "kind": "action",
+      "step": ":Route",
+      "tool": ":ehr.assign_queue",
+      "effects_asserted": [
+        {
+          "s": "<https://w3id.org/horismos/.well-known/genid/0>",
+          "p": ":queuedAt",
+          "o": "2026-08-19T00:00:00+00:00",
+          "provenance": "tool"
+        },
+        {
+          "s": "<https://w3id.org/horismos/.well-known/genid/0>",
+          "p": ":queueRef",
+          "o": "ED-QUEUE-IMMEDIATE-7",
+          "provenance": "tool"
+        }
+      ],
+      "loss_mask": true
+    },
+    {
+      "kind": "narration",
+      "step": ":Explain",
+      "audience": "charge-nurse",
+      "text": "In our current situation, we are dealing with a patient exhibiting significant signs that necessitate prompt attention. The acuity level assigned here is categorized as \"Immediate,\" which highlights the urgency of the case. \n\nThe reasoning can be traced through the established reference point r1, referred to as \"Tachycardia with chest pain — immediate track.\" This indicates that the clinical parameters warrant immediate action. To break it down, we see that the heart rate of the patient is at 128 beats per minute. This figure is important because it notably exceeds the threshold of 120 beats per minute. The fact that this heart rate was asserted by perception gives us a reliable foundation for our assessment, reinforcing the critical nature of the situation.\n\nAdditionally, the patient is reported to have a symptom of crushing chest pain. This symptom is classified under the broader category of chest pain. This classification, understood through the principle of subsumption, further underscores the severity of the patient's condition. \n\nTogether, these observations and classifications firmly establish the need for immediate intervention for the patient in question.",
+      "loss_mask": false
+    }
+  ],
+  "outcome": {
+    "terminal": ":Done",
+    "goal_reached": true,
+    "decision": {
+      "s": "<https://w3id.org/horismos/.well-known/genid/0>",
+      "p": ":acuity",
+      "o": ":Immediate"
+    },
+    "labels": {
+      "fallback_taken": false
+    }
+  }
+}

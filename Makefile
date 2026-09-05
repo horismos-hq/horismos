@@ -51,7 +51,8 @@ demo:
 	cargo run -p horismos-bridges --example triage_agent_demo
 
 # Same demo, built with the OpenRouter provider client; uses OpenRouterBridge
-# when OPENROUTER_API_KEY is set, else falls back to MockBridge with a warning.
+# when OPENROUTER_API_KEY is set, else runs MockBridge silently — the first output
+# line ("… — mock" vs "… — live (OpenRouter)") says which bridge ran.
 demo-live:
 	cargo run -p horismos-bridges --example triage_agent_demo --features bridges-openrouter
 
