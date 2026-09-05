@@ -1,6 +1,6 @@
 # Governing a coding agent
 
-Your coding agent — Claude Code, Codex, pi, a harness of your own — proposes a patch and asks to merge it. Today the answer comes from a permission prompt, a prefix rule, or increasingly a model classifier. None of those can see the repository's state, and none of them produces a reason you could show a release manager. This page builds the alternative: a **25-term change gate** the harness consults before it acts, where the decision is derived by rules over typed facts and the bot cannot grant itself merge permission.
+Your coding agent — Claude Code, Codex, pi, a harness of your own — proposes a patch and asks to merge it. Today the answer comes from a permission prompt, a prefix rule, or increasingly a model classifier. None of those can see the repository's state, and none of them produces a reason you could show a release manager. This page builds the alternative: a **28-term change gate** the harness consults before it acts, where the decision is derived by rules over typed facts and the bot cannot grant itself merge permission.
 
 ## Why prompt-level policy is not enough
 
@@ -13,9 +13,9 @@ The research wiki's survey of harnesses (`research/neurosymbolic-landscape/codin
 
 The same survey finds that no harness "declares a semantic domain graph with verified cross-tool preconditions/effects or maintains a fixed point over repository state" — and that every harness already exposes the slot such a thing would plug into: a typed, ordered permission decision with a reason string (`PreToolUse` hooks in Claude Code, `BeforeTool` in Gemini CLI, `beforeShellExecution` in Cursor, an MCP proxy for everything else).
 
-## The 25-term change gate
+## The 28-term change gate
 
-Eight classes and enumeration members, nine properties, eight rules. The harness asserts what it observed about a proposal; the rules — and only the rules — assign `:gateDecision`. It runs today against the shipped engine.
+Eight classes and enumeration members, nine properties, eleven rules. The harness asserts what it observed about a proposal; the rules — and only the rules — assign `:gateDecision`. It runs today against the shipped engine.
 
 ```turtle
 --8<-- "examples/change-gate/change-gate.ttl"
@@ -62,17 +62,12 @@ gate(":pr-42", proposed_by=":Bot",
 ```
 
 ```text
-:gateDecision = :NeedsHuman   via unreviewedChangeNeedsHuman — "Green checks, but no human approval and the change is outside the routine envelope — a reviewer is required"
+:gateDecision = :NeedsHuman   via protectedNeedsHuman — "Protected paths need at least one human approval"
   ├─ baseMatchesHead true is true   (asserted by the api)
   ├─ testsPassed true is true   (asserted by the api)
   ├─ lintPassed true is true   (asserted by the api)
-  ├─ none of:
-  │  └─ humanApprovals atLeast 1   (not held)
-  └─ any of:
-     ├─ none of:
-     │  └─ touchesProtectedPath is false   (not held)
-     └─ none of:   (not held)
-        └─ linesChanged 30 atMost 400   (asserted by the api)
+  ├─ touchesProtectedPath true is true   (asserted by the api)
+  └─ humanApprovals 0 below 1   (asserted by the api)
 ```
 
 **A stale base is rejected** even with everything else green — the highest-priority rule wins, and the proof names the clause:
@@ -113,17 +108,13 @@ gate(":pr-45", base_matches_head=False)       # main moved; the hash no longer m
 ```
 
 ```text
-:gateDecision = :NeedsHuman   via unreviewedChangeNeedsHuman — "Green checks, but no human approval and the change is outside the routine envelope — a reviewer is required"
+:gateDecision = :NeedsHuman   via largeBotDiffNeedsHuman — "A bot-authored change over 400 lines needs a human reviewer"
   ├─ baseMatchesHead true is true   (asserted by the api)
   ├─ testsPassed true is true   (asserted by the api)
   ├─ lintPassed true is true   (asserted by the api)
-  ├─ none of:
-  │  └─ humanApprovals atLeast 1   (not held)
-  └─ any of:
-     ├─ none of:   (not held)
-     │  └─ touchesProtectedPath false is false   (asserted by the api)
-     └─ none of:
-        └─ linesChanged atMost 400   (not held)
+  ├─ proposedBy :Bot is :Bot   (asserted by the api)
+  ├─ linesChanged 900 exceeds 400   (asserted by the api)
+  └─ humanApprovals 0 below 1   (asserted by the api)
 
 :gateDecision = :Approved   via approveReviewedChange — "Fresh base, green checks, and a human approved it"
   ├─ baseMatchesHead true is true   (asserted by the api)
@@ -221,6 +212,6 @@ What the boundary proves: the proposal was policy-legal and passed its declared 
 | Base-hash check, sandbox execution, and the proposal envelope as a first-class typed boundary | **Landing in PRP-008** (host-adapter/runtime side) — the envelope's `horis:` vocabulary is minted jointly with PRP-007 |
 | A coding-harness adapter that materializes repository state (branch, dirty files, test status, path scopes) as a versioned projection with conditional commit | **Landing in PRP-008** — the second-domain proof that the host SPI is format-neutral, not FHIR-shaped |
 | Compiling a fragment from an existing `SKILL.md` / tool schema, with a coverage report | **Planned in PRP-007** (after PRP-008) |
-| Completeness / conflict / dead-rule verification of the eight rules, with domain-term witnesses | **Yes** — `verify()` proves `:gateDecision` total and conflict-free; `Ontology.load` refuses the overlay otherwise |
+| Completeness / conflict / dead-rule verification of the eleven rules, with domain-term witnesses | **Yes** — `verify()` proves `:gateDecision` total and conflict-free; `Ontology.load` refuses the overlay otherwise |
 
 Track the live status on the [roadmap](roadmap.md) and in `PRPs/BOARD.md`.

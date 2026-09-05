@@ -132,3 +132,29 @@ them. Expanded context for D1–D4 lives in `01-objective.md` § Key decisions.
   heavy at a scale the project cares about, the fix is dependency-tracked
   incremental invalidation (a real TMS), deliberately not built in this
   task — future-optimization gap, not a defect.
+- 2026-09-05 **[DECIDE]** (proof attribution when rules agree): the forward
+  chainer fires every matching rule in priority order, and
+  `World::record_derivation` (`crates/horismos-core/src/world/mod.rs:640`)
+  replaces the record per (subject, property) on each firing, so when two
+  rules conclude the *same* value for a single-valued property the proof
+  `explain()` cites is the *lowest*-priority rule's — the rule named is
+  effectively arbitrary whenever rules agree. Surfaced by the gallery
+  completeness work (branch `fm/horismos-gallery-completeness`): the change
+  gate's first cover rule overlapped `:protectedNeedsHuman` and took over its
+  proof on every protected-path proposal while `verify()` passed, because
+  equal values are not a conflict. This is the single-valued same-value case
+  of the `derivations` overwrite recorded in note (2) of 2026-08-19 above.
+  It is a gap in the headline guarantee — the proof is meant to name the
+  rule that decided — not a docs problem; disjoint covers avoid it overlay
+  by overlay and nothing enforces them. Relabelling each same-valued rule to
+  a distinct value and re-running `verify()` shows the shipped examples
+  already carry such overlaps among their original rules (change gate:
+  `rejectStaleBase`/`rejectFailingChecks`, `approveRoutineChange`/
+  `approveReviewedChange`, `protectedNeedsHuman`/`largeBotDiffNeedsHuman`;
+  claims: `denyInactivePolicy`/`denyNonCoveredService`,
+  `pendMissingPriorAuth`/`pendHighDollar`), so a routine change that a human
+  also approved is explained by the priority-10 rule, not the priority-20
+  one. To decide here: whether a same-value
+  re-derivation must leave a standing higher-priority proof in place, or
+  the record should carry every supporting rule. No design or
+  implementation in this note.

@@ -256,6 +256,6 @@ The ontology names a model prefix (`horis:model "claude:…"`); deployment maps 
 ## Where next
 
 - [Coming from LangGraph](coming-from-langgraph.md) — wrap a graph node around the kernel in ten lines.
-- [Governing a coding agent](governing-a-coding-agent.md) — the change gate: a 25-term overlay where the bot cannot approve itself.
+- [Governing a coding agent](governing-a-coding-agent.md) — the change gate: a 28-term overlay where the bot cannot approve itself.
 - [The guarantees, honestly](guarantees.md) — what `verify()` proves, and what it never will.
 - [Python API reference](framework/11-python-api.md) and [The World](framework/03-world.md) for the full surface.

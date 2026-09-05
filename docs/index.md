@@ -132,7 +132,7 @@ Stating the edges plainly is part of the offer.
 - **[Quickstart](quickstart.md)** — `make develop`, load the triage ontology, watch the gate reject bad data, print a proof, run the full agent loop on the mock bridge, then go live with one environment variable.
 - **[Go live in 2 minutes](go-live.md)** — the same demo against a real model through OpenRouter: one environment variable, a real captured trace, and a decision and proof identical to the mock run.
 - **[Coming from LangGraph](coming-from-langgraph.md)** — the same decision written both ways, and the ten lines that let a graph node call the kernel.
-- **[Governing a coding agent](governing-a-coding-agent.md)** — a 25-term change gate where the bot cannot grant itself merge permission.
+- **[Governing a coding agent](governing-a-coding-agent.md)** — a 28-term change gate where the bot cannot grant itself merge permission.
 - **[Use cases](use-cases/index.md)** — health, coding, insurance, physical AI, customer operations: one template, five runnable overlays.
 - **[The guarantees, honestly](guarantees.md)** — what `verify()` proves, what is explicitly not claimed.
 - **[Framework reference](framework/00-index.md)** — the shipped-voice definition, docs 00–15.

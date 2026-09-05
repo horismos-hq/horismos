@@ -60,8 +60,13 @@ Two consequences when authoring or repairing a rule set:
 
 - **A cover rule must be disjoint from every existing rule**, not a catch-all. A
   low-priority catch-all closes the completeness gap and creates a conflict with each
-  rule it overlaps. Fill exactly the reported region; overlapping a rule that
-  concludes the *same* value is fine (equal values are not a conflict).
+  rule it overlaps. Fill exactly the reported region — *even where the existing rule
+  concludes the same value*. Equal values are not a conflict, so the load passes, but
+  the reasoner fires every matching rule and the last same-value firing replaces the
+  recorded proof: a lower-priority cover that overlaps a specific rule silently takes
+  over `explain()` and the trace for every subject the specific rule matched (the
+  change gate's first cover did exactly this to `:protectedNeedsHuman`). Inspect the
+  rendered proof after adding any cover rule.
 - **`is false` is not the complement of `is true`** on an optional (`0..1`) property —
   unassigned is a third state. To exclude a higher-priority rule's region while
   keeping unassigned covered, use `horis:isNot` (true over unassigned) or

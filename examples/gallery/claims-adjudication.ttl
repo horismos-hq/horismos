@@ -113,12 +113,20 @@
 # says what to do with missing data — :pendMissingPriorAuth pends for documentation
 # rather than denying. Auto-denying a claim because a field was never populated is
 # exactly the failure this overlay exists to argue against.
+#
+# A claim with no amount *and* a missing required authorization stays with
+# :pendMissingPriorAuth, which already pends it; the guard below keeps this rule off
+# that region so the proof names the authorization, not the amount.
 :amountNotRecordedPends a horis:Rule ;
     horis:priority 60 ;
     horis:when [ horis:all (
         [ horis:subject :Claim ; horis:property :policyActiveOnServiceDate ; horis:is true ]
         [ horis:subject :Claim ; horis:property :serviceCovered ; horis:is true ]
         [ horis:subject :Claim ; horis:property :billedAmount ; horis:isEmpty true ]
+        [ horis:any (
+            [ horis:subject :Claim ; horis:property :priorAuthRequired ; horis:isNot true ]
+            [ horis:subject :Claim ; horis:property :priorAuthOnFile ; horis:isNot false ]
+        ) ]
     ) ] ;
     horis:then [ horis:property :adjudication ; horis:value :Pended ] ;
     horis:explain "No billed amount on the claim — it cannot be tested against the auto-adjudication ceiling, so it pends" .

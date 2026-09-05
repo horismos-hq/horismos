@@ -79,6 +79,6 @@ Runs today with structured input. Materializing the CI state as a versioned proj
 
 ## Merge and release gating
 
-The [change gate](../governing-a-coding-agent.md) is the merge decision: 25 terms, eight rules, and a `RulesOnly` decision the bot cannot write. Release gating is the same shape with different facts — signed artifact, passing smoke suite, change-freeze window, on-call acknowledged — and the same guarantee: the release is approved by a rule you can read, not by whichever model was on duty.
+The [change gate](../governing-a-coding-agent.md) is the merge decision: 28 terms, eleven rules, and a `RulesOnly` decision the bot cannot write. Release gating is the same shape with different facts — signed artifact, passing smoke suite, change-freeze window, on-call acknowledged — and the same guarantee: the release is approved by a rule you can read, not by whichever model was on duty.
 
 What composes them is the fail-closed default. `FixForward` does not mean *merge*; it means the agent may propose a change, which then has to clear the gate on its own facts.
