@@ -1,6 +1,6 @@
 # Governing a coding agent
 
-Your coding agent — Claude Code, Codex, pi, a harness of your own — proposes a patch and asks to merge it. Today the answer comes from a permission prompt, a prefix rule, or increasingly a model classifier. None of those can see the repository's state, and none of them produces a reason you could show a release manager. This page builds the alternative: a **23-term change gate** the harness consults before it acts, where the decision is derived by rules over typed facts and the bot cannot grant itself merge permission.
+Your coding agent — Claude Code, Codex, pi, a harness of your own — proposes a patch and asks to merge it. Today the answer comes from a permission prompt, a prefix rule, or increasingly a model classifier. None of those can see the repository's state, and none of them produces a reason you could show a release manager. This page builds the alternative: a **25-term change gate** the harness consults before it acts, where the decision is derived by rules over typed facts and the bot cannot grant itself merge permission.
 
 ## Why prompt-level policy is not enough
 
@@ -13,9 +13,9 @@ The research wiki's survey of harnesses (`research/neurosymbolic-landscape/codin
 
 The same survey finds that no harness "declares a semantic domain graph with verified cross-tool preconditions/effects or maintains a fixed point over repository state" — and that every harness already exposes the slot such a thing would plug into: a typed, ordered permission decision with a reason string (`PreToolUse` hooks in Claude Code, `BeforeTool` in Gemini CLI, `beforeShellExecution` in Cursor, an MCP proxy for everything else).
 
-## The 23-term change gate
+## The 25-term change gate
 
-Eight classes and enumeration members, nine properties, six rules. The harness asserts what it observed about a proposal; the rules — and only the rules — assign `:gateDecision`. It runs today against the shipped engine.
+Eight classes and enumeration members, nine properties, eight rules. The harness asserts what it observed about a proposal; the rules — and only the rules — assign `:gateDecision`. It runs today against the shipped engine.
 
 ```turtle
 --8<-- "examples/change-gate/change-gate.ttl"
@@ -198,6 +198,6 @@ What the boundary proves: the proposal was policy-legal and passed its declared 
 | Base-hash check, sandbox execution, and the proposal envelope as a first-class typed boundary | **Landing in PRP-008** (host-adapter/runtime side) — the envelope's `horis:` vocabulary is minted jointly with PRP-007 |
 | A coding-harness adapter that materializes repository state (branch, dirty files, test status, path scopes) as a versioned projection with conditional commit | **Landing in PRP-008** — the second-domain proof that the host SPI is format-neutral, not FHIR-shaped |
 | Compiling a fragment from an existing `SKILL.md` / tool schema, with a coverage report | **Planned in PRP-007** (after PRP-008) |
-| Completeness / conflict / dead-rule verification of the six rules, with domain-term witnesses | **Landing in PRP-005** — today `verify()` reports load-time checks only |
+| Completeness / conflict / dead-rule verification of the eight rules, with domain-term witnesses | **Yes** — `verify()` proves `:gateDecision` total and conflict-free; `Ontology.load` refuses the overlay otherwise |
 
 Track the live status on the [roadmap](roadmap.md) and in `PRPs/BOARD.md`.

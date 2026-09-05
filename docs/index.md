@@ -82,7 +82,7 @@ These are the failure classes working agent teams keep meeting. The numbers are 
 - **LLMs at two declared boundaries only.** Perception (text → typed instances, schema-forced, confidence-gated, with a mandatory fallback edge) and narration (proof → prose, never written back). Structured input skips the model entirely.
 - **Tools the runtime fires.** Declared contracts: typed arguments read from the graph, preconditions checked, effects validated through the same gate. The model never picks a tool or builds its arguments.
 - **Traces as the product.** Every run emits a typed, replayable trajectory — the audit log and the training corpus are the same object, with loss masks precomputed.
-- **Verification before deployment.** Completeness, conflict-freedom, dead rules, termination and workflow totality, with counterexamples rendered in domain terms — landing with PRP-005 (see [Guarantees](guarantees.md) for exactly what is claimed).
+- **Verification before deployment.** Completeness, conflict-freedom, dead rules, termination and workflow totality, with counterexamples rendered in domain terms. `Ontology.load` refuses an ontology that fails them (see [Guarantees](guarantees.md) for exactly what is claimed).
 
 ## It surrounds your stack
 
@@ -123,7 +123,7 @@ Stating the edges plainly is part of the offer.
 - **It does not prove generated code is correct.** For coding agents, the planned candidate-artifact boundary proves a proposal was policy-legal and passed its declared checks. Semantic correctness stays a review and test claim.
 - **Its guarantees are snapshot-scoped.** Inside one evaluated projection the gate has no back door and determinism holds. Freshness and completeness are only as good as the last hydration and the declared input closure.
 - **It is not a system of record, an orchestrator, or OWL-DL.** It overlays your records, runs one bounded decision, and takes RDFS plus a small executable vocabulary — full description-logic inference is out of scope forever.
-- **It is pre-alpha.** The symbolic core, the Python bindings, and the Rust agent loop are merged; verification (PRP-005) and standards/host integration (PRP-008) are Draft on the board and in build on branches. The [roadmap](roadmap.md) says exactly what runs today.
+- **It is pre-alpha.** The symbolic core, the Python bindings, the Rust agent loop, verification (PRP-005) and standards/host integration (PRP-008) are all merged; packaging and distribution (PRP-006) is not. The [roadmap](roadmap.md) says exactly what runs today.
 
 ## Where next
 
@@ -132,7 +132,7 @@ Stating the edges plainly is part of the offer.
 - **[Quickstart](quickstart.md)** — `make develop`, load the triage ontology, watch the gate reject bad data, print a proof, run the full agent loop on the mock bridge, then go live with one environment variable.
 - **[Go live in 2 minutes](go-live.md)** — the same demo against a real model through OpenRouter: one environment variable, a real captured trace, and a decision and proof identical to the mock run.
 - **[Coming from LangGraph](coming-from-langgraph.md)** — the same decision written both ways, and the ten lines that let a graph node call the kernel.
-- **[Governing a coding agent](governing-a-coding-agent.md)** — a 23-term change gate where the bot cannot grant itself merge permission.
+- **[Governing a coding agent](governing-a-coding-agent.md)** — a 25-term change gate where the bot cannot grant itself merge permission.
 - **[Use cases](use-cases/index.md)** — health, coding, insurance, physical AI, customer operations: one template, five runnable overlays.
 - **[The guarantees, honestly](guarantees.md)** — what `verify()` will prove, what is explicitly not claimed.
 - **[Framework reference](framework/00-index.md)** — the shipped-voice definition, docs 00–15.

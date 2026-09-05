@@ -35,7 +35,7 @@
     horis:cardinality "0..1" .
 
 :ProphylaxisPlan a rdfs:Class ;
-    horis:oneOf ( :Pharmacologic :MechanicalOnly :NoneIndicated :AlreadyCovered ) .
+    horis:oneOf ( :Pharmacologic :MechanicalOnly :NoneIndicated :AlreadyCovered :InsufficientData ) .
 
 :prophylaxis a rdf:Property ;
     rdfs:domain :Admission ; rdfs:range :ProphylaxisPlan ;
@@ -56,6 +56,7 @@
     horis:priority 90 ;
     horis:when [
         horis:all (
+            [ horis:subject :Admission ; horis:property :onTherapeuticAnticoagulation ; horis:isNot true ]
             [ horis:subject :Admission ; horis:property :paduaScore ; horis:atLeast 4 ]
             [ horis:any (
                 [ horis:subject :Admission ; horis:property :activeBleeding ; horis:is true ]
@@ -70,6 +71,7 @@
     horis:priority 50 ;
     horis:when [
         horis:all (
+            [ horis:subject :Admission ; horis:property :onTherapeuticAnticoagulation ; horis:isNot true ]
             [ horis:subject :Admission ; horis:property :paduaScore ; horis:atLeast 4 ]
             [ horis:subject :Admission ; horis:property :activeBleeding ; horis:is false ]
             [ horis:subject :Admission ; horis:property :plateletCount ; horis:atLeast 50 ]
@@ -80,8 +82,44 @@
 
 :lowRisk a horis:Rule ;
     horis:priority 10 ;
-    horis:when [
-        horis:subject :Admission ; horis:property :paduaScore ; horis:below 4
-    ] ;
+    horis:when [ horis:all (
+        [ horis:subject :Admission ; horis:property :onTherapeuticAnticoagulation ; horis:isNot true ]
+        [ horis:subject :Admission ; horis:property :paduaScore ; horis:below 4 ]
+    ) ] ;
     horis:then [ horis:property :prophylaxis ; horis:value :NoneIndicated ] ;
     horis:explain "Padua score below 4 — routine prophylaxis not indicated" .
+
+# PRP-005 completeness-cover:start
+# Two regions had no recommendation until PRP-005's completeness check named them,
+# and neither existing value was honest about them: :NoneIndicated would withhold
+# prevention on the strength of a score nobody took, and :MechanicalOnly would order
+# a treatment from missing data. :InsufficientData says what is actually true, and
+# the proof tree names the observation that is missing.
+:riskScoreNotRecorded a horis:Rule ;
+    horis:priority 40 ;
+    horis:when [ horis:all (
+        [ horis:subject :Admission ; horis:property :onTherapeuticAnticoagulation ; horis:isNot true ]
+        [ horis:subject :Admission ; horis:property :paduaScore ; horis:isEmpty true ]
+    ) ] ;
+    horis:then [ horis:property :prophylaxis ; horis:value :InsufficientData ] ;
+    horis:explain "No Padua score recorded — VTE risk cannot be established, so no recommendation is made" .
+
+# High risk is established, but the contraindication check is not: :highRisk needs
+# `activeBleeding is false` *and* `plateletCount atLeast 50`, and a condition over an
+# unassigned property is false (doc 02), so an unrecorded bleeding status or platelet
+# count matched neither :highRisk nor :highRiskWithContraindication.
+:contraindicationNotAssessed a horis:Rule ;
+    horis:priority 40 ;
+    horis:when [ horis:all (
+        [ horis:subject :Admission ; horis:property :onTherapeuticAnticoagulation ; horis:isNot true ]
+        [ horis:subject :Admission ; horis:property :paduaScore ; horis:atLeast 4 ]
+        [ horis:subject :Admission ; horis:property :activeBleeding ; horis:isNot true ]
+        [ horis:none ( [ horis:subject :Admission ; horis:property :plateletCount ; horis:below 50 ] ) ]
+        [ horis:any (
+            [ horis:subject :Admission ; horis:property :activeBleeding ; horis:isEmpty true ]
+            [ horis:subject :Admission ; horis:property :plateletCount ; horis:isEmpty true ]
+        ) ]
+    ) ] ;
+    horis:then [ horis:property :prophylaxis ; horis:value :InsufficientData ] ;
+    horis:explain "High VTE risk but the bleeding contraindication was not assessed — no recommendation until it is" .
+# PRP-005 completeness-cover:end

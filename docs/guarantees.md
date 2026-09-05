@@ -1,6 +1,6 @@
 # The guarantees, honestly
 
-This page is the trust-builder, so it is written the way a reviewer would want it: what is claimed, in what scope, what `verify()` will prove once PRP-005 lands, what it reports today, and what is explicitly **not** claimed. Sources: `PRPs/PRP-000-vision-positioning.md` § "Snapshot-scoped guarantees", [Verification](framework/10-verification.md), [Security & Trust](framework/15-security.md), and the research wiki's standing assessment of the design against the field (`research/neurosymbolic-landscape/pivot-alignment.md`, verdict 2026-09-02: *aligned-with-adjustments*).
+This page is the trust-builder, so it is written the way a reviewer would want it: what is claimed, in what scope, what `verify()` proves, and what is explicitly **not** claimed. Sources: `PRPs/PRP-000-vision-positioning.md` § "Snapshot-scoped guarantees", [Verification](framework/10-verification.md), [Security & Trust](framework/15-security.md), and the research wiki's standing assessment of the design against the field (`research/neurosymbolic-landscape/pivot-alignment.md`, verdict 2026-09-02: *aligned-with-adjustments*).
 
 ## The claim, verbatim
 
@@ -51,7 +51,7 @@ The pre-pivot framing implied a global, always-current guarantee. The adopted de
 - **Completeness** — bounded by a declared input closure, never implicit. The pragmatic closed-world reading ("property unassigned → condition false") is correct for a property the closure declared in scope and genuinely absent, and a category error for one that was simply never fetched. Keeping *absent* and *not-fetched* distinct is the adapter's declared job (PRP-008); the research wiki notes Horismos is alone in treating that distinction as a verification concern.
 - **Atomicity** — local transactions are atomic; cross-system commits are conditional, not distributed-atomic. The trace records "decision produced", "commit attempted", "commit accepted", and "commit failed/conflicted" as separate, separately observable states.
 
-## What `verify()` will prove — PRP-005
+## What `verify()` proves
 
 `Ontology.verify()` ports the BDD verifier proven in the sigil-lang project and adapts it to ontology semantics (constraints tighten the variable domains; subsumption widens rule applicability). It runs at load, in the authoring loop, and in CI, and every finding is a **witness** — a domain-term sentence plus a machine-readable region.
 
@@ -66,22 +66,32 @@ The pre-pivot framing implied a global, always-current guarantee. The adopted de
 
 Alongside `report.ok`, every report carries an **assumption manifest**: the input closure it treated as complete, the external profile and terminology versions it assumed, the mapping version, the supported subset of any imported artifact, and the tool or adapter effects it checked only for declared-contract compliance. `report.ok` must never be read as "the domain is correct" or "the external data is complete", and the manifest exists so nobody has to infer that from silence.
 
-### What `verify()` reports today
-
-Today the call is a stub, and it says so:
+### What `verify()` reports
 
 ```python
 report = onto.verify()
-print(report.ok)
-print(report.notes)
+print(report.ok, report.complete, report.conflicts, report.dead_rules, report.terminating)
+print([(w.severity, w.domain_text) for w in report.witnesses])
 ```
 
 ```text
-True
-stub until PRP-005: load-time checks (Turtle, RDFS-plus profile, schema, rules) already passed; BDD verification with witnesses is not yet implemented
+True {':acuity': True} () () True
+[('info', 'hasSymptom horis:cardinality "0..*" excludes no value count on :Patient')]
 ```
 
-`ok=True` for any loaded ontology is honest rather than optimistic: everything verified at this point — Turtle well-formedness, the RDFS-plus profile, schema construction, rule validation, workflow edge resolution — already ran at load, and an `Ontology` value cannot exist otherwise. The BDD checks land with PRP-005 (Draft on the board; in build on branches — see the [roadmap](roadmap.md)).
+`ok=True` here is a proof obligation discharged, not an absence of checking: `:acuity`
+is assigned for every input in the declared closure, no two rules derive different
+values for it on an overlapping region, no rule is unreachable, and chaining
+terminates. The one `info` witness is advisory — an unbounded cardinality that
+excludes nothing — and does not fail the report.
+
+`ok=False` is not advisory. `Ontology.load` refuses an ontology with any
+error-severity witness, so a rule set with a completeness gap cannot be loaded and
+then quietly run; `allow_incomplete=True` is the only way past it, and it is stamped
+into every trace the resulting ontology produces. Every worked example on this site
+passes the check — which is why several of them changed shape when it landed. The
+[gallery](use-cases/index.md) says, per overlay, what the witnesses reported and what
+closing them required.
 
 ## What is not claimed
 

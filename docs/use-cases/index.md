@@ -7,7 +7,7 @@ One template, five domains, every overlay runnable against the shipped engine. E
 | **The scene** | The decision an agent is being asked to make, and what goes wrong when a prompt makes it |
 | **The overlay** | A small Turtle file: classes, constraints, a `RulesOnly` decision property, and the rules — pulled verbatim from `examples/` |
 | **The decision, with proof** | Facts in, a derived decision and its proof tree out; the refusal when something tries to set the decision directly; truth maintenance when a fact changes |
-| **Why verification matters here** | What PRP-005's completeness, conflict, dead-rule and non-vacuity checks would tell you about *this* rule set, and what stays out of scope |
+| **Why verification matters here** | What `verify()`'s completeness, conflict, dead-rule and non-vacuity checks report about *this* rule set — including the gaps they found and what closing them required — and what stays out of scope |
 
 All thresholds in the gallery overlays are illustrative teaching values, not clinical, regulatory, or safety guidance. The triage example (`examples/triage/`) is the framework's flagship fixture; the gallery overlays live in `examples/gallery/` and exist to show the shape.
 

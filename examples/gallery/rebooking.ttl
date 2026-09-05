@@ -59,6 +59,7 @@
     horis:priority 90 ;
     horis:when [
         horis:all (
+            [ horis:none ( [ horis:subject :ChangeRequest ; horis:property :segmentsFlown ; horis:exceeds 0 ] ) ]
             [ horis:subject :ChangeRequest ; horis:property :hoursSinceBooking ; horis:atMost 24 ]
             [ horis:subject :ChangeRequest ; horis:property :hoursToDeparture ; horis:atLeast 168 ]
         )
@@ -68,16 +69,23 @@
 
 :businessFlexible a horis:Rule ;
     horis:priority 50 ;
-    horis:when [
-        horis:subject :ChangeRequest ; horis:property :fareClass ; horis:is :Business
-    ] ;
+    horis:when [ horis:all (
+            [ horis:none ( [ horis:subject :ChangeRequest ; horis:property :segmentsFlown ; horis:exceeds 0 ] ) ]
+            [ horis:subject :ChangeRequest ; horis:property :fareClass ; horis:is :Business ]
+    ) ] ;
     horis:then [ horis:property :eligibility ; horis:value :FreeChange ] ;
     horis:explain "Business fares are fully flexible" .
 
 :basicLocked a horis:Rule ;
     horis:priority 50 ;
     horis:when [
-        horis:subject :ChangeRequest ; horis:property :fareClass ; horis:is :BasicEconomy
+        horis:all (
+            [ horis:any (
+                [ horis:none ( [ horis:subject :ChangeRequest ; horis:property :hoursSinceBooking ; horis:atMost 24 ] ) ]
+                [ horis:none ( [ horis:subject :ChangeRequest ; horis:property :hoursToDeparture ; horis:atLeast 168 ] ) ]
+            ) ]
+            [ horis:subject :ChangeRequest ; horis:property :fareClass ; horis:is :BasicEconomy ]
+        )
     ] ;
     horis:then [ horis:property :eligibility ; horis:value :NotEligible ] ;
     horis:explain "Basic economy fares cannot be changed after the 24-hour window" .
@@ -86,6 +94,11 @@
     horis:priority 40 ;
     horis:when [
         horis:all (
+            [ horis:none ( [ horis:subject :ChangeRequest ; horis:property :segmentsFlown ; horis:exceeds 0 ] ) ]
+            [ horis:any (
+                [ horis:none ( [ horis:subject :ChangeRequest ; horis:property :hoursSinceBooking ; horis:atMost 24 ] ) ]
+                [ horis:none ( [ horis:subject :ChangeRequest ; horis:property :hoursToDeparture ; horis:atLeast 168 ] ) ]
+            ) ]
             [ horis:subject :ChangeRequest ; horis:property :fareClass ; horis:is :Economy ]
             [ horis:subject :ChangeRequest ; horis:property :hoursToDeparture ; horis:atLeast 24 ]
         )
@@ -103,3 +116,25 @@
     ] ;
     horis:then [ horis:property :eligibility ; horis:value :NotEligible ] ;
     horis:explain "Economy fare inside 24 hours of departure — no changes" .
+
+# PRP-005 completeness-cover:start
+# PRP-005's completeness check named the region customer-ops.md had already
+# guessed at in prose: an economy fare that has not been flown, whose
+# :hoursToDeparture was never recorded. :economyFee needs `atLeast 24` and
+# :economyLate needs `below 24`, and a condition over an unassigned property is
+# false (doc 02), so the customer matched neither rule.
+#
+# The default is the general economy rule, not its exception. The only condition
+# that would block the change — being inside the 24-hour cutoff — is precisely the
+# one that is unknown, and denying a passenger because the carrier failed to record
+# its own departure time is the wrong way to resolve that.
+:departureTimeUnknownEconomy a horis:Rule ;
+    horis:priority 30 ;
+    horis:when [ horis:all (
+        [ horis:none ( [ horis:subject :ChangeRequest ; horis:property :segmentsFlown ; horis:exceeds 0 ] ) ]
+        [ horis:subject :ChangeRequest ; horis:property :fareClass ; horis:is :Economy ]
+        [ horis:subject :ChangeRequest ; horis:property :hoursToDeparture ; horis:isEmpty true ]
+    ) ] ;
+    horis:then [ horis:property :eligibility ; horis:value :ChangeWithFee ] ;
+    horis:explain "Economy fare, travel not begun, departure time not recorded — the late-change cutoff cannot be applied, so the standard change fee applies" .
+# PRP-005 completeness-cover:end

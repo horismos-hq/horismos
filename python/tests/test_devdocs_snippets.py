@@ -24,7 +24,7 @@ DOCS = REPO / "docs"
 PAGES: dict[str, str] = {
     "index.md": "via r1",
     "quickstart.md": "hasSymptom sct:4557003 ⊑ :ChestPain",
-    "coming-from-langgraph.md": "(None, None)",
+    "coming-from-langgraph.md": 'via r3 — "Heart rate at most 100',
     "governing-a-coding-agent.md": "via approveRoutineChange",
     "guarantees.md": "two independent worlds, identical bytes",
     "use-cases/health.md": "via highRiskWithContraindication",

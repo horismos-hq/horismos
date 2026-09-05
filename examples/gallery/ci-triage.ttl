@@ -57,6 +57,7 @@
     horis:priority 50 ;
     horis:when [
         horis:all (
+            [ horis:subject :BuildFailure ; horis:property :reproducesOnRerun ; horis:isNot true ]
             [ horis:subject :BuildFailure ; horis:property :failingStage ; horis:is :Test ]
             [ horis:subject :BuildFailure ; horis:property :knownFlaky ; horis:is true ]
             [ horis:subject :BuildFailure ; horis:property :priorReruns ; horis:below 1 ]
@@ -69,6 +70,7 @@
     horis:priority 60 ;
     horis:when [
         horis:all (
+            [ horis:subject :BuildFailure ; horis:property :failingStage ; horis:isNot :Deploy ]
             [ horis:subject :BuildFailure ; horis:property :knownFlaky ; horis:is true ]
             [ horis:subject :BuildFailure ; horis:property :reproducesOnRerun ; horis:is true ]
         )
@@ -86,3 +88,36 @@
     ] ;
     horis:then [ horis:property :disposition ; horis:value :FixForward ] ;
     horis:explain "Deterministic lint/test/build failure — the agent may propose a fix through the change gate" .
+
+# PRP-005 completeness-cover:start
+# Two regions had no disposition until PRP-005's completeness check named them, and
+# in both the agent is being asked to act on a failure nobody has classified. The
+# overlay already has the right outcome for that: hand it to the owner. Letting
+# :FixForward be the default would have the agent proposing patches against a red
+# build whose cause is unknown.
+:failureNotClassified a horis:Rule ;
+    horis:priority 40 ;
+    horis:when [ horis:all (
+        [ horis:subject :BuildFailure ; horis:property :failingStage ; horis:isNot :Deploy ]
+        [ horis:subject :BuildFailure ; horis:property :knownFlaky ; horis:isEmpty true ]
+    ) ] ;
+    horis:then [ horis:property :disposition ; horis:value :EscalateToOwner ] ;
+    horis:explain "The failure was never checked against the flaky list — its cause is unclassified, so the owner decides" .
+
+# A known-flaky failure that is out of reruns, or that is not a test at all:
+# :rerunKnownFlakyOnce needs `:Test` with `priorReruns below 1`, so a flaky-listed
+# lint or build failure, or a test already rerun, matched no rule.
+:flakyRerunExhausted a horis:Rule ;
+    horis:priority 40 ;
+    horis:when [ horis:all (
+        [ horis:subject :BuildFailure ; horis:property :failingStage ; horis:isNot :Deploy ]
+        [ horis:subject :BuildFailure ; horis:property :knownFlaky ; horis:is true ]
+        [ horis:subject :BuildFailure ; horis:property :reproducesOnRerun ; horis:isNot true ]
+        [ horis:any (
+            [ horis:subject :BuildFailure ; horis:property :failingStage ; horis:isNot :Test ]
+            [ horis:none ( [ horis:subject :BuildFailure ; horis:property :priorReruns ; horis:below 1 ] ) ]
+        ) ]
+    ) ] ;
+    horis:then [ horis:property :disposition ; horis:value :EscalateToOwner ] ;
+    horis:explain "Flaky-listed failure with no rerun left to spend — the owner decides rather than the agent" .
+# PRP-005 completeness-cover:end

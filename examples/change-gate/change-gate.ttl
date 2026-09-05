@@ -1,4 +1,4 @@
-# The change-gate overlay: a 23-term capability fragment that decides whether
+# The change-gate overlay: a 25-term capability fragment that decides whether
 # a coding agent's change proposal may land. The harness (or, today, your
 # glue code) asserts what it observed about the proposal; the rules below —
 # and only the rules — assign :gateDecision. The bot cannot grant itself merge
@@ -73,7 +73,9 @@
     horis:cardinality "0..1" ;
     horis:assignedBy horis:RulesOnly .   # the bot cannot grant itself merge permission
 
-## Rules (doc 04) — 6 rules; higher priority wins a conflict, the loser is traced
+## Rules (doc 04) — 8 rules. Priority orders them, but their conditions are disjoint:
+## PRP-005's conflict check named four overlapping pairs that priority had been
+## resolving silently, and the two NeedsHuman rules now state that resolution.
 
 :rejectStaleBase a horis:Rule ;
     horis:priority 100 ;
@@ -98,6 +100,9 @@
     horis:priority 50 ;
     horis:when [
         horis:all (
+            [ horis:subject :ChangeProposal ; horis:property :baseMatchesHead ; horis:isNot false ]
+            [ horis:subject :ChangeProposal ; horis:property :testsPassed ; horis:isNot false ]
+            [ horis:subject :ChangeProposal ; horis:property :lintPassed ; horis:isNot false ]
             [ horis:subject :ChangeProposal ; horis:property :touchesProtectedPath ; horis:is true ]
             [ horis:subject :ChangeProposal ; horis:property :humanApprovals ; horis:below 1 ]
         )
@@ -109,6 +114,9 @@
     horis:priority 40 ;
     horis:when [
         horis:all (
+            [ horis:subject :ChangeProposal ; horis:property :baseMatchesHead ; horis:isNot false ]
+            [ horis:subject :ChangeProposal ; horis:property :testsPassed ; horis:isNot false ]
+            [ horis:subject :ChangeProposal ; horis:property :lintPassed ; horis:isNot false ]
             [ horis:subject :ChangeProposal ; horis:property :proposedBy ; horis:is :Bot ]
             [ horis:subject :ChangeProposal ; horis:property :linesChanged ; horis:exceeds 400 ]
             [ horis:subject :ChangeProposal ; horis:property :humanApprovals ; horis:below 1 ]
@@ -143,3 +151,49 @@
     ] ;
     horis:then [ horis:property :gateDecision ; horis:value :Approved ] ;
     horis:explain "Fresh base, green checks, and a human approved it" .
+
+# PRP-005 completeness-cover:start
+# PRP-005's completeness check found that the six rules above decide nothing at all
+# for a proposal whose evidence is incomplete. Both approve rules need
+# `baseMatchesHead`, `testsPassed` and `lintPassed` to be *true*; both reject rules
+# need one of them to be *false*; and a condition over an unassigned property is
+# false (doc 02). A proposal whose checks never reported therefore matched no rule.
+#
+# The default is :NeedsHuman in every such region. There is no evidence of failure,
+# so :Rejected would be wrong — and, more importantly, no evidence of success, so
+# :Approved is never reachable from missing data. A gate that cannot see a check
+# result asks a person; it does not guess.
+:unrecordedCheckNeedsHuman a horis:Rule ;
+    horis:priority 30 ;
+    horis:when [ horis:all (
+        [ horis:subject :ChangeProposal ; horis:property :baseMatchesHead ; horis:isNot false ]
+        [ horis:subject :ChangeProposal ; horis:property :testsPassed ; horis:isNot false ]
+        [ horis:subject :ChangeProposal ; horis:property :lintPassed ; horis:isNot false ]
+        [ horis:any (
+            [ horis:subject :ChangeProposal ; horis:property :baseMatchesHead ; horis:isEmpty true ]
+            [ horis:subject :ChangeProposal ; horis:property :testsPassed ; horis:isEmpty true ]
+            [ horis:subject :ChangeProposal ; horis:property :lintPassed ; horis:isEmpty true ]
+        ) ]
+    ) ] ;
+    horis:then [ horis:property :gateDecision ; horis:value :NeedsHuman ] ;
+    horis:explain "A required check never reported — the gate cannot approve on evidence it does not have" .
+
+# Checks are green, but the proposal still fits neither approve rule: it carries no
+# human approval, and either its protected-path status or its diff size is unrecorded
+# or out of the routine range (a >400-line diff from a human proposer, for instance,
+# which :largeBotDiffNeedsHuman deliberately does not cover).
+:unreviewedChangeNeedsHuman a horis:Rule ;
+    horis:priority 30 ;
+    horis:when [ horis:all (
+        [ horis:subject :ChangeProposal ; horis:property :baseMatchesHead ; horis:is true ]
+        [ horis:subject :ChangeProposal ; horis:property :testsPassed ; horis:is true ]
+        [ horis:subject :ChangeProposal ; horis:property :lintPassed ; horis:is true ]
+        [ horis:none ( [ horis:subject :ChangeProposal ; horis:property :humanApprovals ; horis:atLeast 1 ] ) ]
+        [ horis:any (
+            [ horis:none ( [ horis:subject :ChangeProposal ; horis:property :touchesProtectedPath ; horis:is false ] ) ]
+            [ horis:none ( [ horis:subject :ChangeProposal ; horis:property :linesChanged ; horis:atMost 400 ] ) ]
+        ) ]
+    ) ] ;
+    horis:then [ horis:property :gateDecision ; horis:value :NeedsHuman ] ;
+    horis:explain "Green checks, but no human approval and the change is outside the routine envelope — a reviewer is required" .
+# PRP-005 completeness-cover:end
