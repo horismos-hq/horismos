@@ -2,6 +2,7 @@
 
 ## Purpose
 
+<!-- --8<-- [start:purpose] -->
 Horismos's design has, until now, been checked against exactly one hand-authored
 scenario (the ER chest-pain triage example) and the team's own judgment. This wiki
 exists to reality-check that design against what researchers and industry actually do,
@@ -18,10 +19,12 @@ The wiki was founded from a single research sweep,
 sweep's own full report is the founding snapshot; this wiki is the living,
 incrementally-updated version of it.
 Weekly sweeps since then append dated "Sweep #N delta" sections to existing pages
-rather than rewriting them (first: sweep #2, 2026-09-02 — see `CHANGELOG.md`).
+rather than rewriting them (first: sweep #2, 2026-09-02 — see [`CHANGELOG.md`](CHANGELOG.md)).
+<!-- --8<-- [end:purpose] -->
 
 ## The evidence-labeling convention
 
+<!-- --8<-- [start:convention] -->
 Every claim in this wiki is tagged **[measured]** or **[inference]**, kept visibly
 separate, always:
 
@@ -39,6 +42,7 @@ decides — has a research-wiki analog: don't let a plausible-sounding synthesis
 a documented fact. When you add or edit a page, tag every claim you add. If you can't
 tell which label a claim deserves, that's a sign it needs a source or needs rewording
 as an explicit inference.
+<!-- --8<-- [end:convention] -->
 
 ## Structure
 
@@ -48,6 +52,9 @@ research/
   CHANGELOG.md                 — append-only, one line per merged PR
   reading-log.md               — canonical cross-topic source log
   _template/page.md            — standard page skeleton
+  reports/                     — the full deep-dive reports, imported verbatim with provenance headers
+  index.md, verdict-history.md, sweeps.md, reports/index.md
+                               — site-only pages of the MkDocs rendering (see research-site/README.md)
 
   intake/                      — the URL-drop convention (see intake/README.md)
   formalization/                — Q1: guideline representation languages & standards
@@ -66,12 +73,13 @@ overview page to go deeper.
 
 ## Update cadence
 
+<!-- --8<-- [start:cadence] -->
 Two paths keep this wiki current:
 
 1. **Weekly research sweep PRs.** A recurring pass that revisits open questions,
    checks for new publications relevant to a page's claims, and appends deltas.
 2. **Ad-hoc captain URL intakes.** The captain (or anyone) can drop a single URL at
-   any time via `research/intake/` — see `intake/README.md` for the exact mechanism.
+   any time via `research/intake/` — see [`intake/README.md`](intake/README.md) for the exact mechanism.
    This does not wait for the weekly cadence.
 
 ## The delta-PR convention
@@ -79,15 +87,20 @@ Two paths keep this wiki current:
 Every update to this wiki — weekly sweep or ad-hoc intake — lands as a **small,
 reviewable PR**: one URL, one finding, or one topic-page update per PR, never a bulk
 rewrite of multiple pages at once. This mirrors the intake mechanism's own shape
-(fetch → summarize → position → file, §see `intake/README.md`) and keeps every change
+(fetch → summarize → position → file, §see [`intake/README.md`](intake/README.md)) and keeps every change
 independently reviewable against its cited source. If a change touches more than a
 handful of files, it's probably several PRs, not one. The one exception is a weekly
 sweep, which lands as a single PR: its edits to existing pages are confined to dated
 "Sweep #N delta" sections (see above), so each page's delta stays reviewable on its own.
+<!-- --8<-- [end:cadence] -->
 
 ## Where the founding sweep's report lives
 
-The full `horismos-research-s1` report is not duplicated verbatim anywhere in this
-wiki — its content has been distributed into the pages below by topic. If you need the
-original framing or the researching agents' own methodology notes, ask whoever ran the
-sweep for the source report file (it is not tracked in this repo).
+The full `horismos-research-s1` report's content has been distributed into the pages
+below by topic; the original, with its framing and the researching agents' own
+methodology notes, is tracked verbatim as
+[`reports/2026-08-24-founding-sweep.md`](reports/2026-08-24-founding-sweep.md).
+The other deep-dive reports (the thin-pivot second opinion and the RL-axis deep dive)
+live beside it — see [`reports/index.md`](reports/index.md). The whole corpus is also
+browsable as a MkDocs site: `research-site/README.md` at the repo root explains how to
+serve it locally.

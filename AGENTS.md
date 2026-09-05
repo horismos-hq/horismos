@@ -36,6 +36,9 @@ proof → NL). Delete the LLM and the kernel still runs.
   every claim tagged `[measured]`/`[inference]`; consult before resolving a `[DECIDE]`.
   `research/neurosymbolic-landscape/pivot-alignment.md` is the standing verdict on the
   bounded-projection pivot, re-issued each weekly sweep.
+  The corpus is browsable as its own MkDocs site (not the dev docs):
+  `uvx --with mkdocs-material mkdocs serve -f mkdocs-research.yml -a 127.0.0.1:8001`;
+  conventions and the strict-build check in `research-site/README.md`.
 - Prior art: `../sigil-lang` (sibling repo) — the proving ground this framework
   inherits from; PRPs cite what to port.
 

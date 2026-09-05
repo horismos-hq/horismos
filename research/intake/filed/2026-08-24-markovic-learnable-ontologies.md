@@ -43,13 +43,13 @@ Where horismos is genuinely *behind* Cognee's ambition is the learning axis: v1 
 path at all from accumulated execution traces back into candidate ontology edits.
 
 The recommended synthesis for PRP-007 (a captain-held open question, not applied here
-— see `../../ontology-authoring/prp-007-open-items.md`): don't imitate Cognee's
+— see [`../../ontology-authoring/prp-007-open-items.md`](../../ontology-authoring/prp-007-open-items.md)): don't imitate Cognee's
 auto-reinforcing loop. Treat trace-mining as a new **proposal source** feeding the
 *existing* gated authoring loop — verifier + SME sign-off stays the only path any
 ontology change takes, applying horismos's own "neural proposes, symbolic decides"
 principle one level up, at the authoring layer instead of just the runtime layer.
 
-See `../../ontology-authoring/00-overview.md` and
-`../../ontology-authoring/autonomous-agents-failure-modes.md` for the broader
+See [`../../ontology-authoring/00-overview.md`](../../ontology-authoring/00-overview.md) and
+[`../../ontology-authoring/autonomous-agents-failure-modes.md`](../../ontology-authoring/autonomous-agents-failure-modes.md) for the broader
 evidence (NELL's drift, Wikidata's governance-by-human-discussion) this positioning
 draws on.

@@ -67,7 +67,7 @@ isn't silently lost on a future revisit.
 
 ## Source
 
-See per-item citations above; all also listed in `../reading-log.md` Q2
+See per-item citations above; all also listed in [`../reading-log.md`](../reading-log.md) Q2
 section.
 
 ## Confidence

@@ -44,7 +44,7 @@ only transitive dependents recompute," and an MCP server; its README lists regre
 tests for retraction bugs ("swap_remove corruption", "predicate-granularity
 recompute") ([github.com/JordyZomer/lemmalog](https://github.com/JordyZomer/lemmalog)).
 **[inference]** This is the nearest prior art for the truth-maintenance ruling in
-`docs/framework/03-world.md`: lemmalog chose incremental scoped retraction and its own
+[`docs/framework/03-world.md`](https://github.com/billaram/horismos/blob/main/docs/framework/03-world.md): lemmalog chose incremental scoped retraction and its own
 bug list documents the class Horismos's simpler reset-and-rechain avoids.
 
 ### Versioned, audit-preserving invalidation — and the consistency trade
@@ -105,7 +105,7 @@ attributed to 'model limitations' or 'prompt engineering' are actually represent
 failures" and the ontology "becomes the harness around" the LLM
 ([Futia, Medium](https://medium.com/@giuseppefutia/notes-from-kgc-2026-c9b4ac8569e5)).
 
-**[inference]** Two lessons for the gated loop in `docs/framework/13-authoring.md`: the
+**[inference]** Two lessons for the gated loop in [`docs/framework/13-authoring.md`](https://github.com/billaram/horismos/blob/main/docs/framework/13-authoring.md): the
 schema-level gains reported without a gate are QA gains, not rule-execution gains (the
 industrial paper's 99% comes from the no-LLM path); and ASKS's churn/lineage metrics are
 drift instrumentation Horismos should adopt regardless of keeping the human gate. The
@@ -138,7 +138,7 @@ the live comparison set is memory/decision substrates (Quipu, lemmalog, Graphiti
 
 ## Source
 
-Per-claim citations inline; all rows in `../reading-log.md` Q6 (sweep #2, 2026-09-02).
+Per-claim citations inline; all rows in [`../reading-log.md`](../reading-log.md) Q6 (sweep #2, 2026-09-02).
 
 ## Confidence
 

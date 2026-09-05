@@ -1,0 +1,172 @@
+# Horismos research site — MkDocs Material, second site, NOT the developer docs.
+#
+#   uvx --with mkdocs-material mkdocs serve -f mkdocs-research.yml -a 127.0.0.1:8001
+#   uvx --with mkdocs-material mkdocs build -f mkdocs-research.yml --strict
+#
+# The canonical corpus is research/ (the evidence-tagged wiki); this file only points
+# at it — nothing is duplicated. The developer site is a separate config (mkdocs.yml,
+# docs/, site/, port 8000); this one uses research/, site-research/ and port 8001 so
+# the two never collide. Local serve only: no Pages/deploy workflow references this
+# file. Layout, conventions and the reasoning behind them: research-site/README.md.
+
+site_name: Horismos Research
+site_description: >-
+  The evidence-tagged research corpus behind Horismos: the founding reality-check
+  sweep, the bounded-projection pivot and its standing alignment verdict, the
+  RL-axis deep dive, and the living wiki they feed.
+repo_url: https://github.com/billaram/horismos
+repo_name: billaram/horismos
+edit_uri: edit/main/research/
+copyright: Research corpus of the Horismos project. Every claim carries a [measured] or [inference] tag.
+
+docs_dir: research
+site_dir: site-research
+use_directory_urls: true
+
+# README.md is single-sourced into the home page (index.md) through snippet markers,
+# so it is excluded as a standalone page (MkDocs refuses README.md + index.md side by
+# side). _template/ is shown as a code sample on the "How sweeps work" page instead
+# of rendered — its angle-bracket placeholders would vanish as HTML.
+exclude_docs: |
+  /README.md
+  /_template/
+
+validation:
+  nav:
+    omitted_files: warn
+    not_found: warn
+    absolute_links: warn
+  links:
+    not_found: warn
+    anchors: warn
+    absolute_links: warn
+    unrecognized_links: warn
+
+theme:
+  name: material
+  custom_dir: research-site/overrides
+  language: en
+  font: false                       # system font stack; no external font requests
+  icon:
+    logo: material/book-open-page-variant-outline
+    repo: fontawesome/brands/github
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: custom
+      accent: custom
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: custom
+      accent: custom
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.tabs
+    - navigation.tabs.sticky
+    - navigation.sections
+    - navigation.indexes
+    - navigation.top
+    - navigation.footer
+    - navigation.path
+    - toc.follow
+    - search.suggest
+    - search.highlight
+    - search.share
+    - content.code.copy
+    - content.tooltips
+
+extra_css:
+  - assets/stylesheets/research.css
+extra_javascript:
+  - assets/javascripts/evidence-tags.js
+
+markdown_extensions:
+  - abbr
+  - admonition
+  - attr_list
+  - def_list
+  - footnotes
+  - md_in_html
+  - tables
+  - toc:
+      permalink: "¶"
+      toc_depth: 3
+  - pymdownx.details
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - pymdownx.snippets:
+      base_path:
+        - research
+      check_paths: true
+
+plugins:
+  - search:
+      separator: '[\s\-,:!=\[\]()"`/]+|\.(?!\d)|&[lg]t;|(?!\b)(?=[A-Z][a-z])'
+
+# Nav is by theme, not by directory: a wiki page is listed exactly once, where a
+# research-minded reader would look for it. Every research/*.md page (minus README
+# and _template, see exclude_docs) is here — `omitted_files: warn` + --strict proves it.
+nav:
+  - Home: index.md
+  - The Pivot:
+      - Verdict history: verdict-history.md
+      - Pivot alignment (standing verdict): neurosymbolic-landscape/pivot-alignment.md
+      - Thin-pivot second opinion (report, 2026-08-24): reports/2026-08-24-thin-pivot-second-opinion.md
+      - Founding reality-check sweep (report, 2026-08-24): reports/2026-08-24-founding-sweep.md
+      - Lineage assessment: neurosymbolic-landscape/lineage-assessment.md
+  - Landscape:
+      - Neuro-symbolic AI (Q3 overview): neurosymbolic-landscape/00-overview.md
+      - Coding-agent harnesses (Q7): neurosymbolic-landscape/coding-agent-harnesses.md
+  - RL axis:
+      - RL deep dive (report, 2026-09-02): reports/2026-09-02-rl-deep-dive.md
+      - KG maintenance & agent memory: ontology-authoring/kg-maintenance-and-agent-memory.md
+  - Clinical ground:
+      - Terminology (Q5):
+          - Overview: terminology/00-overview.md
+          - SNOMED CT: terminology/snomed-ct.md
+          - LOINC: terminology/loinc.md
+          - RxNorm: terminology/rxnorm.md
+      - Scenarios (Q2):
+          - Catalog: scenarios/00-catalog.md
+          - "#1 VTE prophylaxis": scenarios/vte-prophylaxis.md
+          - "#2 NEWS2 deterioration": scenarios/news2-deterioration.md
+          - "#3 Sepsis bundle compliance": scenarios/sepsis-bundle-compliance.md
+          - Ruled out: scenarios/ruled-out.md
+      - Validation (Q4):
+          - The validation ladder: validation/00-ladder.md
+          - Case studies: validation/case-studies.md
+          - Regulatory shape: validation/regulatory.md
+  - Formalization:
+      - Overview (Q1): formalization/00-overview.md
+      - Arden Syntax: formalization/arden-syntax.md
+      - GLIF / GLIF3: formalization/glif.md
+      - PROforma / Deontics: formalization/proforma-deontics.md
+      - TNM family (Asbru / EON / SAGE / GLARE): formalization/tnm-family.md
+      - CQL / CDS Hooks / FHIR PlanDefinition: formalization/cql-cds-hooks-fhir.md
+      - BPM+ Health: formalization/bpm-plus-health.md
+      - Prior-authorization standards: formalization/prior-authorization-standards.md
+  - Ontology authoring:
+      - Overview (Q6): ontology-authoring/00-overview.md
+      - Ontology-learning benchmarks: ontology-authoring/ontology-learning-benchmarks.md
+      - Autonomous agents' failure modes: ontology-authoring/autonomous-agents-failure-modes.md
+      - Verification of LLM-drafted artifacts: ontology-authoring/verification-of-llm-drafted-artifacts.md
+      - PRP-007 open items: ontology-authoring/prp-007-open-items.md
+  - Intake & process:
+      - How sweeps work: sweeps.md
+      - Deep-dive reports (index): reports/index.md
+      - Intake convention: intake/README.md
+      - Intake queue: intake/queue.md
+      - "Filed: Markovic, learnable ontologies (2026-08-24)": intake/filed/2026-08-24-markovic-learnable-ontologies.md
+      - Reading log: reading-log.md
+      - Changelog: CHANGELOG.md

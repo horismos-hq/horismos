@@ -23,3 +23,6 @@ dist/
 
 # MkDocs build output (docs site sources live in docs/, config in mkdocs.yml)
 /site/
+
+# MkDocs build output (research site: mkdocs-research.yml)
+/site-research/

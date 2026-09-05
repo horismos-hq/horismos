@@ -12,7 +12,7 @@ deferred.
    checking.** PRP-007 as currently scoped has no explicit check for whether a
    drafted rule/constraint actually binds under some reachable scenario, as distinct
    from being internally consistent. See
-   `verification-of-llm-drafted-artifacts.md` for the "vacuous
+   [`verification-of-llm-drafted-artifacts.md`](verification-of-llm-drafted-artifacts.md) for the "vacuous
    verification" literature this responds to
    ([LASA](https://arxiv.org/abs/2506.17865),
    [CHARGE](https://arxiv.org/abs/2607.27776),
@@ -27,12 +27,12 @@ deferred.
    [arXiv:2307.13702](https://arxiv.org/abs/2307.13702)) — no paper studies
    faithfulness of NL renderings of *separately-verified formal artifacts*
    specifically, so this is an assumption to test empirically, not a solved problem.
-   See `verification-of-llm-drafted-artifacts.md`.
+   See [`verification-of-llm-drafted-artifacts.md`](verification-of-llm-drafted-artifacts.md).
 
 3. **`search_vocab`'s output format should support polyhierarchy and provenance
    metadata**, not just an `owl:sameAs` anchor — see
-   `../terminology/snomed-ct.md` for the full finding (the current
-   `examples/triage/snomed-ct-subset.ttl` fixture already shows single-parent
+   [`../terminology/snomed-ct.md`](../terminology/snomed-ct.md) for the full finding (the current
+   [`examples/triage/snomed-ct-subset.ttl`](https://github.com/billaram/horismos/blob/main/examples/triage/snomed-ct-subset.ttl) fixture already shows single-parent
    structure with no version provenance).
 
 4. **[inference]** **Restate the sign-off gate's rationale from accuracy to safety, and treat the
@@ -45,8 +45,8 @@ deferred.
    ([arXiv:2606.17223](https://arxiv.org/abs/2606.17223)), so a reasoner-consistency
    check alone cannot be the gate. Implied: SME review of the *semantic diff*, not only
    the rendered summary; non-vacuity (item 1); per-fact provenance on every derived
-   conclusion. See `autonomous-agents-failure-modes.md` (sweep #2 delta) and
-   `../neurosymbolic-landscape/pivot-alignment.md` (X2, A10).
+   conclusion. See [`autonomous-agents-failure-modes.md`](autonomous-agents-failure-modes.md) (sweep #2 delta) and
+   [`../neurosymbolic-landscape/pivot-alignment.md`](../neurosymbolic-landscape/pivot-alignment.md) (X2, A10).
 
 5. **[inference]** **Capability-fragment compiler mode: name the export surfaces and widen the effect
    model.** (Sweep #2.) Claude Code `SKILL.md` `hooks` + `metadata`; Gemini CLI
@@ -54,8 +54,8 @@ deferred.
    Code/Codex hook bridge; effect constraints must cover credentials and endpoints, not
    only paths. For the envelope D-item shared with PRP-008: wrap Codex V4A `apply_patch`
    verbatim and put the base-hash check in the policy stage, not the editing tool. See
-   `../neurosymbolic-landscape/coding-agent-harnesses.md` and
-   `../neurosymbolic-landscape/pivot-alignment.md` (A11, A12).
+   [`../neurosymbolic-landscape/coding-agent-harnesses.md`](../neurosymbolic-landscape/coding-agent-harnesses.md) and
+   [`../neurosymbolic-landscape/pivot-alignment.md`](../neurosymbolic-landscape/pivot-alignment.md) (A11, A12).
 
 ## Context: why the sign-off gate should stay hard, not loosen
 
@@ -67,11 +67,11 @@ axiom-identification benchmark (F1 0.218–0.642 across 12 LLMs, "not high enoug
 fully automate axiom identification,"
 [arXiv:2512.05594](https://arxiv.org/abs/2512.05594)) is the strongest evidence-based
 argument *for* keeping PRP-007's gate hard rather than lightening it — see
-`00-overview.md`.
+[`00-overview.md`](00-overview.md).
 
 ## Source
 
-See `../reading-log.md`, Q6 section, and the pages linked above.
+See [`../reading-log.md`](../reading-log.md), Q6 section, and the pages linked above.
 
 ## Confidence
 

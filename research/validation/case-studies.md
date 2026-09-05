@@ -66,12 +66,12 @@ a peer review found ~£2,000/patient cost savings, reduced AKI admission costs
 **[measured]** A well-powered cluster RCT with a null result on its diagnostic-
 quality-risk outcome
 ([Lancet Digital Health](https://www.thelancet.com/journals/landig/article/PIIS2589-7500(24)00250-4/fulltext)) —
-cited in `00-ladder.md` as the kind of common, non-failure outcome to plan
+cited in [`00-ladder.md`](00-ladder.md) as the kind of common, non-failure outcome to plan
 for at rung 4.
 
 ## Source
 
-See `../reading-log.md`, Q2 and Q4 sections.
+See [`../reading-log.md`](../reading-log.md), Q2 and Q4 sections.
 
 ## Confidence
 

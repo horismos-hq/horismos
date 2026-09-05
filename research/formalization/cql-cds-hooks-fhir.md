@@ -140,13 +140,13 @@ resource type at adapter init and treat 409/412/weak ETags as equivalent drift; 
 prefer prefetch-declared closures while `fhirAuthorization` sits at STU; D7 — compose
 (release velocity settles it); D9 — the transparency label plus a Provenance pointing at
 the proof is the natural trace/commit carrier. Full argument:
-`../neurosymbolic-landscape/pivot-alignment.md` §X7, A1–A7. Also published: "Field Guide
+[`../neurosymbolic-landscape/pivot-alignment.md`](../neurosymbolic-landscape/pivot-alignment.md) §X7, A1–A7. Also published: "Field Guide
 to Sharable Clinical Pathways, Edition 3" (Informative, 2026-08-27) — title and date
 only retrievable, unread.
 
 ## Source
 
-See per-claim citations above; all also listed in `../reading-log.md` under Q1.
+See per-claim citations above; all also listed in [`../reading-log.md`](../reading-log.md) under Q1.
 
 ## Confidence
 

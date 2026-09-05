@@ -24,14 +24,14 @@ https://www.sciencedirect.com/science/article/pii/S0004370223002084).
 
 **[measured]** Horismos deliberately does the opposite: confidence gates *acceptance*,
 never *weights inference*, and there is no fuzzy logic anywhere in the reasoner (per
-`docs/framework/06-llm-boundaries.md`). By the standard the field's own most-cited
+[`docs/framework/06-llm-boundaries.md`](https://github.com/billaram/horismos/blob/main/docs/framework/06-llm-boundaries.md)). By the standard the field's own most-cited
 reference systems set, a hard, non-differentiable wall between neural and symbolic
 components is a **looser** claim to the "neurosymbolic" label than what
 Scallop/LNN/DeepProbLog actually do. Wikipedia's own overview of neuro-symbolic AI
 contains no mention of MYCIN, Arden Syntax, or classical expert systems at all
 ([en.wikipedia.org/wiki/Neuro-symbolic_AI](https://en.wikipedia.org/wiki/Neuro-symbolic_AI))
 — the field does not see itself as continuous with that lineage. See
-`lineage-assessment.md` for the full positioning analysis.
+[`lineage-assessment.md`](lineage-assessment.md) for the full positioning analysis.
 
 **[measured]** Concrete evidence for why the hard-gate design matters: a Mount Sinai
 adversarial study planted a single fake lab value, sign, or diagnosis into 300
@@ -81,9 +81,9 @@ evidence RAG alone is not a safety mechanism equivalent to a hard gate.
 
 ## Sweep #2 delta (2026-09-02)
 
-Two pages added this sweep: `pivot-alignment.md` — the standing assessment of the
+Two pages added this sweep: [`pivot-alignment.md`](pivot-alignment.md) — the standing assessment of the
 bounded-projection pivot against the field (verdict: **aligned-with-adjustments**) —
-and `coding-agent-harnesses.md` — how Claude Code, Codex, Gemini CLI, Cursor, pi,
+and [`coding-agent-harnesses.md`](coding-agent-harnesses.md) — how Claude Code, Codex, Gemini CLI, Cursor, pi,
 DeepSeek Harness and MCP structure capabilities and policies.
 
 **[measured]** Industry motion since 2026-08-24 bearing on the "racing absence" framing
@@ -101,9 +101,9 @@ MEDITECH's last AI announcement is 2026-03-10
 ([meditech.com](https://ehr.meditech.com/news/meditech-s-latest-ai-innovations-support-smarter-care-and-stronger-performance));
 no major EHR exposes a first-party MCP server ([eureka.md](https://eureka.md/docs/ehr-mcp-servers)).
 The coding-harness approval step is moving to model classifiers (Codex `auto_review`,
-Claude Code `auto` mode, Cursor Auto-review — `coding-agent-harnesses.md`). Against
+Claude Code `auto` mode, Cursor Auto-review — [`coding-agent-harnesses.md`](coding-agent-harnesses.md)). Against
 that, Epic put Da Vinci CRD hook-triggered third-party decision services into production
-on 2026-08-17 (`../formalization/cql-cds-hooks-fhir.md`, sweep #2 delta). Naming
+on 2026-08-17 ([`../formalization/cql-cds-hooks-fhir.md`](../formalization/cql-cds-hooks-fhir.md), sweep #2 delta). Naming
 collision: OaK (2026-08-24) calls its frozen task ontology "the kernel" — "the only
 channel through which the agent reaches the data"
 ([arXiv:2608.22974](https://arxiv.org/abs/2608.22974)).
@@ -112,11 +112,11 @@ channel through which the agent reaches the data"
 shipping product — is still open, and the incumbents are moving toward classifier-based
 approval rather than filling it. The only durable third-party clinical decision surface
 remains CDS Hooks + SMART + FHIR REST, which is what the pivot targets. See
-`pivot-alignment.md` §X1, X6, X10.
+[`pivot-alignment.md`](pivot-alignment.md) §X1, X6, X10.
 
 ## Source
 
-See `../reading-log.md`, Q3 section, for the full citation list.
+See [`../reading-log.md`](../reading-log.md), Q3 section, for the full citation list.
 
 ## Confidence
 
