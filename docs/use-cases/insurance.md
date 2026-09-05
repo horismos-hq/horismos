@@ -45,6 +45,8 @@ adjudicate(":clm-1003", policy_active_on_service_date=False, service_covered=Tru
      └─ priorAuthOnFile is true   (not held)
 
 :adjudication = :Pended   via pendMissingPriorAuth — "Prior authorization is required and none is on file — pend for documentation, do not deny"
+  ├─ policyActiveOnServiceDate true is true   (asserted by the api)
+  ├─ serviceCovered true is true   (asserted by the api)
   ├─ priorAuthRequired true is true   (asserted by the api)
   └─ priorAuthOnFile false is false   (asserted by the api)
 
@@ -84,6 +86,8 @@ except HorismosValidationError as e:
 
 ```text
 :adjudication = :Pended   via pendHighDollar — "Billed amount exceeds the auto-adjudication ceiling — human review"
+  ├─ policyActiveOnServiceDate true is true   (asserted by the api)
+  ├─ serviceCovered true is true   (asserted by the api)
   └─ billedAmount 48000 exceeds 10000   (asserted by the api)
 
 [provenance_refused] adjudication may only be assigned by rules (horis:assignedBy horis:RulesOnly); assertion came from the api
@@ -91,7 +95,7 @@ except HorismosValidationError as e:
 
 ## Why verification matters here
 
-This is the rule set where completeness is a compliance property: *is there any claim this policy neither approves, pends, nor denies?* PRP-005 answers that over the declared input space and renders each gap as a sentence ("no adjudication when `priorAuthRequired` is unassigned and `billedAmount` ≤ 10000 …"). Conflict-freedom is equally load-bearing — `pendMissingPriorAuth` and `pendHighDollar` can both match one claim and agree; `denyNonCoveredService` and `approveClean` must never both match — and the check proves the second rather than trusting the author. Dead-rule detection catches a ceiling that `horis:min` makes unreachable. The assumption manifest records which benefit-plan version and which code-system edition the closure assumed, so an auditor never has to infer scope from silence.
+This is the rule set where completeness is a compliance property: *is there any claim this policy neither approves, pends, nor denies?* There was. The check answered over the declared input space and rendered each gap as a sentence — a claim with no `billedAmount` recorded, which could be tested against neither `approveClean`'s ceiling nor `pendHighDollar`'s floor; and a claim where `priorAuthRequired` was never populated, which satisfied neither branch of `approveClean`'s authorization test nor `pendMissingPriorAuth`'s. Both now resolve to `:Pended`, which is the outcome this rule set already reached for missing documentation: `pendMissingPriorAuth` says *pend for documentation, do not deny*. Auto-denying a claim because a field was never populated is precisely the failure this overlay exists to argue against, and completeness is what turns that principle into something a check can enforce. Conflict-freedom is equally load-bearing — `pendMissingPriorAuth` and `pendHighDollar` can both match one claim and agree, so neither is a conflict; `denyNonCoveredService` and `approveClean` must never both match, and the check proves it rather than trusting the author. It did name four real overlaps, each a deny rule against a pend rule, all resolved by priority and now guarded explicitly. Dead-rule detection catches a ceiling that `horis:min` makes unreachable. The assumption manifest records which benefit-plan version and which code-system edition the closure assumed, so an auditor never has to infer scope from silence.
 
 What verification does not claim: that the plan document was transcribed correctly into these rules, that the eligibility feed was complete, or that the clinical criteria behind `serviceCovered` are sound. Those are outside the closure and are stated as such.
 

@@ -34,6 +34,7 @@ triage(":run-903", failing_stage=":Deploy", known_flaky=False)
 
 ```text
 :disposition = :RerunOnce   via rerunKnownFlakyOnce — "Known-flaky test, not yet rerun — one rerun is allowed"
+  ├─ reproducesOnRerun isNot true   (closed world)
   ├─ failingStage :Test is :Test   (asserted by the api)
   ├─ knownFlaky true is true   (asserted by the api)
   └─ priorReruns 0 below 1   (asserted by the api)
@@ -59,6 +60,7 @@ except HorismosValidationError as e:
 
 ```text
 :disposition = :EscalateToOwner   via flakyStillFailingEscalates — "The flaky test failed again on rerun — it is no longer flaky, escalate to the owner"
+  ├─ failingStage isNot :Deploy   (closed world)
   ├─ knownFlaky true is true   (asserted by the api)
   └─ reproducesOnRerun true is true   (asserted by the api)
 
@@ -69,7 +71,7 @@ In a full workflow, `:RerunOnce` is an `ActionStep` whose tool the runtime fires
 
 ### Why verification matters here
 
-Two rules here overlap on purpose: `rerunKnownFlakyOnce` (priority 50) requires `priorReruns` below 1, and `flakyStillFailingEscalates` (priority 60) requires `reproducesOnRerun` true, so both match a known-flaky test failure recorded with `priorReruns = 0` and `reproducesOnRerun = true` — a state the CI adapter should never produce, and priority resolves it in favour of escalation if it does. PRP-005's conflict check would name that pair and its region so you confirm the intent rather than discover it; completeness would report the region with no disposition — a `:Build` failure on a known-flaky list, for instance — as a witness sentence. Non-vacuity would flag a rule whose conclusion never differs from what a higher-priority rule already assigns.
+Two rules here overlapped on purpose: `rerunKnownFlakyOnce` (priority 50) requires `priorReruns` below 1, and `flakyStillFailingEscalates` (priority 60) requires `reproducesOnRerun` true, so both matched a known-flaky test failure recorded with `priorReruns = 0` and `reproducesOnRerun = true` — a state the CI adapter should never produce, and priority resolved it in favour of escalation if it did. The conflict check named that pair and its region, along with a second overlap nobody had intended: `deployFailuresRollBack` (priority 100) against the same escalation rule, because `flakyStillFailingEscalates` carried no stage condition at all. That is the check earning its place — one of the two overlaps was a design decision, the other was an oversight, and they are indistinguishable by eye. Both rules now carry explicit guards (`failingStage isNot :Deploy`, `reproducesOnRerun isNot true`) that state the resolution priority was making silently. Completeness reported the regions with no disposition, and they shared a shape: a failure nobody had classified. A build whose `knownFlaky` status was never recorded matched nothing, because `deterministicFailuresFixForward` needs `knownFlaky is false` and the rerun rule needs `true`; so did a flaky-listed lint or build failure, and a test already out of reruns. `:EscalateToOwner` is the default in all of them — letting `:FixForward` cover an unclassified red build would have the agent proposing patches against a failure whose cause is unknown. Non-vacuity flags a rule whose conclusion never differs from what a higher-priority rule already assigns.
 
 ### Status and honest edges
 
@@ -77,6 +79,6 @@ Runs today with structured input. Materializing the CI state as a versioned proj
 
 ## Merge and release gating
 
-The [change gate](../governing-a-coding-agent.md) is the merge decision: 23 terms, six rules, and a `RulesOnly` decision the bot cannot write. Release gating is the same shape with different facts — signed artifact, passing smoke suite, change-freeze window, on-call acknowledged — and the same guarantee: the release is approved by a rule you can read, not by whichever model was on duty.
+The [change gate](../governing-a-coding-agent.md) is the merge decision: 28 terms, eleven rules, and a `RulesOnly` decision the bot cannot write. Release gating is the same shape with different facts — signed artifact, passing smoke suite, change-freeze window, on-call acknowledged — and the same guarantee: the release is approved by a rule you can read, not by whichever model was on duty.
 
 What composes them is the fail-closed default. `FixForward` does not mean *merge*; it means the agent may propose a change, which then has to clear the gate on its own facts.

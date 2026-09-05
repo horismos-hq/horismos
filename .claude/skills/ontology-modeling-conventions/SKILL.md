@@ -47,6 +47,37 @@ datatypes (decimal, integer, string, boolean, dateTime, duration) + `owl:sameAs`
   requires `horis:onUnreachable`; every `ActionStep` requires `horis:onError`.
   Every run must reach a `horis:terminal true` step.
 
+## Every rule set must load, and loading verifies
+
+`Ontology::load` refuses any error-severity finding (CLAUDE.md § Hard rules), and
+**conflict-freedom findings are error-severity too**, not just completeness. So a
+`.ttl` only loads when its rules assign each decided property over the whole declared
+input space *and* no two rules can derive different values for a single-cardinality
+property on an overlapping region. Priority resolving an overlap at runtime is not
+enough — the verifier still reports it and the load still fails.
+
+Two consequences when authoring or repairing a rule set:
+
+- **A cover rule must be disjoint from every existing rule**, not a catch-all. A
+  low-priority catch-all closes the completeness gap and creates a conflict with each
+  rule it overlaps. Fill exactly the reported region — *even where the existing rule
+  concludes the same value*. Equal values are not a conflict, so the load passes, but
+  the reasoner fires every matching rule and the last same-value firing replaces the
+  recorded proof: a lower-priority cover that overlaps a specific rule silently takes
+  over `explain()` and the trace for every subject the specific rule matched (the
+  change gate's first cover did exactly this to `:protectedNeedsHuman`). Inspect the
+  rendered proof after adding any cover rule.
+- **`is false` is not the complement of `is true`** on an optional (`0..1`) property —
+  unassigned is a third state. To exclude a higher-priority rule's region while
+  keeping unassigned covered, use `horis:isNot` (true over unassigned) or
+  `horis:none ( … )` for numeric comparisons, never the mirrored comparison.
+
+The gap regions come from the verifier, not from reading: `python -m horismos verify
+path/to.ttl` emits each witness with a machine-readable `region`. It reports one
+completeness counterexample at a time, so closing one can reveal the next — iterate
+until `complete` is true. Worked examples of the pattern: the
+`# PRP-005 completeness-cover:start/end` blocks in `examples/*/*.ttl`.
+
 ## Fixture style
 
 `examples/triage/triage.ttl` is the canonical style reference: section headers

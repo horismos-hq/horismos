@@ -1,6 +1,6 @@
 # Governing a coding agent
 
-Your coding agent — Claude Code, Codex, pi, a harness of your own — proposes a patch and asks to merge it. Today the answer comes from a permission prompt, a prefix rule, or increasingly a model classifier. None of those can see the repository's state, and none of them produces a reason you could show a release manager. This page builds the alternative: a **23-term change gate** the harness consults before it acts, where the decision is derived by rules over typed facts and the bot cannot grant itself merge permission.
+Your coding agent — Claude Code, Codex, pi, a harness of your own — proposes a patch and asks to merge it. Today the answer comes from a permission prompt, a prefix rule, or increasingly a model classifier. None of those can see the repository's state, and none of them produces a reason you could show a release manager. This page builds the alternative: a **28-term change gate** the harness consults before it acts, where the decision is derived by rules over typed facts and the bot cannot grant itself merge permission.
 
 ## Why prompt-level policy is not enough
 
@@ -13,9 +13,9 @@ The research wiki's survey of harnesses (`research/neurosymbolic-landscape/codin
 
 The same survey finds that no harness "declares a semantic domain graph with verified cross-tool preconditions/effects or maintains a fixed point over repository state" — and that every harness already exposes the slot such a thing would plug into: a typed, ordered permission decision with a reason string (`PreToolUse` hooks in Claude Code, `BeforeTool` in Gemini CLI, `beforeShellExecution` in Cursor, an MCP proxy for everything else).
 
-## The 23-term change gate
+## The 28-term change gate
 
-Eight classes and enumeration members, nine properties, six rules. The harness asserts what it observed about a proposal; the rules — and only the rules — assign `:gateDecision`. It runs today against the shipped engine.
+Eight classes and enumeration members, nine properties, eleven rules. The harness asserts what it observed about a proposal; the rules — and only the rules — assign `:gateDecision`. It runs today against the shipped engine.
 
 ```turtle
 --8<-- "examples/change-gate/change-gate.ttl"
@@ -63,6 +63,9 @@ gate(":pr-42", proposed_by=":Bot",
 
 ```text
 :gateDecision = :NeedsHuman   via protectedNeedsHuman — "Protected paths need at least one human approval"
+  ├─ baseMatchesHead true is true   (asserted by the api)
+  ├─ testsPassed true is true   (asserted by the api)
+  ├─ lintPassed true is true   (asserted by the api)
   ├─ touchesProtectedPath true is true   (asserted by the api)
   └─ humanApprovals 0 below 1   (asserted by the api)
 ```
@@ -106,6 +109,9 @@ gate(":pr-45", base_matches_head=False)       # main moved; the hash no longer m
 
 ```text
 :gateDecision = :NeedsHuman   via largeBotDiffNeedsHuman — "A bot-authored change over 400 lines needs a human reviewer"
+  ├─ baseMatchesHead true is true   (asserted by the api)
+  ├─ testsPassed true is true   (asserted by the api)
+  ├─ lintPassed true is true   (asserted by the api)
   ├─ proposedBy :Bot is :Bot   (asserted by the api)
   ├─ linesChanged 900 exceeds 400   (asserted by the api)
   └─ humanApprovals 0 below 1   (asserted by the api)
@@ -120,7 +126,7 @@ gate(":pr-45", base_matches_head=False)       # main moved; the hash no longer m
   └─ baseMatchesHead false is false   (asserted by the api)
 ```
 
-**Missing facts produce no decision**, never a default approval. A proposal the harness could not fully observe simply has no `:gateDecision`, and a workflow's `onUnreachable` edge sends it to a person:
+**Missing facts never produce a default approval** — and they no longer produce silence either. An earlier draft of this gate left a proposal the harness could not fully observe with no `:gateDecision` at all, and relied on the caller to read that absence as *stop*. `verify()`'s completeness check reported the region, and closing it required a rule: `:unrecordedCheckNeedsHuman` derives an explicit `:NeedsHuman` whose proof names the checks that never reported, while `:Approved` stays unreachable from missing evidence. A workflow routes that decision to a person on a stated reason, not on a value that failed to arrive:
 
 ```python
 gate(":pr-46", proposed_by=":Human")
@@ -128,7 +134,15 @@ print(world.query(":ChangeProposal", gate_decision=":Approved"))
 ```
 
 ```text
-:pr-46: no rule fired — no decision
+:gateDecision = :NeedsHuman   via unrecordedCheckNeedsHuman — "A required check never reported — the gate cannot approve on evidence it does not have"
+  ├─ baseMatchesHead isNot false   (closed world)
+  ├─ testsPassed isNot false   (closed world)
+  ├─ lintPassed isNot false   (closed world)
+  └─ any of:
+     ├─ baseMatchesHead isEmpty   (closed world)
+     ├─ testsPassed isEmpty   (closed world)
+     └─ lintPassed isEmpty   (closed world)
+
 [Ref(:pr-41)]
 ```
 
@@ -198,6 +212,6 @@ What the boundary proves: the proposal was policy-legal and passed its declared 
 | Base-hash check, sandbox execution, and the proposal envelope as a first-class typed boundary | **Landing in PRP-008** (host-adapter/runtime side) — the envelope's `horis:` vocabulary is minted jointly with PRP-007 |
 | A coding-harness adapter that materializes repository state (branch, dirty files, test status, path scopes) as a versioned projection with conditional commit | **Landing in PRP-008** — the second-domain proof that the host SPI is format-neutral, not FHIR-shaped |
 | Compiling a fragment from an existing `SKILL.md` / tool schema, with a coverage report | **Planned in PRP-007** (after PRP-008) |
-| Completeness / conflict / dead-rule verification of the six rules, with domain-term witnesses | **Landing in PRP-005** — today `verify()` reports load-time checks only |
+| Completeness / conflict / dead-rule verification of the eleven rules, with domain-term witnesses | **Yes** — `verify()` proves `:gateDecision` total and conflict-free; `Ontology.load` refuses the overlay otherwise |
 
 Track the live status on the [roadmap](roadmap.md) and in `PRPs/BOARD.md`.

@@ -82,10 +82,18 @@ The decision: *a patient with a heart rate over 120 and any kind of chest pain i
 
     ```text
     (':Immediate', ':acuity = :Immediate   via r1 — "Tachycardia with chest pain — immediate track"\n  ├─ heartRate 128 exceeds 120   (asserted by the api)\n  └─ hasSymptom :CrushingChestPain ⊑ :ChestPain   (subsumption)\n')
-    (None, None)
+    (':Standard', ':acuity = :Standard   via r3 — "Heart rate at most 100 — standard track"\n  └─ heartRate 96 atMost 100   (asserted by the api)\n')
     ```
 
-    `None` is not a default. It means no rule fired, and the honest next step is a human — not a guess.
+    Both calls return a value *and* the clause that produced it. The second one is the
+    interesting case: a heart rate of 96 with chest pain is not an emergency, and the
+    rule that says so is named in the proof rather than left implicit.
+
+    The signature still returns `str | None`, and that is not dead code. `verify()`
+    proves this rule set assigns `:acuity` for every input in its declared closure, so
+    `None` is unreachable *here* — but a rule set that has not been verified, or one
+    loaded with `allow_incomplete=True`, can still leave the property unassigned. When
+    that happens it is a visible branch, not a confident-sounding guess.
 
 ## Wrap, don't replace
 
@@ -103,7 +111,7 @@ g.add_node("decide", decide)
 g.add_conditional_edges("decide", after_decide, {"route": "route", "escalate": "escalate"})
 ```
 
-What changed: the model's extraction now has to clear a typed gate before it counts as a fact; the decision is made by a rule you can diff and (with PRP-005) verify; the proof travels in state to whoever needs to explain the call; and "no rule fired" is a visible branch rather than a confident-sounding guess. What did not change: your graph, your checkpointer, your streaming, your tools.
+What changed: the model's extraction now has to clear a typed gate before it counts as a fact; the decision is made by a rule you can diff and `verify()` for completeness and conflicts before you deploy it; the proof travels in state to whoever needs to explain the call; and "no rule fired" is a visible branch rather than a confident-sounding guess. What did not change: your graph, your checkpointer, your streaming, your tools.
 
 !!! note "No adapter package yet"
     A LangGraph node / agent-SDK tool adapter was deliberately deferred past v1 (`PRPs/PRP-004-agent-loop/02-tasks-and-gaps.md`, D2). Today the glue is the ten lines above, and you own it. That is also why it works with any orchestrator: the kernel is whole-input-in, whole-outcome-out.
@@ -125,7 +133,7 @@ What changed: the model's extraction now has to clear a typed gate before it cou
 | Keep LangGraph (or your SDK) for | Add Horismos for |
 |---|---|
 | Orchestration: fan-out, retries, cycles, streaming tokens to a UI | The decision itself: typed facts in, rule-derived conclusion and proof out |
-| Fast iteration on prompts and flows | A policy artifact a domain expert can read, diff, sign off, and (PRP-005) verify for completeness and conflicts |
+| Fast iteration on prompts and flows | A policy artifact a domain expert can read, diff, sign off, and verify for completeness and conflicts |
 | Persistence across processes, long-running sessions | Snapshot-scoped determinism: same facts, same ontology, same proof, byte for byte |
 | Provider breadth and the model ecosystem | Two declared model boundaries with a mandatory fallback; the kernel runs with the model deleted |
 | Human-in-the-loop UX, approvals UI | The fact that "no rule fired" is a first-class outcome the UI can route |

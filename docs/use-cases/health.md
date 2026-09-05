@@ -41,23 +41,26 @@ admit(":adm-3", padua_score=2, active_bleeding=False, platelet_count=250,
 
 ```text
 :prophylaxis = :Pharmacologic   via highRisk — "Padua score 4 or more with no bleeding contraindication — pharmacologic prophylaxis"
+  ├─ onTherapeuticAnticoagulation isNot true   (closed world)
   ├─ paduaScore 5 atLeast 4   (asserted by the api)
   ├─ activeBleeding false is false   (asserted by the api)
   └─ plateletCount 210 atLeast 50   (asserted by the api)
 
 :prophylaxis = :MechanicalOnly   via highRiskWithContraindication — "High VTE risk but pharmacologic prophylaxis is contraindicated — mechanical prophylaxis only"
+  ├─ onTherapeuticAnticoagulation isNot true   (closed world)
   ├─ paduaScore 6 atLeast 4   (asserted by the api)
   └─ any of:
      ├─ activeBleeding is true   (not held)
      └─ plateletCount 38 below 50   (asserted by the api)
 
 :prophylaxis = :NoneIndicated   via lowRisk — "Padua score below 4 — routine prophylaxis not indicated"
+  ├─ onTherapeuticAnticoagulation isNot true   (closed world)
   └─ paduaScore 2 below 4   (asserted by the api)
 ```
 
 The second proof is worth a second look: a disjunction renders both branches and says which one held. A pharmacist reading it knows the recommendation rests on the platelet count, not on bleeding.
 
-Incomplete facts produce no recommendation; an out-of-range lab value never enters; and nothing but a rule can write the recommendation:
+A high-risk admission whose bleeding contraindication was never assessed gets `:InsufficientData` — the overlay declines to recommend and the proof names the observations that are missing; an out-of-range lab value never enters; and nothing but a rule can write the recommendation:
 
 ```python
 admit(":adm-4", padua_score=7)                    # no bleeding or platelet facts yet
@@ -69,7 +72,16 @@ for bad in (dict(platelet_count=-1), dict(padua_score=5, prophylaxis=":Pharmacol
 ```
 
 ```text
-:adm-4: no recommendation — facts incomplete
+:prophylaxis = :InsufficientData   via contraindicationNotAssessed — "High VTE risk but the bleeding contraindication was not assessed — no recommendation until it is"
+  ├─ onTherapeuticAnticoagulation isNot true   (closed world)
+  ├─ paduaScore 7 atLeast 4   (asserted by the api)
+  ├─ activeBleeding isNot true   (closed world)
+  ├─ none of:
+  │  └─ plateletCount below 50   (not held)
+  └─ any of:
+     ├─ activeBleeding isEmpty   (closed world)
+     └─ plateletCount isEmpty   (closed world)
+
 [min] plateletCount -1 is below horis:min 0 (10^9/L) on :Admission
 [provenance_refused] prophylaxis may only be assigned by rules (horis:assignedBy horis:RulesOnly); assertion came from the api
 ```
@@ -82,6 +94,7 @@ admit(":adm-4", active_bleeding=False, platelet_count=180, on_therapeutic_antico
 
 ```text
 :prophylaxis = :Pharmacologic   via highRisk — "Padua score 4 or more with no bleeding contraindication — pharmacologic prophylaxis"
+  ├─ onTherapeuticAnticoagulation isNot true   (closed world)
   ├─ paduaScore 7 atLeast 4   (asserted by the api)
   ├─ activeBleeding false is false   (asserted by the api)
   └─ plateletCount 180 atLeast 50   (asserted by the api)
@@ -89,7 +102,7 @@ admit(":adm-4", active_bleeding=False, platelet_count=180, on_therapeutic_antico
 
 ### Why verification matters here
 
-PRP-005's completeness check asks: *for every reachable combination of Padua score, bleeding status and platelet count, does some rule assign a recommendation?* This overlay has a deliberate gap — a high-risk patient with `activeBleeding` unknown and platelets known gets nothing — and the check would render it as a witness in domain terms rather than leaving it to be discovered on a ward. Conflict-freedom would confirm that `highRisk` and `highRiskWithContraindication` cannot both fire on one admission; dead-rule detection would catch a threshold that `horis:min`/`horis:max` make unreachable. The assumption manifest would state which SNOMED edition and which FHIR profile the closure assumed.
+The completeness check asks: *for every reachable combination of Padua score, bleeding status and platelet count, does some rule assign a recommendation?* For this overlay the answer was no, in two places: an admission with no Padua score recorded at all, and a high-risk admission whose bleeding contraindication was never assessed — `:highRisk` needs `activeBleeding is false` **and** `plateletCount atLeast 50`, so an unrecorded bleeding status or platelet count matched neither it nor `:highRiskWithContraindication`. Closing that gap is the most instructive thing in this example, because none of the four original values was an honest answer to it. `:NoneIndicated` would tell a ward to withhold prevention on the strength of a score nobody took; `:MechanicalOnly` would order a treatment from missing data. So the overlay gained a fifth outcome, `:InsufficientData`, and two rules that assign it — and the proof tree names the observation that is missing rather than a recommendation nobody can defend. A verification check that forces that conversation before deployment is doing more than proving a theorem. Conflict-freedom confirmed that `highRisk` and `highRiskWithContraindication` cannot both fire on one admission, and named three overlaps with `alreadyAnticoagulated` (priority 100) that priority already resolved; those three rules now say `onTherapeuticAnticoagulation isNot true` explicitly. Dead-rule detection catches a threshold that `horis:min`/`horis:max` make unreachable. The assumption manifest states which SNOMED edition and which FHIR profile the closure assumed.
 
 What it would not do: say anything about whether the Padua thresholds are clinically right, whether the upstream score computation is correct, or whether the EHR record was complete. Those live outside the declared closure, and the manifest says so.
 

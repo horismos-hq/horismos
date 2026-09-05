@@ -75,6 +75,7 @@
     horis:priority 50 ;
     horis:when [
         horis:all (
+            [ horis:subject :MotionCommand ; horis:property :eStopEngaged ; horis:is false ]
             [ horis:subject :MotionCommand ; horis:property :zone ; horis:is :SharedCell ]
             [ horis:subject :MotionCommand ; horis:property :requestedSpeed ; horis:exceeds 0.25 ]
             [ horis:subject :MotionCommand ; horis:property :nearestHumanDistance ; horis:atLeast 0.5 ]
@@ -87,6 +88,7 @@
     horis:priority 10 ;
     horis:when [
         horis:all (
+            [ horis:subject :MotionCommand ; horis:property :eStopEngaged ; horis:is false ]
             [ horis:subject :MotionCommand ; horis:property :zone ; horis:is :OpenFloor ]
             [ horis:subject :MotionCommand ; horis:property :nearestHumanDistance ; horis:atLeast 1.0 ]
         )
@@ -98,6 +100,7 @@
     horis:priority 10 ;
     horis:when [
         horis:all (
+            [ horis:subject :MotionCommand ; horis:property :eStopEngaged ; horis:is false ]
             [ horis:subject :MotionCommand ; horis:property :zone ; horis:is :SharedCell ]
             [ horis:subject :MotionCommand ; horis:property :requestedSpeed ; horis:atMost 0.25 ]
             [ horis:subject :MotionCommand ; horis:property :nearestHumanDistance ; horis:atLeast 0.5 ]
@@ -105,3 +108,49 @@
     ] ;
     horis:then [ horis:property :verdict ; horis:value :Permitted ] ;
     horis:explain "Shared cell at collaborative speed with separation kept — permitted" .
+
+# PRP-005 completeness-cover:start
+# Two regions had no verdict until PRP-005's completeness check named them.
+#
+# 1. No proximity reading at all: :blockTooClose needs `below 0.5` and both permit
+#    rules need `atLeast 0.5`, and a condition over an unassigned property is false
+#    (doc 02), so an unread sensor matched nothing. The separation guarantee cannot
+#    be established from a missing measurement, so the shield refuses.
+:noProximityReadingBlocks a horis:Rule ;
+    horis:priority 80 ;
+    horis:when [ horis:all (
+        [ horis:subject :MotionCommand ; horis:property :eStopEngaged ; horis:is false ]
+        [ horis:subject :MotionCommand ; horis:property :zone ; horis:isNot :Restricted ]
+        [ horis:subject :MotionCommand ; horis:property :nearestHumanDistance ; horis:isEmpty true ]
+    ) ] ;
+    horis:then [ horis:property :verdict ; horis:value :Blocked ] ;
+    horis:explain "No proximity reading — the minimum separation distance cannot be established, so motion is refused" .
+
+# 2. Open floor with a person between 0.5 m and 1.0 m: :blockTooClose stops below
+#    0.5 m and :permitOpenFloor needs 1.0 m of clearance, so the band between them
+#    fell through. A person that close on the open floor is a shared cell in all but
+#    name, so the two rules below mirror the :SharedCell speed split exactly.
+:attenuateOpenFloorNearHuman a horis:Rule ;
+    horis:priority 45 ;
+    horis:when [ horis:all (
+        [ horis:subject :MotionCommand ; horis:property :eStopEngaged ; horis:is false ]
+        [ horis:subject :MotionCommand ; horis:property :zone ; horis:is :OpenFloor ]
+        [ horis:subject :MotionCommand ; horis:property :requestedSpeed ; horis:exceeds 0.25 ]
+        [ horis:subject :MotionCommand ; horis:property :nearestHumanDistance ; horis:atLeast 0.5 ]
+        [ horis:subject :MotionCommand ; horis:property :nearestHumanDistance ; horis:below 1.0 ]
+    ) ] ;
+    horis:then [ horis:property :verdict ; horis:value :Attenuated ] ;
+    horis:explain "Open floor but a person is inside the shared-cell distance — speed is capped, command is attenuated" .
+
+:permitSlowOpenFloorNearHuman a horis:Rule ;
+    horis:priority 10 ;
+    horis:when [ horis:all (
+        [ horis:subject :MotionCommand ; horis:property :eStopEngaged ; horis:is false ]
+        [ horis:subject :MotionCommand ; horis:property :zone ; horis:is :OpenFloor ]
+        [ horis:subject :MotionCommand ; horis:property :requestedSpeed ; horis:atMost 0.25 ]
+        [ horis:subject :MotionCommand ; horis:property :nearestHumanDistance ; horis:atLeast 0.5 ]
+        [ horis:subject :MotionCommand ; horis:property :nearestHumanDistance ; horis:below 1.0 ]
+    ) ] ;
+    horis:then [ horis:property :verdict ; horis:value :Permitted ] ;
+    horis:explain "Open floor, person beyond the minimum separation, collaborative speed — permitted" .
+# PRP-005 completeness-cover:end
