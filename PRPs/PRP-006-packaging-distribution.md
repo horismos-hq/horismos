@@ -33,6 +33,10 @@ docs site + examples, with CI that enforces the anti-wrapper guarantee.
 
 1. Repo layout: single workspace repo (lean) vs. split repos.
 2. Docs tool (mdBook vs. MkDocs Material) — pick for versioned docs + Python API refs.
+   Decided 2026-09-03: MkDocs Material, for the captain-directed developer docs site —
+   `mkdocs.yml` at the repo root, `docs/` as the source tree, `docs/framework/` mounted
+   unchanged as the reference section; generated API reference (rustdoc + mkdocstrings)
+   remains open.
 3. Name availability on crates.io/PyPI for `horismos` (likely taken — decide fallback:
    `horismos-core`/`horismos-ai`/`horismosframe`) — feeds back into PRP-000 naming.
 4. **[DECIDE, doc 15 §4 / doc 09]** Default redaction posture (opt-in vs. opt-out)

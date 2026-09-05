@@ -14,7 +14,9 @@ and the kernel still runs.
 
 ## Status
 
-Pre-alpha. Current, next, and shipped state live in `PRPs/BOARD.md`.
+Pre-alpha; current, next, and shipped state live in `PRPs/BOARD.md`. The symbolic core
+(PRP-001/002), the Python bindings (PRP-003) and the Rust agent loop (PRP-004) are merged;
+verification (PRP-005) and standards/host integration (PRP-008) are in build on branches.
 
 - `docs/framework/` — the framework definition (docs 00–15), written in shipped voice
 - `PRPs/` — phase plans (PRP-000 vision → PRP-008 standards & host integration)
@@ -40,6 +42,22 @@ make test      # Rust tests + pytest
 make lint      # fmt check, clippy, ruff, mypy
 make verify    # everything above + the anti-wrapper no-model-gate
 ```
+
+## Documentation site
+
+The developer-facing docs (landing page, zero-key quickstart, "coming from LangGraph",
+the coding-agent change gate, a use-case gallery, and the framework reference) are an
+MkDocs Material site with sources in `docs/` and config at the repo root, published at
+<https://billaram.github.io/horismos/> (deployed from `main` by `.github/workflows/docs-pages.yml`):
+
+```sh
+uvx --with mkdocs-material mkdocs serve            # http://127.0.0.1:8000
+uvx --with mkdocs-material mkdocs build --strict   # the docs gate
+```
+
+Every runnable snippet on the site's own pages is executed by
+`python/tests/test_devdocs_snippets.py` (the framework reference's Python API page is exercised
+by `python/tests/test_quickstart.py`); conventions live in `docs/README.md`.
 
 ## License
 

@@ -572,15 +572,26 @@ impl<'a> Agent<'a> {
                 let Some(decl) = schema.property(property) else {
                     continue;
                 };
-                let value = match decl.range {
-                    Some(PropertyRange::Class(_)) => json_value
-                        .as_str()
-                        .and_then(|name| self.onto.node_ref(name).ok())
-                        .map(|iri| Value::Ref(Ref::new(iri))),
-                    _ => json_to_value(json_value, decl),
+                // `derive_class_schema` asks for a JSON array wherever the
+                // property is multi-valued, so a schema-conforming answer
+                // carries one element per proposed value. Each element is
+                // one candidate fact; cardinality stays the gate's call
+                // (`assert_instance_as` below), never decided here.
+                let candidates: Vec<&serde_json::Value> = match json_value {
+                    serde_json::Value::Array(items) => items.iter().collect(),
+                    scalar => vec![scalar],
                 };
-                if let Some(value) = value {
-                    properties.push((property, value));
+                for candidate in candidates {
+                    let value = match decl.range {
+                        Some(PropertyRange::Class(_)) => candidate
+                            .as_str()
+                            .and_then(|name| self.onto.node_ref(name).ok())
+                            .map(|iri| Value::Ref(Ref::new(iri))),
+                        _ => json_to_value(candidate, decl),
+                    };
+                    if let Some(value) = value {
+                        properties.push((property, value));
+                    }
                 }
             }
             let fact_confidence = result
@@ -1526,5 +1537,146 @@ mod tests {
             "the first instance's commit must be rolled back when a later instance in the \
              same perception attempt is gate-rejected"
         );
+    }
+
+    /// Regression target: `derive_class_schema` asks the bridge for a JSON
+    /// array wherever a property is multi-valued (`:hasSymptom`, `0..*`),
+    /// so a schema-conforming answer is `"hasSymptom": [":CrushingChestPain"]`.
+    /// `assert_perceived` used to resolve class-ranged values with
+    /// `as_str()` only, silently dropping the array — `:Assess` was then
+    /// unreachable on every live run and the loop took the `onUnreachable`
+    /// escalation. The array shape must reach `:Done` exactly like the
+    /// bare-string shape the mock bridge sends.
+    #[test]
+    fn the_immediate_track_reaches_done_when_perception_returns_an_array_of_symptoms() {
+        let onto = triage();
+        let bridge = StubBridge {
+            id: "mock:triage".to_owned(),
+            confidence: 0.9,
+            instances: vec![serde_json::json!({
+                "class": ":Patient",
+                "heartRate": 128,
+                "hasSymptom": [":CrushingChestPain"]
+            })],
+        };
+        let agent = Agent::builder(&onto)
+            .workflow(":Triage")
+            .expect("Triage is declared")
+            .bridge("claude", bridge)
+            .tool(
+                "assign_queue",
+                StubTool(vec![
+                    onto.node_ref(":queueRef").expect(":queueRef is declared"),
+                ]),
+            )
+            .tool(
+                "notify_nurse",
+                StubTool(vec![
+                    onto.node_ref(":pagedTo").expect(":pagedTo is declared"),
+                ]),
+            )
+            .build()
+            .expect("every binding is registered");
+
+        let mut world = World::new(&onto);
+        let now = chrono::DateTime::parse_from_rfc3339("2026-08-19T00:00:00Z")
+            .expect("a fixed RFC3339 literal parses");
+        let outcome = block_on(agent.run(
+            &mut world,
+            RunInput::new(
+                "run_immediate_array",
+                "58M, crushing chest pain, heart rate 128",
+                now,
+            ),
+        ))
+        .expect("the immediate track must complete");
+
+        assert_eq!(
+            onto.resolve(outcome.terminal),
+            "https://example.org/triage#Done",
+            "an array-valued symptom must not leave :Assess unreachable"
+        );
+        assert!(!outcome.fallback_taken);
+        let acuity = onto.node_ref(":acuity").expect(":acuity is declared");
+        let immediate = onto.node_ref(":Immediate").expect(":Immediate is declared");
+        assert_eq!(
+            outcome.decision,
+            Some((acuity, Value::Ref(Ref::new(immediate))))
+        );
+    }
+
+    /// Every element of an array-valued perception answer is one proposed
+    /// fact: all of them land on the subject and all of them are recorded
+    /// as perceived facts in the trace. Cardinality is still the gate's
+    /// call — nothing here bypasses it.
+    #[test]
+    fn an_array_valued_perception_asserts_every_element() {
+        let onto = triage();
+        let bridge = StubBridge {
+            id: "mock:triage".to_owned(),
+            confidence: 0.9,
+            instances: vec![],
+        };
+        let agent = Agent::builder(&onto)
+            .workflow(":Triage")
+            .expect("Triage is declared")
+            .bridge("claude", bridge)
+            .tool(
+                "assign_queue",
+                StubTool(vec![
+                    onto.node_ref(":queueRef").expect(":queueRef is declared"),
+                ]),
+            )
+            .tool(
+                "notify_nurse",
+                StubTool(vec![
+                    onto.node_ref(":pagedTo").expect(":pagedTo is declared"),
+                ]),
+            )
+            .build()
+            .expect("every binding is registered");
+
+        let mut world = World::new(&onto);
+        let result = PerceiveResult {
+            instances: vec![serde_json::json!({
+                "class": ":Patient",
+                "heartRate": 128,
+                "hasSymptom": [":CrushingChestPain", ":ChestPain"]
+            })],
+            confidence: 0.9,
+            fact_confidence: BTreeMap::new(),
+            accounting: Default::default(),
+        };
+
+        let (primary, facts) = agent
+            .assert_perceived(&mut world, &result)
+            .expect("two declared symptoms in an array are a well-formed instance");
+        let subject = primary.expect("the instance is the primary subject");
+        let has_symptom = onto
+            .node_ref(":hasSymptom")
+            .expect(":hasSymptom is declared");
+        let symptoms: Vec<&Value> = world.values(subject, has_symptom).collect();
+        let expected = [
+            Value::Ref(Ref::new(
+                onto.node_ref(":ChestPain").expect(":ChestPain is declared"),
+            )),
+            Value::Ref(Ref::new(
+                onto.node_ref(":CrushingChestPain")
+                    .expect(":CrushingChestPain is declared"),
+            )),
+        ];
+        assert_eq!(symptoms.len(), 2, "both symptoms must stand: {symptoms:?}");
+        for value in &expected {
+            assert!(
+                symptoms.contains(&value),
+                "{value:?} missing from {symptoms:?}"
+            );
+        }
+        assert_eq!(
+            facts.iter().filter(|f| f.property == has_symptom).count(),
+            2,
+            "both array elements must be recorded as perceived facts: {facts:?}"
+        );
+        assert_eq!(facts.len(), 3, "heartRate plus two symptoms: {facts:?}");
     }
 }
