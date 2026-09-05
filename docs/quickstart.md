@@ -56,12 +56,14 @@ from horismos import (
 onto = Ontology.load("examples/triage/triage.ttl",
                      imports=["examples/triage/snomed-ct-subset.ttl"])
 print(onto.namespaces[""])
-print([(r.curie, r.priority, r.explain) for r in onto.rules])
+print(len(onto.rules), [r.curie for r in onto.rules])
+print(onto.rules[0].priority, onto.rules[0].explain)
 ```
 
 ```text
 https://example.org/triage#
-[(':r1', 10, 'Tachycardia with chest pain — immediate track')]
+6 [':r1', ':r2', ':r3', ':r4', ':r6', ':r5']
+10 Tachycardia with chest pain — immediate track
 ```
 
 ## 2. Assert typed facts, get a decision with a proof
@@ -132,7 +134,7 @@ print(world.query(":Patient", acuity=":Immediate"))
 
 ## 5. Change a base fact, watch the conclusion follow
 
-Derived facts are never left stale. Replacing the heart rate the rule rested on invalidates the conclusion in the same transaction; putting it back re-derives it:
+Derived facts are never left stale — and never left empty either. Replacing the heart rate that `r1` rested on withdraws its conclusion and re-derives from the new base facts in the same transaction: at 90 bpm `r3` fires instead, so `:Immediate` becomes `:Standard`. Putting the heart rate back returns `:Immediate`. There is no intermediate state in which the property is unassigned, because the rule set is total and every transaction ends at the fixed point:
 
 ```python
 world.assert_(":Patient", subject=":p7", heart_rate=90)
@@ -142,7 +144,7 @@ print(world.value(p, ":acuity"))
 ```
 
 ```text
-None
+Ref(:Standard)
 Ref(:Immediate)
 ```
 

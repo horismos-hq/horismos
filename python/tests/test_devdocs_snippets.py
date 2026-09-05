@@ -5,9 +5,16 @@ extracted and executed in order, in one namespace per page, from the repo
 root — the same discipline ``test_quickstart.py`` applies to doc 11.
 Illustrative blocks carry a title (```python title="…") and are deliberately
 not matched. A docs edit that breaks a sample breaks this test.
+
+Every ```text fence that immediately follows a runnable fence is the output the
+page shows for it, and is pinned to the page's real stdout — the site's promise
+is that a shown proof is verbatim. Both guards run only where ``make test`` runs;
+the repository has no pull-request-triggered check yet (PRP-006).
 """
 
 import contextlib
+import difflib
+import functools
 import io
 import os
 import re
@@ -39,16 +46,40 @@ PAGES: dict[str, str] = {
 # dedented by exactly that prefix before it runs.
 _RUNNABLE = re.compile(r"^(?P<indent>[ \t]*)```python\n(?P<body>.*?)^(?P=indent)```", re.M | re.S)
 
+# A ```text fence is that sample's shown output only when it immediately follows a
+# runnable fence at the same indent, with nothing but blank lines between them. A
+# diagram or a shell transcript elsewhere on the page never matches.
+_SHOWN_OUTPUT = re.compile(
+    r"^(?P<indent>[ \t]*)```python\n.*?^(?P=indent)```\n(?:[ \t]*\n)*"
+    r"(?P=indent)```text\n(?P<body>.*?)^(?P=indent)```",
+    re.M | re.S,
+)
+
+
+def _dedent(indent: str, body: str) -> str:
+    lines = [line.removeprefix(indent) if line.strip() else "" for line in body.splitlines()]
+    return "\n".join(lines) + "\n"
+
 
 def _runnable_blocks(page: Path) -> list[str]:
-    blocks = []
-    for match in _RUNNABLE.finditer(page.read_text()):
-        indent, body = match.group("indent"), match.group("body")
-        lines = [line.removeprefix(indent) if line.strip() else "" for line in body.splitlines()]
-        blocks.append("\n".join(lines) + "\n")
-    return blocks
+    return [
+        _dedent(m.group("indent"), m.group("body")) for m in _RUNNABLE.finditer(page.read_text())
+    ]
 
 
+def _shown_output_blocks(page: Path) -> list[tuple[int, str]]:
+    """(line number, dedented body) of every fence the page presents as a sample's output."""
+    text = page.read_text()
+    return [
+        (
+            text.count("\n", 0, m.start("body")) + 1,
+            _dedent(m.group("indent"), m.group("body")).strip("\n"),
+        )
+        for m in _SHOWN_OUTPUT.finditer(text)
+    ]
+
+
+@functools.cache
 def _run_page(page: str) -> str:
     blocks = _runnable_blocks(DOCS / page)
     assert blocks, f"{page} has no runnable ```python blocks"
@@ -86,6 +117,42 @@ def test_every_page_with_runnable_blocks_is_listed() -> None:
 @pytest.mark.parametrize(("page", "expected"), sorted(PAGES.items()))
 def test_the_page_runs_verbatim(page: str, expected: str) -> None:
     assert expected in _run_page(page)
+
+
+def _closest_window(documented: list[str], actual: list[str]) -> list[str]:
+    """The slice of the real stdout that best lines up with the documented block."""
+    anchors = difflib.SequenceMatcher(
+        None, documented, actual, autojunk=False
+    ).get_matching_blocks()
+    start = next((m.b - m.a for m in anchors if m.size), 0)
+    start = max(0, min(start, len(actual)))
+    return actual[start : start + len(documented)]
+
+
+@pytest.mark.parametrize("page", sorted(PAGES))
+def test_every_shown_output_block_is_the_real_stdout(page: str) -> None:
+    shown = _shown_output_blocks(DOCS / page)
+    assert shown, f"{page} presents no output for its runnable samples"
+    stdout = _run_page(page)
+    stale = []
+    for line, documented in shown:
+        if documented in stdout:
+            continue
+        actual = _closest_window(documented.splitlines(), stdout.splitlines())
+        diff = "\n".join(
+            difflib.unified_diff(
+                documented.splitlines(),
+                actual,
+                fromfile=f"{page}:{line} (documented)",
+                tofile=f"{page}:{line} (actual stdout)",
+                lineterm="",
+            )
+        )
+        stale.append(diff)
+    assert not stale, (
+        f"{len(stale)} shown output block(s) on {page} no longer match what the samples print — "
+        "regenerate the block from the sample's real stdout:\n\n" + "\n\n".join(stale)
+    )
 
 
 def test_the_change_gate_withdraws_approval_when_the_base_drifts() -> None:
