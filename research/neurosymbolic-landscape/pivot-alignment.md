@@ -558,7 +558,7 @@ shape while stopping short of declaring preconditions or effects.
 - **J2 — Replace "typed decisions" with cross-answer consistency and *epistemic* (not
   merely structural) auditability in the positioning.** Rests on the vendor's own
   documented non-invariance and its statement that it generates no explanations. Owner:
-  **PRP-000**; captain-held as OD-6 in the report.
+  **PRP-000**; captain-held as Jev OD-6 in the report.
 - **J3 — Name the inverse confidence threat in doc 15.** Doc 15 §1 names injected text
   that *clears* the threshold; it does not name an adversary who *depresses* confidence
   to force `horis:fallback` on every case — a denial-of-service on the human in the loop

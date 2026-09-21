@@ -135,7 +135,7 @@ wiki, and each is closed only in its owning PRP. The corpus keeps score:
 | RL-axis open decisions OD-1–OD-4 | 4 | [RL deep dive §5](reports/2026-09-02-rl-deep-dive.md#5-open-decisions-captain-shaped-flagged-not-answered-here) | captain (OD-1, OD-2), PRP-002 text (OD-3), PRP-007 (OD-4) |
 | Typed-decision-axis items J1–J3 (shape-preserving, each with its measured basis) | 3 | [pivot-alignment](neurosymbolic-landscape/pivot-alignment.md#jev-deep-dive-delta-2026-09-21-the-verdict-re-issued-on-a-third-axis) | PRP-005 (J1), PRP-000 (J2), doc 15 / PRP-008 (J3) |
 | Typed-decision-axis ranked moves R1–R9 and the "do not do" list | 9 + 6 | [Jev deep dive §7](reports/2026-09-21-typesafe-jev-deep-dive.md#7-q-e-ranked-concrete-moves) | PRP-005, PRP-000, PRP-002, doc 06, doc 15 / PRP-008, two "no PRP owns this" |
-| Typed-decision-axis open decisions OD-1–OD-8 | 8 | [Jev deep dive §9](reports/2026-09-21-typesafe-jev-deep-dive.md#9-open-decisions) | PRP-002 (OD-1), unowned `ProposalStep` successor (OD-2), PRP-005 (OD-3, OD-7), no PRP (OD-4), doc 15 / PRP-008 (OD-5), PRP-000 (OD-6), PRP-002 / doc 09 (OD-8) |
+| Typed-decision-axis open decisions OD-1–OD-8 | 8 | [Jev deep dive §9](reports/2026-09-21-typesafe-jev-deep-dive.md#9-open-decisions) | PRP-002 / doc 09 (OD-1), unowned `ProposalStep` successor (OD-2), PRP-005 (OD-3, OD-7), no PRP (OD-4), doc 15 / PRP-008 (OD-5), PRP-000 (OD-6), PRP-002 / doc 06 (OD-8) |
 | PRP-007 open items from the founding sweep (+2 from sweep #2) | 5 | [prp-007-open-items](ontology-authoring/prp-007-open-items.md) | PRP-007 |
 | Required PRP-008 D-items proposed by the second opinion | 10 | [second opinion](reports/2026-08-24-thin-pivot-second-opinion.md#required-prp-008-decisions) | PRP-008 (now its D1–D10) |
 | Founding-sweep follow-ups | 5 | [founding sweep §5](reports/2026-08-24-founding-sweep.md#5-what-this-changes-concretely) | PRP-000, PRP-007, doc 02, scenario choice |
@@ -178,11 +178,12 @@ OD-1–OD-4 above.]**
   System Two" vocabulary (Jev OD-6) — a sibling of X10 and A13, with the literature's own
   definitions placing Horismos in the System 2 slot.
 - **PRP-002 / doc 09.** Whether the trace records *how* a proposer's confidence was
-  produced, and optionally the full distribution (Jev OD-1). Whether a proof has to be
-  *minimal* — a subset-minimal sufficient reason — or whether the full derivation is the
-  deliverable (Jev OD-8; the report recommends adding a derived minimal support set
-  alongside the proof, and not soon). OD-8 is the one open decision on this axis that is
-  not about the neural boundary at all.
+  produced, and optionally the full distribution (Jev OD-1).
+- **PRP-002 / doc 06.** Whether a proof has to be *minimal* — a subset-minimal sufficient
+  reason — or whether the full derivation is the deliverable (Jev OD-8; the report
+  recommends adding a derived minimal support set alongside the proof, and not soon).
+  Jev OD-8 is the one open decision on this axis that is not about the neural boundary
+  at all.
 - **PRP-005.** Whether `horis:confidence` acquires a declared target risk and a
   calibration procedure instead of an author-chosen constant (Jev OD-3); whether the
   assumption manifest's five fixed fields gain a sixth for proposer evidence (Jev OD-7;

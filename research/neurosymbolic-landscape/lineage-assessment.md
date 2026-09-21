@@ -120,7 +120,7 @@ invites the Scallop/LNN/DeepProbLog comparison Horismos loses on its own terms. 
 delta adds is a *fork in the positioning vocabulary*, of the same shape as sweep #2's X10
 ("does 'kernel' survive OaK's usage"): adopt "the System 2 that a System One proposes
 into", reject the frame, or stay silent and revisit if the category survives. The deep
-dive files this as **OD-6** and recommends staying silent with a prepared adoption,
+dive files this as **Jev OD-6** and recommends staying silent with a prepared adoption,
 because the *substance* — cross-answer consistency and epistemic auditability — does not
 depend on the category surviving. Two cautions if it is adopted: cite the literature's
 definitions rather than the vendor's, and note that in every prior ML use System 1 is the
