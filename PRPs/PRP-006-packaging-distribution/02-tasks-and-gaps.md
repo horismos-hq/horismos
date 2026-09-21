@@ -76,3 +76,42 @@ is recorded here.
 
 - **crates.io.** This branch did not touch it; D4 above and `cargo add horismos-core`
   in the DoD remain open.
+
+## Deferred from review (2026-09-21, branch `fm/horismos-pypi-a1`)
+
+Open and unresolved, deliberately left for a follow-up: the review that raised them
+judged each documentation accuracy or test coverage rather than a correctness or safety
+defect. `README.md` becomes the permanent PyPI long description at the first upload, not
+at merge, and nothing can upload while the environments and Trusted Publishers above do
+not exist — so there is an editing window after this branch lands.
+
+- **The README's fail-closed message may be wrong** (`README.md`). The README quotes the
+  message the verifier emits when `:r3` is dropped from the example ontology. The review
+  reads `render_region_conditions` (`crates/horismos-core/src/verify/rules.rs:2123-2125`)
+  and its wrapper (`rules.rs:1178-1181`) as producing "no acuity assigned when no
+  heartRate assigned" — the uncovered region being the *absent* heart rate,
+  `RegionPredicate::Absent { value: None }`, the shape asserted at
+  `crates/horismos-core/src/verify/mod.rs:603` — and reads "heartRate < 0" as
+  unreachable. The fix round that wrote the sentence reports having measured the quoted
+  message by deleting `:r3` and running it. The two accounts conflict and one of them is
+  wrong. Settling it means re-running the deletion against the current build and quoting
+  what is actually emitted, or cutting the quote and stating the behaviour without
+  quoting output.
+- **No gate executes the README example** (`README.md`). The example carries a fresh
+  inline ontology and pins exact proof-tree output, but nothing runs it: `mkdocs.yml`
+  sets `docs_dir: docs` and lists `README.md` under `exclude_docs`, and
+  `python/tests/test_devdocs_snippets.py` walks only its hardcoded `PAGES` map under
+  `docs/`. This repository has no PR-triggered CI either. A later change to
+  `explain().render()` spacing, the `via <rule>` prefix, the `(asserted by the api)`
+  provenance label, or the `Ontology.load` / `onto.ref` signatures would leave the
+  published block silently stale. Either bring the README example under the existing
+  executable-snippet harness so drift breaks `make test`, or drop the pinned output so
+  there is nothing to go stale.
+- **Two brief constraints were superseded by ruling** (`README.md`, `CONTRIBUTING.md`).
+  The original brief for this branch said `docs.horismos.ai` must not be used because the
+  domain was not live, and scoped the README change to one short paragraph naming the
+  prebuilt platforms. Both were deliberately overridden later: the domain was re-verified
+  live (`docs.horismos.ai` returns 200; `horismos-hq.github.io/horismos/` 301-redirects
+  to it), and the README was rewritten end to end for the package audience with the
+  contributor material moved verbatim into a new `CONTRIBUTING.md`. Recorded so the
+  divergence is traceable; it is bookkeeping and needs no change.
