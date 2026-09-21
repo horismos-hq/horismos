@@ -67,7 +67,11 @@ Append-only. One line per merged PR: date, PR link, summary.
   fact **resold on OpenRouter** (`typesafe/jev-1.13`, `text->decisions`, $0.042/Mtok prompt
   and $0 completion) but does not appear in the standard `/api/v1/models` listing, so a
   catalogue survey cannot see it. Recorded in
-  [the dive's](reports/2026-09-21-typesafe-jev-deep-dive.md) §3.5 with the retrieval method.
+  [the dive's](reports/2026-09-21-typesafe-jev-deep-dive.md) §3.5 with the retrieval method,
+  and appended as a dated correction section on
+  [`typed-decision-models.md`](neurosymbolic-landscape/typed-decision-models.md), the page
+  that owns Jev's availability and pricing facts — access improved, integration did not, and
+  the page's pricing and no-tool-calling claims both stand.
   **Reading log: +3 rows under Q9** — the `typesafe/jev-1.13` model-endpoints record, the
   catalogue listing that omits it, and the three-model `supported_parameters` /
   `supports_tool_choice` sample — taking the dive's Q9 section from ~145 to ~148 and the
