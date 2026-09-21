@@ -17,7 +17,7 @@ fired by the runtime when workflow preconditions hold.
         horis:asserts [ horis:property :queuedAt ; horis:value horis:now ] ;
         horis:asserts [ horis:property :queueRef ; horis:type xsd:string ]
     ] ;
-    horis:binding "python:ehr_client.assign_queue" ;
+    horis:binding "rust:assign_queue" ;
     horis:timeout "5s" ;
     horis:idempotent false .
 ```
@@ -47,8 +47,7 @@ are simply not invocable: an ActionStep that reaches one is refused with a domai
 error naming the scheme, never a silent no-op.
 
 MCP deserves emphasis: the ecosystem already exposes domain tools over MCP. The
-Horismos answer is not to rebuild them but to wrap them in a typed contract, so that
-the runtime's authority over the call is the declaration's, not the server's. Where
+Horismos answer is not to rebuild them but to wrap them in a typed contract. Where
 the MCP tool's own schema is looser than the `horis:takes`/`horis:effect`
 declaration, the declaration wins: out-of-contract calls can't be made,
 out-of-contract results can't land.
@@ -77,7 +76,7 @@ synchronous call, and the contract above extends with:
   FHIR ActivityDefinition/operations) rather than inventing a parallel one — but this is
   not forced: a tool that has no natural standards analog stays a plain `horis:Tool`.
 
-None of this changes tools without an external commit (the shipped `rust:`/`python:`
+None of this changes tools without an external commit (the shipped `rust:`
 in-process bindings) — they keep the synchronous contract above unmodified.
 
 ## The candidate-artifact boundary
