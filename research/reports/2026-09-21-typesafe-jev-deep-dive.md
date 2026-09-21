@@ -2812,10 +2812,11 @@ decide whether Horismos does this", and the corresponding OD in §9 is self-cont
 | **R8** | **Run the joint-consistency experiment, and publish it.** Ask a typed-decision model a set of logically entailed questions over the triage fixtures, measure the inconsistency rate, then show the same questions answered through a Horismos overlay where the rule layer makes the entailment hold by construction. | This converts §6.1's strongest positioning claim from an argument into a number, using a property the vendor has already documented as a weakness. It is the cheapest credible piece of external evidence the project could produce, and it does not require building a production bridge — a throwaway harness suffices. | M | **No PRP owns this.** Positioning evidence for PRP-000; nearest home is the research corpus itself | **Decide** → OD-4 (same sequencing question) |
 | **R9** | **Fund or run the experiment nobody has run: a Jabbour-style clinician study where the artifact under test is a *derivation over declared facts*, not a saliency map.** Same design, same biased-model arm; measure whether scrutiny rises specifically on the wrong-AI trials. | §6.3 rests on a distinction between post-hoc explanation and reason-giving that is argued from first principles and measured almost nowhere. The one positive signal — Han et al. 2026's eye-tracking result, where "verifiable explanations" raised AI↔image gaze switches from **6.04 to 8.52** on incorrect-AI trials — is a single small study of an artifact defined as "brief verification cues linked to the current AI recommendation", which is structurally what a proof tree is. Everything else in the human-factors literature (Gomez 2025, Nicolson 2025, Buçinca 2021, Bansal 2021, Nagendran 2024) measures the *other* artifact and finds it does not help. Until someone runs this, the wedge in §6.3 is a legal argument with no human-factors evidence behind it — and Ghassemi's human-factors argument stands unanswered. | L | **No PRP owns this.** Validation evidence; nearest home is the [validation ladder](../validation/00-ladder.md) as an instrument on rung 1 | **Decide** — it is a funding call, not a build |
 
-**[added 2026-09-21, after §3.5's OpenRouter finding]** **R8 deserves a note — though not
-the correction first drafted here.** Its effort was scored **M** on the assumption that
-reaching a typed-decision model meant a new provider integration, and §3.5's resale finding
-looked at first like it removed that assumption. It does not, and the repo says why.
+**[added 2026-09-21, after §3.5's OpenRouter finding]** **A restatement this section
+proposed on the strength of §3.5 does not survive contact with the repo, and is withdrawn
+here rather than quietly dropped.** The proposal was to restate **R8**'s effort as **S**, on
+the reasoning that OpenRouter resale put Jev within reach of the bridge this repo already
+ships. That reasoning is wrong, and the repo says why.
 
 **[measured — local repo, [`adfc27a`](https://github.com/billaram/horismos/blob/adfc27a)]**
 Registering a backend here really is cheap: `crates/horismos-bridges/src/openrouter.rs` is
@@ -2834,8 +2835,10 @@ output modality of `decisions` rather than text.
 **[inference]** Setting `OPENROUTER_MODEL=typesafe/jev-1.13` on the shipped bridge would
 therefore fail at the forced-tool-call step rather than work. Reaching Jev from this repo is
 **not** a configuration-level change: it needs its own `Bridge` implementation, or a
-distinct request/response path inside the existing one. **R8 stays at M**, and the throwaway
-harness it already assumed is still the thing to build.
+distinct request/response path inside the existing one. What is withdrawn is the proposed
+**S**, and nothing else: **R8's original M is untouched**, and so is the reason the table
+gives for it — the experiment never required a production bridge, and a throwaway harness
+still suffices.
 
 **[measured]** What §3.5 does buy is narrower and still worth recording: OpenRouter resale
 removes the account and waitlist barrier, putting the model within reach at **$0.042/Mtok**
@@ -2873,9 +2876,12 @@ not make the dependency wise.
   unchanged, since resale swaps the counterparty and not the processing (§3.5); and
   `ProposalStep`/`rank` still does not execute, so the slot it fits best returns
   `WorkflowError::StepDeferred` (§6.2). Cheap access in fact adds a fifth, practical
-  blocker rather than removing one **[measured — local repo]**: the only non-mock `Bridge`
-  this repo ships cannot talk to Jev as written, because `openrouter.rs` forces a tool call
-  on every `perceive` and `rank` and Jev has no tool-calling surface (§7 above). Easy access
+  blocker rather than removing one. **[measured — local repo]** `openrouter.rs` sends a
+  `tools` array plus a forced `tool_choice` on every `perceive` (`:306,310`) and `rank`
+  (`:391,403`), and `extract_tool_call` (`:239`) fails the call outright when the reply
+  carries no `tool_calls`; Jev's `supported_parameters` is empty and it has no tool-calling
+  surface (§3.5, §3.1 correction #6). **[inference]** So the only non-mock `Bridge` this repo
+  ships cannot talk to Jev as written (§7 above). Easy access
   changes what it costs to *reach* the model. It changes nothing about what a *production
   dependency* would cost, and nothing about what even an experiment still has to build.
 - **Do not adopt Choice/Score/Noul as the proposer schema contract.** It is strictly less
