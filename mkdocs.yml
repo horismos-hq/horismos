@@ -13,8 +13,8 @@ site_url: https://horismos-hq.github.io/horismos/
 site_description: >-
   Ontology-first decision kernel for LLM agents. Your rules decide; the model translates.
   Rust core, Python bindings, a proof for every conclusion.
-repo_url: https://github.com/billaram/horismos
-repo_name: billaram/horismos
+repo_url: https://github.com/horismos-hq/horismos
+repo_name: horismos-hq/horismos
 edit_uri: edit/main/docs/
 copyright: Horismos is dual-licensed MIT OR Apache-2.0.
 
@@ -31,23 +31,24 @@ theme:
     logo: material/hexagon-multiple-outline
     repo: fontawesome/brands/github
   palette:
+    # Light is the designed default; both schemes are fully tokenised in
+    # docs/stylesheets/extra.css (primary/accent are "custom" so the theme
+    # ships no colour of its own).
     - media: "(prefers-color-scheme: light)"
       scheme: default
-      primary: deep purple
-      accent: amber
+      primary: custom
+      accent: custom
       toggle:
         icon: material/brightness-7
         name: Switch to dark mode
     - media: "(prefers-color-scheme: dark)"
       scheme: slate
-      primary: deep purple
-      accent: amber
+      primary: custom
+      accent: custom
       toggle:
         icon: material/brightness-4
         name: Switch to light mode
   features:
-    - navigation.tabs
-    - navigation.tabs.sticky
     - navigation.sections
     - navigation.indexes
     - navigation.top
@@ -68,6 +69,7 @@ markdown_extensions:
   - pymdownx.details
   - pymdownx.highlight:
       anchor_linenums: false
+      pygments_lang_class: true    # language-* on the wrapper: output blocks are stylable
   - pymdownx.inlinehilite
   - pymdownx.superfences
   - pymdownx.tabbed:
