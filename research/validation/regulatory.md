@@ -5,9 +5,10 @@
 The FDA's non-device CDS exemption is structurally favorable to horismos's proof-tree
 transparency, but does not guarantee automatic qualification, especially for
 time-critical scenarios. The FDA's Predetermined Change Control Plan (PCCP) guidance,
-finalized December 2024, maps unusually well onto horismos's ontology-as-versioned-
-artifact model — a genuinely strong story to have ready for a regulator much later,
-not now.
+finalized December 2024 *[corrected 2026-09-21 — the PCCP guidance is dated August 2025;
+see the Jev deep dive delta below]*, maps unusually well onto horismos's
+ontology-as-versioned-artifact model — a genuinely strong story to have ready for a
+regulator much later, not now.
 
 ## Evidence
 
@@ -206,6 +207,7 @@ exists yet.
 
 ## Last-verified
 
-2026-09-21 (Jev deep dive delta appended: two dates in Evidence corrected, the January 2026
+2026-09-21 (Jev deep dive delta appended: two dates corrected — the PCCP date, which appears
+in both the Claim and Evidence, and the revised CDS guidance's date in Evidence; the January 2026
 CDS guidance and the August 2026 GenAI discussion paper read as primary sources, non-FDA
 regimes added; sweep #2 delta unchanged, last checked 2026-09-02)

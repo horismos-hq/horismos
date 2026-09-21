@@ -54,9 +54,13 @@ this report concerns a product called Dev.
    option (1970), calibrated discriminative classification, selective prediction,
    learning-to-defer. What is genuinely new is the *product shape*: declare the whole
    question set up front and answer it in one pass (§4).
-4. **Four of the fourteen intake facts were wrong** and are corrected in a table at §3.1,
-   including the access model, the Score primitive's nature, and the determinism posture
-   — TypeSafe explicitly declines determinism in favour of "consistency" (§3.1, §6.2.4).
+4. **Four of the intake facts were wrong** — the benchmark's reference answers are two
+   frontier models rather than humans; the "0% structured-output error" figure is stated
+   by its own author to be "not empirical"; the interpretability critique attributed to
+   TypeSafe is a third party's; and there are three co-founders rather than one. The full
+   intake table, including the sharpenings and the one unresolved discrepancy, is at §3.1.
+   Separately, and not an intake fact: TypeSafe explicitly declines determinism in favour
+   of "consistency" (§3.1 row 14, §6.2.4).
 5. **The strongest positioning finding is the vendor's own.** TypeSafe publishes that its
    answers are **not jointly constrained** — a Noul at 0.22 and a Choice at 0.01 on the
    same proposition; a claim and its negation summing to 1.19. A rule layer over a fixed
@@ -118,10 +122,6 @@ confirmed against a primary source or two independent secondary ones:
 | C | Routing/cascades, constrained decoding and structured output, non-autoregressive and parallel decoding, the "System 1 / System 2" framing's lineage | Q-B (half) |
 | D | Adoption evidence, independent benchmarks, the skeptical case in critics' own words, marketing momentum vs demonstrated capability | Q-C |
 | E | Post-2026-05 regulatory and clinical-AI literature on explanation-vs-calibration; HTI-5 status; EU AI Act; the steelman of "auditability is overrated" | Q-D3 |
-
-**Naming, once, for the record.** The model is **Jev**, from TypeSafe (also styled
-TypeSafe AI). The captain's intake referred to it as "Dev"; that is a mishearing, and
-nothing in this report concerns a product called Dev.
 
 **Scope discipline.** This is a research and documentation change. No `crates/` file is
 touched, no PRP's decided text is edited, nothing is implemented. Where a finding would
@@ -308,7 +308,8 @@ after the fact.
 
 **[inference]** The mechanical cost of adding a `typesafe:` prefix is therefore near
 zero. The interesting question is never "can it plug in"; it is what the gate is
-entitled to demand once it does (§4.4) and what the trace has to carry (§4.5).
+entitled to demand once it does (§6.2) and what the trace has to carry (§6.4, OD-1
+and R4).
 
 ### 2.5 What the gate checks, and what it does not
 
@@ -364,7 +365,7 @@ boundary, after listing what an attacker cannot do:
 that §3.6 argues Jev's "hallucination is impossible by construction" marketing elides.
 Schema forcing buys type correctness; it does not buy decision correctness. Horismos
 says so about its own perception boundary. That candour is a positioning asset and
-should be used as one (§5, move R7).
+should be used as one (§7, move R3).
 
 ---
 

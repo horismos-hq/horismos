@@ -109,7 +109,7 @@ abstracts**; the vocabulary attaches to him through his NeurIPS 2019 keynote
 
 **[inference]** Under the literature's own definitions, **Horismos is a System 2** —
 explicit search over declared rules with backtracking
-(`crates/horismos-core/src/reason/backward.rs`), a symbolic decision procedure, and a
+([`crates/horismos-core/src/reason/backward.rs`](https://github.com/billaram/horismos/blob/adfc27a/crates/horismos-core/src/reason/backward.rs)), a symbolic decision procedure, and a
 proof. That is a third lineage label available to this page, and it has a property the
 other two lack: it is *current*, it is *published*, and it places Horismos in the slot a
 2025 ICLR paper already reserved for a symbolic engine.

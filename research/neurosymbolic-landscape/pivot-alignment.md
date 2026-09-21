@@ -547,8 +547,9 @@ shape while stopping short of declaring preconditions or effects.
 
 - **J1 — Measure the confidence the perception threshold compares against.** Rests on:
   `accepted = result.confidence >= p.confidence` over a number the model self-reports
-  (`crates/horismos-core/src/workflow/agent.rs`:492;
-  `crates/horismos-bridges/src/openrouter.rs`:322-331, **[measured — local repo]**);
+  ([`crates/horismos-core/src/workflow/agent.rs`](https://github.com/billaram/horismos/blob/adfc27a/crates/horismos-core/src/workflow/agent.rs):492;
+  [`crates/horismos-bridges/src/openrouter.rs`](https://github.com/billaram/horismos/blob/adfc27a/crates/horismos-bridges/src/openrouter.rs):322-331,
+  **[measured — local repo]**);
   ConfidenceBench's finding that calibration and accuracy diverge across model families
   ([arXiv:2607.20526](https://arxiv.org/abs/2607.20526)); Kotte's measurement that
   heuristic abstention violates stated risk targets on 7.5–12.5% of settings

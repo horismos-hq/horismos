@@ -52,9 +52,9 @@ calibration silently fails, and AUROC alone is blind to it
 rules right?* None of them asks the other question a Horismos deployment depends on:
 *is the acceptance threshold at the perception boundary right?* That boundary is
 `accepted = result.confidence >= horis:confidence`
-(`crates/horismos-core/src/workflow/agent.rs`:492, **[measured — local repo]**), and the
-number it compares against is, today, self-reported by the model and never measured
-(`docs/framework/08-bridge.md`: "the forced tool call's schema carries a `confidence`
+([`crates/horismos-core/src/workflow/agent.rs`](https://github.com/billaram/horismos/blob/adfc27a/crates/horismos-core/src/workflow/agent.rs):492,
+**[measured — local repo]**), and the number it compares against is, today, self-reported by the model and never measured
+([`docs/framework/08-bridge.md`](https://github.com/billaram/horismos/blob/adfc27a/docs/framework/08-bridge.md): "the forced tool call's schema carries a `confidence`
 number field the model must self-report"). A deployment could pass every rung on this
 ladder and still route the wrong third of its cases to a human — or fail to route the
 right ones.
@@ -105,7 +105,7 @@ that "internal-only validation systematically overstates real-world reliability"
 **[inference]** The deep dive's ranked move R2 proposes going further — choosing the
 threshold by split-conformal calibration against a *declared target risk* and publishing
 the implied abstention rate, so the number becomes a checkable statement rather than an
-author's choice. That is an open decision (OD-3, owner PRP-005), not a ladder change, and
+author's choice. That is an open decision (Jev OD-3, owner PRP-005), not a ladder change, and
 it is recorded here only because this is the page a reader would look at to ask "how
 would we know?".
 
@@ -133,7 +133,7 @@ because each one is an instrument or a caution, and none of them is a rung.
   subsets of the data**", because "**marginal coverage is a property over the distribution
   and does not give guarantees for singular prediction sets**" — with a worked example of a
   90% marginal guarantee delivering 92% coverage to one patient subgroup and **62%** to
-  another. **[inference]** This is a direct rider on the R2/OD-3 proposal below: any
+  another. **[inference]** This is a direct rider on the R2/Jev OD-3 proposal above: any
   published coverage number must be calibrated per deployment, reported by clinically
   meaningful subgroup, and stated together with its calibration distribution. Otherwise the
   ladder would be certifying a sentence that does not mean what a reader will take it to
