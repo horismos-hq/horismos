@@ -9,8 +9,18 @@ root. Both the wheel job and the source-distribution job in
 
 import pathlib
 import re
+import sys
 
-text = pathlib.Path("docs/framework/11-python-api.md").read_text()
+# The quickstart prints a proof tree, which renders with box-drawing characters
+# and the subsumption sign. On Windows, Python's stdout defaults to the console
+# code page (cp1252 on the runners), which has no mapping for those, so that
+# print failed the gate with `UnicodeEncodeError`. Reading the doc has the same
+# exposure the other way round: `read_text()` with no encoding uses the locale's,
+# not the UTF-8 the file is written in. Both are pinned to UTF-8 here so the gate
+# behaves identically on every runner.
+sys.stdout.reconfigure(encoding="utf-8")
+
+text = pathlib.Path("docs/framework/11-python-api.md").read_text(encoding="utf-8")
 section = re.split(r"^#+ .*Quickstart \(symbolic.*$", text, flags=re.M)[1]
 section = re.split(r"^#+ ", section, maxsplit=1, flags=re.M)[0]
 blocks = re.findall(r"```python\n(.*?)```", section, flags=re.S)
