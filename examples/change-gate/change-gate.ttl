@@ -79,10 +79,9 @@
 ## checks explicitly. Rules that agree may still overlap (both reject rules, both
 ## approve rules, a bot diff over 400 lines that also touches a protected path); the
 ## outcome is the same either way, but the proof cites whichever agreeing rule fired
-## last, i.e. the lowest priority (PRPs/PRP-002-reasoning-substrate/02-tasks-and-gaps.md,
-## 2026-09-05). The completeness covers at the end therefore each fill exactly one
-## reported region and overlap no other rule, so a cover never takes a specific rule's
-## explanation away.
+## last, i.e. the lowest priority. The completeness covers at the end therefore each
+## fill exactly one reported region and overlap no other rule, so a cover never takes
+## a specific rule's explanation away.
 
 :rejectStaleBase a horis:Rule ;
     horis:priority 100 ;
