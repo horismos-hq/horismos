@@ -2840,10 +2840,15 @@ distinct request/response path inside the existing one. What is withdrawn is the
 gives for it — the experiment never required a production bridge, and a throwaway harness
 still suffices.
 
-**[measured]** What §3.5 does buy is narrower and still worth recording: OpenRouter resale
-removes the account and waitlist barrier, putting the model within reach at **$0.042/Mtok**
-prompt and **$0** completion with no TypeSafe contract. That lowers the cost of *trying*
-Jev to a rounding error. It does not lower the cost of integrating it.
+**[measured — OpenRouter model-endpoints API, retrieved 2026-09-21]** What §3.5 does buy is
+narrower and still worth recording. The endpoint record lists Jev as `typesafe/jev-1.13`,
+`provider_name` **TypeSafe**, modality `text->decisions`, priced at **$0.042/Mtok** prompt
+and **$0** completion.
+
+**[inference]** Read as an access claim — anyone with an OpenRouter account can reach it
+today, with no TypeSafe contract and no waitlist — that lowers the cost of *trying* Jev to a
+rounding error, which is how §3.5 states it and on the same evidence. It does not lower the
+cost of integrating it.
 
 **[inference]** Nothing else in the table moves. **R6** is explicitly the *local*
 alternative and its case was never about access — it rests on latency, per-case cost, data
@@ -3175,12 +3180,14 @@ non-determinism. What evidence cannot settle is **sequencing**: PRP-006 (packagi
 next unlocked phase per the board, no PRP owns bridge backends now that PRP-004 is Done,
 and adding a backend competes for the same capacity. This is a roadmap call.
 
-**[measured — added 2026-09-21, after §3.5's OpenRouter finding; evidence only, the
-decision is unchanged]** One input to option (d) has moved, and it is a smaller one than it
-first appeared. The hosted option's **access barrier is gone**: Jev is resold on OpenRouter
-as `typesafe/jev-1.13` at **$0.042/Mtok** prompt and **$0** completion, so trying it needs
-no TypeSafe contract and no waitlist. **[inference]** Its **integration effort did not
-drop.** §7 records the measurement: `openrouter.rs` is this repo's only non-mock `Bridge`,
+**[added 2026-09-21, after §3.5's OpenRouter finding; evidence only, the decision is
+unchanged]** One input to the hosted option — **(d)** below — has moved, and it is a smaller
+one than it first appeared. **[measured — OpenRouter model-endpoints API, retrieved
+2026-09-21]** Jev is resold on OpenRouter as `typesafe/jev-1.13`, `provider_name`
+**TypeSafe**, at **$0.042/Mtok** prompt and **$0** completion. **[inference]** Two things
+follow, and only the first helps (d): its **access barrier is gone**, since trying it needs
+no TypeSafe contract and no waitlist; but its **integration effort did not drop.**
+§7 records the measurement behind the second: `openrouter.rs` is this repo's only non-mock `Bridge`,
 and it forces a `tool_choice` on every `perceive` and `rank` and fails the call when the
 reply carries no `tool_calls` — which is what a model with an empty `supported_parameters`
 and no tool-calling surface would return. Option (d) would still need its own `Bridge` or a
