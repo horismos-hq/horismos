@@ -209,8 +209,8 @@ What the boundary proves: the proposal was policy-legal and passed its declared 
 |---|---|
 | Typed proposal facts, RulesOnly decision, proofs, truth maintenance, the gate refusing self-approval | **Runs today** — everything on this page executed against the shipped engine |
 | Workflow around it (`ReasoningStep` with `onUnreachable` → human, `ActionStep` firing a merge tool with a validated effect) | Declared vocabulary and Rust interpreter exist today (`make demo` runs the triage workflow); a change-gate workflow is a Turtle exercise, not new engine work |
-| Base-hash check, sandbox execution, and the proposal envelope as a first-class typed boundary | **Landing in PRP-008** (host-adapter/runtime side) — the envelope's `horis:` vocabulary is minted jointly with PRP-007 |
-| A coding-harness adapter that materializes repository state (branch, dirty files, test status, path scopes) as a versioned projection with conditional commit | **Landing in PRP-008** — the second-domain proof that the host SPI is format-neutral, not FHIR-shaped |
+| Base-hash check, sandbox execution, and the proposal envelope as a first-class typed boundary | **Ships today** — `horismos-host::artifact` carries the typed proposal envelope, the base-hash check (`RejectionStage::BaseHash`), and the sandbox and authorization evidence terms |
+| A coding-harness adapter that materializes repository state (branch, dirty files, test status, path scopes) as a versioned projection with conditional commit | **Ships today** — `horismos-harness`, the second-domain proof that the host SPI is format-neutral, not FHIR-shaped |
 | Compiling a fragment from an existing `SKILL.md` / tool schema, with a coverage report | **Planned in PRP-007** (after PRP-008) |
 | Completeness / conflict / dead-rule verification of the eleven rules, with domain-term witnesses | **Yes** — `verify()` proves `:gateDecision` total and conflict-free; `Ontology.load` refuses the overlay otherwise |
 

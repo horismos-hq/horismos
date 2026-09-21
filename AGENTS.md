@@ -39,8 +39,11 @@ proof → NL). Delete the LLM and the kernel still runs.
   scheme unstyled. `theme.font: false` and "no external assets" are deliberate.
   **The site is public at <https://docs.horismos.ai/> (`docs/CNAME` + `site_url`) while
   the repository is private**: never publish a path a reader cannot open (`PRPs/`,
-  `research/`, `decisions/`, internal sweep-report names) — keep the claim, drop the
-  path, per `docs/README.md` § Conventions. `crates/`, `examples/`, `python/` and
+  `research/`, `decisions/`, bare filenames, internal sweep-report names) — keep the
+  claim, drop the path, per `docs/README.md` § Conventions. Check by enumerating every
+  code span and link target under `docs/`, not by a prefix grep, and follow each
+  pointer to its destination — a redirect onto a page that still carries a private
+  path just moves the dead end. `crates/`, `examples/`, `python/` and
   `make` targets are fine as orientation. Any inline `var(--horis-*)` in an SVG or
   inline style needs a literal light-scheme fallback: `extra.css` is the one unhashed
   stylesheet, and an unguarded `fill: var(…)` renders **black** when it is missing.

@@ -5,8 +5,7 @@ Everything here is importable from the top level unless noted.
 
 The PRP-008 host SPI and adapters are Rust-only in v1. Whole-bundle Python entry/exit
 surfaces are not exported yet; FHIR/repository parsing and mapping logic stay outside
-`horismos-py` and this package (no logic in bindings, `.claude/skills/pyo3-boundary`,
-unchanged). Everything below remains the current shipped Python API.
+`horismos-py` and this package (no logic in bindings, unchanged). Everything below remains the current shipped Python API.
 
 ## Quickstart (the canonical triage run)
 

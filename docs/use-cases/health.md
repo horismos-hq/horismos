@@ -1,6 +1,6 @@
 # Health
 
-Three scenes: VTE prophylaxis (the recommended first standards-anchored vertical slice for PRP-008), the triage flagship you met in the quickstart, and prior authorization — which is precisely the kind of decision that needs an appealable proof, and precisely why it is not the first build.
+Three scenes: VTE prophylaxis (the standards-anchored vertical slice that was built for PRP-008), the triage flagship you met in the quickstart, and prior authorization — which is precisely the kind of decision that needs an appealable proof, and precisely why it is not the first build.
 
 ## VTE prophylaxis
 

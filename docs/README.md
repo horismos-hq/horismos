@@ -62,6 +62,13 @@ for the deploy job to succeed. `site_url` in `mkdocs.yml` is that address.
   finding in prose instead. Repository paths that describe the shape of the code a
   reader will get (`crates/…`, `examples/…`, `python/…`, `make` targets) are fine to
   keep as orientation.
+  **Check it by enumeration, not by a prefix grep.** Grepping for known prefixes only
+  finds the names someone already thought of; it misses bare filenames
+  (`03-decisions.md`) and working-artefact names that carry no prefix at all. List
+  every inline code span and every link target under `docs/`, then classify each one —
+  an unresolvable file, directory, document or document *section* is in scope whatever
+  its prefix. And follow every pointer to its destination: replacing a private path
+  with a link to a page that still carries one only moves the dead end.
 - **The visual layer is one file.** `docs/stylesheets/extra.css` holds every colour
   as a `--horis-*` token with a light and a slate value; `mkdocs.yml` sets
   `primary: custom` / `accent: custom` so the theme ships no colour of its own. The

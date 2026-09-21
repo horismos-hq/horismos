@@ -82,8 +82,8 @@ FHIR/CIS or repo/harness ──Adapter (hydrate)──▶ ExternalSnapshot ─�
                                                        FHIR/CIS or repo/harness
 ```
 
-This is the reference data flow from the adopted design
-(`horismos-thin-pivot-s1/report.md` §"Reference data flow"). It changes nothing about the
+This is the reference data flow of the adopted bounded-projection design. It changes
+nothing about the
 dependency invariant above: the format-neutral contract lives in `horismos-host`; adapters
 live in their own crates (`horismos-fhir` and `horismos-harness`) and depend inward, never
 the reverse. A future HTTP transport may exist only in the FHIR adapter behind a feature;

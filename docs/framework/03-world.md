@@ -108,9 +108,9 @@ support was chained (a fact derived from a derived fact is invalidated too).
 
 This closes a decision doc 03 previously left ambiguous ("derived facts change only
 by re-running inference after base-fact changes" did not specify that re-running
-inference *invalidates* what no longer holds). The captain's ruling
-(`tm-derived-facts.md`) and PRP-002's decision record (`03-decisions.md`) make it
-concrete: **recompute-on-base-mutation**, not derivations-as-immutable-history. A
+inference *invalidates* what no longer holds). The captain's ruling and PRP-002's
+decision record make it concrete: **recompute-on-base-mutation**, not
+derivations-as-immutable-history. A
 derivation is a claim about the *current* world, not a logged event — the trace is
 where history lives (doc 09); the world is where the current fixed point lives.
 
