@@ -32,7 +32,7 @@
 
   --horis-symbolic: #3b5bdb;
   --horis-symbolic-soft: #eaeefc;
-  --horis-neural: #b8700f;
+  --horis-neural: #96590a;
   --horis-neural-soft: #fdf2e2;
   --horis-gate: #12736a;
   --horis-gate-soft: #dff0ed;
@@ -166,21 +166,11 @@
   height: 1.3rem;
 }
 
-/* Search affordance: a bordered field rather than a translucent slab. */
-.md-search__form {
-  background-color: var(--horis-paper-2);
-  border: 1px solid var(--horis-line);
-  border-radius: 0.4rem;
-  box-shadow: none;
-  height: 1.6rem;
-}
-.md-search__form:hover {
-  background-color: var(--horis-paper-3);
-  border-color: var(--horis-ink-3);
-}
+/* Search affordance: a bordered field rather than a translucent slab. Below
+   60em Material's search is a full-screen overlay with its own metrics, so the
+   field geometry is desktop-only and only the palette carries over. */
 .md-search__input {
   color: var(--horis-ink);
-  font-size: 0.68rem;
 }
 .md-search__input::placeholder {
   color: var(--horis-ink-3);
@@ -189,12 +179,28 @@
 .md-search__options .md-icon {
   color: var(--horis-ink-3);
 }
-[data-md-toggle="search"]:checked ~ .md-header .md-search__form {
-  background-color: var(--horis-paper);
-  border-color: var(--horis-symbolic);
-}
-.md-search__output {
-  border-radius: 0 0 0.4rem 0.4rem;
+@media screen and (min-width: 60em) {
+  .md-search__form {
+    background-color: var(--horis-paper-2);
+    border: 1px solid var(--horis-line);
+    border-radius: 0.4rem;
+    box-shadow: none;
+    height: 1.6rem;
+  }
+  .md-search__form:hover {
+    background-color: var(--horis-paper-3);
+    border-color: var(--horis-ink-3);
+  }
+  .md-search__input {
+    font-size: 0.68rem;
+  }
+  [data-md-toggle="search"]:checked ~ .md-header .md-search__form {
+    background-color: var(--horis-paper);
+    border-color: var(--horis-symbolic);
+  }
+  .md-search__output {
+    border-radius: 0 0 0.4rem 0.4rem;
+  }
 }
 .md-search-result__meta {
   background-color: var(--horis-paper-3);
