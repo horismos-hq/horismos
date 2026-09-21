@@ -135,9 +135,13 @@ make verify        # all of the above — run before claiming work done
   `python/tests/test_public_surface.py` — and then `cargo check` refreshes `Cargo.lock`.
   Every other hit for either spelling is prose using the current version as an example.
   Never add a second literal version to `pyproject.toml`.
-- Releases go out through `.github/workflows/release.yml` (tag `v*` → PyPI, manual
-  dispatch → TestPyPI), on Trusted Publishing — there is no PyPI token in this repo
-  and none should ever be added.
+- Releases go out through `.github/workflows/release.yml`, on Trusted Publishing — there
+  is no PyPI token in this repo and none should ever be added. Three routes: a `v*` tag
+  push publishes to PyPI, and a manual dispatch selects `testpypi` (the default), `pypi`,
+  or `none` (build and verify, contacting no index). Every route to the real index, the
+  manual one included, is guard-enforced: it must run from a tag ref whose version
+  matches the root `Cargo.toml`, or the run fails before publishing. Neither index takes
+  `skip-existing`, so each TestPyPI rehearsal needs a fresh version.
 - Process artifacts (ledgers, briefs, review diffs) are untracked scratch
   (`.superpowers/` is gitignored); the durable record is the owning PRP's
   `02-tasks-and-gaps.md` and the shipped-voice text where `[DECIDE]` markers were
