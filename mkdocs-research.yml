@@ -131,6 +131,9 @@ nav:
   - RL axis:
       - RL deep dive (report, 2026-09-02): reports/2026-09-02-rl-deep-dive.md
       - KG maintenance & agent memory: ontology-authoring/kg-maintenance-and-agent-memory.md
+  - Typed decisions:
+      - Non-generative typed-decision models: neurosymbolic-landscape/typed-decision-models.md
+      - Jev deep dive (report, 2026-09-21): reports/2026-09-21-typesafe-jev-deep-dive.md
   - Clinical ground:
       - Terminology (Q5):
           - Overview: terminology/00-overview.md

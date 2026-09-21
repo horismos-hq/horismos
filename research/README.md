@@ -74,24 +74,31 @@ overview page to go deeper.
 ## Update cadence
 
 <!-- --8<-- [start:cadence] -->
-Two paths keep this wiki current:
+Three paths keep this wiki current:
 
 1. **Weekly research sweep PRs.** A recurring pass that revisits open questions,
    checks for new publications relevant to a page's claims, and appends deltas.
-2. **Ad-hoc captain URL intakes.** The captain (or anyone) can drop a single URL at
+2. **Captain-directed deep dives.** A written captain brief scopes one axis; the dive
+   runs as its own research task, lands a full report under `research/reports/`, and
+   distributes dated delta sections into the topic pages it touches. The reports and
+   where each one's findings went are inventoried in [`reports/index.md`](reports/index.md);
+   the dives themselves are listed alongside the sweeps in the
+   [sweeps-and-dives table](sweeps.md#sweeps-so-far).
+3. **Ad-hoc captain URL intakes.** The captain (or anyone) can drop a single URL at
    any time via `research/intake/` — see [`intake/README.md`](intake/README.md) for the exact mechanism.
    This does not wait for the weekly cadence.
 
 ## The delta-PR convention
 
-Every update to this wiki — weekly sweep or ad-hoc intake — lands as a **small,
-reviewable PR**: one URL, one finding, or one topic-page update per PR, never a bulk
+Every update to this wiki — weekly sweep, captain-directed deep dive or ad-hoc intake —
+lands as a **small, reviewable PR**: one URL, one finding, or one topic-page update per PR, never a bulk
 rewrite of multiple pages at once. This mirrors the intake mechanism's own shape
 (fetch → summarize → position → file, §see [`intake/README.md`](intake/README.md)) and keeps every change
 independently reviewable against its cited source. If a change touches more than a
-handful of files, it's probably several PRs, not one. The one exception is a weekly
-sweep, which lands as a single PR: its edits to existing pages are confined to dated
-"Sweep #N delta" sections (see above), so each page's delta stays reviewable on its own.
+handful of files, it's probably several PRs, not one. The exceptions are a weekly sweep
+and a captain-directed deep dive, each of which lands as a single PR: their edits to
+existing pages are confined to dated delta sections (see above), so each page's delta
+stays reviewable on its own.
 <!-- --8<-- [end:cadence] -->
 
 ## Where the founding sweep's report lives
@@ -100,7 +107,7 @@ The full `horismos-research-s1` report's content has been distributed into the p
 below by topic; the original, with its framing and the researching agents' own
 methodology notes, is tracked verbatim as
 [`reports/2026-08-24-founding-sweep.md`](reports/2026-08-24-founding-sweep.md).
-The other deep-dive reports (the thin-pivot second opinion and the RL-axis deep dive)
-live beside it — see [`reports/index.md`](reports/index.md). The whole corpus is also
+The other deep-dive reports live beside it and are indexed, with their provenance and
+where each one's findings went, in [`reports/index.md`](reports/index.md). The whole corpus is also
 browsable as a MkDocs site: `research-site/README.md` at the repo root explains how to
 serve it locally.

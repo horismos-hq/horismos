@@ -2,8 +2,8 @@
 
 A second MkDocs Material site — separate from the developer docs — that renders the
 research corpus under `research/` with navigation by theme, the evidence-tag
-convention explained up front, the standing verdicts made prominent, and the three
-full deep-dive reports imported beside the wiki they produced. Audience: the team and
+convention explained up front, the standing verdicts made prominent, and the full
+deep-dive reports imported beside the wiki they produced. Audience: the team and
 research-minded readers. Not dev-facing, not deployed: local serve only.
 
 ## Serve and build
@@ -26,7 +26,7 @@ this config; publishing it is a separate captain decision.
 | `mkdocs-research.yml` (repo root) | The site config: `docs_dir: research`, `site_dir: site-research`, theme, extensions, and the by-theme `nav`. |
 | `research/` | The canonical corpus. The site points at it; nothing is duplicated. |
 | `research/index.md`, `research/verdict-history.md`, `research/sweeps.md`, `research/reports/index.md` | The site's own pages (home, verdict timeline, process, report index). They synthesize and link; they do not restate wiki claims. |
-| `research/reports/` | The three full reports, imported verbatim with provenance headers. |
+| `research/reports/` | The full deep-dive reports, imported verbatim with provenance headers; indexed by `research/reports/index.md`. |
 | `research-site/overrides/` | Material `custom_dir`: the stylesheet and the evidence-tag script under `assets/`. Non-template files here are copied into the built site. |
 
 ## Conventions the config relies on

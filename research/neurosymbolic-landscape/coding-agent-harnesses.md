@@ -223,10 +223,58 @@ out-of-band network effects no path validator models (the sandbox stays necessar
 - Published quantitative data on how often `auto`/`auto_review`/Auto-review approve
   destructive actions.
 
+## Jev deep dive delta (2026-09-21): the approval step gains a purpose-built classifier, and the harness attach point is a skill
+
+This page's sweep-#2 finding was that the coding-harness approval step is moving to
+**model classifiers** (Codex `auto_review`, Claude Code `auto` mode, Cursor Auto-review),
+and that no harness declares typed preconditions or effects. Both halves gain evidence.
+
+**[measured]** A purpose-built classifier for exactly that step now exists as a product.
+TypeSafe's **Jev** (early access 2026-09-15) answers typed questions declared in the
+request and returns calibrated probabilities, with no text output; see
+[`typed-decision-models.md`](typed-decision-models.md). Its harness attach point shipped
+with it: an **agent skill for Claude Code and Codex**
+([`typesafe-ai/skills`](https://github.com/typesafe-ai/skills), 1,313★ as read
+2026-09-21) ([docs/agent-skill](https://docs.typesafe.ai/agent-skill)). It reached the
+harness distribution layer immediately — Vercel AI Gateway shipped it in AI SDK 7.0.105+
+behind `experimental_evaluate`
+([Vercel changelog, 2026-09-16](https://vercel.com/changelog/typesafe-ai-jev-now-available-on-ai-gateway)),
+and the most-starred new repository in the launch window was a browser-agent integration
+(`browser-use/jev-ultrafast`, 13,091★).
+
+**[measured]** The tool-call story is the interesting part, and it is a convergence. Jev
+has **no tool-calling surface at all**. What TypeSafe ships instead is a documented
+*pattern*: reflect over your own typed function signatures, turn every closed-set
+argument into a `Choice` question over exactly those values, and dispatch in your own
+code — *"whatever reaches the function is a value the function accepts. You leave the
+functions alone"*
+([function-calling cookbook](https://docs.typesafe.ai/cookbooks/function_calling)).
+
+**[inference]** That is, structurally, the same move Horismos makes with `horis:takes`
+and a graph-derived candidate set: the model never constructs the call, it picks a member
+of a set the surrounding code already fixed. Two independent designs arriving at "the
+model picks from a closed set, the code dispatches" is a meaningful convergence and
+belongs in this page's record. It is also the *weak* version of the move: the closed set
+comes from a Python or TypeScript type annotation, not from a declared domain model, so
+it constrains the argument's **type** and not its **eligibility**. This page's "searched
+but not found" list is unchanged: still no harness, and now no typed-decision model
+either, declares a precondition or an effect.
+
+**[inference]** One caution this delta adds to the classifier-approval trend. The
+independent first-week evidence on the best-funded classifier of this kind found **0 of
+30 out-of-scope inputs flagged** and **16.7% accuracy — below the 25% random floor — when
+the question descriptions were wrong** ([priorbench/jev](https://github.com/priorbench/jev)),
+and the vendor documents that it "does not treat [state] as hostile by default"
+([jaggedness](https://docs.typesafe.ai/model-jaggedness/jev-1.13)). A faster, cheaper,
+better-typed approval classifier does not make a classifier-based approval step
+deterministic; it makes a non-deterministic approval step cheaper to run. The incident
+record this page already carries (PocketOS, the Replit reconstruction, the ABAC result of
+0% unauthorized invocation by design versus 4–37% prompt-only) is unaffected.
+
 ## Source
 
 Per-claim citations inline; all rows in [`../reading-log.md`](../reading-log.md) § "Q7 — Coding-agent
-harness capability/policy structure (sweep #2)".
+harness capability/policy structure (sweep #2)", and the Q9 section added by the Jev deep dive.
 
 ## Confidence
 
@@ -236,4 +284,4 @@ fit-to-design conclusions are [inference].
 
 ## Last-verified
 
-2026-09-02
+2026-09-21 (Jev deep dive delta appended; sweep #2 findings 2026-09-02 unchanged)

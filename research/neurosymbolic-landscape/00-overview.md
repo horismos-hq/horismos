@@ -114,6 +114,45 @@ approval rather than filling it. The only durable third-party clinical decision 
 remains CDS Hooks + SMART + FHIR REST, which is what the pivot targets. See
 [`pivot-alignment.md`](pivot-alignment.md) §X1, X6, X10.
 
+## Jev deep dive delta (2026-09-21): a commercial neighbour appears, on the neural side of the line
+
+**[measured]** On 2026-09-15 TypeSafe AI ($40M seed led by DCVC, two years in stealth)
+opened early access to **Jev**, marketed as the first "System One model": non-generative,
+answering **typed questions declared in the request** and returning calibrated
+probabilities in one parallel pass, with no text output and no explanation
+([launch blog](https://typesafe.ai/blog/introducing-system-one-models-and-jev)). Full
+treatment: [`typed-decision-models.md`](typed-decision-models.md) (new page this dive)
+and the [Jev deep dive report](../reports/2026-09-21-typesafe-jev-deep-dive.md).
+
+**[inference]** This does not change the founding claim above, and sharpens it in two
+directions.
+
+*It does not fill the gap.* The founding claim is that "genuine pre-execution formal
+gating of LLM output, applied uniformly, in a shipping product" is an open square. A
+typed-decision model is not a gate: it constrains the *output alphabet* of one model, it
+holds no state, evaluates no rules, emits no proof, and — by the vendor's own
+documentation — cannot generate an explanation
+([docs/concepts/system-one](https://docs.typesafe.ai/concepts/system-one)). The square is
+still open.
+
+*It does move the Scallop/LNN/DeepProbLog contrast.* The founding evidence framed the
+academic field as unified by making symbolic structure differentiable and probabilistically
+weighted, against which Horismos's hard non-differentiable gate is the opposite bet. The
+commercial neighbour is a third position: **probabilities everywhere on the neural side,
+nothing symbolic at all.** Horismos's doc 06 invariant — confidence "gates acceptance …
+it never weights inference" — now sits between two poles rather than opposite one, and
+reads as the more defensible middle. **[measured]** The neighbour's own jaggedness page
+supplies the reason: answers to separate questions are not jointly constrained (a Noul
+returned 0.22 where the equivalent Choice returned P(yes) = 0.01; a claim and its
+negation summed to 1.19 — *"don't hold the model to arithmetic identities between
+separate questions"*,
+[docs/model-jaggedness/jev-1.13](https://docs.typesafe.ai/model-jaggedness/jev-1.13)).
+
+**[inference]** Net for this page's claim: "industry offers no ready-made competitor"
+still holds for the *gating* layer; it no longer holds for the *typed-proposal* layer,
+which now has a funded, widely-tried commercial occupant. The competitive line moved one
+step closer to Horismos without crossing it.
+
 ## Source
 
 See [`../reading-log.md`](../reading-log.md), Q3 section, for the full citation list.
@@ -126,4 +165,4 @@ mixed — the academic field's own definitional posture and the industry survey 
 
 ## Last-verified
 
-2026-09-02 (sweep #2 delta appended; founding claims unchanged)
+2026-09-21 (Jev deep dive delta appended; sweep #2 delta 2026-09-02; founding claims unchanged)

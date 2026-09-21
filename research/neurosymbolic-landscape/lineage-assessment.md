@@ -81,9 +81,56 @@ theorem — is now a stated differentiator rather than an omission. The "become 
 Scallop" fork named above is now also a "become more like lemmalog" fork, and is still
 worth naming explicitly when it comes up.
 
+## Jev deep dive delta (2026-09-21): a new positioning vocabulary, and Horismos is on the other side of it
+
+This page instructs: "Revisit this page each time positioning language changes." A
+commercial launch on 2026-09-15 changed it.
+
+**[measured]** TypeSafe AI markets **Jev** as the first **"System One model"** — a
+non-generative model answering typed questions declared in advance
+([launch blog](https://typesafe.ai/blog/introducing-system-one-models-and-jev)); see
+[`typed-decision-models.md`](typed-decision-models.md).
+
+**[measured]** The vocabulary is not new to ML, and its prior usage runs the other way.
+*System-1.x* (Saha, Prasad, Chen, Hase, Stengel-Eskin, Bansal,
+[arXiv:2407.14414](https://arxiv.org/abs/2407.14414), ICLR 2025) defines System-1 as
+"directly generate plans without any explicit search or backtracking" and System-2 as
+"planning step-by-step by explicitly searching over possible actions" — and includes a
+**neuro-symbolic variant with a neural System-1 and a symbolic System-2**. *From System 1
+to System 2: A Survey of Reasoning Large Language Models*
+([arXiv:2502.17419](https://arxiv.org/abs/2502.17419), Feb 2025) uses System 1 for
+foundational LLMs that "excel at fast decision-making but lack the depth for complex
+reasoning" and System 2 for the o1/R1 generation. A precision worth recording, because
+the attribution is commonly made loosely: Bengio's two canonical papers
+([arXiv:1709.08568](https://arxiv.org/abs/1709.08568),
+[arXiv:2011.15091](https://arxiv.org/abs/2011.15091)) **do not use the terms in their
+abstracts**; the vocabulary attaches to him through his NeurIPS 2019 keynote
+**[unverified]**.
+
+**[inference]** Under the literature's own definitions, **Horismos is a System 2** —
+explicit search over declared rules with backtracking
+([`crates/horismos-core/src/reason/backward.rs`](https://github.com/billaram/horismos/blob/adfc27a/crates/horismos-core/src/reason/backward.rs)), a symbolic decision procedure, and a
+proof. That is a third lineage label available to this page, and it has a property the
+other two lack: it is *current*, it is *published*, and it places Horismos in the slot a
+2025 ICLR paper already reserved for a symbolic engine.
+
+**[inference]** The founding claim is unchanged — the symbolic core is still classical
+rule-based CDS lineage, and calling the whole thing "neurosymbolic AI" unqualified still
+invites the Scallop/LNN/DeepProbLog comparison Horismos loses on its own terms. What the
+delta adds is a *fork in the positioning vocabulary*, of the same shape as sweep #2's X10
+("does 'kernel' survive OaK's usage"): adopt "the System 2 that a System One proposes
+into", reject the frame, or stay silent and revisit if the category survives. The deep
+dive files this as **Jev OD-6** and recommends staying silent with a prepared adoption,
+because the *substance* — cross-answer consistency and epistemic auditability — does not
+depend on the category surviving. Two cautions if it is adopted: cite the literature's
+definitions rather than the vendor's, and note that in every prior ML use System 1 is the
+**deficient** mode the field was trying to escape, so the label carries a connotation
+that cuts against whoever wears it.
+
 ## Source
 
-See [`../reading-log.md`](../reading-log.md), Q3 section.
+See [`../reading-log.md`](../reading-log.md), Q3 section, and the Q9 section added by the
+Jev deep dive.
 
 ## Confidence
 
@@ -92,4 +139,4 @@ mixed — lineage/precedent facts are [measured]; the positioning recommendation
 
 ## Last-verified
 
-2026-09-02 (sweep #2 delta appended; founding claims unchanged)
+2026-09-21 (Jev deep dive delta appended; sweep #2 delta 2026-09-02; founding claims unchanged)

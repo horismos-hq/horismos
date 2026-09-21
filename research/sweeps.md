@@ -4,9 +4,9 @@
      single-sourced from README.md via snippet markers; the page template is shown
      verbatim from _template/page.md. -->
 
-The corpus grows by two mechanisms and one shape. Both mechanisms are below (quoted
-from the wiki's own README, which remains the canonical statement); the shape — a page
-with five fixed sections and a tag on every claim — is shown at the end.
+The corpus grows by three mechanisms and one shape. All three mechanisms are below
+(quoted from the wiki's own README, which remains the canonical statement); the
+shape — a page with five fixed sections and a tag on every claim — is shown at the end.
 
 --8<-- "README.md:cadence"
 
@@ -20,7 +20,7 @@ in three places:
 | Output | Where | Convention |
 |---|---|---|
 | A full report | [`reports/`](reports/index.md) | Imported verbatim, with a provenance header naming the task, date, repo commit it was grounded against, and where its findings went. The report is the snapshot; the wiki is the living version. |
-| Deltas on topic pages | the `research/<topic>/` pages | A dated "Sweep #N delta (YYYY-MM-DD)" section appended to each page it touches; founding text is never rewritten (supersessions are recorded in the delta, e.g. [regulatory](validation/regulatory.md#sweep-2-delta-2026-09-02-the-2022-cds-guidance-is-superseded-dsi-transparency-mandates-are-being-withdrawn)). |
+| Deltas on topic pages | the `research/<topic>/` pages | A dated section appended to each page it touches, named for its origin — "Sweep #N delta (YYYY-MM-DD)" for a weekly sweep, "<dive> deep dive delta (YYYY-MM-DD)" for a captain-directed dive; founding text is never rewritten (supersessions are recorded in the delta, e.g. [regulatory](validation/regulatory.md#sweep-2-delta-2026-09-02-the-2022-cds-guidance-is-superseded-dsi-transparency-mandates-are-being-withdrawn)). |
 | Rows in the reading log, a line in the changelog | [`reading-log.md`](reading-log.md), [`CHANGELOG.md`](CHANGELOG.md) | Append-only. The reading log is grouped by research question; `[unverified]` rows are marked, never silently upgraded. |
 
 A standing page — currently only [pivot alignment](neurosymbolic-landscape/pivot-alignment.md)
@@ -36,6 +36,7 @@ to the page's verdict-history table, mirrored on the [verdict history](verdict-h
 | 2 | 2026-09-02 | `horismos-research-sweep-w2` | Literature since 2026-08-24 across Q1/Q3/Q4/Q5/Q6 and a new Q7 (coding-agent harnesses); issued the standing pivot-alignment verdict; two new topic pages; deltas on nine pages; fixed the terminology page's missing tags. Landed as PR #11. | Distributed into pages (no separate report file); see the [changelog](CHANGELOG.md) |
 | — (deep dive) | 2026-09-02 | `horismos-research-rl-s1` | Captain-directed deep research on the RL axis, taking sweep #2's verdict as given; six parallel sub-sweeps; verdict scoped to its axis; ranked moves and open decisions. | [RL deep dive](reports/2026-09-02-rl-deep-dive.md) |
 | — (consolidation) | 2026-09-03 | `horismos-researchdocs-a1` | This site: imported the three reports, added the theme navigation, verdict history and these process pages; existing pages changed only by link fixes. | — |
+| — (deep dive) | 2026-09-21 | `horismos-research-jev-s1` | Captain-directed deep research on TypeSafe's **Jev** and the non-generative typed-decision-model axis, taking sweep #2's and the RL dive's verdicts as given; five parallel sub-agents; a fourteen-row corrections table against the intake facts; one new topic page, dated deltas on five existing pages, ~145 reading-log rows under Q9; nine ranked moves and eight open decisions; standing verdict re-issued. One FDA date on the regulatory page corrected and a second confirmed first-hand, and one claim drafted from a paywalled abstract corrected in place. | [Jev deep dive](reports/2026-09-21-typesafe-jev-deep-dive.md) |
 
 ## How an intake works
 

@@ -510,6 +510,85 @@ would decide it. None is applied by this wiki.
   PRP-007.
 - Whether "kernel" stays in the positioning given OaK's usage (X10) — PRP-000.
 
+## Jev deep dive delta (2026-09-21): the verdict re-issued on a third axis
+
+**[inference — the re-issued verdict line, scoped]** **aligned-with-adjustments —
+scoped to the non-generative typed-decision-model axis**, extending (not re-litigating)
+sweep #2's verdict above and the RL deep dive's verdict of the same date, which is
+recorded on the [verdict history](../verdict-history.md) rather than in the table below.
+
+On 2026-09-15 TypeSafe AI opened early access to **Jev**, a non-generative model that
+answers **typed questions declared in the request** and returns calibrated
+probabilities, with no text output. Full assessment:
+[`typed-decision-models.md`](typed-decision-models.md) and the
+[Jev deep dive report](../reports/2026-09-21-typesafe-jev-deep-dive.md) §6.
+
+**[inference]** Commitment by commitment: **C1, C2, C3, C7 and C8 are untouched** — the
+category holds no state, hydrates nothing, commits nothing, generates no candidate
+artifact, and makes no verification claim. **C4 is confirmed from an adversarial
+direction**: OrderBench measures 100% schema validity against ~80% semantic success and
+concludes that structured output "serves as a necessary interface component rather than
+a replacement for proper domain verification and fail-closed system architecture"
+([arXiv:2607.18261](https://arxiv.org/abs/2607.18261)) — this page's own thesis, reached
+independently by people benchmarking structured output rather than building a kernel.
+**C5 is confirmed on the premise and sharpened on the mechanism**: **[measured]** the
+vendor documents that answers to separate questions are not jointly constrained (a
+proposition asked as a Noul returned 0.22 where the equivalent Choice returned
+P(yes) = 0.01; a claim and its negation summed to 1.19 —
+[jaggedness](https://docs.typesafe.ai/model-jaggedness/jev-1.13)), and a rule layer
+evaluated to a fixed point is exactly that missing constraint, so "symbolic decides"
+gains a mechanical justification alongside the safety one. **C6 is lightly confirmed**:
+the category reached harness distribution within days (an agent skill for Claude
+Code/Codex; Vercel AI Gateway), and its documented function-calling pattern — the model
+picks from a closed set, your code dispatches — converges on the capability fragment's
+shape while stopping short of declaring preconditions or effects.
+
+**[inference]** Three shape-preserving items are owed, in the same idiom as A1–A14:
+
+- **J1 — Measure the confidence the perception threshold compares against.** Rests on:
+  `accepted = result.confidence >= p.confidence` over a number the model self-reports
+  ([`crates/horismos-core/src/workflow/agent.rs`](https://github.com/billaram/horismos/blob/adfc27a/crates/horismos-core/src/workflow/agent.rs):492;
+  [`crates/horismos-bridges/src/openrouter.rs`](https://github.com/billaram/horismos/blob/adfc27a/crates/horismos-bridges/src/openrouter.rs):322-331,
+  **[measured — local repo]**);
+  ConfidenceBench's finding that calibration and accuracy diverge across model families
+  ([arXiv:2607.20526](https://arxiv.org/abs/2607.20526)); Kotte's measurement that
+  heuristic abstention violates stated risk targets on 7.5–12.5% of settings
+  ([arXiv:2606.29054](https://arxiv.org/abs/2606.29054)). Owner: **PRP-005**. A build
+  item, not a decision.
+- **J2 — Replace "typed decisions" with cross-answer consistency and *epistemic* (not
+  merely structural) auditability in the positioning.** Rests on the vendor's own
+  documented non-invariance and its statement that it generates no explanations. Owner:
+  **PRP-000**; captain-held as Jev OD-6 in the report.
+- **J3 — Name the inverse confidence threat in doc 15.** Doc 15 §1 names injected text
+  that *clears* the threshold; it does not name an adversary who *depresses* confidence
+  to force `horis:fallback` on every case — a denial-of-service on the human in the loop
+  (Forced Deferral, [arXiv:2606.15308](https://arxiv.org/abs/2606.15308)). Owner: **doc
+  15's security workstream / PRP-008**, the same owner A10 named.
+
+**[measured — primary abstract, added by the dive's regulatory sub-sweep]** One piece of
+external support for the pivot's core bet is stronger than anything the corpus previously
+held, and it arrived from the clinical literature rather than the AI one. Gorenshtein et
+al.'s systematic review of neuro-symbolic LLM integration in clinical medicine (Research
+Square rs.3.rs-8902022, 2026-02-18; 3,166 records screened to 21 studies) sorts integration
+patterns "by **increasing symbolic authority**" — structured output, rule-guided generation,
+knowledge retrieval, iterative validation with symbolic veto — and reports median gains of
+**9%, 16%, 26% and 40%** along that ordering. **[inference]** That is a dose-response curve
+for C5 ("neural proposes, symbolic decides"), measured across a published body of work, with
+a typed-decision model sitting at the lowest-authority rung. Its caveat is equally
+load-bearing and is recorded with it: **all 21 studies are rated high risk of bias**, only 9
+report external validation, and the highest-authority pattern costs "2–88 s latency and up
+to 100× cost increases". It does not move the verdict — it is corroboration of a premise the
+verdict already assumed, not evidence about the pivot's *scope* — but it is the first
+external measurement the corpus has of the principle itself, and it belongs on this page.
+
+**[inference]** Why not `misaligned`: nothing here is evidence against a commitment. The
+only challenge is commercial — a cheap typed classifier absorbs the segment whose
+requirement was "text in, typed value out" — and that segment is outside what the pivot
+claims. Narrowing the addressable market is a positioning fact, not a misalignment. The
+one place a reader should push back is C4's second half ("traces are output"), which
+this axis does not test; the RL deep dive's finding that the *signal* half of that claim
+is still spec-only stands unchanged.
+
 ## Verdict
 
 **[inference]** **aligned-with-adjustments.** The pivot's shape — verify a declared package, hydrate a
@@ -529,6 +608,7 @@ boundary; they do not move the line.
 | Sweep | Date | Verdict | One-line reason |
 |---|---|---|---|
 | #2 | 2026-09-02 | aligned-with-adjustments | Core commitments independently confirmed post-2026-08-24; divergences run neural-ward at the line Horismos draws; adjustments are shape-preserving (A1–A14). |
+| — (Jev deep dive) | 2026-09-21 | aligned-with-adjustments (scoped to the non-generative typed-decision-model axis) | A commercial model concedes C5's premise — typed values in a pre-declared space — while documenting that its own answers are not jointly constrained; C1–C3, C7, C8 untouched, C4 confirmed adversarially, C6 lightly confirmed. Three items owed (J1–J3). |
 
 ## Source
 
@@ -544,4 +624,4 @@ fetch failed); every "bearing", adjustment, and the verdict are [inference].
 
 ## Last-verified
 
-2026-09-02
+2026-09-21 (Jev deep dive delta appended and verdict re-issued, scoped; sweep #2 assessment 2026-09-02 unchanged)
