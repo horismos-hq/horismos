@@ -305,7 +305,7 @@ Stating the edges plainly is part of the offer.
 - **It does not prove generated code is correct.** For coding agents, the planned candidate-artifact boundary proves a proposal was policy-legal and passed its declared checks. Semantic correctness stays a review and test claim.
 - **Its guarantees are snapshot-scoped.** Inside one evaluated projection the gate has no back door and determinism holds. Freshness and completeness are only as good as the last hydration and the declared input closure.
 - **It is not a system of record, an orchestrator, or OWL-DL.** It overlays your records, runs one bounded decision, and takes RDFS plus a small executable vocabulary — full description-logic inference is out of scope forever.
-- **It is pre-alpha.** There are no published package releases yet: you build from a clone, as the [Quickstart](quickstart.md) shows.
+- **It is pre-alpha.** There are no published package releases: you build from a clone, as the [Quickstart](quickstart.md) shows.
 
 ## Where next
 

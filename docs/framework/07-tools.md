@@ -43,8 +43,8 @@ fired by the runtime when workflow preconditions hold.
 
 Only `rust:` bindings are invocable in this build. The other three schemes are fully
 declared, parsed and validated — an ontology naming one loads like any other — they
-are simply not invocable: an ActionStep that reaches one is refused with a domain-term
-error naming the scheme, never a silent no-op.
+are simply not invocable: an ActionStep that reaches one is refused, never a silent
+no-op.
 
 MCP deserves emphasis: the ecosystem already exposes domain tools over MCP. Horismos
 does not rebuild them — it wraps them in a typed contract. Where the MCP tool's own
