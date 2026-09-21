@@ -573,7 +573,7 @@ Square rs.3.rs-8902022, 2026-02-18; 3,166 records screened to 21 studies) sorts 
 patterns "by **increasing symbolic authority**" — structured output, rule-guided generation,
 knowledge retrieval, iterative validation with symbolic veto — and reports median gains of
 **9%, 16%, 26% and 40%** along that ordering. **[inference]** That is a dose-response curve
-for C1 ("neural proposes, symbolic decides"), measured across a published body of work, with
+for C5 ("neural proposes, symbolic decides"), measured across a published body of work, with
 a typed-decision model sitting at the lowest-authority rung. Its caveat is equally
 load-bearing and is recorded with it: **all 21 studies are rated high risk of bias**, only 9
 report external validation, and the highest-authority pattern costs "2–88 s latency and up

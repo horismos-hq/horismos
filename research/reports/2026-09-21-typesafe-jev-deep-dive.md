@@ -88,7 +88,7 @@ this report concerns a product called Dev.
    are what this dive actually produced; the standing pivot verdict is re-issued unchanged
    in direction and sharpened in wording (§6.6).
 
-**If you read one section**: §6.3 for the positioning argument, §9 for what firstmate
+**If you read one section**: §6.3 for the positioning argument, §9 for what the captain
 should file.
 
 ---
@@ -2905,7 +2905,7 @@ misses. Each line states what was looked for, by whom, and what the absence mean
 ## 9. Open decisions
 
 None of the following is decided by this report. Each is written to stand alone —
-firstmate files them as captain-held backlog items, so each restates the context it
+they are filed as captain-held backlog items, so each restates the context it
 needs. PRP-owned D-items stay in their PRPs; the RL deep dive's OD-1–OD-4 and sweep #2's
 A1–A14 / X1–X10 are untouched.
 

@@ -154,8 +154,8 @@ twice as many paid teams as any previous model launch, making it the fastest-ado
 model in gateway history" — ~13% of paid teams by hour 24 — while flagging that "the next
 test is whether that early adoption lasts"
 ([vercel.com](https://vercel.com/blog/ai-gateway-jev-model-launch)). On TypeSafe's own
-four-workflow dashboard Jev is **fourth of nine on accuracy** (67.8%, behind 74.1% and
-73.1%), at $0.0004/case and 0.4 s ([evals.typesafe.ai](https://evals.typesafe.ai/)) — and
+four-workflow dashboard Jev is **fourth of nine on accuracy** (67.8%, behind 74.1%, 73.1%
+and 67.9%), at $0.0004/case and 0.4 s ([evals.typesafe.ai](https://evals.typesafe.ai/)) — and
 "accuracy" there means agreement with a consensus of two frontier models, not ground
 truth. A third-party analysis of 12,759 launch posts puts user-reported medians at **7×
 faster and 30× cheaper** against vendor claims of 193.6× and 444.6×
