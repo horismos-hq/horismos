@@ -46,17 +46,17 @@ Append-only. One line per merged PR: date, PR link, summary.
   [`validation/regulatory.md`](validation/regulatory.md)). Reading log: ~145 rows under a
   new Q9 section (Q8 stays reserved for the RL dive's undistributed sources). The
   standing pivot-alignment verdict was re-issued, scoped to this axis, and mirrored on
-  [`verdict-history.md`](verdict-history.md). **Corrections recorded:** fourteen intake
+  [`verdict-history.md`](verdict-history.md). **Corrections recorded:** thirteen intake
   facts were checked against primary sources and four were wrong or misleading — the
   benchmark's reference answers are two frontier models rather than humans, the "0%
   structured-output error" figure is stated by its own author to be "not empirical", the
   interpretability critique attributed to TypeSafe is a third party's, and there are
-  three co-founders rather than one. Two dates in
-  [`validation/regulatory.md`](validation/regulatory.md) were corrected against the FDA
-  documents themselves (the PCCP guidance is AUGUST 2025, not December 2024; the revised
-  CDS guidance's cover date is JANUARY 2026, confirming what sweep #2 could only mark
-  `[unverified]`), and one claim drafted in this report from a paywalled abstract was
-  wrong and is corrected in place with the error recorded in its §10 (Ghassemi et al.
+  three co-founders rather than one. One date in
+  [`validation/regulatory.md`](validation/regulatory.md) was corrected and a second
+  confirmed against the FDA documents themselves (the PCCP guidance is AUGUST 2025, not
+  December 2024; the revised CDS guidance's cover date is JANUARY 2026, confirming
+  first-hand the month sweep #2 could only reach through a secondary analysis), and one
+  claim drafted in this report from a paywalled abstract was wrong and is corrected in place with the error recorded in its §10 (Ghassemi et al.
   attacks *inherently* explainable models too, not only post-hoc ones). Eight open
   decisions (OD-1–OD-8) recorded, all captain-held; no PRP text edited and no `crates/`
   change.

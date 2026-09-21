@@ -71,15 +71,17 @@ checkbox.
 
 ## Jev deep dive delta (2026-09-21): three markets called "auditability", moving in different directions
 
-**[measured — primary]** Two corrections to the text above, both found by reading the FDA
-documents themselves rather than analyses of them:
+**[measured — primary]** One correction and one confirmation on the text above, both found
+by reading the FDA documents themselves rather than analyses of them:
 
-1. **The PCCP guidance is dated AUGUST 2025**, current as of 2025-08-18 — not December
-   2024. The Evidence section's reasoning is unaffected; the date is wrong
+1. **Correction — the PCCP guidance is dated AUGUST 2025**, current as of 2025-08-18 — not
+   December 2024, as the Claim and Evidence sections above both say. Their reasoning is
+   unaffected; the date is wrong
    ([fda.gov](https://www.fda.gov/regulatory-information/search-fda-guidance-documents/marketing-submission-recommendations-predetermined-change-control-plan-artificial-intelligence)).
-2. **The revised CDS guidance's cover date is JANUARY 2026**, docket FDA-2017-D-6569 — the
-   sweep #2 delta could only reach it through a secondary analysis and marked the month
-   `[unverified]`. The 27-page PDF confirms it
+2. **Confirmation — the revised CDS guidance's cover date is JANUARY 2026**, docket
+   FDA-2017-D-6569. The sweep #2 delta reached the month through a secondary analysis and
+   marked only the day-of-month `[unverified]`; the 27-page PDF now confirms the month
+   first-hand, and the day-of-month remains `[unverified]`
    ([fda.gov/media/109618/download](https://www.fda.gov/media/109618/download)). Its
    silence on AI is confirmed at token level: `artificial intelligence` **0**,
    `machine learning` **0**, `generative` **0**, `calibrat` **0**, `uncertaint` **0**,
@@ -207,7 +209,7 @@ exists yet.
 
 ## Last-verified
 
-2026-09-21 (Jev deep dive delta appended: two dates corrected — the PCCP date, which appears
-in both the Claim and Evidence, and the revised CDS guidance's date in Evidence; the January 2026
-CDS guidance and the August 2026 GenAI discussion paper read as primary sources, non-FDA
-regimes added; sweep #2 delta unchanged, last checked 2026-09-02)
+2026-09-21 (Jev deep dive delta appended: the PCCP date corrected, which appears in both
+the Claim and Evidence, and the sweep #2 delta's January 2026 CDS date confirmed
+first-hand; the January 2026 CDS guidance and the August 2026 GenAI discussion paper read
+as primary sources, non-FDA regimes added; sweep #2 delta unchanged, last checked 2026-09-02)

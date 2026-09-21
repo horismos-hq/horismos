@@ -371,7 +371,7 @@ should be used as one (§7, move R3).
 
 ## 3. Q-A — what Jev actually is
 
-The task brief supplied fourteen intake facts and instructed that each be treated as
+The task brief supplied thirteen intake facts and instructed that each be treated as
 `[unverified]` until confirmed. Most survived. Four did not, and the four that failed
 are the ones that matter.
 
@@ -1101,8 +1101,8 @@ calibration-rewarded RL (RLCR, ICLR 2026).
    conditional-independence problem (ParallelBench) **[measured]**.
 5. **The latency and cost headlines use the wrong baseline.** Against a fine-tuned
    encoder — the correct comparator for a classification task — Jev's 70–500 ms is
-   ~20–140× *slower* than Ettin-150M's 3.60 ms median, and its $0.0004/case is ~12–32×
-   *more expensive* than DistilBERT's $0.0000124/case **[measured]**.
+   ~20–140× *slower* than Ettin-150M's 3.60 ms median, and its $0.0004/case is ~32×
+   *more expensive* than DistilBERT's $0.00001244/case **[measured]**.
 6. **Calibration carries a silent qualifier**: TypeSafe's own docs state it "is measured
    across groups of predictions", not per instance **[measured]** — exactly what a
    threshold rule needs and no more.
@@ -3034,7 +3034,7 @@ third-party typed-decision API.
 
 **Why evidence cannot settle it.** The technical comparison is one-sided and *is*
 settled: a local encoder is roughly 20–140× faster (Ettin-150M at 3.60 ms median vs
-70–500 ms) and 12–32× cheaper per case (DistilBERT at $0.0000124 vs $0.0004) than the
+70–500 ms) and ~32× cheaper per case (DistilBERT at $0.00001244 vs $0.0004) than the
 hosted option, with no data egress, no vendor trust posture to clear, and no imposed
 non-determinism. What evidence cannot settle is **sequencing**: PRP-006 (packaging) is the
 next unlocked phase per the board, no PRP owns bridge backends now that PRP-004 is Done,
@@ -3240,7 +3240,7 @@ Repository facts cite `local repo` paths at [`adfc27a`](https://github.com/billa
 - **The intake facts were treated as adversarial input.** Each of the five sub-agents was
   given the brief's facts explicitly labelled `[unverified]` with instructions to confirm
   against a primary source or two independent secondary ones, and to report corrections.
-  Fourteen were checked; four were wrong or materially misleading (§3.1). One — "Noul" —
+  Thirteen were checked; four were wrong or materially misleading (§3.1). One — "Noul" —
   the brief flagged as probably garbled, and it turned out to be exactly right.
 - **Two sub-agents independently read the same primary pages** (the launch blog and the
   eval dashboard) without coordination, which is how the access-model discrepancy in §3.1
