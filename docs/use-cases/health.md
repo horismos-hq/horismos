@@ -108,7 +108,7 @@ What it would not do: say anything about whether the Padua thresholds are clinic
 
 ### Status and honest edges
 
-- The overlay runs today with structured input. Hydrating it from FHIR (Observation, Condition, MedicationStatement) with source versions in the proof, and committing a proposed order back conditionally, is PRP-008's vertical slice — which scenario it builds first (VTE, NEWS2, sepsis-bundle compliance) is still an open decision; the [roadmap](../roadmap.md) carries it when it closes.
+- The overlay runs today with structured input. Hydrating it from FHIR (Observation, Condition, MedicationStatement) with source versions in the proof, and committing a proposed order back conditionally, was PRP-008's vertical slice, and VTE is the scenario it was built for: `examples/vte` runs that slice over a recorded bundle.
 - Thresholds here are illustrative. Padua ≥ 4 is the published high-risk cutoff; the contraindication values are teaching numbers.
 - No head-to-head clinical trial of a hard-gated ontology system exists in the literature we surveyed. Horismos's safety argument is architectural, not yet measured for itself.
 

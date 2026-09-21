@@ -137,7 +137,7 @@ Everything after the Bridge call is allocation-light Rust over interned IRIs. Py
 | `MockBridge` (the CI workhorse) and `OpenRouterBridge` (feature `bridges-openrouter`) | `horismos-bridges` | [The Bridge](framework/08-bridge.md) |
 | PyO3 extension — marshaling only, no logic | `horismos-py` | [Python API](framework/11-python-api.md) |
 | The `horismos` Python package: naming sugar over the native handle | `python/horismos` | [Python API](framework/11-python-api.md) |
-| FHIR and coding-harness adapters, host SPI (`ExternalSnapshot`, `ProposedEffectSet`) | new crates outside `horismos-core` (PRP-008) | [Roadmap](roadmap.md) — not built yet |
+| FHIR and coding-harness adapters, host SPI (`ExternalSnapshot`, `ProposedEffectSet`) | `horismos-host`, `horismos-fhir`, `horismos-harness` | [Architecture](framework/14-architecture.md) § Two-boundary data flow |
 
 ## The invariants that make it a kernel
 
