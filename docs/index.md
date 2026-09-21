@@ -254,6 +254,42 @@ These are the failure classes working agent teams keep meeting. Every number bel
 - **Traces as the product.** Every run emits a typed, replayable trajectory — the audit log and the training corpus are the same object, with loss masks precomputed.
 - **Verification before deployment.** Completeness, conflict-freedom, dead rules, termination and workflow totality, with counterexamples rendered in domain terms. `Ontology.load` refuses an ontology that fails them (see [Guarantees](guarantees.md) for exactly what is claimed).
 
+## When the model *is* the boundary
+
+Everything above is a discipline the kernel imposes on a model that would happily do more. TypeSafe's **Jev** is the other case. It is a `text → decisions` model: it takes free text plus a set of typed *questions* and returns one typed *answer* each — a probability, an option key, or an ordinal level. It has no text output channel at all. Not instructed not to write prose. **Cannot.**
+
+Routed through the perception boundary, Jev proposes and only proposes. `JevBridge` translates the perception schema the runtime derives from your ontology into those three primitives: a boolean property becomes a probability, a closed vocabulary becomes a choice, an enumeration a deployment declares ordinal becomes a score. An ontology names it the same way it names any other model — `horis:model "jev:jev-1.13"` — and routing is per step, so a workflow can send perception to Jev and narration to a text-capable bridge in the same run. Ask Jev itself to narrate and it refuses without making a call: the model has no text output channel, and the bridge will not stitch prose out of answer keys.
+
+Ask it for something it cannot answer — a number, an open string, a date-time — and it refuses there too. It does not bucket the number into a score and it does not quietly drop the property. The call fails, naming the property, and the step takes its `horis:fallback` edge like any other bridge error, because *approximating it as a score would fabricate a measurement under perception provenance*. A heart rate belongs on the structured-input path, with the real reading and the real source. **The refusal is the design, not a gap.**
+
+Here is a whole decision. One line of a ward note, four typed booleans with a probability each, and the three rules in `examples/vte/vte.ttl` reaching a recommendation that carries `horis:assignedBy horis:RulesOnly` — so it is absent from the schema the model is shown. The model has no way to express the decision. Not discouraged: absent.
+
+<div class="horis-proof" markdown>
+<p class="horis-panel-label">Typed answers in, a derivation out</p>
+
+```text title="make demo-jev — second note, token and cost lines trimmed"
+78yo, post-op day 2, on warfarin, bed-bound
+
+Jev proposed these typed facts, one parallel pass:
+  reducedMobility    true   p=0.940  ███████████████████████·
+  activeCancer       false  p=0.910  ██████████████████████··
+  priorVte           false  p=0.720  █████████████████·······
+  bleedingRisk       true   p=0.610  ███████████████·········
+
+call confidence 0.610 (the weakest fact in the call — nothing averages away)
+instance[0] confidence 0.610
+
+The rules decided. The model had no vote:
+  :recommendation = :HoldProphylaxis   via bleeding-contraindication — "Bleeding contraindication — hold pharmacologic prophylaxis"
+    └─ bleedingRisk true is true   (asserted by perception)
+```
+
+</div>
+
+*On warfarin* is the ambiguity — already anticoagulated reads as a reason to hold pharmacologic prophylaxis, but the note never says so outright — and the answer set says so, at `p=0.610`. Both the per-instance and the call-level confidence are the *weakest* answer they cover, never an average, so one coin-flip cannot hide behind three certainties when the runtime compares against `horis:threshold`. Every proposed fact still clears the same five-check gate on the way in; perception provenance buys no exemption.
+
+`make demo-jev` prints that transcript deterministically against the mock — no key, no network. `make demo-jev-live` builds in the real client; `bridges-jev` is default-off, like every bridge that carries TLS. Either way it is the same `Bridge` trait an ordinary chat model implements, and the kernel takes both unchanged. The full treatment — the schema-shape-to-primitive table, why a `jev:` step extracts exactly one class, and what the bridge deliberately refuses to guess — is in [The Bridge](framework/08-bridge.md).
+
 ## It surrounds your stack
 
 Horismos does not replace LangGraph, your agent SDK, your coding harness, or your system of record. It gates one decision inside them.
