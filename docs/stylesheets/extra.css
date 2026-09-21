@@ -1,65 +1,816 @@
-/* Horismos docs — small additions over Material defaults. No external assets. */
+/* Horismos developer docs — the visual layer over MkDocs Material.
+ *
+ * No external assets: system font stacks only (theme.font is false in mkdocs.yml),
+ * no webfonts, no CDN, no images.
+ *
+ * Colour carries meaning, and the tokens are the ones the research corpus already
+ * uses (research-site/overrides/assets/stylesheets/research.css) so the two sites
+ * read as one system:
+ *
+ *   symbolic  blue   the rules, the decision, links and active state
+ *   neural    amber  the model boundaries — perception and narration
+ *   gate      teal   the validation gate, proofs, guarantees
+ *   refusal   red    a refusal, which is the product, not output noise
+ *
+ * Light is the designed default; every token below has a slate (dark) value.
+ */
 
-:root {
-  --horis-accent: #7e57c2;
+/* ===================================================================== */
+/* Tokens                                                                */
+/* ===================================================================== */
+
+:root,
+[data-md-color-scheme="default"] {
+  --horis-ink: #15171c;
+  --horis-ink-2: #3d434f;
+  --horis-ink-3: #6b7280;
+  --horis-paper: #ffffff;
+  --horis-paper-2: #fafbfc;
+  --horis-paper-3: #f4f6f8;
+  --horis-line: #e4e7ec;
+  --horis-line-2: #eff1f4;
+
+  --horis-symbolic: #3b5bdb;
+  --horis-symbolic-soft: #eaeefc;
+  --horis-neural: #b8700f;
+  --horis-neural-soft: #fdf2e2;
+  --horis-gate: #12736a;
+  --horis-gate-soft: #dff0ed;
+  --horis-refuse: #b4382e;
+  --horis-refuse-soft: #fbe9e6;
+
+  --horis-header-bg: rgba(255, 255, 255, 0.88);
+  --horis-shadow: 0 1px 2px rgba(16, 24, 40, 0.04), 0 4px 14px rgba(16, 24, 40, 0.05);
+  --horis-hero-wash:
+    radial-gradient(72rem 24rem at 10% -20%, #f2f5ff 0%, rgba(255, 255, 255, 0) 62%),
+    radial-gradient(48rem 20rem at 96% -12%, #fdf6ea 0%, rgba(255, 255, 255, 0) 60%);
+
+  /* Material's root is 20px, so 1rem = 20px throughout these rules. */
+  --horis-measure: 32rem;      /* ~640px — the reading measure on content pages */
+  --horis-article: 46rem;      /* the article column */
+  --horis-serif: "Iowan Old Style", "Palatino Nova", Palatino, Georgia, "Times New Roman", serif;
+  --horis-mono: ui-monospace, "SF Mono", "Cascadia Code", Menlo, Consolas, monospace;
+
+  /* Material surface mapping */
+  --md-primary-fg-color: var(--horis-paper);
+  --md-primary-fg-color--light: var(--horis-paper-2);
+  --md-primary-fg-color--dark: var(--horis-paper-3);
+  --md-primary-bg-color: var(--horis-ink);
+  --md-primary-bg-color--light: var(--horis-ink-3);
+  --md-accent-fg-color: var(--horis-symbolic);
+  --md-accent-fg-color--transparent: rgba(59, 91, 219, 0.1);
+
+  --md-default-fg-color: var(--horis-ink);
+  --md-default-fg-color--light: var(--horis-ink-2);
+  --md-default-fg-color--lighter: var(--horis-ink-3);
+  --md-default-fg-color--lightest: var(--horis-line);
+  --md-default-bg-color: var(--horis-paper);
+
+  --md-typeset-color: var(--horis-ink);
+  --md-typeset-a-color: var(--horis-symbolic);
+  --md-code-bg-color: var(--horis-paper-3);
+  --md-code-fg-color: #24292f;
+  --md-typeset-table-color: var(--horis-line);
+  --md-footer-bg-color: var(--horis-paper-3);
+  --md-footer-bg-color--dark: var(--horis-paper-2);
+  --md-footer-fg-color: var(--horis-ink);
+  --md-footer-fg-color--light: var(--horis-ink-2);
+  --md-footer-fg-color--lighter: var(--horis-ink-3);
 }
 
-/* Landing hero */
+[data-md-color-scheme="slate"] {
+  --horis-ink: #e7eaf1;
+  --horis-ink-2: #b9c0cf;
+  --horis-ink-3: #8d95a8;
+  --horis-paper: #1b1f27;
+  --horis-paper-2: #171a21;
+  --horis-paper-3: #232833;
+  --horis-line: #2e3542;
+  --horis-line-2: #262c37;
+
+  --horis-symbolic: #8ba3f5;
+  --horis-symbolic-soft: #1f2640;
+  --horis-neural: #e0a458;
+  --horis-neural-soft: #33291a;
+  --horis-gate: #4fbfaf;
+  --horis-gate-soft: #152f2c;
+  --horis-refuse: #e28d83;
+  --horis-refuse-soft: #36201d;
+
+  --horis-header-bg: rgba(19, 22, 28, 0.9);
+  --horis-shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 4px 14px rgba(0, 0, 0, 0.3);
+  --horis-hero-wash:
+    radial-gradient(72rem 24rem at 10% -20%, #1d2440 0%, rgba(0, 0, 0, 0) 62%),
+    radial-gradient(48rem 20rem at 96% -12%, #2b2418 0%, rgba(0, 0, 0, 0) 60%);
+
+  --md-primary-fg-color: #13161c;
+  --md-primary-fg-color--light: #1b1f27;
+  --md-primary-fg-color--dark: #0e1015;
+  --md-primary-bg-color: var(--horis-ink);
+  --md-primary-bg-color--light: var(--horis-ink-3);
+  --md-accent-fg-color: var(--horis-symbolic);
+  --md-accent-fg-color--transparent: rgba(139, 163, 245, 0.14);
+
+  --md-default-fg-color: var(--horis-ink);
+  --md-default-fg-color--light: var(--horis-ink-2);
+  --md-default-fg-color--lighter: var(--horis-ink-3);
+  --md-default-fg-color--lightest: var(--horis-line);
+  --md-default-bg-color: #13161c;
+
+  --md-typeset-color: var(--horis-ink);
+  --md-typeset-a-color: var(--horis-symbolic);
+  --md-code-bg-color: #1a1e26;
+  --md-code-fg-color: #d7dce7;
+  --md-typeset-table-color: var(--horis-line);
+  --md-footer-bg-color: #0e1015;
+  --md-footer-bg-color--dark: #0b0d11;
+  --md-footer-fg-color: var(--horis-ink);
+  --md-footer-fg-color--light: var(--horis-ink-2);
+  --md-footer-fg-color--lighter: var(--horis-ink-3);
+}
+
+/* ===================================================================== */
+/* Site header — quiet, near-white, one hairline rule                    */
+/* ===================================================================== */
+
+.md-header {
+  background-color: var(--horis-header-bg);
+  -webkit-backdrop-filter: saturate(1.6) blur(10px);
+  backdrop-filter: saturate(1.6) blur(10px);
+  border-bottom: 1px solid var(--horis-line);
+  box-shadow: none;
+  color: var(--horis-ink);
+}
+.md-header--shadow {
+  box-shadow: none;
+}
+.md-header__title {
+  font-weight: 650;
+  letter-spacing: -0.015em;
+  margin-left: 0.4rem;
+}
+.md-header__topic:first-child {
+  font-weight: 650;
+}
+.md-header__button {
+  color: var(--horis-ink-2);
+  opacity: 1;
+}
+.md-header__button:hover {
+  color: var(--horis-symbolic);
+  opacity: 1;
+}
+.md-header__button.md-logo :is(img, svg) {
+  color: var(--horis-symbolic);
+  width: 1.3rem;
+  height: 1.3rem;
+}
+
+/* Search affordance: a bordered field rather than a translucent slab. */
+.md-search__form {
+  background-color: var(--horis-paper-2);
+  border: 1px solid var(--horis-line);
+  border-radius: 0.4rem;
+  box-shadow: none;
+  height: 1.6rem;
+}
+.md-search__form:hover {
+  background-color: var(--horis-paper-3);
+  border-color: var(--horis-ink-3);
+}
+.md-search__input {
+  color: var(--horis-ink);
+  font-size: 0.68rem;
+}
+.md-search__input::placeholder {
+  color: var(--horis-ink-3);
+}
+.md-search__icon,
+.md-search__options .md-icon {
+  color: var(--horis-ink-3);
+}
+[data-md-toggle="search"]:checked ~ .md-header .md-search__form {
+  background-color: var(--horis-paper);
+  border-color: var(--horis-symbolic);
+}
+.md-search__output {
+  border-radius: 0 0 0.4rem 0.4rem;
+}
+.md-search-result__meta {
+  background-color: var(--horis-paper-3);
+  color: var(--horis-ink-3);
+}
+.md-search__scrollwrap {
+  background-color: var(--md-default-bg-color);
+}
+
+/* The repository link in the header reads as a quiet control, not a banner. */
+.md-header__source .md-source {
+  color: var(--horis-ink-2);
+  font-size: 0.62rem;
+}
+.md-source__repository {
+  font-weight: 550;
+}
+
+/* ===================================================================== */
+/* Layout — three panes, article constrained for reading                 */
+/* ===================================================================== */
+
+.md-grid {
+  max-width: 68rem;
+}
+.md-content__inner {
+  max-width: var(--horis-article);
+  padding-top: 0.4rem;
+}
+.md-content__inner::before {
+  height: 0;
+}
+.md-main__inner {
+  margin-top: 1.2rem;
+}
+
+/* Pages that hide both sidebars (the landing page) get the wide column. */
+.md-sidebar--primary[hidden] + .md-sidebar--secondary[hidden] + .md-content .md-content__inner {
+  max-width: 64rem;
+  margin-inline: auto;
+}
+.md-sidebar--primary[hidden] + .md-sidebar--secondary[hidden] + .md-content .md-content__inner > p,
+.md-sidebar--primary[hidden] + .md-sidebar--secondary[hidden] + .md-content .md-content__inner > ul,
+.md-sidebar--primary[hidden] + .md-sidebar--secondary[hidden] + .md-content .md-content__inner > ol {
+  max-width: 44rem;
+}
+
+/* Section nav */
+.md-nav {
+  font-size: 0.68rem;
+}
+.md-nav__title {
+  font-family: var(--horis-mono);
+  font-size: 0.55rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--horis-ink-3);
+  font-weight: 600;
+}
+/* On desktop the site name already sits in the header; the sticky nav title
+   only repeats it (and masks the first link with its own box-shadow). It is
+   still the drawer heading below the breakpoint, so it is hidden, not removed. */
+@media screen and (min-width: 76.25em) {
+  .md-sidebar--primary .md-nav--primary > .md-nav__title {
+    display: none;
+  }
+}
+.md-sidebar--primary .md-nav__item--section > .md-nav__link {
+  font-family: var(--horis-mono);
+  font-size: 0.55rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--horis-ink-3);
+  font-weight: 600;
+  margin-top: 0.8rem;
+}
+.md-nav__link {
+  border-radius: 0.3rem;
+  padding: 0.16rem 0.4rem;
+  margin-inline: -0.4rem;
+  color: var(--horis-ink-2);
+}
+.md-nav__link:hover {
+  background-color: var(--horis-paper-3);
+  color: var(--horis-ink);
+}
+.md-nav__link--active,
+.md-nav__link--active:hover,
+.md-nav__item .md-nav__link--active {
+  background-color: var(--horis-symbolic-soft);
+  color: var(--horis-symbolic);
+  font-weight: 600;
+}
+.md-sidebar--primary .md-nav__item--section > .md-nav__link:hover {
+  background-color: transparent;
+  color: var(--horis-ink-3);
+}
+
+/* On this page */
+.md-nav--secondary .md-nav__link {
+  border-left: 2px solid transparent;
+  border-radius: 0;
+  margin-inline: 0;
+  padding-left: 0.5rem;
+}
+.md-nav--secondary .md-nav__link--active {
+  background-color: transparent;
+  border-left-color: var(--horis-symbolic);
+}
+.md-sidebar--secondary {
+  border-left: 1px solid var(--horis-line);
+}
+@media screen and (max-width: 76.1875em) {
+  .md-sidebar--secondary {
+    border-left: 0;
+  }
+}
+
+.md-footer-meta {
+  background-color: var(--md-footer-bg-color--dark);
+}
+.md-footer {
+  border-top: 1px solid var(--horis-line);
+}
+
+/* ===================================================================== */
+/* Typography                                                            */
+/* ===================================================================== */
+
+.md-typeset {
+  font-size: 0.8rem;          /* 16px */
+  line-height: 1.65;
+  color: var(--horis-ink);
+}
+.md-typeset h1,
+.md-typeset h2 {
+  font-family: var(--horis-serif);
+  font-weight: 600;
+  color: var(--horis-ink);
+  letter-spacing: -0.018em;
+}
+.md-typeset h1 {
+  font-size: 1.85rem;
+  line-height: 1.16;
+  margin-bottom: 0.7rem;
+}
+.md-typeset h2 {
+  font-size: 1.16rem;
+  line-height: 1.3;
+  margin-top: 2.1rem;
+  padding-bottom: 0.2rem;
+  border-bottom: 1px solid var(--horis-line-2);
+}
+.md-typeset h3 {
+  font-size: 0.86rem;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  color: var(--horis-ink);
+  margin-top: 1.5rem;
+}
+.md-typeset h4,
+.md-typeset h5 {
+  font-size: 0.8rem;
+  font-weight: 650;
+  color: var(--horis-ink);
+}
+.md-typeset p,
+.md-typeset li {
+  color: var(--horis-ink);
+}
+
+/* The reading measure: prose stops spanning the viewport, tables and code do not. */
+.md-content__inner > p,
+.md-content__inner > ul,
+.md-content__inner > ol,
+.md-content__inner > blockquote {
+  max-width: var(--horis-measure);
+}
+
+.md-typeset blockquote {
+  border-left: 3px solid var(--horis-symbolic);
+  background-color: var(--horis-symbolic-soft);
+  border-radius: 0 0.4rem 0.4rem 0;
+  color: var(--horis-ink);
+  padding: 0.7rem 0.9rem;
+  font-family: var(--horis-serif);
+  font-size: 0.86rem;
+  line-height: 1.55;
+}
+.md-typeset blockquote > :first-child {
+  margin-top: 0;
+}
+.md-typeset blockquote > :last-child {
+  margin-bottom: 0;
+}
+
+.md-typeset :is(p, li, td, th) > code {
+  font-family: var(--horis-mono);
+  background-color: var(--horis-paper-3);
+  border: 1px solid var(--horis-line-2);
+  border-radius: 0.25rem;
+  padding: 0.04em 0.3em;
+  font-size: 0.83em;
+  color: var(--horis-ink);
+}
+
+/* ===================================================================== */
+/* Tables — real header styling, contained horizontal scroll             */
+/* ===================================================================== */
+
+.md-typeset__scrollwrap {
+  margin-inline: 0;
+}
+.md-typeset__table {
+  padding: 0;
+}
+.md-typeset table:not([class]) {
+  border: 1px solid var(--horis-line);
+  border-radius: 0.4rem;
+  font-size: 0.7rem;
+  line-height: 1.55;
+  box-shadow: none;
+  background-color: var(--md-default-bg-color);
+}
+.md-typeset table:not([class]) th {
+  background-color: var(--horis-paper-3);
+  color: var(--horis-ink-3);
+  font-family: var(--horis-mono);
+  font-size: 0.58rem;
+  font-weight: 650;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  border-bottom: 1px solid var(--horis-line);
+  vertical-align: middle;
+}
+.md-typeset table:not([class]) td {
+  vertical-align: top;
+  border-top: 1px solid var(--horis-line-2);
+}
+.md-typeset table:not([class]) tr:hover {
+  background-color: var(--horis-paper-2);
+}
+
+/* ===================================================================== */
+/* Code, and the two treatments that are not "grey code block"           */
+/* ===================================================================== */
+
+.md-typeset pre > code {
+  font-family: var(--horis-mono);
+  font-size: 0.68rem;
+  line-height: 1.62;
+}
+.md-typeset .highlight {
+  border: 1px solid var(--horis-line);
+  border-radius: 0.4rem;
+  overflow: hidden;
+}
+.md-typeset .highlight pre {
+  margin: 0;
+}
+
+/* A ```text fence that follows a runnable sample is that sample's output; it
+   reads as output, not as a second thing to copy. */
+.md-typeset .language-python + .language-text {
+  border-left: 3px solid var(--horis-ink-3);
+  margin-top: -0.4rem;
+}
+.md-typeset .language-python + .language-text > pre > code {
+  background-color: var(--horis-paper-2);
+  color: var(--horis-ink-2);
+}
+
+/* Proofs — what the kernel actually emits, not a grey slab. */
+.md-typeset .horis-proof .language-python + .language-text {
+  border-color: rgba(18, 115, 106, 0.32);
+  border-left-color: var(--horis-gate);
+}
+.md-typeset .horis-proof .language-python + .language-text > pre > code {
+  background-color: var(--horis-gate-soft);
+  color: var(--horis-gate);
+}
+
+/* Refusals — the product, not output noise. */
+.md-typeset .horis-refusal .language-python + .language-text {
+  border-color: rgba(180, 56, 46, 0.34);
+  border-left-color: var(--horis-refuse);
+}
+.md-typeset .horis-refusal .language-python + .language-text > pre > code {
+  background-color: var(--horis-refuse-soft);
+  color: var(--horis-refuse);
+  font-weight: 500;
+}
+[data-md-color-scheme="slate"] .md-typeset .horis-proof .language-python + .language-text {
+  border-color: rgba(79, 191, 175, 0.34);
+}
+[data-md-color-scheme="slate"] .md-typeset .horis-refusal .language-python + .language-text {
+  border-color: rgba(226, 141, 131, 0.36);
+}
+
+.horis-panel-label {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-family: var(--horis-mono);
+  font-size: 0.58rem;
+  font-weight: 650;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  margin: 0 0 0.35rem !important;
+}
+.horis-proof .horis-panel-label {
+  color: var(--horis-gate);
+}
+.horis-refusal .horis-panel-label {
+  color: var(--horis-refuse);
+}
+.horis-proof,
+.horis-refusal {
+  margin: 1.2rem 0;
+}
+
+/* ===================================================================== */
+/* Landing page                                                          */
+/* ===================================================================== */
+
 .horis-hero {
-  padding: 1.5rem 0 0.5rem;
+  background: var(--horis-hero-wash);
+  border: 1px solid var(--horis-line-2);
+  border-radius: 0.6rem;
+  padding: 2.2rem 1.8rem 1.8rem;
+  margin-bottom: 2rem;
 }
-.horis-hero h1 {
-  font-size: 2.4rem;
-  line-height: 1.15;
-  margin-bottom: 0.4rem;
+.md-typeset .horis-hero h1 {
+  font-size: 2.3rem;
+  line-height: 1.07;
+  letter-spacing: -0.022em;
+  max-width: 20ch;
+  margin-bottom: 0.7rem;
 }
 .horis-hero .horis-tagline {
-  font-size: 1.15rem;
-  max-width: 44rem;
-  opacity: 0.9;
+  font-size: 0.92rem;
+  line-height: 1.6;
+  color: var(--horis-ink-2);
+  max-width: 40rem;
+  margin-bottom: 1.2rem;
+  opacity: 1;
 }
-.horis-hero .md-button {
-  margin: 0.4rem 0.6rem 0.4rem 0;
+.horis-hero .horis-tagline em {
+  font-style: italic;
+  color: var(--horis-ink);
 }
 
-/* Status chips */
+.md-typeset .horis-hero .md-button {
+  font-size: 0.72rem;
+  font-weight: 550;
+  padding: 0.44rem 0.8rem;
+  border-radius: 0.35rem;
+  margin: 0.3rem 0.4rem 0.3rem 0;
+  border: 1px solid var(--horis-line);
+  color: var(--horis-ink);
+  background-color: var(--horis-paper);
+  transition: border-color 120ms, background-color 120ms, color 120ms;
+}
+.md-typeset .horis-hero .md-button:hover {
+  border-color: var(--horis-ink-3);
+  background-color: var(--horis-paper-2);
+  color: var(--horis-ink);
+}
+.md-typeset .horis-hero .md-button--primary {
+  background-color: var(--horis-symbolic);
+  border-color: var(--horis-symbolic);
+  color: #ffffff;
+}
+.md-typeset .horis-hero .md-button--primary:hover {
+  background-color: #3350c8;
+  border-color: #3350c8;
+  color: #ffffff;
+}
+
 .horis-chips {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.4rem;
-  margin: 0.6rem 0 1.2rem;
+  gap: 0.35rem 0.4rem;
+  margin: 0.9rem 0 0;
 }
 .horis-chips span {
-  border: 1px solid var(--md-default-fg-color--lightest);
+  border: 1px solid var(--horis-line);
+  background-color: var(--horis-paper);
   border-radius: 999px;
-  padding: 0.1rem 0.7rem;
-  font-size: 0.72rem;
-  letter-spacing: 0.02em;
+  padding: 0.1rem 0.6rem;
+  font-size: 0.62rem;
+  color: var(--horis-ink-2);
+  letter-spacing: 0.01em;
 }
 
-/* The flow diagram on the landing page and the kernel SVG */
-.horis-flow {
+/* The hero flow diagram — decision 5. */
+.horis-flowcard {
+  margin-top: 1.6rem;
+  background-color: var(--horis-paper);
+  border: 1px solid var(--horis-line);
+  border-radius: 0.5rem;
+  padding: 1rem 1rem 0.7rem;
+  box-shadow: var(--horis-shadow);
+}
+.horis-flowcard .horis-flowcap {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.8rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.4rem;
+}
+.horis-flowcard .horis-flowcap b {
+  font-size: 0.72rem;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  color: var(--horis-ink);
+}
+.horis-flowcard .horis-flowcap span {
+  font-size: 0.66rem;
+  color: var(--horis-ink-3);
+}
+.horis-flowcard svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+/* Shared <style>/<defs> for both diagram shapes: markers referenced from a
+   display:none SVG root are not resolved, so they live in their own zero-size
+   SVG that is always rendered. */
+.horis-flowcard svg.horis-flow-defs {
+  position: absolute;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+}
+/* One diagram, two shapes: the wide flow above 45em, a stacked one below it,
+   so the labels stay legible on a phone without the page scrolling sideways. */
+.horis-flowcard svg.horis-flow-narrow {
+  display: none;
+}
+@media screen and (max-width: 44.9375em) {
+  .horis-flowcard svg.horis-flow-wide {
+    display: none;
+  }
+  .horis-flowcard svg.horis-flow-narrow {
+    display: block;
+    max-width: 20rem;
+    margin-inline: auto;
+  }
+}
+
+/* Comparison cards — decision 6 (the landing page's dense failure-class table). */
+.horis-cmp {
+  display: grid;
+  gap: 0.6rem;
+  grid-template-columns: minmax(0, 1fr);
+  margin: 1.2rem 0;
+}
+@media screen and (min-width: 60em) {
+  .horis-cmp {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+.horis-cmpcard {
+  border: 1px solid var(--horis-line);
+  border-radius: 0.45rem;
+  background-color: var(--md-default-bg-color);
+  padding: 0.85rem 0.95rem;
+  min-width: 0;
+}
+.md-typeset .horis-cmpcard h4 {
+  margin: 0 0 0.4rem;
   font-size: 0.78rem;
+  font-weight: 650;
+  letter-spacing: -0.01em;
   line-height: 1.35;
+}
+.md-typeset .horis-cmpcard p {
+  font-size: 0.7rem;
+  line-height: 1.55;
+  color: var(--horis-ink-2);
+  margin: 0 0 0.55rem;
+  padding-left: 0.6rem;
+  max-width: none;
+}
+.md-typeset .horis-cmpcard p:last-child {
+  margin-bottom: 0;
+}
+.horis-cmpcard .horis-meas {
+  border-left: 2px solid var(--horis-neural);
+}
+.horis-cmpcard .horis-does {
+  border-left: 2px solid var(--horis-gate);
+}
+.horis-cmpcard .horis-lbl {
+  display: block;
+  font-family: var(--horis-mono);
+  font-size: 0.53rem;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  margin-bottom: 0.15rem;
+  font-weight: 650;
+}
+.horis-cmpcard .horis-meas .horis-lbl {
+  color: var(--horis-neural);
+}
+.horis-cmpcard .horis-does .horis-lbl {
+  color: var(--horis-gate);
+}
+
+/* "Where next" card grid (Material's built-in grid cards). */
+.md-typeset .grid.cards > ul > li {
+  border: 1px solid var(--horis-line);
+  border-radius: 0.45rem;
+  box-shadow: none;
+  transition: border-color 120ms, box-shadow 120ms;
+}
+.md-typeset .grid.cards > ul > li:hover {
+  border-color: var(--horis-ink-3);
+  box-shadow: var(--horis-shadow);
+}
+
+/* ===================================================================== */
+/* Diagrams                                                              */
+/* ===================================================================== */
+
+.horis-diagram {
+  overflow-x: auto;
+  margin: 1.2rem 0;
+  border: 1px solid var(--horis-line);
+  border-radius: 0.5rem;
+  background-color: var(--md-default-bg-color);
+  padding: 0.9rem;
 }
 .horis-diagram svg {
   width: 100%;
   height: auto;
   max-width: 62rem;
-  color: var(--md-default-fg-color);
-}
-.horis-diagram {
-  overflow-x: auto;
-  margin: 1rem 0;
+  color: var(--horis-ink-2);
 }
 
-/* Side-by-side comparison columns collapse on narrow screens (via the tabbed
-   extension); tables with long cells wrap instead of forcing horizontal scroll */
-.md-typeset table:not([class]) td {
-  vertical-align: top;
+/* The ASCII flow on the landing page is a diagram, not a code sample. */
+.horis-flow .highlight {
+  border: 1px solid var(--horis-line);
+  border-radius: 0.5rem;
+  background-color: var(--horis-paper-2);
+}
+.horis-flow .highlight pre > code {
+  background-color: var(--horis-paper-2);
+  color: var(--horis-ink-2);
+  font-size: 0.6rem;
+  line-height: 1.45;
+}
+.horis-flow .md-code__nav {
+  display: none;
 }
 
-/* Status legend used on the roadmap */
-.horis-status-merged   { color: #2e7d32; font-weight: 600; }
-.horis-status-building { color: #ef6c00; font-weight: 600; }
-.horis-status-planned  { color: #616161; font-weight: 600; }
+/* ===================================================================== */
+/* Admonitions, roadmap status legend                                    */
+/* ===================================================================== */
+
+.md-typeset :is(.admonition, details) {
+  border: 1px solid var(--horis-line);
+  border-left-width: 3px;
+  border-radius: 0.4rem;
+  box-shadow: none;
+  font-size: 0.72rem;
+}
+
+.horis-status-merged {
+  color: var(--horis-gate);
+  font-weight: 600;
+}
+.horis-status-building {
+  color: var(--horis-neural);
+  font-weight: 600;
+}
+.horis-status-planned {
+  color: var(--horis-ink-3);
+  font-weight: 600;
+}
+
+/* ===================================================================== */
+/* Narrow widths — no horizontal page scroll at any breakpoint           */
+/* ===================================================================== */
+
+@media screen and (max-width: 44.9375em) {
+  .horis-hero {
+    padding: 1.4rem 1rem 1.2rem;
+    border-radius: 0.5rem;
+  }
+  .md-typeset .horis-hero h1 {
+    font-size: 1.6rem;
+  }
+  .horis-hero .horis-tagline {
+    font-size: 0.82rem;
+  }
+  .md-typeset .horis-hero .md-button {
+    display: block;
+    text-align: center;
+    margin-right: 0;
+  }
+  .horis-flowcard {
+    padding: 0.7rem 0.6rem 0.5rem;
+  }
+  .horis-diagram {
+    padding: 0.5rem;
+  }
+  .md-typeset pre > code {
+    font-size: 0.62rem;
+  }
+  /* Wide tables scroll inside their wrapper rather than squashing to one word
+     per line; the page itself never scrolls sideways. */
+  .md-typeset table:not([class]) {
+    min-width: 30rem;
+  }
+}

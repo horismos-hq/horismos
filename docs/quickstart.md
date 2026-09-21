@@ -9,7 +9,7 @@ Every Python block on this page is executed verbatim by the test suite (`python/
 You need a stable Rust toolchain (`rustup`), [uv](https://docs.astral.sh/uv/), and Python 3.11 or newer.
 
 ```sh
-git clone https://github.com/billaram/horismos.git && cd horismos
+git clone https://github.com/horismos-hq/horismos.git && cd horismos
 make develop        # uv sync + maturin develop: builds the extension into .venv
 ```
 

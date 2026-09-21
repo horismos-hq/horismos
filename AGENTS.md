@@ -32,7 +32,11 @@ proof → NL). Delete the LLM and the kernel still runs.
   `python/tests/test_devdocs_snippets.py`, and the ```` ```text ```` block shown directly
   after it is pinned to its real stdout, so a docs edit can fail `make test`;
   illustrative code carries a fence title. Conventions:
-  `docs/README.md`.
+  `docs/README.md`. The visual layer is `docs/stylesheets/extra.css` alone (no
+  `custom_dir`): every colour is a `--horis-*` token with a light **and** a slate
+  value, carrying the research site's semantics (blue symbolic, amber neural, teal
+  gate/proof, red refusal). Light is the designed default; never leave the slate
+  scheme unstyled. `theme.font: false` and "no external assets" are deliberate.
 - `research/README.md`: the research wiki — reality-checks the design against the field,
   every claim tagged `[measured]`/`[inference]`; consult before resolving a `[DECIDE]`.
   `research/neurosymbolic-landscape/pivot-alignment.md` is the standing verdict on the

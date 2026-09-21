@@ -50,6 +50,14 @@ for the deploy job to succeed. `site_url` in `mkdocs.yml` is that address.
 - **Claims are sourced.** Numbers on the landing page and use-case pages come from
   `research/` (each tagged `[measured]` there) or from `docs/framework/`; link the
   source inline. Do not invent claims.
+- **The visual layer is one file.** `docs/stylesheets/extra.css` holds every colour
+  as a `--horis-*` token with a light and a slate value; `mkdocs.yml` sets
+  `primary: custom` / `accent: custom` so the theme ships no colour of its own. The
+  palette carries meaning and matches the research site: blue is symbolic, amber is
+  neural, teal is the gate/proof, red is a refusal. Light is the designed default,
+  and the slate scheme is kept working — a new token needs both values. There is no
+  `theme.custom_dir`; `theme.font: false` and "no external assets" (no webfonts, no
+  CDN, no images) are deliberate.
 - **Status is truthful.** `PRPs/BOARD.md` is the authority on what is merged, in build,
   or planned; the Roadmap page links to it rather than duplicating it.
 
