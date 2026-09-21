@@ -1,0 +1,233 @@
+# PRP-006: the release pipeline. Supersedes the build-only `wheels.yml`
+# (PRP-003 U10), whose matrix and wheel smoke test are folded in below so the
+# matrix lives in exactly one place.
+#
+# Two triggers, and only these two — nothing automatic (no push to a branch,
+# no schedule, no pull_request) can reach an index:
+#   * pushing a `v*` tag  -> build, test, publish to PyPI
+#   * manual dispatch     -> build, test, then publish to TestPyPI (default) or
+#     PyPI, or stop at the gate with `index: none` and touch no index at all
+#
+# Publication uses PyPI Trusted Publishing (OIDC). There is no API token in
+# this workflow or in repository secrets, by design: `id-token: write` is
+# scoped to the publish job alone, and the `pypi` / `testpypi` environments
+# are where the captain registers the publishers and any required reviewers.
+name: release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      index:
+        description: "Which index to publish to"
+        type: choice
+        default: testpypi
+        options:
+          - testpypi
+          - pypi
+          # Build the full matrix and run the quickstart gate, then stop:
+          # `none` skips the publish job, so no index is contacted.
+          - none
+
+permissions:
+  contents: read
+
+jobs:
+  # The one-way door. A PyPI filename can never be reused — not even after
+  # deleting the release — so an upload from the wrong ref or at the wrong
+  # version spends that version number permanently. Every route to the real
+  # index, manual dispatch included, therefore has to come from a `v*` tag
+  # whose version matches the root Cargo.toml. TestPyPI is a rehearsal index
+  # and carries no such requirement: dispatching it from any branch is fine,
+  # and `none` never publishes, so neither is gated here.
+  guard:
+    name: guard (${{ inputs.index || 'pypi' }})
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Require a matching v* tag before any upload to the real index
+        if: (inputs.index || 'pypi') == 'pypi'
+        shell: bash
+        env:
+          REF_TYPE: ${{ github.ref_type }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          if [ "$REF_TYPE" != "tag" ]; then
+            echo "::error::Refusing to publish to PyPI from '${REF_NAME}': that ref is a ${REF_TYPE}, not a tag. Real releases run from a v* tag; use the testpypi index to rehearse from a branch."
+            exit 1
+          fi
+          # Both sides are compared in Cargo's SemVer spelling, so the
+          # intended tag `v0.1.0-alpha.1` / distribution `0.1.0a1` difference
+          # never trips this.
+          cargo_version="$(python -c 'import pathlib, tomllib; print(tomllib.loads(pathlib.Path("Cargo.toml").read_text())["workspace"]["package"]["version"])')"
+          tag_version="${REF_NAME#v}"
+          if [ "$tag_version" != "$cargo_version" ]; then
+            echo "::error::Refusing to publish: tag '${REF_NAME}' carries version '${tag_version}', but the root Cargo.toml workspace version is '${cargo_version}'. Bump one to match the other and retag."
+            exit 1
+          fi
+          echo "Tag '${REF_NAME}' matches the workspace version '${cargo_version}'."
+
+  build:
+    name: wheel (${{ matrix.target }})
+    needs: guard
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            artifact: linux-x86_64
+          - os: ubuntu-latest
+            target: aarch64-unknown-linux-gnu
+            artifact: linux-aarch64
+          # universal2 covers both Apple Silicon and Intel macOS in one wheel.
+          - os: macos-latest
+            target: universal2-apple-darwin
+            artifact: macos-universal2
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            artifact: windows-x86_64
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      # One abi3 wheel per platform serves every CPython >= 3.11.
+      - uses: PyO3/maturin-action@v1
+        with:
+          command: build
+          target: ${{ matrix.target }}
+          manylinux: auto
+          args: --release --out dist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wheel-${{ matrix.artifact }}
+          path: dist/*.whl
+
+  sdist:
+    name: sdist
+    needs: guard
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: PyO3/maturin-action@v1
+        with:
+          command: sdist
+          args: --out dist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sdist
+          path: dist/*.tar.gz
+
+  # The release gate, lifted from `wheels.yml`: install the built wheel with
+  # no index available and run the doc-11 symbolic quickstart verbatim on
+  # every supported CPython. Publication depends on this passing.
+  #
+  # The linux-aarch64 wheel is built but not smoke-tested: there is no
+  # aarch64 Linux runner available to this repository to execute it on. It
+  # is the one published artefact whose first real exercise is a user's
+  # install, so check it by hand after the TestPyPI rehearsal.
+  test:
+    name: test (${{ matrix.artifact }}, py${{ matrix.python }})
+    needs: build
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        python: ["3.11", "3.12", "3.13", "3.14"]
+        # `os` already exists in the matrix, so these only attach `artifact`
+        # to every combination with that `os` — they add no new jobs.
+        include:
+          - os: ubuntu-latest
+            artifact: linux-x86_64
+          - os: macos-latest
+            artifact: macos-universal2
+          - os: windows-latest
+            artifact: windows-x86_64
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: wheel-${{ matrix.artifact }}
+          path: dist
+      - name: Install the wheel and run the symbolic quickstart verbatim
+        shell: bash
+        run: |
+          # `--pre` is explicit: the only artefact in `dist` is a pre-release,
+          # and the gate should say so rather than lean on pip's fallback.
+          python -m pip install --pre --no-index --find-links dist horismos
+          python .github/scripts/quickstart_smoke.py
+
+  # The same gate for the source archive. It is the only install path for any
+  # platform outside the wheel matrix, and the README now promises that path
+  # works; this is a multi-crate workspace with path dependencies, precisely
+  # the shape whose sdist can come out missing a crate. So build one from the
+  # artefact that would be published and run the identical quickstart.
+  test-sdist:
+    name: test (sdist)
+    needs: sdist
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # Building from source compiles the Rust core, so this job needs a
+      # toolchain the wheel jobs get from maturin-action.
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - uses: actions/download-artifact@v4
+        with:
+          name: sdist
+          path: dist
+      - name: Build the sdist from source and run the symbolic quickstart verbatim
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Naming the archive by path pins the exact artefact and already
+          # forces a from-source build of it — no version resolution, so no
+          # pre-release ambiguity. No `--no-binary`: pip forwards that into the
+          # isolated build environment, which would compile maturin itself from
+          # source and put an upstream build on the publish path.
+          archive="$(ls dist/*.tar.gz)"
+          python -m pip install "$archive"
+          python .github/scripts/quickstart_smoke.py
+
+  publish:
+    name: publish (${{ inputs.index || 'pypi' }})
+    if: inputs.index != 'none'
+    needs: [guard, build, sdist, test, test-sdist]
+    runs-on: ubuntu-latest
+    # Registered against these exact names on PyPI / TestPyPI. A mismatch
+    # fails at upload time with what looks like an auth error.
+    environment: ${{ inputs.index || 'pypi' }}
+    permissions:
+      contents: read
+      id-token: write # Trusted Publishing (OIDC) — scoped to this job only.
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: wheel-*
+          path: dist
+          merge-multiple: true
+      - uses: actions/download-artifact@v4
+        with:
+          name: sdist
+          path: dist
+      - run: ls -l dist
+      - uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          # Both indexes are strict: no `skip-existing`. A duplicate filename
+          # is answered with HTTP 400, which is the true and useful answer —
+          # a rehearsal that silently uploads nothing and reports success would
+          # destroy the evidence the manual TestPyPI checks depend on. Each
+          # rehearsal therefore needs a fresh version; TestPyPI numbers are free.
+          repository-url: ${{ inputs.index == 'testpypi' && 'https://test.pypi.org/legacy/' || 'https://upload.pypi.org/legacy/' }}

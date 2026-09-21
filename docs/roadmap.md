@@ -13,7 +13,7 @@ This page is the published status of record. It is reconciled against the projec
 | Runtime | PRP-004 agent loop | <span class="horis-status-merged">Critical path merged</span> (PR #8) — follow-ups open | Workflow interpreter, tool contracts and effect validation, `MockBridge`, `OpenRouterBridge`, `horismos.trace/2`, the live triage demo |
 | Engine | PRP-005 guarantees & verification | <span class="horis-status-merged">Merged</span> (2026-09-03) | BDD checks with domain-term witnesses, assumption manifest, non-vacuity, `verify()` in both APIs; loads fail closed on any error-severity finding |
 | Integration | PRP-008 standards & host integration | <span class="horis-status-merged">Merged</span> (2026-09-03, PR #15) | FHIR hydration and conditional commit, terminology provenance, CDS-Hooks-style surface, bounded PlanDefinition import, the candidate-artifact boundary, the generic host SPI and a coding-harness adapter |
-| Ship | PRP-006 packaging & distribution | <span class="horis-status-planned">Planned</span> (after 008) | crates.io and PyPI releases, CI gates (including this docs site's `--strict` build and the mock-bridge zero-key suite), wheel matrix, SBOM |
+| Ship | PRP-006 packaging & distribution | <span class="horis-status-building">Building</span> (active 2026-09-21) | crates.io and PyPI releases, CI gates (including this docs site's `--strict` build and the mock-bridge zero-key suite), wheel matrix, SBOM. The PyPI release path has landed — packaging metadata, a single-source version, and a wheel/sdist matrix published through Trusted Publishing; nothing is on an index yet |
 | Author | PRP-007 authoring agent | <span class="horis-status-planned">Planned</span> (after 008) | Import/align/overlay-first authoring with the verifier as gatekeeper; the capability-fragment compiler mode |
 
 Build order is a dependency DAG, not the numbering: 001 → 002 → 003 → 004 → 005 → **008** → 006 → 007.
@@ -29,7 +29,7 @@ Build order is a dependency DAG, not the numbering: 001 → 002 → 003 → 004 
 | Live perception with multi-valued properties | **Yes** — a real `make demo-live` run reaches `:Done` with the `r1` proof ([Go live in 2 minutes](go-live.md)) | Array-valued perception answers were dropped until 2026-09-03; regression tests in `crates/horismos-core/src/workflow/agent.rs` |
 | Verification witnesses, assumption manifest | **Yes** | PRP-005 |
 | FHIR / repository hydration, conditional commit, CDS Hooks surface | **Yes** — `crates/horismos-fhir` (`FhirHydrationRequest`, the conditional-commit types, the CDS Hooks card module) over the generic host SPI in `crates/horismos-host`; `examples/vte` runs the VTE slice over a recorded bundle | PRP-008 (PR #15). Structured-input adapters against recorded fixtures — no live EHR connection ships |
-| `pip install horismos` / `cargo add horismos-core` from public registries | Not yet | PRP-006; today: `make develop` from a clone |
+| `pip install horismos` / `cargo add horismos-core` from public registries | Not yet | PRP-006: the release workflow is in place (`.github/workflows/release.yml`), but nothing has been uploaded to PyPI or TestPyPI and crates.io is untouched; today: `make develop` from a clone |
 | This docs site published at a public URL | **Yes** — <https://docs.horismos.ai/>, deployed from `main` by `.github/workflows/docs-pages.yml` | Deploy-on-merge only; PR-triggered CI (this site's `--strict` build as a check) is still PRP-006 |
 
 ## The end state

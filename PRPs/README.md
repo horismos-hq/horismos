@@ -20,7 +20,7 @@ the bounded-projection-kernel positioning (pivot adopted 2026-08-24), and
 | [PRP-004](PRP-004-agent-loop/01-objective.md) | Ontology-first agent loop | Workflow execution, perception/narration boundaries, tools, Bridge |
 | [PRP-005](PRP-005-guarantees-verification/01-objective.md) | Guarantees & verification | BDD checks with witnesses, an assumption manifest, and non-vacuity, surfaced in both APIs |
 | [PRP-008](PRP-008-standards-host-integration/01-objective.md) | Standards & host integration | FHIR hydration/commit, terminology provenance, CDS-Hooks/PlanDefinition/CQL composition, the candidate-artifact boundary, the generic host SPI |
-| [PRP-006](PRP-006-packaging-distribution.md) | Packaging & distribution | crates.io, PyPI, CI, docs site — activates after PRP-008 has a real integration surface to document |
+| [PRP-006](PRP-006-packaging-distribution/01-objective.md) | Packaging & distribution | crates.io, PyPI, CI, docs site — activated 2026-09-21 on PRP-008's integration surface; the PyPI release path first |
 | [PRP-007](PRP-007-authoring-agent.md) | Ontology authoring agent | Import/align/overlay-first; SMEs converse; Claude drafts Turtle; the verifier gatekeeps |
 
 ## Conventions

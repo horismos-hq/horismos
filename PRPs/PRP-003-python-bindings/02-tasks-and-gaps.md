@@ -209,6 +209,10 @@ verbatim in-suite.
   publication, and CI gating are PRP-006's - full-matrix proof deferred
   there. Local proof: abi3 wheel built and quickstart-verified in a fresh
   venv on CPython 3.14.
+  **Closed 2026-09-21 (PyPI packaging):** PRP-006 took the matrix over.
+  `wheels.yml` is deleted and its build matrix and wheel smoke test now
+  live in `.github/workflows/release.yml`, which adds Linux aarch64, an
+  sdist, and Trusted-Publishing upload to PyPI / TestPyPI.
 - 2026-08-18 (D2 deferral): the textual SPARQL SELECT/ASK subset (FILTER,
   OPTIONAL, ORDER BY/LIMIT over basic graph patterns) is deferred beyond
   v1 — no v1 consumer needs a SPARQL string (evidence in

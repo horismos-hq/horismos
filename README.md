@@ -4,67 +4,136 @@
 
 A subject-matter expert authors one artifact — a small RDFS-plus overlay declaring the
 rules, constraints, and decision/workflow fragment a deployment needs — and the runtime
-evaluates it as a verified, versioned projection over an existing system of record (see
-`PRPs/PRP-000-vision-positioning.md`). LLMs exist only at two declared transducer
-boundaries (perception: NL → typed instances; narration: proof → NL). Every conclusion
-carries a proof tree; every rule set is formally verified before it runs. Delete the LLM
-and the kernel still runs.
+evaluates it as a verified, versioned projection over an existing system of record. LLMs
+exist only at two declared transducer boundaries (perception: NL → typed instances;
+narration: proof → NL). Every conclusion carries a proof tree; every rule set is formally
+verified before it runs. Delete the LLM and the kernel still runs.
 
 **Neural proposes. Symbolic decides.**
 
 ## Status
 
-Pre-alpha; current, next, and shipped state live in `PRPs/BOARD.md`. The symbolic core
-(PRP-001/002), the Python bindings (PRP-003), the Rust agent loop (PRP-004) and
-verification (PRP-005) are merged; standards & host integration (PRP-008) adds the
-format-neutral host SPI and the FHIR / coding-harness adapters. The shipped crates are
-listed below.
+Pre-alpha. The symbolic core, the Python bindings, the Rust agent loop, formal
+verification and the standards/host integration layer are built; the
+[roadmap](https://docs.horismos.ai/roadmap/) states exactly what runs today and what
+does not.
 
-- `docs/framework/` — the framework definition (docs 00–15), written in shipped voice
-- `PRPs/` — phase plans (PRP-000 vision → PRP-008 standards & host integration)
-- `AGENTS.md` — working conventions for agentic development sessions (`CLAUDE.md` is
-  a compatibility symlink)
-
-## Layout
-
-| Path | What |
-|------|------|
-| `crates/horismos-core` | The symbolic engine: ontology, world, reasoner, workflows, traces, verification — zero LLM deps |
-| `crates/horismos-host` | Format-neutral host SPI (`ExternalSnapshot`, `ProposedEffectSet`, `HostAdapter`) and the candidate-artifact runtime policy |
-| `crates/horismos-fhir` | Bounded FHIR R4 adapter: hydration, mapping, conditional commit, CDS Hooks / PlanDefinition subset |
-| `crates/horismos-harness` | Coding-harness adapter: recorded repository projection, candidate-artifact handoff |
-| `crates/horismos-bridges` | Bridge implementations: provider clients (feature-gated), mock |
-| `crates/horismos-py` | PyO3 extension module — marshaling only, no logic |
-| `python/horismos` | The `horismos` Python package: pure-Python surface over the native module |
-| `examples/triage` | The running example: clinical triage (`triage.ttl`) |
-| `examples/vte` | The standards-anchored vertical slice: VTE prophylaxis over a recorded FHIR bundle (PRP-008) |
-
-## Development
+## Install
 
 ```sh
-make build     # cargo build --workspace
-make develop   # build + install the Python package into .venv (uv + maturin)
-make test      # Rust tests + pytest
-make lint      # fmt check, clippy, ruff, mypy
-make verify    # everything above + the anti-wrapper no-model-gate
+pip install --pre horismos
 ```
 
-## Documentation site
+Every version so far is a pre-release (`0.1.0a1` today) and pip ignores those unless it
+is asked, so `--pre` is what resolves one; drop it once a stable version ships.
 
-The developer-facing docs (landing page, zero-key quickstart, "coming from LangGraph",
-the coding-agent change gate, a use-case gallery, and the framework reference) are an
-MkDocs Material site with sources in `docs/` and config at the repo root, published at
-<https://docs.horismos.ai/> (deployed from `main` by `.github/workflows/docs-pages.yml`):
+A release ships prebuilt wheels for Linux x86_64, Linux aarch64, macOS universal2 and
+Windows x86_64 — one abi3 wheel per platform, serving every CPython from 3.11 onward.
+Anything else installs from the source archive, which compiles the Rust core locally, so
+it needs a Rust toolchain and a few minutes.
 
-```sh
-uvx --with mkdocs-material mkdocs serve            # http://127.0.0.1:8000
-uvx --with mkdocs-material mkdocs build --strict   # the docs gate
+## A first rule set
+
+The ontology is the program. This one declares a property, a decision, and the rules that
+settle it — then the engine derives the answer and explains it:
+
+```python
+import pathlib
+import tempfile
+
+from horismos import Ontology, World
+
+TRIAGE = """
+@prefix :      <https://example.org/triage#> .
+@prefix horis: <https://w3id.org/horismos#> .
+@prefix rdf:   <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs:  <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd:   <http://www.w3.org/2001/XMLSchema#> .
+
+:Patient a rdfs:Class .
+:heartRate a rdf:Property ;
+    rdfs:domain :Patient ; rdfs:range xsd:decimal ;
+    horis:unit "bpm" ; horis:min 0 ; horis:max 300 ;
+    horis:cardinality "0..1" .
+
+:AcuityLevel a rdfs:Class ;
+    horis:oneOf ( :Immediate :Standard ) .
+:acuity a rdf:Property ;
+    rdfs:domain :Patient ; rdfs:range :AcuityLevel ;
+    horis:cardinality "0..1" ;
+    horis:assignedBy horis:RulesOnly .          # a model may never set this
+
+:r1 a horis:Rule ;
+    horis:priority 10 ;
+    horis:when [ horis:subject :Patient ; horis:property :heartRate ; horis:exceeds 120 ] ;
+    horis:then [ horis:property :acuity ; horis:value :Immediate ] ;
+    horis:explain "Tachycardia - immediate track" .
+
+:r2 a horis:Rule ;
+    horis:priority 9 ;
+    horis:when [ horis:subject :Patient ; horis:property :heartRate ; horis:atMost 120 ] ;
+    horis:then [ horis:property :acuity ; horis:value :Standard ] ;
+    horis:explain "Heart rate at most 120 - standard track" .
+
+:r3 a horis:Rule ;
+    horis:priority 8 ;
+    horis:when [ horis:subject :Patient ; horis:property :heartRate ; horis:isEmpty true ] ;
+    horis:then [ horis:property :acuity ; horis:value :Standard ] ;
+    horis:explain "No heart-rate reading - standard track" .
+"""
+
+path = pathlib.Path(tempfile.mkdtemp()) / "triage.ttl"
+path.write_text(TRIAGE)
+
+onto = Ontology.load(path)          # verifies the rule set, or refuses to load
+world = World(onto)
+
+patient = world.assert_(":Patient", heart_rate=128)
+assert world.value(patient, ":acuity") == onto.ref(":Immediate")    # derived by :r1
+print(world.explain(patient, ":acuity").render())
 ```
 
-Every runnable snippet on the site's own pages is executed by
-`python/tests/test_devdocs_snippets.py` (the framework reference's Python API page is exercised
-by `python/tests/test_quickstart.py`); conventions live in `docs/README.md`.
+```
+:acuity = :Immediate   via r1 — "Tachycardia - immediate track"
+  └─ heartRate 128 exceeds 120   (asserted by the api)
+```
+
+Loads fail closed: drop `:r3` and the load refuses, naming the case it cannot settle
+("no acuity assigned when heartRate < 0") rather than leaving a decision undefined at
+runtime.
+
+## The two boundaries
+
+A model touches the system in exactly two declared places, and neither of them decides
+anything:
+
+- **Perception** turns natural language into typed instances, which then pass the same
+  validation gate as any other mutation.
+- **Narration** turns a finished proof into prose.
+
+No rule fires, no workflow transitions, and no tool is called by a model. That line is
+what makes the proof tree worth reading — and it is why removing the model leaves a
+working kernel rather than a broken one.
+
+## Documentation
+
+- [Quickstart](https://docs.horismos.ai/quickstart/) — the zero-key path
+- [Guarantees](https://docs.horismos.ai/guarantees/) — what is proven, and what is not
+- [Architecture](https://docs.horismos.ai/architecture/)
+- [Coming from LangGraph](https://docs.horismos.ai/coming-from-langgraph/)
+- [Governing a coding agent](https://docs.horismos.ai/governing-a-coding-agent/)
+- [Use cases](https://docs.horismos.ai/use-cases/)
+- [Framework reference](https://docs.horismos.ai/framework/00-index/) — the full
+  definition, including the [Python API](https://docs.horismos.ai/framework/11-python-api/)
+
+Everything is at <https://docs.horismos.ai/>.
+
+## Contributing
+
+Repository: <https://github.com/horismos-hq/horismos>. Build, test and docs-site
+instructions are in
+[CONTRIBUTING.md](https://github.com/horismos-hq/horismos/blob/main/CONTRIBUTING.md).
 
 ## License
 
-MIT OR Apache-2.0 (final license decision tracked in PRP-000).
+MIT OR Apache-2.0.

@@ -13,7 +13,7 @@ crate-type = ["cdylib"]
 
 [dependencies]
 horismos-core = { workspace = true, features = ["verify", "sparql", "mock"] }
-horismos-bridges = { path = "../horismos-bridges", version = "0.1.0" }
+horismos-bridges = { workspace = true }
 pyo3 = { version = "0.29", features = ["abi3-py311", "rust_decimal", "chrono"] }
 chrono.workspace = true
 rust_decimal.workspace = true

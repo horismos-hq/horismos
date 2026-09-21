@@ -5,7 +5,9 @@ At-a-glance project state. Updated in the same commit as any PRP status change
 [Horismos Board artifact](https://claude.ai/code/artifact/dc7ee691-4c9f-40a7-b235-0760de8ff17d)
 (source: `planning/board.html`, republished externally after status changes merge).
 
-_Last updated: 2026-09-05 (PRP-008 merged into `main`'s state: the branch's host SPI,
+_Last updated: 2026-09-21 (PRP-006 activated: the PyPI release path — packaging
+metadata, single-source version, `.github/workflows/release.yml` — landed; nothing
+published yet). Previously: 2026-09-05 (PRP-008 merged into `main`'s state: the branch's host SPI,
 candidate-artifact pipeline, FHIR/harness adapters and VTE slice now sit on top of the
 landed PRP-005 verifier and both documentation sites). Previously: 2026-09-03 (PRP-005
 Done; PRP-004 corrected to Done after PR #8 merged 2026-08-25; PRP-008 completed on its
@@ -66,8 +68,17 @@ slice, and coding-harness proof all ship together. PRP-005 has since landed on `
 so the one remaining coupling is bookkeeping: `horismos-host::assumptions` still carries
 its own five-field `AssumptionManifest` (same five fields, adapter-native types)
 alongside the shipped `horismos-core::verify::AssumptionManifest`; converging the two is
-gap-noted in PRP-008's `02-tasks-and-gaps.md`, not a behaviour gap. **PRP-006
-(packaging & distribution) is the next phase unlocked by this integration surface.**
+gap-noted in PRP-008's `02-tasks-and-gaps.md`, not a behaviour gap.
+
+**PRP-006 (packaging & distribution) is Active (2026-09-21)**, unlocked by that
+integration surface. Its first slice has landed: `pyproject.toml` carries the PyPI
+metadata, the workspace `version` in the root `Cargo.toml` is the single source
+maturin normalises into `0.1.0a1`, and `.github/workflows/release.yml` builds the four
+wheel platforms plus an sdist, gates both on the doc-11 quickstart, and uploads through
+Trusted Publishing with no token in the repo. Nothing has been published to PyPI or
+TestPyPI: the environments and publishers are the captain's to register. The rest of
+the phase — crates.io, the generated API reference, the dependency-audit/SBOM gates,
+CHANGELOG and tagged releases — is unstarted.
 
 Human side quests: register `horismos.dev`; file the w3id.org/horismos PR;
 reserve crates.io/PyPI names early; merge PR #3 (PRP-002 folder record).
@@ -116,7 +127,7 @@ provenance semirings over the Datalog-shaped subset (Type 5), GNN guidance.
 | Surface | [PRP-003 python bindings](PRP-003-python-bindings/01-objective.md) | ✅ Done (2026-08-18) | `pip install horismos`; the Pythonic front door |
 | Runtime | [PRP-004 agent loop](PRP-004-agent-loop/01-objective.md) | ✅ Done (2026-08-25, PR #8) | Workflow engine, perception/narration boundaries, tools, Bridge |
 | Integration | [PRP-008 standards & host integration](PRP-008-standards-host-integration/01-objective.md) | ✅ Done (2026-09-03, PR #15) | VTE slice; FHIR hydration/commit, terminology provenance, CDS-Hooks/PlanDefinition/CQL composition, candidate-artifact boundary, generic host SPI |
-| Ship & Author | [PRP-006 packaging](PRP-006-packaging-distribution.md) | ⬜ Draft | crates.io + PyPI + docs site + CI gates — activates after PRP-008 |
+| Ship & Author | [PRP-006 packaging](PRP-006-packaging-distribution/01-objective.md) | 🟦 Active (2026-09-21) | crates.io + PyPI + docs site + CI gates — PyPI release path landed first |
 | Ship & Author | [PRP-007 authoring agent](PRP-007-authoring-agent.md) | ⬜ Draft (amended 2026-08-24) | Import/align/overlay-first; SMEs converse; Claude drafts Turtle; verifier gatekeeps |
 
 Build order (dependency DAG, not strict number order — `PRPs/CONVENTIONS.md`):
