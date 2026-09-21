@@ -25,7 +25,17 @@ The site is published at <https://docs.horismos.ai/> by
 `docs/` or `examples/` (and on manual dispatch) it runs the same strict build and
 deploys `site/` to GitHub Pages. It is a deploy-on-merge workflow, not a pull-request
 check — PRP-006 owns PR CI. The repository's Pages setting must be "GitHub Actions"
-for the deploy job to succeed. `site_url` in `mkdocs.yml` is that address.
+for the deploy job to succeed. `site_url` in `mkdocs.yml` is that address: it is what
+canonical links and `sitemap.xml` are built from, so it has to be the address readers
+actually land on, not the host that redirects to it.
+
+`docs/CNAME` is tracked on purpose and must not be deleted. It holds the bare custom
+domain (`docs.horismos.ai`, no scheme, no trailing slash); MkDocs copies it verbatim
+into `site/`, which is the conventional placement and the one thing that keeps the
+custom domain in the deployed artifact itself. Because Pages here is built by a
+workflow rather than from a branch, nothing else in the repository records the domain —
+without this file it lives only in repository settings. Change it and `site_url`
+together, or every page ships a canonical link to the wrong host.
 
 ## Conventions
 
@@ -81,6 +91,20 @@ for the deploy job to succeed. `site_url` in `mkdocs.yml` is that address.
   and the slate scheme is kept working — a new token needs both values. There is no
   `theme.custom_dir`; `theme.font: false` and "no external assets" (no webfonts, no
   CDN, no images) are deliberate.
+- **Inline `var(--horis-*)` needs a literal fallback in both schemes.** A `<style>`
+  block or presentation attribute inside a page — an SVG diagram, say — is served with
+  the markup, but the tokens it names are not: `extra.css` is the only unhashed
+  stylesheet on the site, so it is the one request that can fail while Material's
+  content-hashed bundles are still served from cache. When the custom property is
+  missing the declaration is invalid at computed-value time and the property falls back
+  to its *initial* value — for `fill` that is black, which turns a diagram into solid
+  black boxes. Give every inline `var()` a literal fallback read out of `extra.css`, and
+  declare the rules twice: once for the default scheme and again under
+  `[data-md-color-scheme="slate"]`, because those cached Material bundles keep applying
+  `slate` and light-only literals leave dark text on a dark page. The attribute
+  selector, not a `prefers-color-scheme` query, is what also tracks the manual toggle.
+  `docs/index.md`'s flow diagram is the worked example; `docs/architecture.md`'s SVG
+  needs none because it only uses `currentColor` and Material's own variables.
 - **Status is truthful.** The internal board is the authority on what is merged, in
   build, or planned; the Roadmap page restates its current state in the page's own
   words and carries the date it was last reconciled, rather than pointing readers at a
@@ -102,7 +126,8 @@ docs/
   roadmap.md                   merged / in build / planned
   framework/                   the framework definition (unchanged, mounted)
   stylesheets/extra.css        the whole visual layer — see the convention above
-  assets/screenshots/          PR-body screenshots
+  assets/screenshots/          PR-body screenshots (excluded from the build)
+  CNAME                        the custom domain, copied verbatim into site/
 .github/workflows/docs-pages.yml   deploys the strict build to GitHub Pages on merge to main
 examples/triage/runs/          real trajectories quoted by the site (horismos.trace/2)
 ```

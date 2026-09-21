@@ -38,21 +38,12 @@ proof → NL). Delete the LLM and the kernel still runs.
   gate/proof, red refusal). Light is the designed default; never leave the slate
   scheme unstyled. `theme.font: false` and "no external assets" are deliberate.
   **The site is public at <https://docs.horismos.ai/> (`docs/CNAME` + `site_url`) while
-  the repository is private**: never publish a path a reader cannot open (`PRPs/`,
-  `research/`, `decisions/`, bare filenames, internal sweep-report names) — keep the
-  claim, drop the path, per `docs/README.md` § Conventions. Check by enumerating every
-  code span and link target under `docs/`, not by a prefix grep, and follow each
-  pointer to its destination — a redirect onto a page that still carries a private
-  path just moves the dead end. **A pointer is a claim**: never substitute a link you
-  have not opened and confirmed covers the claim — state the fact in prose and cite
-  nothing instead. `crates/`, `examples/`, `python/` and
-  `make` targets are fine as orientation. Any inline `var(--horis-*)` in an SVG or
-  inline style needs literal fallbacks for **both** schemes: an unguarded `fill: var(…)`
-  renders **black** (`fill` falls back to its initial value), and `extra.css` is the one
-  unhashed stylesheet so it is the one that can go missing — but Material's palette
-  bundle is content-hashed and keeps applying `slate`, so light-only literals leave dark
-  text on a dark box. Declare a default block plus a `[data-md-color-scheme="slate"]`
-  override, as `extra.css` itself does.
+  the repository is private**, so two rules bind every edit under `docs/`: never publish
+  a path a reader cannot open (`PRPs/`, `research/`, `decisions/`, bare filenames,
+  internal artefact names) — keep the claim, drop the path; and give every inline
+  `var(--horis-*)` a literal fallback in **both** schemes, because an unguarded
+  `fill: var(…)` renders black. `crates/`, `examples/`, `python/` and `make` targets are
+  fine as orientation. How to check each, and why: `docs/README.md` § Conventions.
 - `research/README.md`: the research wiki — reality-checks the design against the field,
   every claim tagged `[measured]`/`[inference]`; consult before resolving a `[DECIDE]`.
   `research/neurosymbolic-landscape/pivot-alignment.md` is the standing verdict on the
