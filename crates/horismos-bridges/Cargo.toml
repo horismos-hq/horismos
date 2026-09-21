@@ -13,6 +13,14 @@ bridges-anthropic = []
 bridges-openai = []
 bridges-onnx = []
 bridges-openrouter = ["dep:litellm-rust", "dep:reqwest"]
+# TypeSafe's Jev (text->decisions) over OpenRouter's Decisions endpoint or
+# TypeSafe's own. Default-OFF, like every TLS-carrying bridge: with all of
+# them off, `cargo tree -p horismos-py` shows no reqwest/rustls/aws-lc/ring/
+# openssl at all, which is what lets the published wheel cross-compile
+# cleanly to aarch64. Reuses the workspace `reqwest` (no second HTTP client);
+# it needs no `litellm-rust`, since the Decisions protocol is not
+# OpenAI-compatible.
+bridges-jev = ["dep:reqwest"]
 
 [dependencies]
 horismos-core.workspace = true

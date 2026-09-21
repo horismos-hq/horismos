@@ -11,6 +11,8 @@ pub mod mock;
 
 #[cfg(feature = "bridges-anthropic")]
 pub mod anthropic;
+#[cfg(feature = "bridges-jev")]
+pub mod jev;
 #[cfg(feature = "bridges-onnx")]
 pub mod onnx;
 #[cfg(feature = "bridges-openai")]

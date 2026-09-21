@@ -1,7 +1,7 @@
 # Horismos dev entry points. Requires: rustup (stable), uv. Everything Python
 # runs through uv; maturin is a dev dependency, never a global install.
 
-.PHONY: build develop test test-rust test-py lint fmt no-model-gate check-boundary verify clean demo demo-live
+.PHONY: build develop test test-rust test-py lint fmt no-model-gate check-boundary verify clean demo demo-live demo-jev demo-jev-live
 
 build:
 	cargo build --workspace
@@ -55,6 +55,18 @@ demo:
 # line ("… — mock" vs "… — live (OpenRouter)") says which bridge ran.
 demo-live:
 	cargo run -p horismos-bridges --example triage_agent_demo --features bridges-openrouter
+
+# The text->decisions demo: a clinical note perceived into examples/vte/vte.ttl's
+# four booleans, with the recommendation derived by the rules and printed as a
+# proof tree. MockBridge — deterministic, no network, no key.
+demo-jev:
+	cargo run -p horismos-bridges --example jev_vte_demo
+
+# Same demo, built with the Jev provider client; uses JevBridge when
+# OPENROUTER_API_KEY (or TYPESAFE_API_KEY) is set, else MockBridge — the first
+# output line ("... - mock" vs "... - live (Jev)") says which bridge ran.
+demo-jev-live:
+	cargo run -p horismos-bridges --example jev_vte_demo --features bridges-jev
 
 clean:
 	cargo clean
