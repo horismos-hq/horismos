@@ -73,7 +73,7 @@ assertion — implementors cannot bypass the gate.
 |---------|---------|----------|
 | `verify` | on | BDD verification (biodivine-lib-bdd) |
 | `sparql` | on | The query subset |
-| `bridges-anthropic` / `-openai` / `-onnx` / `-openrouter` | off | Provider clients (in `horismos-bridges`); `-openrouter` ships `OpenRouterBridge` |
+| `bridges-anthropic` / `-openai` / `-onnx` / `-openrouter` / `-jev` | off | Provider clients (in `horismos-bridges`); `-openrouter` ships `OpenRouterBridge`, `-jev` ships the `text → decisions` `JevBridge` (doc 08) |
 | `mock` | on (dev) | MockBridge + testing utilities |
 | `wasm` | off | wasm-bindgen surface; mutually exclusive with `pyo3` |
 | `pyo3` | off | Only `horismos-py` enables this |

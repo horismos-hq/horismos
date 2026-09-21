@@ -32,10 +32,11 @@ litellm-rust = { workspace = true, optional = true }
 reqwest = { workspace = true, optional = true }
 
 [dev-dependencies]
-# Test-only: drives the OpenRouterBridge's async reqwest calls against a
-# local mock listener (bridges-openrouter tests). Never a production
-# dependency — the Bridge trait's async methods run inside whatever
-# runtime the caller (e.g. the demo binary, PRP-004 U14) already owns.
+# Test-only: drives the HTTP bridges' async reqwest calls against a local
+# mock listener (the bridges-openrouter and bridges-jev tests), and gives the
+# example binaries their runtime. Never a production dependency — the Bridge
+# trait's async methods run inside whatever runtime the caller (e.g. the demo
+# binary, PRP-004 U14) already owns.
 tokio = { workspace = true, features = ["rt-multi-thread", "macros", "net", "io-util", "time"] }
 # Demo-only (PRP-004 U14, examples/triage_agent_demo.rs): a fixed
 # horis:now instant for the transaction stamp — never a production

@@ -301,7 +301,7 @@ fn build_bridge() -> (Box<dyn Bridge>, &'static str) {
         if live {
             return (Box::new(hinted_bridge()), "live (Jev)");
         }
-        return (Box::new(mock_bridge()), "mock (no API key set)");
+        (Box::new(mock_bridge()), "mock (no API key set)")
     }
     #[cfg(not(feature = "bridges-jev"))]
     {

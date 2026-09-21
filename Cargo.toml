@@ -62,8 +62,9 @@ getrandom02 = { package = "getrandom", version = "0.2", features = ["js"] }
 # Existing oxrdf/imbl edges use getrandom 0.3. Its wasm backend additionally
 # requires an explicit cfg (in `.cargo/config.toml`) as well as this feature.
 getrandom03 = { package = "getrandom", version = "0.3", features = ["wasm_js"] }
-# OpenRouter bridge only (PRP-004 U13, `horismos-bridges` feature
-# `bridges-openrouter`; horismos-core must never see these — anti-wrapper
+# Bridge clients only (`horismos-bridges` features `bridges-openrouter`
+# — PRP-004 U13 — and `bridges-jev`, which reuses this `reqwest` and needs
+# no `litellm-rust`; horismos-core must never see these — anti-wrapper
 # boundary, CLAUDE.md). `litellm-rust` exact-pinned per captain directive:
 # its OpenAI-compatible chat-completions layer is our own audit-metadata
 # supplement over (model/finish_reason/OpenRouter routing fields the

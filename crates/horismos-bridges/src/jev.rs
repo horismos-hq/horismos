@@ -1172,8 +1172,11 @@ fn round6(value: f64) -> f64 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use horismos_core::Ontology;
+    use horismos_core::reason::ProofKind;
     use horismos_core::workflow::agent::extract_schema;
+    // `Value` is `serde_json::Value` throughout this module, so the typed one
+    // comes in under a name of its own.
+    use horismos_core::{Ontology, Provenance, Ref, Value as TypedValue, World};
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
     use tokio::net::TcpListener;
 
@@ -2384,6 +2387,124 @@ mod tests {
             matches!(err, BridgeError::MalformedOutput { .. }),
             "{err:?}"
         );
+    }
+
+    /// The whole claim, end to end over the HTTP path a live deployment
+    /// takes: a clinical note is posted to the Decisions endpoint, Jev's
+    /// typed answers come back, they clear the World's validation gate as
+    /// `Provenance::Perception` — and `:recommendation` is derived by the
+    /// **rules**. The model is never shown that property (it is
+    /// `horis:assignedBy horis:RulesOnly`), so it cannot propose one; the
+    /// two notes below differ only in the facts Jev proposed, and fire two
+    /// different rules on them.
+    #[tokio::test]
+    async fn perceived_facts_clear_the_gate_and_the_rules_decide() {
+        // Same shape as `SCRIPTED_VTE_RESPONSE`, for a note that says the
+        // patient is already anticoagulated: `bleedingRisk` comes back true
+        // and the higher-priority rule wins.
+        const BLEEDING_RESPONSE: &str = r#"{
+            "model": "typesafe/jev-1.13-20260917",
+            "answers": {
+                "i0_reducedMobility": {"type": "noul", "noul": 0.94},
+                "i0_activeCancer":    {"type": "noul", "noul": 0.09},
+                "i0_priorVte":        {"type": "noul", "noul": 0.28},
+                "i0_bleedingRisk":    {"type": "noul", "noul": 0.61}
+            },
+            "usage": {"input_tokens": 58, "output_tokens": 79}
+        }"#;
+
+        let onto = vte_ontology();
+        let vte_case = onto.node_ref(":VteCase").expect(":VteCase is declared");
+        let recommendation = onto
+            .node_ref(":recommendation")
+            .expect(":recommendation is declared");
+        let schema = extract_schema(&onto, &[vte_case]);
+
+        for (note, response, expected_rule, expected_decision) in [
+            (
+                "72-year-old admitted following a fall, mobilising only with assistance, \
+                 not anticoagulated.",
+                SCRIPTED_VTE_RESPONSE,
+                ":risk-without-contraindication",
+                ":PharmacologicProphylaxis",
+            ),
+            (
+                "78yo, post-op day 2, on warfarin, bed-bound",
+                BLEEDING_RESPONSE,
+                ":bleeding-contraindication",
+                ":HoldProphylaxis",
+            ),
+        ] {
+            let (base_url, server) = one_shot_server(response, |_| {}).await;
+            let result = bridge_at(base_url)
+                .perceive(PerceiveRequest {
+                    text: note.to_string(),
+                    schema: schema.clone(),
+                })
+                .await
+                .expect("perceive should succeed against the scripted response");
+            join_server(server).await;
+
+            let instance = result
+                .instances
+                .first()
+                .expect("the schema declares one class, so one instance comes back");
+            assert!(
+                instance.get("recommendation").is_none(),
+                "a RulesOnly property must never come back from the model: {instance}"
+            );
+
+            let mut properties = Vec::new();
+            for (name, value) in instance
+                .as_object()
+                .expect("a proposed instance is an object")
+            {
+                if name == "class" {
+                    continue;
+                }
+                let property = onto
+                    .node_ref(&format!(":{name}"))
+                    .expect("vte.ttl declares every proposed property");
+                let held = value.as_bool().expect("vte.ttl declares them all boolean");
+                properties.push((property, TypedValue::Boolean(held)));
+            }
+            let mut world = World::new(&onto);
+            let case = world
+                .assert_instance_as(Provenance::Perception, None, vte_case, properties)
+                .expect("the proposed facts must clear the validation gate");
+
+            let decided = TypedValue::Ref(Ref::new(
+                onto.node_ref(expected_decision)
+                    .expect("a declared :VteRecommendation member"),
+            ));
+            assert_eq!(
+                world.value(case, recommendation),
+                Some(&decided),
+                "note {note:?} should decide {expected_decision}"
+            );
+            assert_eq!(
+                world.fact_provenance(case, recommendation, &decided),
+                Some(Provenance::Rule),
+                "the decision is the rules', not the model's"
+            );
+
+            let proof = world
+                .explain(case, recommendation)
+                .expect("a derived fact carries its proof");
+            match &proof.kind {
+                ProofKind::Conclusion { rule, .. } => assert_eq!(
+                    *rule,
+                    onto.node_ref(expected_rule).expect("a declared rule"),
+                    "note {note:?} fired the wrong rule"
+                ),
+                other => panic!("a derivation's root is a conclusion, got {other:?}"),
+            }
+            assert!(
+                proof.render(&world).contains(expected_decision),
+                "the proof must read as the decision it made:\n{}",
+                proof.render(&world)
+            );
+        }
     }
 
     /// Run by hand against the live endpoint:

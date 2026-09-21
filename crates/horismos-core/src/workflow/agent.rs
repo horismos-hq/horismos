@@ -1015,7 +1015,7 @@ fn json_to_value(json: &serde_json::Value, property: &PropertyDecl) -> Option<Va
 /// perception-only demo, a bridge conformance test). Pure: no world, no
 /// mutation, no I/O.
 ///
-/// Spec: `docs/framework/06-llm-boundary.md` § the derived schema.
+/// Spec: `docs/framework/06-llm-boundaries.md` § Schema derivation.
 pub fn extract_schema(onto: &Ontology, extracts: &[Iri]) -> serde_json::Value {
     derive_extract_schema(onto, onto.schema(), extracts)
 }
