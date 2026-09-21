@@ -903,7 +903,7 @@ trigger can depress first-tier confidence and force escalation — an attack on 
 allocation* rather than correctness. **[inference]** Horismos inherits this threat the
 moment a confidence threshold decides whether a human is paged: an attacker who can
 depress confidence can force `horis:fallback` at will, which is a denial-of-service on
-the human in the loop. Doc 15 does not name it (§6.3, and OD-5).
+the human in the loop. Doc 15 does not name it (§6.2.6 item 4, and OD-5).
 
 ### 4.6 Constrained decoding: why "0% structured-output error" is not a result
 
@@ -1157,8 +1157,9 @@ teams on a major platform in a day, and five Elixir clients appeared within 24 h
 because the shape is that easy to bind. The deflationary one: first-day breadth-of-trial
 on a platform where trial is one line, during a 37-million-view launch (§5.4), is a
 **curiosity metric**; and the community's dominant response was not to adopt but to
-*clone* — open reproductions out-star the official SDK roughly 16:1, and the Elixir
-download counts say actual Elixir usage is approximately zero despite five SDKs.
+*clone* — the two open reproductions together out-star the official SDK roughly 23:1
+(2,621 + 1,105 against 164), and the Elixir download counts say actual Elixir usage is
+approximately zero despite five SDKs.
 
 ### 5.2 Independent verification exists, is unusually good for six days, and is mixed
 
@@ -3232,7 +3233,7 @@ Repository facts cite `local repo` paths at [`adfc27a`](https://github.com/billa
 |---|---|---|
 | Distinct sources cited | ~145 in the Q9 reading-log section, plus the repository files listed in §1 | |
 | `[measured]` / `[inference]` / `[unverified]` | the three tags appear on every substantive claim | `[measured]` is further split in §6.3 into *primary* (the document itself was read) and *secondary* (a reliable intermediary read it), because the regulatory material makes that distinction load-bearing |
-| `[unverified]` items | 22 | Ten bibliographic-only confirmations (Brier 1950, Dawid 1982, both Gneiting papers, Chow 1970, Geifman & El-Yaniv 2017, Mozannar & Sontag 2020, Caruana 1997, MT-DNN, SetFit, Tian et al. 2023); the OpenAI Structured Outputs blog percentages (HTTP 403); the Bengio System-2 keynote attribution; the "Noul" etymology; TypeSafe's non-response to the prior-art claim; and eight from the regulatory sub-sweep (AI Act Art. 86's interim effect, the adopted CPPA ADMT text, the April 2026 Reg B scope, the Dutch DPA guidance's final status, the 2026 state health-AI law count, the NYC LL 144 enforcement numbers, the CHAI assurance-lab report, and Siala et al. on rule-set redundancy). None is upgraded anywhere in this report |
+| `[unverified]` items | 23 | Eleven bibliographic-only confirmations (Brier 1950, Dawid 1982, both Gneiting papers, Chow 1970, Geifman & El-Yaniv 2017, Mozannar & Sontag 2020, Caruana 1997, MT-DNN, SetFit, Tian et al. 2023); the OpenAI Structured Outputs blog percentages (HTTP 403); the Bengio System-2 keynote attribution; the "Noul" etymology; TypeSafe's non-response to the prior-art claim; and eight from the regulatory sub-sweep (AI Act Art. 86's interim effect, the adopted CPPA ADMT text, the April 2026 Reg B scope, the Dutch DPA guidance's final status, the 2026 state health-AI law count, the NYC LL 144 enforcement numbers, the CHAI assurance-lab report, and Siala et al. on rule-set redundancy). None is upgraded anywhere in this report |
 | Sub-agents | 5 | One each for Q-A, Q-C and Q-D3; two splitting Q-B. The Q-D3 agent ran ~41 minutes and exhausted a 200-call web-search budget; its incomplete searches are recorded as such in §8 |
 
 ### Methodology notes, including what went wrong
@@ -3278,7 +3279,10 @@ Repository facts cite `local repo` paths at [`adfc27a`](https://github.com/billa
   arms). This is the single biggest change the sub-sweep forced, and it makes §6.3 a
   weaker and more defensible claim than the draft it replaces.
 - **The lesson generalises and is worth stating as a rule for this corpus.** Twice in one
-  report, a claim drafted from an abstract was materially wrong once the primary source was
-  read, and in both cases the correction ran in the same direction — *less* favourable to
-  Horismos. A paywall or a block is not a reason to reason from the abstract; it is a
-  reason to mark the claim `[unverified]` until the document is read, or not to make it.
+  report, a claim drafted from a *summary description* rather than the source itself was
+  materially wrong once the source was read — once from the intake's own wording ("Score
+  (numeric/rubric)"), once from a paywalled abstract — and in both cases the correction ran
+  in the same direction, *less* favourable to Horismos. A summary is not a source. The
+  paywall case is the sharp instance: a block is not a reason to reason from the abstract;
+  it is a reason to mark the claim `[unverified]` until the document is read, or not to
+  make it.

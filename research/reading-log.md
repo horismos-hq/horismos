@@ -6,9 +6,11 @@ added for a new topic. Grouped by research question/topic for scan-ability.
 `[unverified]` rows follow [`README.md`](index.md)'s evidence-labeling convention (snippet-only
 source, primary fetch failed).
 
-Populated from the founding `horismos-research-s1` sweep (2026-08-24) and extended by
+Populated from the founding `horismos-research-s1` sweep (2026-08-24), extended by
 sweep #2 (2026-09-02; rows dated 2026-06 onward at the bottom of each section, plus the
-new Q7 section); filed-under paths point to where each source's finding lives in this wiki.
+new Q7 section), and extended again by the Jev deep dive (2026-09-21; the new Q9 section,
+the log's only multi-table section); filed-under paths point to where each source's
+finding lives in this wiki.
 
 ### Captain intake
 
