@@ -28,5 +28,10 @@ Run the standalone CDS Hooks-shaped invocation with:
 cargo run -p horismos-fhir --example vte_standalone
 ```
 
+The same `vte.ttl` also backs the `text → decisions` demo (`make demo-jev`,
+`make demo-jev-live`), which perceives the four booleans from a free-text clinical
+note instead of the recorded bundle and lets the same rules decide — see
+`docs/framework/08-bridge.md` § "A decision model: `jev:`".
+
 The clinical values are synthetic and this is not a treatment recommendation or a
 conformance/certification claim.

@@ -43,6 +43,7 @@ Model identifiers in the ontology are prefix-routed, exactly as in sigil-lang:
 | `hf:` | Local HuggingFace pipeline | classification-style perception without a frontier model |
 | `onnx:` | ONNX Runtime | edge/embedded |
 | `python:` | Any Python callable | escape hatch, custom models |
+| `jev:` | TypeSafe Jev, `text → decisions` | typed answers only — no text output, so perception and proposal but never narration |
 | `mock:` | Deterministic mock | **tests and CI run on this — zero API keys** |
 
 ```python
@@ -88,6 +89,64 @@ treated as `0.0` — failing safe into the fallback edge rather than false-accep
 Logprob-derived confidence, where a provider exposes it, is a future per-backend
 enhancement layered on the same field; the mock backend's scripted confidence makes
 every test independent of either.
+
+### A decision model: `jev:`
+
+Not every provider behind a Bridge speaks text. TypeSafe's Jev is a
+`text → decisions` model: it takes free text plus a set of typed *questions* and
+returns a typed *answer* per question — a probability (`noul`), an option key
+(`choice`), or an ordinal level (`score`). It has no text output channel at all.
+`JevBridge` (`bridges-jev`, default-off like every TLS-carrying bridge) translates
+the derived perception schema into those three primitives:
+
+| Derived schema shape | Jev primitive |
+|---|---|
+| `"type": "boolean"` | `noul`, `criteria.true`/`criteria.false` from the property's description |
+| `"enum": [...]` — a `horis:oneOf` or closed subclass vocabulary | `choice`, one option per member |
+| an enum a deployment declares ordinal | `score`, the members in declared order |
+| `"type": "number"`/`"integer"`, an open string, a date-time | **refused** |
+
+**The refusal is the design, not a gap.** Jev cannot produce a number or a free
+string, so when a derived schema asks for one the call fails with a
+`BridgeError` naming the offending property, and the step takes its
+`horis:fallback` edge like any other Bridge error. It does not bucket the number
+into a `score` and it does not drop the property. A bucketed heart rate would be
+a fabricated measurement wearing perception provenance; a numeric property
+belongs on the external-snapshot path, with the real reading and the real
+source. An honest refusal is worth more than a plausible wrong number.
+
+**One class per step.** A `jev:` PerceptionStep extracts exactly one class. A
+schema carrying more than one is refused by name, and a step that wants two runs
+as two steps. Jev answers every question it is asked, so a two-class schema would
+come back with an instance of *both* classes — including one for a class the text
+never mentioned, a fabricated fact wearing perception provenance, which is the
+same thing the numeric refusal exists to prevent. The `horis:extracts :Patient,
+:Symptom` step used as the canonical example elsewhere in this spec is right for a
+text-capable bridge; routed to `jev:` it is two steps.
+
+**Narration is impossible here** and says so: `narrate` returns a `BridgeError`
+explaining that the model has no text output channel and that narration needs a
+different bridge. Nothing is stitched out of answer keys, and no empty success is
+returned. Routing is per step, so a workflow whose PerceptionStep declares
+`horis:model "jev:jev-1.13"` and whose NarrationStep declares a `claude:` model
+reaches two different Bridges in the same run — no step ever asks Jev for prose.
+
+Jev returns one probability per question, which is more resolution than the
+single call-level `confidence` carries, so `JevBridge` fills `fact_confidence`
+per proposed instance and records the per-property detail in the call's audit
+metadata. Both the per-instance and the call-level number are the *weakest*
+answer they cover, not an average: one coin-flip must not hide behind three
+certainties when the runtime compares against `horis:threshold`.
+
+The RDFS-plus profile has no vocabulary for "this enum is ordered" or for
+question wording, and neither is invented for this bridge. A deployment supplies
+both alongside the Bridge instance.
+
+Worked end to end in `crates/horismos-bridges/examples/jev_vte_demo.rs`
+(`make demo-jev`, `make demo-jev-live`): a clinical note becomes four typed
+booleans with a probability each, and `examples/vte/vte.ttl`'s rules derive
+`:recommendation` — which is `horis:assignedBy horis:RulesOnly`, so it never
+appears in the schema the model is shown.
 
 ## Operational semantics
 

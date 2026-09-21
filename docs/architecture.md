@@ -134,7 +134,7 @@ Everything after the Bridge call is allocation-light Rust over interned IRIs. Py
 | The `Bridge` trait — a pure interface, no provider code | `horismos-core::bridge` | [The Bridge](framework/08-bridge.md), [LLM Boundaries](framework/06-llm-boundaries.md) |
 | `horismos.trace/1` and `/2`, emission, migration policy | `horismos-core::trace` | [Traces](framework/09-traces.md) |
 | BDD verification with witnesses, assumption manifest, non-vacuity | `horismos-core::verify` (PRP-005) | [Verification](framework/10-verification.md) |
-| `MockBridge` (the CI workhorse) and `OpenRouterBridge` (feature `bridges-openrouter`) | `horismos-bridges` | [The Bridge](framework/08-bridge.md) |
+| `MockBridge` (the CI workhorse) plus the provider bridges, each behind its own default-off feature: `OpenRouterBridge` (`bridges-openrouter`), `JevBridge` (`bridges-jev`, `text → decisions`) | `horismos-bridges` | [The Bridge](framework/08-bridge.md) |
 | PyO3 extension — marshaling only, no logic | `horismos-py` | [Python API](framework/11-python-api.md) |
 | The `horismos` Python package: naming sugar over the native handle | `python/horismos` | [Python API](framework/11-python-api.md) |
 | FHIR and coding-harness adapters, host SPI (`ExternalSnapshot`, `ProposedEffectSet`) | `horismos-host`, `horismos-fhir`, `horismos-harness` | [Architecture](framework/14-architecture.md) § Two-boundary data flow |

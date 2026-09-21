@@ -1009,6 +1009,17 @@ fn json_to_value(json: &serde_json::Value, property: &PropertyDecl) -> Option<Va
     }
 }
 
+/// The JSON Schema a `PerceptionStep` over `extracts` is forced into — the
+/// same derivation [`Agent::run`] performs, exposed for callers that drive a
+/// [`crate::bridge::Bridge`] directly rather than through a workflow (a
+/// perception-only demo, a bridge conformance test). Pure: no world, no
+/// mutation, no I/O.
+///
+/// Spec: `docs/framework/06-llm-boundaries.md` § Schema derivation.
+pub fn extract_schema(onto: &Ontology, extracts: &[Iri]) -> serde_json::Value {
+    derive_extract_schema(onto, onto.schema(), extracts)
+}
+
 /// Derives the JSON Schema a `PerceptionStep`'s `Bridge` call is forced
 /// into, from `horis:extracts`, per doc 06's mapping table. The top-level
 /// shape (`instances`/`confidence`) matches what `OpenRouterBridge` (U13)
