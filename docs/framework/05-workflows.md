@@ -23,7 +23,7 @@ does — that remains a fully supported shape, just no longer the only one.
 | `horis:ReasoningStep` | Run/await inference until a goal pattern holds | No |
 | `horis:ActionStep` | Invoke a declared Tool when preconditions hold (doc 07) | No |
 | `horis:NarrationStep` | Proof tree → NL for humans (doc 06) | Yes (prose only) |
-| `horis:ProposalStep` | LLM ranks precondition-legal candidates; the choice is the runtime's, never the model's | Constrained |
+| `horis:ProposalStep` | LLM ranks precondition-legal candidates | Constrained |
 | `horis:WaitStep` | Await external input (structured facts or human decision) | No |
 
 `horis:ChoiceStep`, `horis:ProposalStep`, `horis:WaitStep` and `horis:SubflowStep`

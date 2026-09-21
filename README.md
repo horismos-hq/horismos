@@ -14,9 +14,7 @@ verified before it runs. Delete the LLM and the kernel still runs.
 ## Status
 
 Pre-alpha. The symbolic core, the Python bindings, the Rust agent loop, formal
-verification and the standards/host integration layer are built; the
-[roadmap](https://docs.horismos.ai/roadmap/) states exactly what runs today and what
-does not.
+verification and the standards/host integration layer are built.
 
 ## Install
 
