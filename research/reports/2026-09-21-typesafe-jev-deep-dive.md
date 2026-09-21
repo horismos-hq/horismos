@@ -614,9 +614,11 @@ the listing, so the mechanism is unverified. The retrieval lesson does not depen
 **[inference]** Two things follow, and they pull in opposite directions, so both have to be
 said plainly.
 
-- **Access is now cheap and ordinary.** A deployment that already speaks OpenRouter can
-  reach Jev today with a model string. For this repo specifically that matters more than it
-  would elsewhere — see §7, where it moves an effort estimate.
+- **Access is now cheap and ordinary — but access is not integration.** Anyone with an
+  OpenRouter account can reach Jev today at $0.042/Mtok, with no TypeSafe contract and no
+  waitlist behind it. That is a genuine drop in the cost of *trying* the model. It is not a
+  drop in the cost of wiring it into this repo — see §7, where the effort estimate this was
+  first drafted as moving stays where it was, and why.
 - **It changes the contracting party, not the processing.** OpenRouter resale means a
   different commercial counterparty in front of the same TypeSafe-operated endpoint
   (`provider_name` is literally `TypeSafe`). **Every trust-posture finding above stands
@@ -2810,27 +2812,46 @@ decide whether Horismos does this", and the corresponding OD in §9 is self-cont
 | **R8** | **Run the joint-consistency experiment, and publish it.** Ask a typed-decision model a set of logically entailed questions over the triage fixtures, measure the inconsistency rate, then show the same questions answered through a Horismos overlay where the rule layer makes the entailment hold by construction. | This converts §6.1's strongest positioning claim from an argument into a number, using a property the vendor has already documented as a weakness. It is the cheapest credible piece of external evidence the project could produce, and it does not require building a production bridge — a throwaway harness suffices. | M | **No PRP owns this.** Positioning evidence for PRP-000; nearest home is the research corpus itself | **Decide** → OD-4 (same sequencing question) |
 | **R9** | **Fund or run the experiment nobody has run: a Jabbour-style clinician study where the artifact under test is a *derivation over declared facts*, not a saliency map.** Same design, same biased-model arm; measure whether scrutiny rises specifically on the wrong-AI trials. | §6.3 rests on a distinction between post-hoc explanation and reason-giving that is argued from first principles and measured almost nowhere. The one positive signal — Han et al. 2026's eye-tracking result, where "verifiable explanations" raised AI↔image gaze switches from **6.04 to 8.52** on incorrect-AI trials — is a single small study of an artifact defined as "brief verification cues linked to the current AI recommendation", which is structurally what a proof tree is. Everything else in the human-factors literature (Gomez 2025, Nicolson 2025, Buçinca 2021, Bansal 2021, Nagendran 2024) measures the *other* artifact and finds it does not help. Until someone runs this, the wedge in §6.3 is a legal argument with no human-factors evidence behind it — and Ghassemi's human-factors argument stands unanswered. | L | **No PRP owns this.** Validation evidence; nearest home is the [validation ladder](../validation/00-ladder.md) as an instrument on rung 1 | **Decide** — it is a funding call, not a build |
 
-**[measured — added 2026-09-21, after §3.5's OpenRouter finding]** **One effort estimate in
-the table above is now wrong, and it is worth restating rather than leaving to the
-reader.** **R8**'s effort was scored **M** on the assumption that reaching a typed-decision
-model meant a new provider integration. It does not. `openrouter.rs` is this repo's only
-non-mock `Bridge`, the registry is prefix-routed
-(`BTreeMap<String, Arc<dyn Bridge>>`), and Jev is reachable through OpenRouter as the model
-string `typesafe/jev-1.13`. Calling it is therefore a **configuration-level change**, not an
-integration: **R8 drops from M to S.** At $0.042/Mtok on the prompt and nothing on the
-completion, the joint-consistency experiment's compute cost is a rounding error, which was
-already true and is now demonstrably so.
+**[added 2026-09-21, after §3.5's OpenRouter finding]** **R8 deserves a note — though not
+the correction first drafted here.** Its effort was scored **M** on the assumption that
+reaching a typed-decision model meant a new provider integration, and §3.5's resale finding
+looked at first like it removed that assumption. It does not, and the repo says why.
+
+**[measured — local repo, [`adfc27a`](https://github.com/billaram/horismos/blob/adfc27a)]**
+Registering a backend here really is cheap: `crates/horismos-bridges/src/openrouter.rs` is
+the only non-mock `Bridge`, and the registry is prefix-routed
+(`BTreeMap<String, Arc<dyn Bridge>>`, `crates/horismos-core/src/workflow/agent.rs:165`).
+But the shipped OpenRouter bridge is not model-agnostic. `perceive`
+(`openrouter.rs:306,310`) and `rank` (`:391,403`) each send a `tools` array *plus* a forced
+`tool_choice` naming that function, and `extract_tool_call` (`:239`) fails the call outright
+— *"model did not call the forced tool … (no tool_calls)"* — when the reply carries none;
+`narrate` reads `/choices/0/message/content`. The crate's own
+`perceive_rejects_a_reply_that_never_calls_the_forced_tool` test (`:622`) pins that failure
+as intended behaviour, not an accident. Against that, §3.5 and §3.1 record Jev's
+`supported_parameters` as **empty**, no tool-calling surface at all (correction #6), and an
+output modality of `decisions` rather than text.
+
+**[inference]** Setting `OPENROUTER_MODEL=typesafe/jev-1.13` on the shipped bridge would
+therefore fail at the forced-tool-call step rather than work. Reaching Jev from this repo is
+**not** a configuration-level change: it needs its own `Bridge` implementation, or a
+distinct request/response path inside the existing one. **R8 stays at M**, and the throwaway
+harness it already assumed is still the thing to build.
+
+**[measured]** What §3.5 does buy is narrower and still worth recording: OpenRouter resale
+removes the account and waitlist barrier, putting the model within reach at **$0.042/Mtok**
+prompt and **$0** completion with no TypeSafe contract. That lowers the cost of *trying*
+Jev to a rounding error. It does not lower the cost of integrating it.
 
 **[inference]** Nothing else in the table moves. **R6** is explicitly the *local*
 alternative and its case was never about access — it rests on latency, per-case cost, data
 egress and determinism, none of which OpenRouter touches. **R1–R5, R7 and R9** do not
 involve running Jev at all. And **OD-4**, which asks whether a typed-decision proposer is in
 scope and if so hosted or local, has its option space changed in exactly one place: the
-*integration effort* for the hosted option is now near zero, since no new `Bridge` has to be
-written. Its *money* cost did not move — OpenRouter resells at the same $0.042/Mtok, which
-is still ~32× more per case than a local encoder — and every *reason* the report gives for
-preferring local is untouched. Cheap access makes the experiment easy; it does not make the
-dependency wise.
+hosted option's *access* barrier is gone. Its *integration effort* did not drop, for the
+reason just given, and its *money* cost did not move — OpenRouter resells at the same
+$0.042/Mtok, still ~32× more per case than a local encoder. Every *reason* the report gives
+for preferring local is untouched. Cheap access makes the experiment easy to fund; it does
+not make the dependency wise.
 
 ### What NOT to do
 
@@ -2844,16 +2865,19 @@ dependency wise.
   execute. Revisit if a published reliability curve appears, a BAA becomes available, and
   `ProposalStep` lands.
 - **Do not read OpenRouter availability as a green light.** §3.5 records that Jev is resold
-  on OpenRouter at $0.042/Mtok, and §7 above drops R8's effort accordingly. **All four
-  blockers in the bullet above stand, because not one of them is about access**: the
+  on OpenRouter at $0.042/Mtok. **All four blockers in the bullet above stand, because not
+  one of them is about access**: the
   primitives still cannot express numeric or free-string values, so most of Horismos's
   ontology vocabulary has no encoding (§6.2.3); determinism is still explicitly declined by
   the vendor (§6.2.4); the trust posture — no SOC 2, BAA, SLA, self-host or residency — is
   unchanged, since resale swaps the counterparty and not the processing (§3.5); and
   `ProposalStep`/`rank` still does not execute, so the slot it fits best returns
-  `WorkflowError::StepDeferred` (§6.2). Easy access changes what a *throwaway experiment*
-  costs, which is why R8 got cheaper. It changes nothing about what a *production
-  dependency* would cost.
+  `WorkflowError::StepDeferred` (§6.2). Cheap access in fact adds a fifth, practical
+  blocker rather than removing one **[measured — local repo]**: the only non-mock `Bridge`
+  this repo ships cannot talk to Jev as written, because `openrouter.rs` forces a tool call
+  on every `perceive` and `rank` and Jev has no tool-calling surface (§7 above). Easy access
+  changes what it costs to *reach* the model. It changes nothing about what a *production
+  dependency* would cost, and nothing about what even an experiment still has to build.
 - **Do not adopt Choice/Score/Noul as the proposer schema contract.** It is strictly less
   expressive than what doc 06 already derives (§6.4.4). Borrow the vocabulary for
   positioning if the category takes hold; do not borrow the type system.
@@ -3146,15 +3170,19 @@ next unlocked phase per the board, no PRP owns bridge backends now that PRP-004 
 and adding a backend competes for the same capacity. This is a roadmap call.
 
 **[measured — added 2026-09-21, after §3.5's OpenRouter finding; evidence only, the
-decision is unchanged]** One input to option (d) has moved. The hosted option no longer
-requires a new provider integration: Jev is resold on OpenRouter as `typesafe/jev-1.13` at
-**$0.042/Mtok** prompt and **$0** completion, and `openrouter.rs` is this repo's only
-non-mock `Bridge` behind a prefix-routed registry — so reaching it is a configuration-level
-change. That is why §7's R8 drops from M to S. It changes the **integration effort** of (d),
-and nothing else: the 20–140× latency gap, the per-case cost gap, the data-egress question and the
-trust posture are all unaffected by who bills for the call, and §7's "what not to do" states
-explicitly that all four blockers survive cheap access. The sequencing question this OD
-actually turns on is untouched.
+decision is unchanged]** One input to option (d) has moved, and it is a smaller one than it
+first appeared. The hosted option's **access barrier is gone**: Jev is resold on OpenRouter
+as `typesafe/jev-1.13` at **$0.042/Mtok** prompt and **$0** completion, so trying it needs
+no TypeSafe contract and no waitlist. **[inference]** Its **integration effort did not
+drop.** §7 records the measurement: `openrouter.rs` is this repo's only non-mock `Bridge`,
+and it forces a `tool_choice` on every `perceive` and `rank` and fails the call when the
+reply carries no `tool_calls` — which is what a model with an empty `supported_parameters`
+and no tool-calling surface would return. Option (d) would still need its own `Bridge` or a
+distinct request/response path; only the cost of *reaching* the model fell. Nothing else in
+(d) moves either: the 20–140× latency gap, the per-case cost gap, the data-egress question
+and the trust posture are all unaffected by who bills for the call, and §7's "what not to
+do" states explicitly that all four blockers survive cheap access. The sequencing question
+this OD actually turns on is untouched.
 
 **Options.** (a) Nothing before PRP-006. (b) A minimal `hf:`-prefixed local encoder bridge
 as a demonstration, not a supported backend, sized to make R8's joint-consistency

@@ -60,15 +60,20 @@ Append-only. One line per merged PR: date, PR link, summary.
   attacks *inherently* explainable models too, not only post-hoc ones). Eight open
   decisions (OD-1–OD-8) recorded, all captain-held; no PRP text edited and no `crates/`
   change.
- **Post-review correction folded into the same PR:** the dive enumerated
-  OpenRouter's model catalogue, found no TypeSafe entry, and so never recorded resale as a
-  channel at all — it described only the direct TypeSafe API. Jev is in fact **resold on
-  OpenRouter** (`typesafe/jev-1.13`, `text->decisions`, $0.042/Mtok prompt
+- 2026-09-21 — (this PR) — **Correction to what PR #17 landed**, carried onto `main` as its
+  own follow-up because #17 was squash-merged before this delta finished validating. The
+  dive enumerated OpenRouter's model catalogue, found no TypeSafe entry, and so never
+  recorded resale as a channel at all — it described only the direct TypeSafe API. Jev is in
+  fact **resold on OpenRouter** (`typesafe/jev-1.13`, `text->decisions`, $0.042/Mtok prompt
   and $0 completion) but does not appear in the standard `/api/v1/models` listing, so a
-  catalogue survey cannot see it. Recorded in §3.5 with the retrieval method, with the
-  consequence restated in §7 (R8 drops M→S, since `openrouter.rs` is the only non-mock
-  Bridge and the registry is prefix-routed) and an explicit statement in the "do not do"
-  list that cheap access leaves all four blockers standing. The OpenRouter record's
+  catalogue survey cannot see it. Recorded in
+  [the dive's](reports/2026-09-21-typesafe-jev-deep-dive.md) §3.5 with the retrieval method.
+  The consequence, restated in §7 and §9: cheap access lowers the cost of *trying* Jev, not
+  the cost of integrating it. **R8 stays at M** — the repo's only non-mock `Bridge`
+  (`openrouter.rs`) forces a tool call on every `perceive` and `rank`, and Jev has no
+  tool-calling surface, so serving it needs its own `Bridge` or a distinct request/response
+  path. The "do not do" list gains an explicit statement that cheap access leaves all four
+  blockers standing, and that this adds a fifth practical one. The OpenRouter record's
   `supports_tool_choice` field, which appeared to contradict intake correction #6, was
   checked against three non-tool models that carry the identical flag, so it is not a
   capability statement about Jev; correction #6 stands.
