@@ -4,9 +4,9 @@
      single-sourced from README.md via snippet markers; the page template is shown
      verbatim from _template/page.md. -->
 
-The corpus grows by two mechanisms and one shape. Both mechanisms are below (quoted
-from the wiki's own README, which remains the canonical statement); the shape — a page
-with five fixed sections and a tag on every claim — is shown at the end.
+The corpus grows by three mechanisms and one shape. All three mechanisms are below
+(quoted from the wiki's own README, which remains the canonical statement); the
+shape — a page with five fixed sections and a tag on every claim — is shown at the end.
 
 --8<-- "README.md:cadence"
 

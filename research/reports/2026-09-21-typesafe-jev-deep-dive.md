@@ -274,7 +274,7 @@ boundary, and an uncalibrated input to it produces a mis-set boundary. This is t
 The PRP-008 host SPI is on the Adapter side of that line:
 
 ```rust
-// crates/horismos-host/src/spi.rs:501-508
+// crates/horismos-host/src/spi.rs:501-507
 pub trait HostAdapter {
     type HydrationRequest;
     fn hydrate(&self, request: &Self::HydrationRequest) -> Result<ExternalSnapshot, HostError>;
@@ -1469,7 +1469,7 @@ decision from a model is a proposal. It goes behind `Bridge`.
 
 **[inference]** The consequence is that **PRP-008's host SPI needs nothing at all for a
 Jev adapter** — the opposite of what the task brief anticipated, and worth stating
-plainly. `HostAdapter::hydrate`/`commit` ([`spi.rs`](https://github.com/billaram/horismos/blob/adfc27a/crates/horismos-host/src/spi.rs):501-508) is the
+plainly. `HostAdapter::hydrate`/`commit` ([`spi.rs`](https://github.com/billaram/horismos/blob/adfc27a/crates/horismos-host/src/spi.rs):501-507) is the
 system-of-record boundary; `IntegrationTrace` already embeds the core `Trace`
 ([`host/trace.rs`](https://github.com/billaram/horismos/blob/adfc27a/crates/horismos-host/src/trace.rs):36-49), so a perception step performed by any bridge is already
 carried inside the integration envelope with no schema change. The only host-adjacent

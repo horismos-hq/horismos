@@ -74,11 +74,17 @@ overview page to go deeper.
 ## Update cadence
 
 <!-- --8<-- [start:cadence] -->
-Two paths keep this wiki current:
+Three paths keep this wiki current:
 
 1. **Weekly research sweep PRs.** A recurring pass that revisits open questions,
    checks for new publications relevant to a page's claims, and appends deltas.
-2. **Ad-hoc captain URL intakes.** The captain (or anyone) can drop a single URL at
+2. **Captain-directed deep dives.** A written captain brief scopes one axis; the dive
+   runs as its own research task, lands a full report under `research/reports/`, and
+   distributes dated delta sections into the topic pages it touches. The reports and
+   where each one's findings went are inventoried in [`reports/index.md`](reports/index.md);
+   the dives themselves are listed alongside the sweeps in the
+   [sweeps-and-dives table](sweeps.md#sweeps-so-far).
+3. **Ad-hoc captain URL intakes.** The captain (or anyone) can drop a single URL at
    any time via `research/intake/` — see [`intake/README.md`](intake/README.md) for the exact mechanism.
    This does not wait for the weekly cadence.
 
