@@ -310,18 +310,18 @@ A `score` of 1.05 over those three levels resolves to `:Moderate`, carrying
 the answer's own confidence. Where the response reports a legend mapping
 level to option key, that legend decides which level was named; only a
 response carrying no legend, or one that does not read as a whole, falls back
-to rounding to the nearest declared index — and that fallback is recorded in
-the call's audit metadata rather than failing the call. The primitive takes
-2–10 levels, so a twelve-member enum declared ordinal is refused rather than
-collapsed.
+to rounding to the nearest declared index — and an unreadable legend is
+recorded in the call's audit metadata rather than failing the call. The
+primitive takes 2–10 levels, so a twelve-member enum declared ordinal is
+refused rather than collapsed.
 
 #### The refusals, in their own words
 
 Every refusal below is raised while the schema is being translated, before
 any request is sent. The runtime treats each one exactly as it treats low
 confidence: the step takes its `horis:fallback` edge. The
-`jev:typesafe/jev-1.13` each message opens with is `Bridge::id()` — the `jev:`
-prefix and the model alias the bridge was configured with.
+`jev:typesafe/jev-1.13` each message opens with is the `jev:` prefix and the
+model alias the bridge was configured with.
 
 ```text title="BridgeError::Refused — domain_text(), one per offending schema"
 bridge jev:typesafe/jev-1.13 refused: property `heartRate` on `:Patient` has JSON Schema type `number`, and Jev answers only noul/choice/score — it cannot produce a number or a free string. Approximating it as a score would fabricate a measurement under perception provenance; supply `heartRate` through the external-snapshot path instead, or narrow its range to a closed vocabulary
