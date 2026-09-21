@@ -108,9 +108,14 @@ invents IRIs in external namespaces.
   facts, no perception) and shows the proof tree. Dry-running the ontology *is* the
   review of its logic. **Amended (2026-08-24)**: the DoD extends this to include a seeded
   subtly-wrong-but-internally-consistent axiom, measuring — not assuming — whether an SME
-  reviewing only the rendered summary and scenario probes catches it. This is in
-  PRP-007's definition of done because review-by-summary is exactly where formalized
-  guidelines have historically passed review while encoding the wrong thing.
+  reviewing only the rendered summary and scenario probes catches it. Review-by-summary
+  is an assumption this design rests on that no study yet measures: chain-of-thought
+  faithfulness work shows a fluent rendering can systematically misrepresent the
+  reasoning behind it (Turpin et al. 2023,
+  [arXiv:2305.04388](https://arxiv.org/abs/2305.04388); Lanham et al. 2023,
+  [arXiv:2307.13702](https://arxiv.org/abs/2307.13702)), but none of it covers NL
+  renderings of separately-verified formal artifacts. That gap is why it sits in
+  PRP-007's definition of done as something to test rather than something to assume.
 - **(Import/align mode, declared-future) Source-anchor view, mapping-loss report, and
   assumption diff** — which drafted clause traces to which line of the imported standard;
   what was lost or approximated in the mapping (never silently); and what changed in the

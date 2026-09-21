@@ -117,9 +117,12 @@ stated in prose.
 ## Non-vacuity (added 2026-08-24)
 
 A rule or constraint can be internally consistent and BDD-verifiable while binding
-nothing — the "vacuous verification" failure mode familiar from clinical
-guideline formalization, where a formalized guideline passes every check and still
-constrains no real case. The distinct non-vacuity pass flags a
+nothing — "vacuous verification", a failure mode named and explicitly designed against
+in the formal-code-verification literature ([LASA](https://arxiv.org/abs/2506.17865),
+[CHARGE](https://arxiv.org/abs/2607.27776), ["From Natural Language to Verified
+Code"](https://arxiv.org/abs/2604.22601)). It has no ontology-specific precedent yet,
+but an exact structural analog here: a drafted rule that never fires, or a constraint
+that excludes nothing. The distinct non-vacuity pass flags a
 satisfiable condition whose conclusion adds no new fact and a constraint that excludes
 no value in the declared domain. Both findings carry a domain-term witness and a
 machine-readable region. A bound that can never reject a value of the property's own
