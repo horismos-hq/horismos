@@ -84,7 +84,8 @@ this report concerns a product called Dev.
    not at all, and the human-factors failure has now been measured in clinicians for
    intrinsic explanations (§6.3.2(v), §10).
 9. **Nothing here says build a `typesafe:` bridge.** Four independent blockers, any one
-   sufficient (§7, "What NOT to do"). Nine ranked moves (§7) and eight open decisions (§9)
+   sufficient — and OpenRouter resale removes none of them while adding a fifth, practical
+   one (§7, "What NOT to do"). Nine ranked moves (§7) and eight open decisions (§9)
    are what this dive actually produced; the standing pivot verdict is re-issued unchanged
    in direction and sharpened in wording (§6.6).
 
