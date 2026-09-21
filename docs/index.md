@@ -287,7 +287,7 @@ The rules decided. The model had no vote:
 
 </div>
 
-*On warfarin* is the ambiguity — already anticoagulated reads as a reason to hold pharmacologic prophylaxis, but the note never says so outright — and the answer set says so, at `p=0.610`. Both the per-instance and the call-level confidence are the *weakest* answer they cover, never an average, so one coin-flip cannot hide behind three certainties when the runtime compares against `horis:threshold`. Every proposed fact still clears the same five-check gate on the way in; perception provenance buys no exemption.
+*On warfarin* is the ambiguity — already anticoagulated reads as a reason to hold pharmacologic prophylaxis, but the note never says so outright — and the answer set says so, at `p=0.610`. Both the per-instance and the call-level confidence are the *weakest* answer they cover, never an average, so one coin-flip cannot hide behind three certainties when the runtime compares against `horis:confidence`. Every proposed fact still clears the same five-check gate on the way in; perception provenance buys no exemption.
 
 `make demo-jev` prints that transcript deterministically against the mock — no key, no network. `make demo-jev-live` builds in the real client; `bridges-jev` is default-off, like every bridge that carries TLS. Either way it is the same `Bridge` trait an ordinary chat model implements, and the kernel takes both unchanged. The full treatment — the schema-shape-to-primitive table, why a `jev:` step extracts exactly one class, and what the bridge deliberately refuses to guess — is in [The Bridge](framework/08-bridge.md).
 
