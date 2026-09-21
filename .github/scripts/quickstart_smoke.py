@@ -19,7 +19,6 @@ import sys
 # not the UTF-8 the file is written in. Both are pinned to UTF-8 here so the gate
 # behaves identically on every runner.
 sys.stdout.reconfigure(encoding="utf-8")
-sys.stderr.reconfigure(encoding="utf-8")
 
 text = pathlib.Path("docs/framework/11-python-api.md").read_text(encoding="utf-8")
 section = re.split(r"^#+ .*Quickstart \(symbolic.*$", text, flags=re.M)[1]

@@ -426,9 +426,8 @@ fn path_from_file_uri(iri: &str) -> Option<PathBuf> {
     iri.strip_prefix("file://").map(PathBuf::from)
 }
 
-/// The inverse of [`file_iri_from_canonical`] on Windows: `None` for
-/// anything that isn't a `file://` IRI, exactly as on Unix; otherwise the
-/// path [`windows_path_from_file_uri`] recovers.
+/// `None` for anything that isn't a `file://` IRI, exactly as on Unix;
+/// otherwise the path [`windows_path_from_file_uri`] recovers.
 #[cfg(windows)]
 fn path_from_file_uri(iri: &str) -> Option<PathBuf> {
     iri.strip_prefix("file://")
