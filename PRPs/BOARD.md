@@ -127,7 +127,7 @@ provenance semirings over the Datalog-shaped subset (Type 5), GNN guidance.
 | Surface | [PRP-003 python bindings](PRP-003-python-bindings/01-objective.md) | ✅ Done (2026-08-18) | `pip install horismos`; the Pythonic front door |
 | Runtime | [PRP-004 agent loop](PRP-004-agent-loop/01-objective.md) | ✅ Done (2026-08-25, PR #8) | Workflow engine, perception/narration boundaries, tools, Bridge |
 | Integration | [PRP-008 standards & host integration](PRP-008-standards-host-integration/01-objective.md) | ✅ Done (2026-09-03, PR #15) | VTE slice; FHIR hydration/commit, terminology provenance, CDS-Hooks/PlanDefinition/CQL composition, candidate-artifact boundary, generic host SPI |
-| Ship & Author | [PRP-006 packaging](PRP-006-packaging-distribution.md) | 🟦 Active (2026-09-21) | crates.io + PyPI + docs site + CI gates — PyPI release path landed first |
+| Ship & Author | [PRP-006 packaging](PRP-006-packaging-distribution/01-objective.md) | 🟦 Active (2026-09-21) | crates.io + PyPI + docs site + CI gates — PyPI release path landed first |
 | Ship & Author | [PRP-007 authoring agent](PRP-007-authoring-agent.md) | ⬜ Draft (amended 2026-08-24) | Import/align/overlay-first; SMEs converse; Claude drafts Turtle; verifier gatekeeps |
 
 Build order (dependency DAG, not strict number order — `PRPs/CONVENTIONS.md`):

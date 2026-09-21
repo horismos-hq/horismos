@@ -185,11 +185,13 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          # Naming the archive by path pins the exact artefact — no version
-          # resolution, so no pre-release ambiguity. The index stays reachable
-          # because the isolated build environment must fetch maturin.
+          # Naming the archive by path pins the exact artefact and already
+          # forces a from-source build of it — no version resolution, so no
+          # pre-release ambiguity. No `--no-binary`: pip forwards that into the
+          # isolated build environment, which would compile maturin itself from
+          # source and put an upstream build on the publish path.
           archive="$(ls dist/*.tar.gz)"
-          python -m pip install --no-binary :all: "$archive"
+          python -m pip install "$archive"
           python .github/scripts/quickstart_smoke.py
 
   publish:
