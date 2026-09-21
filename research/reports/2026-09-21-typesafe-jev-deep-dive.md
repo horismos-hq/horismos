@@ -15,7 +15,7 @@
 > [lineage assessment](../neurosymbolic-landscape/lineage-assessment.md),
 > [coding-agent harnesses](../neurosymbolic-landscape/coding-agent-harnesses.md),
 > [validation ladder](../validation/00-ladder.md) and
-> [regulatory shape](../validation/regulatory.md) pages, ~145 reading-log rows under a new
+> [regulatory shape](../validation/regulatory.md) pages, ~148 reading-log rows under a new
 > Q9 section, and a re-issued standing verdict on the
 > [pivot-alignment page](../neurosymbolic-landscape/pivot-alignment.md) mirrored on the
 > [verdict history](../verdict-history.md). Its eight open decisions (§9) are
@@ -84,7 +84,8 @@ this report concerns a product called Dev.
    not at all, and the human-factors failure has now been measured in clinicians for
    intrinsic explanations (§6.3.2(v), §10).
 9. **Nothing here says build a `typesafe:` bridge.** Four independent blockers, any one
-   sufficient (§7, "What NOT to do"). Nine ranked moves (§7) and eight open decisions (§9)
+   sufficient — and OpenRouter resale removes none of them while adding a fifth, practical
+   one (§7, "What NOT to do"). Nine ranked moves (§7) and eight open decisions (§9)
    are what this dive actually produced; the standing pivot verdict is re-issued unchanged
    in direction and sharpened in wording (§6.6).
 
@@ -100,7 +101,7 @@ should file.
 loop's confidence/threshold/fallback arithmetic (`workflow/agent.rs`), the five-check
 gate (`world/gate.rs`), the trace schema (`trace/schema.rs`), the PRP-008 host SPI
 (`crates/horismos-host/src/{spi,trace,assumptions}.rs`), the only non-mock Bridge
-(`crates/horismos-bridges/src/openrouter.rs`) and the four stub modules beside it,
+(`crates/horismos-bridges/src/openrouter.rs`) and the three stub modules beside it,
 `docs/framework/{02,06,07,08,09,10,15}.md`, `PRPs/{BOARD.md,PRP-000,PRP-005,PRP-008}`,
 and the canonical triage overlay (`examples/triage/triage.ttl`). Then the corpus this
 report extends: [`research/README.md`](../index.md), the
@@ -453,7 +454,8 @@ land *between* levels; **Noul** returns a single 0–1 number and **no `confiden
 Question keys are client-side only — *"The key is not sent to the underlying model and is
 not used in inference."* Questions are *"evaluated independently, so adding more questions
 does not create context-rot."* Context is **64k tokens per request, 32k for `state` plus
-the single longest question**. Input is **text only** — no image, audio or video. Rate
+the single longest question** — reconciled against OpenRouter's `context_length` of 32000
+in §3.5. Input is **text only** — no image, audio or video. Rate
 limits are **250,000 tokens/sec and 1,200 requests/min**, explicitly subject to change
 without notice. There is **no fine-tuning or LoRA** — "the same weights serve every
 account". English is "the primary training language and where accuracy is currently best."
@@ -582,6 +584,81 @@ only to enterprise customers on request**, with default retention having no stat
 period. The one strong item: training on customer input is contractually excluded —
 *"We will not train or fine tune any artificial intelligence or machine learning models
 on your prompts or other Input"* — stated twice.
+
+
+**[measured — primary, OpenRouter model-endpoints API, retrieved 2026-09-21]** **Availability
+gains a channel this report missed: Jev is resold on OpenRouter**, alongside the direct
+TypeSafe API priced above and the unresolved waitlist-vs-general-availability question
+§3.1 records. `GET /api/v1/models/typesafe/jev-1.13/endpoints` returns:
+
+| Field | Value |
+|---|---|
+| `id` | `typesafe/jev-1.13` |
+| `name` | TypeSafe: Jev 1.13 |
+| endpoint | `typesafe/jev-1.13-20260917`, `provider_name` **TypeSafe** |
+| `modality` | **`text->decisions`** (input `["text"]`, output `["decisions"]`) |
+| `context_length` | 32000 (`max_completion_tokens` 28800) |
+| pricing | prompt `0.000000042`/token = **$0.042/Mtok**; completion **`0`** |
+| `supported_parameters` | **`[]`** — empty |
+| `uptime_last_1d` | 100 |
+
+**[measured]** **One row of that table sits beside a number §3.2 already records, so it is
+reconciled here rather than left to collide.** The OpenRouter record gives `context_length`
+**32000** and `max_completion_tokens` **28800** (retrieved 2026-09-21). §3.2 gives, from
+TypeSafe's own API reference, **64k tokens per request, of which 32k is for `state` plus the
+single longest question**.
+
+**[inference]** The two are consistent rather than contradictory: OpenRouter exposes a
+single model-level window, and 32000 lines up with the state-plus-question limit rather than
+the 64k per-request total. `max_completion_tokens` is exactly 90% of `context_length`, which
+may help a reader see the shape — but **neither source explains that ratio**, and this dive
+does not guess at one. It is recorded as unexplained.
+
+**[measured]** **How the dive missed it, recorded because the retrieval method is the
+finding.** Jev does **not** appear in the standard `GET /api/v1/models` listing — 446
+models on 2026-09-21, zero TypeSafe or Jev entries. It is reachable only by the
+direct model-endpoints path above, and at `openrouter.ai/typesafe/jev`. A survey that
+enumerates the catalogue, which is what this dive did, does not see it.
+
+**[inference]** The likeliest reason for the omission is that Jev's output modality is not
+text and the listing is text-model-shaped — it fits both observations (`text->decisions`
+above, and a catalogue of 446 text models), but OpenRouter publishes no inclusion rule for
+the listing, so the mechanism is unverified. The retrieval lesson does not depend on it.
+
+**[inference]** Two things follow, and they pull in opposite directions, so both have to be
+said plainly.
+
+- **Access is now cheap and ordinary — but access is not integration.** Anyone with an
+  OpenRouter account can reach Jev today at $0.042/Mtok, with no TypeSafe contract and no
+  waitlist behind it. That is a genuine drop in the cost of *trying* the model. It is not a
+  drop in the cost of wiring it into this repo — see §7, where the effort estimate this was
+  first drafted as moving stays where it was, and why.
+- **It changes the contracting party, not the processing.** OpenRouter resale means a
+  different commercial counterparty in front of the same TypeSafe-operated endpoint
+  (`provider_name` is literally `TypeSafe`). **Every trust-posture finding above stands
+  unchanged**: no SOC 2, no BAA, no SLA, US-hosted only with no residency options, no
+  self-host, zero-retention enterprise-only. A reader should not take "it's on OpenRouter"
+  as softening any of them; it adds a reseller to the chain rather than removing a gap from
+  it, and for a clinical deployment an extra intermediary is a fact to assess, not a
+  reassurance.
+
+**[measured]** **And the other apparent contradiction is measurable too, not a new open
+question.** The OpenRouter endpoint record advertises `supports_tool_choice` with `none`, `auto`, `required` and
+`function` all `true`, which appears to contradict correction #6 in §3.1 ("Jev has no
+tool-calling surface at all", from TypeSafe's launch blog). Three sampled models whose
+`supported_parameters` do not include `tools` — `nvidia/nemotron-3.5-content-safety`
+(a content-safety classifier), `tencent/hy-mt2-7b` (translation) and
+`inference-net/schematron-v2-small` — return the identical all-four-`true` object when
+queried the same way on the same day. Jev's own `supported_parameters` is **empty**: it
+advertises no tunable parameters at all, tools included.
+
+**[inference]** Read together, those measurements say the field is an OpenRouter
+**schema default rather than a measured capability** — though "populated for every
+endpoint" is a generalization from a sample of three, not something this dive verified
+across the catalogue. The contradiction dissolves either way, and on the measured facts
+alone: an advertised flag that three same-day non-tool models also carry cannot be read as
+a capability statement about Jev, and Jev's empty `supported_parameters` is the positive
+signal in the other direction. **Correction #6 stands.**
 
 ### 3.6 "Hallucination is impossible by construction": three guarantees, separated
 
@@ -2749,6 +2826,55 @@ decide whether Horismos does this", and the corresponding OD in §9 is self-cont
 | **R8** | **Run the joint-consistency experiment, and publish it.** Ask a typed-decision model a set of logically entailed questions over the triage fixtures, measure the inconsistency rate, then show the same questions answered through a Horismos overlay where the rule layer makes the entailment hold by construction. | This converts §6.1's strongest positioning claim from an argument into a number, using a property the vendor has already documented as a weakness. It is the cheapest credible piece of external evidence the project could produce, and it does not require building a production bridge — a throwaway harness suffices. | M | **No PRP owns this.** Positioning evidence for PRP-000; nearest home is the research corpus itself | **Decide** → OD-4 (same sequencing question) |
 | **R9** | **Fund or run the experiment nobody has run: a Jabbour-style clinician study where the artifact under test is a *derivation over declared facts*, not a saliency map.** Same design, same biased-model arm; measure whether scrutiny rises specifically on the wrong-AI trials. | §6.3 rests on a distinction between post-hoc explanation and reason-giving that is argued from first principles and measured almost nowhere. The one positive signal — Han et al. 2026's eye-tracking result, where "verifiable explanations" raised AI↔image gaze switches from **6.04 to 8.52** on incorrect-AI trials — is a single small study of an artifact defined as "brief verification cues linked to the current AI recommendation", which is structurally what a proof tree is. Everything else in the human-factors literature (Gomez 2025, Nicolson 2025, Buçinca 2021, Bansal 2021, Nagendran 2024) measures the *other* artifact and finds it does not help. Until someone runs this, the wedge in §6.3 is a legal argument with no human-factors evidence behind it — and Ghassemi's human-factors argument stands unanswered. | L | **No PRP owns this.** Validation evidence; nearest home is the [validation ladder](../validation/00-ladder.md) as an instrument on rung 1 | **Decide** — it is a funding call, not a build |
 
+**[added 2026-09-21, after §3.5's OpenRouter finding]** **A restatement this section
+proposed on the strength of §3.5 does not survive contact with the repo, and is withdrawn
+here rather than quietly dropped.** The proposal was to restate **R8**'s effort as **S**, on
+the reasoning that OpenRouter resale put Jev within reach of the bridge this repo already
+ships. That reasoning is wrong, and the repo says why.
+
+**[measured — local repo, [`adfc27a`](https://github.com/billaram/horismos/blob/adfc27a)]**
+Registering a backend here really is cheap: `crates/horismos-bridges/src/openrouter.rs` is
+the only non-mock `Bridge`, and the registry is prefix-routed
+(`BTreeMap<String, Arc<dyn Bridge>>`, `crates/horismos-core/src/workflow/agent.rs:165`).
+But the shipped OpenRouter bridge is not model-agnostic. `perceive`
+(`openrouter.rs:306,310`) and `rank` (`:391,403`) each send a `tools` array *plus* a forced
+`tool_choice` naming that function, and `extract_tool_call` (`:239`) fails the call outright
+— *"model did not call the forced tool … (no tool_calls)"* — when the reply carries none;
+`narrate` reads `/choices/0/message/content`. The crate's own
+`perceive_rejects_a_reply_that_never_calls_the_forced_tool` test (`:622`) pins that failure
+as intended behaviour, not an accident. Against that, §3.5 and §3.1 record Jev's
+`supported_parameters` as **empty**, no tool-calling surface at all (correction #6), and an
+output modality of `decisions` rather than text.
+
+**[inference]** Setting `OPENROUTER_MODEL=typesafe/jev-1.13` on the shipped bridge would
+therefore fail at the forced-tool-call step rather than work. Reaching Jev from this repo is
+**not** a configuration-level change: it needs its own `Bridge` implementation, or a
+distinct request/response path inside the existing one. What is withdrawn is the proposed
+**S**, and nothing else: **R8's original M is untouched**, and so is the reason the table
+gives for it — the experiment never required a production bridge, and a throwaway harness
+still suffices.
+
+**[measured — OpenRouter model-endpoints API, retrieved 2026-09-21]** What §3.5 does buy is
+narrower and still worth recording. The endpoint record lists Jev as `typesafe/jev-1.13`,
+`provider_name` **TypeSafe**, modality `text->decisions`, priced at **$0.042/Mtok** prompt
+and **$0** completion.
+
+**[inference]** Read as an access claim — anyone with an OpenRouter account can reach it
+today, with no TypeSafe contract and no waitlist — that lowers the cost of *trying* Jev to a
+rounding error, which is how §3.5 states it and on the same evidence. It does not lower the
+cost of integrating it.
+
+**[inference]** Nothing else in the table moves. **R6** is explicitly the *local*
+alternative and its case was never about access — it rests on latency, per-case cost, data
+egress and determinism, none of which OpenRouter touches. **R1–R5, R7 and R9** do not
+involve running Jev at all. And **OD-4**, which asks whether a typed-decision proposer is in
+scope and if so hosted or local, has its option space changed in exactly one place: the
+hosted option's *access* barrier is gone. Its *integration effort* did not drop, for the
+reason just given, and its *money* cost did not move — OpenRouter resells at the same
+$0.042/Mtok, still ~32× more per case than a local encoder. Every *reason* the report gives
+for preferring local is untouched. Cheap access makes the experiment easy to fund; it does
+not make the dependency wise.
+
 ### What NOT to do
 
 **[inference]**, each with the reason:
@@ -2760,6 +2886,23 @@ decide whether Horismos does this", and the corresponding OD in §9 is self-cont
   residency option (§3.5); and the slot it fits best (`ProposalStep`/`rank`) does not
   execute. Revisit if a published reliability curve appears, a BAA becomes available, and
   `ProposalStep` lands.
+- **Do not read OpenRouter availability as a green light.** §3.5 records that Jev is resold
+  on OpenRouter at $0.042/Mtok. **All four blockers in the bullet above stand, because not
+  one of them is about access**: the
+  primitives still cannot express numeric or free-string values, so most of Horismos's
+  ontology vocabulary has no encoding (§6.2.3); determinism is still explicitly declined by
+  the vendor (§6.2.4); the trust posture — no SOC 2, BAA, SLA, self-host or residency — is
+  unchanged, since resale swaps the counterparty and not the processing (§3.5); and
+  `ProposalStep`/`rank` still does not execute, so the slot it fits best returns
+  `WorkflowError::StepDeferred` (§6.2). Cheap access in fact adds a fifth, practical
+  blocker rather than removing one. **[measured — local repo]** `openrouter.rs` sends a
+  `tools` array plus a forced `tool_choice` on every `perceive` (`:306,310`) and `rank`
+  (`:391,403`), and `extract_tool_call` (`:239`) fails the call outright when the reply
+  carries no `tool_calls`; Jev's `supported_parameters` is empty and it has no tool-calling
+  surface (§3.5, §3.1 correction #6). **[inference]** So the only non-mock `Bridge` this repo
+  ships cannot talk to Jev as written (§7 above). Easy access
+  changes what it costs to *reach* the model. It changes nothing about what a *production
+  dependency* would cost, and nothing about what even an experiment still has to build.
 - **Do not adopt Choice/Score/Noul as the proposer schema contract.** It is strictly less
   expressive than what doc 06 already derives (§6.4.4). Borrow the vocabulary for
   positioning if the category takes hold; do not borrow the type system.
@@ -2813,6 +2956,16 @@ misses. Each line states what was looked for, by whom, and what the absence mean
 - **No TypeSafe response to the prior-art claim** raised on Hacker News **[unverified —
   absence observed via search only]**.
 - **No participating investors named beyond DCVC**, and no team headcount disclosed.
+- **The dive enumerated OpenRouter's catalogue, found no TypeSafe entry, and so never
+  recorded resale as a channel at all — it described only the direct TypeSafe API. Jev is
+  resold there.** `GET /api/v1/models` returns 446 models with zero TypeSafe or Jev
+  entries; the model is reachable only by the direct model-endpoints path, and
+  **[inference]** the listing is presumably text-model-shaped while Jev's output modality
+  is `decisions`. The lesson is narrow
+  and worth keeping: for a model whose whole point is that it does not emit text, *absence
+  from a text-model catalogue is not evidence of absence from the platform*. §3.5 carries
+  the finding; this entry records that the search method, not the search effort, is what
+  produced the miss.
 
 **In the literature**
 
@@ -3041,6 +3194,23 @@ non-determinism. What evidence cannot settle is **sequencing**: PRP-006 (packagi
 next unlocked phase per the board, no PRP owns bridge backends now that PRP-004 is Done,
 and adding a backend competes for the same capacity. This is a roadmap call.
 
+**[added 2026-09-21, after §3.5's OpenRouter finding; evidence only, the decision is
+unchanged]** One input to the hosted option — **(d)** below — has moved, and it is a smaller
+one than it first appeared. **[measured — OpenRouter model-endpoints API, retrieved
+2026-09-21]** Jev is resold on OpenRouter as `typesafe/jev-1.13`, `provider_name`
+**TypeSafe**, at **$0.042/Mtok** prompt and **$0** completion. **[inference]** Two things
+follow, and only the first helps (d): its **access barrier is gone**, since trying it needs
+no TypeSafe contract and no waitlist; but its **integration effort did not drop.**
+§7 records the measurement behind the second: `openrouter.rs` is this repo's only non-mock `Bridge`,
+and it forces a `tool_choice` on every `perceive` and `rank` and fails the call when the
+reply carries no `tool_calls` — which is what a model with an empty `supported_parameters`
+and no tool-calling surface would return. Option (d) would still need its own `Bridge` or a
+distinct request/response path; only the cost of *reaching* the model fell. Nothing else in
+(d) moves either: the 20–140× latency gap, the per-case cost gap, the data-egress question
+and the trust posture are all unaffected by who bills for the call, and §7's "what not to
+do" states explicitly that all four blockers survive cheap access. The sequencing question
+this OD actually turns on is untouched.
+
 **Options.** (a) Nothing before PRP-006. (b) A minimal `hf:`-prefixed local encoder bridge
 as a demonstration, not a supported backend, sized to make R8's joint-consistency
 experiment runnable. (c) A supported local classification backend as a new PRP. (d) A
@@ -3216,7 +3386,7 @@ threat list), A13/X10 (positioning vocabulary); and PRP-007's five open items.
 [remain undistributed](index.md) and live only in its own §6 — this report's sources were
 filed into the wiki the day it landed. The full log is
 [`reading-log.md`](../reading-log.md) **§ "Q9 — Non-generative typed-decision models,
-calibration and parallel decoding (Jev deep dive, 2026-09-21)"**: ~145 rows in five
+calibration and parallel decoding (Jev deep dive, 2026-09-21)"**: ~148 rows in five
 groups (TypeSafe primary sources; adoption, independent evaluation and commentary;
 calibration, uncertainty quantification and selective prediction; routing, cascades,
 constrained decoding and parallel generation; and regulation, auditability and clinical
@@ -3231,7 +3401,7 @@ Repository facts cite `local repo` paths at [`adfc27a`](https://github.com/billa
 
 | | Count | Note |
 |---|---|---|
-| Distinct sources cited | ~145 in the Q9 reading-log section, plus the repository files listed in §1 | |
+| Distinct sources cited | ~148 in the Q9 reading-log section, plus the repository files listed in §1 | |
 | `[measured]` / `[inference]` / `[unverified]` | the three tags appear on every substantive claim | `[measured]` is further split in §6.3 into *primary* (the document itself was read) and *secondary* (a reliable intermediary read it), because the regulatory material makes that distinction load-bearing |
 | `[unverified]` items | 23 | Eleven bibliographic-only confirmations (Brier 1950, Dawid 1982, both Gneiting papers, Chow 1970, Geifman & El-Yaniv 2017, Mozannar & Sontag 2020, Caruana 1997, MT-DNN, SetFit, Tian et al. 2023); the OpenAI Structured Outputs blog percentages (HTTP 403); the Bengio System-2 keynote attribution; the "Noul" etymology; TypeSafe's non-response to the prior-art claim; and eight from the regulatory sub-sweep (AI Act Art. 86's interim effect, the adopted CPPA ADMT text, the April 2026 Reg B scope, the Dutch DPA guidance's final status, the 2026 state health-AI law count, the NYC LL 144 enforcement numbers, the CHAI assurance-lab report, and Siala et al. on rule-set redundancy). None is upgraded anywhere in this report |
 | Sub-agents | 5 | One each for Q-A, Q-C and Q-D3; two splitting Q-B. The Q-D3 agent ran ~41 minutes and exhausted a 200-call web-search budget; its incomplete searches are recorded as such in §8 |

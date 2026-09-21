@@ -242,6 +242,33 @@ cannot audit a threshold whose definition you cannot see" lands on Horismos too.
 `horis:confidence` is thresholded against a self-reported, unmeasured number. That is a
 defect in something shipped, and the deep dive ranks fixing it first.
 
+## Correction (2026-09-21): a distribution channel the founding text missed
+
+The availability material above describes only the direct TypeSafe API. There is a
+second channel, found after this page was written and recorded in full in the report's
+[§3.5](../reports/2026-09-21-typesafe-jev-deep-dive.md#35-pricing-availability-and-trust-posture),
+which also carries the endpoint record and the note on why a catalogue survey missed it.
+
+**[measured — OpenRouter model-endpoints API, retrieved 2026-09-21]** Jev is also resold
+on **OpenRouter** as `typesafe/jev-1.13`, `provider_name` **TypeSafe**, modality
+**`text->decisions`**, at **$0.042/Mtok** prompt and **$0** completion, with
+`supported_parameters` **empty**.
+
+**[measured]** It is absent from the standard `GET /api/v1/models` catalogue listing —
+446 models on 2026-09-21, zero TypeSafe entries — and reachable only by the direct
+model-endpoints path.
+
+**[inference]** Neither claim above changes: the price is the same **$0.042/MTok**
+figure, and an empty `supported_parameters` corroborates "there is **no tool-calling
+surface**" rather than contradicting it.
+
+**[inference]** Resale changes the contracting party, not the processing, so **every
+trust-posture finding on this page stands unchanged**. And what improved is *access*, not
+*integration*: this repo's only non-mock `Bridge`
+([`crates/horismos-bridges/src/openrouter.rs`](https://github.com/billaram/horismos/blob/adfc27a/crates/horismos-bridges/src/openrouter.rs))
+forces a `tool_choice` on every call and fails when the reply carries no `tool_calls`, so
+it cannot talk to Jev as written.
+
 ## Source
 
 Full citations inline. The complete evidence base, sub-agent methodology, worked
@@ -260,4 +287,5 @@ Horismos" statement, the three positioning claims and the verdict are [inference
 
 ## Last-verified
 
-2026-09-21
+2026-09-21 (OpenRouter resale channel appended as a correction 2026-09-21;
+founding text unchanged)

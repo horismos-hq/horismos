@@ -21,7 +21,8 @@ a black-box classifier is not — but a time-critical acuity assignment (like th
 current triage scenario) plausibly fails the exemption's "not primarily relying on the
 software" prong regardless of transparency. **[inference]**
 
-**[measured]** The FDA's PCCP guidance, finalized December 2024, authorizes
+**[measured]** The FDA's PCCP guidance, finalized December 2024 *[corrected 2026-09-21 —
+the PCCP guidance is dated August 2025; see the Jev deep dive delta below]*, authorizes
 pre-authorized bounded future AI-device modification envelopes
 ([fda.gov](https://www.fda.gov/regulatory-information/search-fda-guidance-documents/marketing-submission-recommendations-predetermined-change-control-plan-artificial-intelligence)).
 **[inference]** A PCCP for horismos would plausibly describe bounded *ontology* edits

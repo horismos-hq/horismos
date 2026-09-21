@@ -60,3 +60,33 @@ Append-only. One line per merged PR: date, PR link, summary.
   attacks *inherently* explainable models too, not only post-hoc ones). Eight open
   decisions (OD-1–OD-8) recorded, all captain-held; no PRP text edited and no `crates/`
   change.
+- 2026-09-21 — (this PR) — **Correction to what PR #17 landed**, carried onto `main` as its
+  own follow-up because #17 was squash-merged before this delta finished validating. The
+  dive enumerated OpenRouter's model catalogue, found no TypeSafe entry, and so never
+  recorded resale as a channel at all — it described only the direct TypeSafe API. Jev is in
+  fact **resold on OpenRouter** (`typesafe/jev-1.13`, `text->decisions`, $0.042/Mtok prompt
+  and $0 completion) but does not appear in the standard `/api/v1/models` listing, so a
+  catalogue survey cannot see it. Recorded in
+  [the dive's](reports/2026-09-21-typesafe-jev-deep-dive.md) §3.5 with the retrieval method,
+  and appended as a dated correction section on
+  [`typed-decision-models.md`](neurosymbolic-landscape/typed-decision-models.md), the page
+  that owns Jev's availability and pricing facts — access improved, integration did not, and
+  the page's pricing and no-tool-calling claims both stand.
+  **Reading log: +3 rows under Q9** — the `typesafe/jev-1.13` model-endpoints record, the
+  catalogue listing that omits it, and the three-model `supported_parameters` /
+  `supports_tool_choice` sample — taking the dive's Q9 section from ~145 to ~148 and the
+  corpus to **441 rows**; the current-state counts on [`index.md`](index.md),
+  [`sweeps.md`](sweeps.md) and [`reports/index.md`](reports/index.md) follow it.
+  The consequence, restated in §7 and §9: cheap access lowers the cost of *trying* Jev, not
+  the cost of integrating it. **R8 stays at M** — the repo's only non-mock `Bridge`
+  (`openrouter.rs`) forces a tool call on every `perceive` and `rank`, and Jev has no
+  tool-calling surface, so serving it needs its own `Bridge` or a distinct request/response
+  path. The "do not do" list gains an explicit statement that cheap access leaves all four
+  blockers standing, and that this adds a fifth practical one. The OpenRouter record's
+  `supports_tool_choice` field, which appeared to contradict intake correction #6, was
+  checked against three non-tool models that carry the identical flag, so it is not a
+  capability statement about Jev; correction #6 stands. Also completes a correction PR #17
+  left half-applied: the PCCP-date marker on
+  [`validation/regulatory.md`](validation/regulatory.md) reached only that page's **Claim**,
+  though its own Last-verified note already recorded the correction as appearing in both —
+  the **Evidence** paragraph now carries it too.

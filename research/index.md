@@ -137,7 +137,7 @@ canonical — this site only points at it.
 |---|---|
 | Wiki topic pages (six research questions + Q7 + Q9) | 31, each with Claim / Evidence / Source / Confidence / Last-verified |
 | Full deep-dive reports, imported verbatim | 4 — [index](reports/index.md) |
-| Sources in the [reading log](reading-log.md) | 438 rows across eight sections (sweeps #1 and #2, plus Q9 from the Jev deep dive); the RL deep dive's 100-odd further sources are still only in its own [§6 source log](reports/2026-09-02-rl-deep-dive.md#6-source-log) |
+| Sources in the [reading log](reading-log.md) | 441 rows across eight sections (sweeps #1 and #2, plus Q9 from the Jev deep dive); the RL deep dive's 100-odd further sources are still only in its own [§6 source log](reports/2026-09-02-rl-deep-dive.md#6-source-log) |
 | Standing verdicts | 3 — pivot alignment (sweep #2), the RL axis and the typed-decision axis (deep dives) — see the [verdict history](verdict-history.md) |
 | Captain-held items indexed | 14 adjustments, 3 typed-decision J-items, 10 challenge lines, 12 open decisions, 14 ranked moves, 5 PRP-007 open items |
 
