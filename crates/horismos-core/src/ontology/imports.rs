@@ -368,7 +368,7 @@ fn read_to_string(path: &Path) -> Result<String, OntologyError> {
 /// The canonical path is spelled as an IRI by [`file_iri_from_canonical`],
 /// which is a byte-identical `format!("file://{}", …)` on Unix and rewrites
 /// Windows' backslashes and extended-length prefix into the conventional
-/// `file:///C:/…` form. [`path_from_file_uri`] is its exact inverse on both.
+/// `file:///C:/…` form.
 fn file_uri(path: &Path) -> Result<String, OntologyError> {
     let canonical = std::fs::canonicalize(path).map_err(|e| OntologyError::ImportNotFound {
         import: path.display().to_string(),
