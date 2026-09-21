@@ -130,8 +130,9 @@ make verify        # all of the above — run before claiming work done
 - One version, authored once: the workspace `version` in the root `Cargo.toml`. It is
   Cargo SemVer (`0.1.0-alpha.1`); maturin normalises it to the PEP 440 distribution
   version (`0.1.0a1`), which is what `horismos.__version__` reports. Bumping it means
-  updating every internal pin too — `git grep '<old>' -- '*.toml'` must come back
-  clean. Never add a second literal version to `pyproject.toml`.
+  updating the two internal pins beside it and the asserted version in
+  `python/tests/test_public_surface.py` — `git grep` for both spellings, unrestricted
+  by path, must come back clean. Never add a second literal version to `pyproject.toml`.
 - Releases go out through `.github/workflows/release.yml` (tag `v*` → PyPI, manual
   dispatch → TestPyPI), on Trusted Publishing — there is no PyPI token in this repo
   and none should ever be added.

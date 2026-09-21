@@ -8,7 +8,7 @@ This package is the public surface (doc 11); ``horismos._horismos`` is the
 private native module behind it — never import it directly.
 """
 
-from importlib.metadata import PackageNotFoundError
+from importlib.metadata import PackageNotFoundError as _PackageNotFoundError
 from importlib.metadata import version as _distribution_version
 
 from horismos._horismos import (
@@ -46,7 +46,7 @@ from horismos._world import Snapshot, Subscription, World
 # the fallback for a source tree that was never installed.
 try:
     __version__ = _distribution_version("horismos")
-except PackageNotFoundError:  # pragma: no cover - uninstalled source tree
+except _PackageNotFoundError:  # pragma: no cover - uninstalled source tree
     from horismos._horismos import __version__
 
 __all__ = [

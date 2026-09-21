@@ -2,7 +2,8 @@
 # (PRP-003 U10), whose matrix and wheel smoke test are folded in below so the
 # matrix lives in exactly one place.
 #
-# Two triggers:
+# Two triggers, and only these two — nothing automatic (no push to a branch,
+# no schedule, no pull_request) can reach an index:
 #   * pushing a `v*` tag  -> build, test, publish to PyPI
 #   * manual dispatch     -> build, test, publish to TestPyPI (default) or PyPI
 #
@@ -30,6 +31,43 @@ permissions:
   contents: read
 
 jobs:
+  # The one-way door. A PyPI filename can never be reused — not even after
+  # deleting the release — so an upload from the wrong ref or at the wrong
+  # version spends that version number permanently. Every route to the real
+  # index, manual dispatch included, therefore has to come from a `v*` tag
+  # whose version matches the root Cargo.toml. TestPyPI is a rehearsal index
+  # and carries no such requirement: dispatching it from any branch is fine.
+  guard:
+    name: guard (${{ inputs.index || 'pypi' }})
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Require a matching v* tag before any upload to the real index
+        if: inputs.index != 'testpypi'
+        shell: bash
+        env:
+          REF_TYPE: ${{ github.ref_type }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          if [ "$REF_TYPE" != "tag" ]; then
+            echo "::error::Refusing to publish to PyPI from '${REF_NAME}': that ref is a ${REF_TYPE}, not a tag. Real releases run from a v* tag; use the testpypi index to rehearse from a branch."
+            exit 1
+          fi
+          # Both sides are compared in Cargo's SemVer spelling, so the
+          # intended tag `v0.1.0-alpha.1` / distribution `0.1.0a1` difference
+          # never trips this.
+          cargo_version="$(python -c 'import pathlib, tomllib; print(tomllib.loads(pathlib.Path("Cargo.toml").read_text())["workspace"]["package"]["version"])')"
+          tag_version="${REF_NAME#v}"
+          if [ "$tag_version" != "$cargo_version" ]; then
+            echo "::error::Refusing to publish: tag '${REF_NAME}' carries version '${tag_version}', but the root Cargo.toml workspace version is '${cargo_version}'. Bump one to match the other and retag."
+            exit 1
+          fi
+          echo "Tag '${REF_NAME}' matches the workspace version '${cargo_version}'."
+
   build:
     name: wheel (${{ matrix.target }})
     runs-on: ${{ matrix.os }}
@@ -117,23 +155,46 @@ jobs:
       - name: Install the wheel and run the symbolic quickstart verbatim
         shell: bash
         run: |
-          python -m pip install --no-index --find-links dist horismos
-          python - <<'EOF'
-          # Extract and exec the doc-11 symbolic quickstart, verbatim.
-          import re, pathlib
-          text = pathlib.Path("docs/framework/11-python-api.md").read_text()
-          section = re.split(r"^#+ .*Quickstart \(symbolic.*$", text, flags=re.M)[1]
-          section = re.split(r"^#+ ", section, maxsplit=1, flags=re.M)[0]
-          blocks = re.findall(r"```python\n(.*?)```", section, flags=re.S)
-          assert blocks
-          ns = {}
-          for block in blocks:
-              exec(compile(block, "<quickstart>", "exec"), ns)
-          EOF
+          # `--pre` is explicit: the only artefact in `dist` is a pre-release,
+          # and the gate should say so rather than lean on pip's fallback.
+          python -m pip install --pre --no-index --find-links dist horismos
+          python .github/scripts/quickstart_smoke.py
+
+  # The same gate for the source archive. It is the only install path for any
+  # platform outside the wheel matrix, and the README now promises that path
+  # works; this is a multi-crate workspace with path dependencies, precisely
+  # the shape whose sdist can come out missing a crate. So build one from the
+  # artefact that would be published and run the identical quickstart.
+  test-sdist:
+    name: test (sdist)
+    needs: sdist
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # Building from source compiles the Rust core, so this job needs a
+      # toolchain the wheel jobs get from maturin-action.
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - uses: actions/download-artifact@v4
+        with:
+          name: sdist
+          path: dist
+      - name: Build the sdist from source and run the symbolic quickstart verbatim
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Naming the archive by path pins the exact artefact — no version
+          # resolution, so no pre-release ambiguity. The index stays reachable
+          # because the isolated build environment must fetch maturin.
+          archive="$(ls dist/*.tar.gz)"
+          python -m pip install --no-binary :all: "$archive"
+          python .github/scripts/quickstart_smoke.py
 
   publish:
     name: publish (${{ inputs.index || 'pypi' }})
-    needs: [build, sdist, test]
+    needs: [guard, build, sdist, test, test-sdist]
     runs-on: ubuntu-latest
     # Registered against these exact names on PyPI / TestPyPI. A mismatch
     # fails at upload time with what looks like an auth error.
@@ -155,3 +216,6 @@ jobs:
       - uses: pypa/gh-action-pypi-publish@release/v1
         with:
           repository-url: ${{ inputs.index == 'testpypi' && 'https://test.pypi.org/legacy/' || 'https://upload.pypi.org/legacy/' }}
+          # Rehearsals are re-runnable at the same version; a duplicate on the
+          # real index stays a loud failure.
+          skip-existing: ${{ inputs.index == 'testpypi' }}
