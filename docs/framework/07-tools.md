@@ -46,11 +46,10 @@ declared, parsed and validated — an ontology naming one loads like any other �
 are simply not invocable: an ActionStep that reaches one is refused with a domain-term
 error naming the scheme, never a silent no-op.
 
-MCP deserves emphasis: the ecosystem already exposes domain tools over MCP. The
-Horismos answer is not to rebuild them but to wrap them in a typed contract. Where
-the MCP tool's own schema is looser than the `horis:takes`/`horis:effect`
-declaration, the declaration wins: out-of-contract calls can't be made,
-out-of-contract results can't land.
+MCP deserves emphasis: the ecosystem already exposes domain tools over MCP. Horismos
+does not rebuild them — it wraps them in a typed contract. Where the MCP tool's own
+schema is looser than the `horis:takes`/`horis:effect` declaration, the declaration
+wins: out-of-contract calls can't be made, out-of-contract results can't land.
 
 ## Adapter-mediated external commits
 
