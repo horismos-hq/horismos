@@ -43,7 +43,7 @@ Append-only. One line per merged PR: date, PR link, summary.
   [`neurosymbolic-landscape/lineage-assessment.md`](neurosymbolic-landscape/lineage-assessment.md),
   [`neurosymbolic-landscape/coding-agent-harnesses.md`](neurosymbolic-landscape/coding-agent-harnesses.md),
   [`validation/00-ladder.md`](validation/00-ladder.md),
-  [`validation/regulatory.md`](validation/regulatory.md)). Reading log: ~148 rows under a
+  [`validation/regulatory.md`](validation/regulatory.md)). Reading log: ~145 rows under a
   new Q9 section (Q8 stays reserved for the RL dive's undistributed sources). The
   standing pivot-alignment verdict was re-issued, scoped to this axis, and mirrored on
   [`verdict-history.md`](verdict-history.md). **Corrections recorded:** thirteen intake
@@ -68,6 +68,11 @@ Append-only. One line per merged PR: date, PR link, summary.
   and $0 completion) but does not appear in the standard `/api/v1/models` listing, so a
   catalogue survey cannot see it. Recorded in
   [the dive's](reports/2026-09-21-typesafe-jev-deep-dive.md) §3.5 with the retrieval method.
+  **Reading log: +3 rows under Q9** — the `typesafe/jev-1.13` model-endpoints record, the
+  catalogue listing that omits it, and the three-model `supported_parameters` /
+  `supports_tool_choice` sample — taking the dive's Q9 section from ~145 to ~148 and the
+  corpus to **441 rows**; the current-state counts on [`index.md`](index.md),
+  [`sweeps.md`](sweeps.md) and [`reports/index.md`](reports/index.md) follow it.
   The consequence, restated in §7 and §9: cheap access lowers the cost of *trying* Jev, not
   the cost of integrating it. **R8 stays at M** — the repo's only non-mock `Bridge`
   (`openrouter.rs`) forces a tool call on every `perceive` and `rank`, and Jev has no
