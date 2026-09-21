@@ -32,6 +32,8 @@
 
   --horis-symbolic: #3b5bdb;
   --horis-symbolic-soft: #eaeefc;
+  --horis-symbolic-hover: #3350c8;
+  --horis-on-symbolic: #ffffff;
   --horis-neural: #96590a;
   --horis-neural-soft: #fdf2e2;
   --horis-gate: #12736a;
@@ -40,6 +42,7 @@
   --horis-refuse-soft: #fbe9e6;
 
   --horis-header-bg: rgba(255, 255, 255, 0.88);
+  --horis-header-bg-solid: #ffffff;
   --horis-shadow: 0 1px 2px rgba(16, 24, 40, 0.04), 0 4px 14px rgba(16, 24, 40, 0.05);
   --horis-hero-wash:
     radial-gradient(72rem 24rem at 10% -20%, #f2f5ff 0%, rgba(255, 255, 255, 0) 62%),
@@ -90,6 +93,8 @@
 
   --horis-symbolic: #8ba3f5;
   --horis-symbolic-soft: #1f2640;
+  --horis-symbolic-hover: #a7b9f8;
+  --horis-on-symbolic: #13161c;
   --horis-neural: #e0a458;
   --horis-neural-soft: #33291a;
   --horis-gate: #4fbfaf;
@@ -98,6 +103,7 @@
   --horis-refuse-soft: #36201d;
 
   --horis-header-bg: rgba(19, 22, 28, 0.9);
+  --horis-header-bg-solid: #13161c;
   --horis-shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 4px 14px rgba(0, 0, 0, 0.3);
   --horis-hero-wash:
     radial-gradient(72rem 24rem at 10% -20%, #1d2440 0%, rgba(0, 0, 0, 0) 62%),
@@ -134,12 +140,17 @@
 /* ===================================================================== */
 
 .md-header {
-  background-color: var(--horis-header-bg);
-  -webkit-backdrop-filter: saturate(1.6) blur(10px);
-  backdrop-filter: saturate(1.6) blur(10px);
+  background-color: var(--horis-header-bg-solid);
   border-bottom: 1px solid var(--horis-line);
   box-shadow: none;
   color: var(--horis-ink);
+}
+@media screen and (min-width: 60em) {
+  .md-header {
+    background-color: var(--horis-header-bg);
+    -webkit-backdrop-filter: saturate(1.6) blur(10px);
+    backdrop-filter: saturate(1.6) blur(10px);
+  }
 }
 .md-header--shadow {
   box-shadow: none;
@@ -573,12 +584,12 @@
 .md-typeset .horis-hero .md-button--primary {
   background-color: var(--horis-symbolic);
   border-color: var(--horis-symbolic);
-  color: #ffffff;
+  color: var(--horis-on-symbolic);
 }
 .md-typeset .horis-hero .md-button--primary:hover {
-  background-color: #3350c8;
-  border-color: #3350c8;
-  color: #ffffff;
+  background-color: var(--horis-symbolic-hover);
+  border-color: var(--horis-symbolic-hover);
+  color: var(--horis-on-symbolic);
 }
 
 .horis-chips {

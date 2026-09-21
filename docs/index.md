@@ -82,7 +82,7 @@ hide:
   <path class="hf-a" d="M506 72 L528 72"/>
   <path class="hf-a" d="M688 72 L710 72"/>
 
-  <path class="hf-r" d="M429 112 L429 150 L252 150"/>
+  <path class="hf-r" d="M429 112 L429 150 L247 150 L247 114"/>
   <text class="hf-rt" x="444" y="154">refused atomically, in domain terms —</text>
   <text class="hf-rt" x="444" y="172">“heartRate 1280 exceeds horis:max 300 (bpm) on :Patient”</text>
 </svg>
