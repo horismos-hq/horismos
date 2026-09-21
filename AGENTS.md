@@ -127,6 +127,14 @@ make verify        # all of the above — run before claiming work done
   policies: the trace schema (`horismos-core::trace::migrate` module doc) and the
   snapshot binary form (`world/snapshot.rs` header consts; `Provenance` variant
   order is part of it).
+- One version, authored once: the workspace `version` in the root `Cargo.toml`. It is
+  Cargo SemVer (`0.1.0-alpha.1`); maturin normalises it to the PEP 440 distribution
+  version (`0.1.0a1`), which is what `horismos.__version__` reports. Bumping it means
+  updating every internal pin too — `git grep '<old>' -- '*.toml'` must come back
+  clean. Never add a second literal version to `pyproject.toml`.
+- Releases go out through `.github/workflows/release.yml` (tag `v*` → PyPI, manual
+  dispatch → TestPyPI), on Trusted Publishing — there is no PyPI token in this repo
+  and none should ever be added.
 - Process artifacts (ledgers, briefs, review diffs) are untracked scratch
   (`.superpowers/` is gitignored); the durable record is the owning PRP's
   `02-tasks-and-gaps.md` and the shipped-voice text where `[DECIDE]` markers were
