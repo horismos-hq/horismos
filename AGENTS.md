@@ -38,12 +38,17 @@ proof → NL). Delete the LLM and the kernel still runs.
   gate/proof, red refusal). Light is the designed default; never leave the slate
   scheme unstyled. `theme.font: false` and "no external assets" are deliberate.
   **The site is public at <https://docs.horismos.ai/> (`docs/CNAME` + `site_url`) while
-  the repository is private**, so two rules bind every edit under `docs/`: never publish
+  the repository is private**, so two rules bind every edit under `docs/`. Never publish
   a path a reader cannot open (`PRPs/`, `research/`, `decisions/`, bare filenames,
-  internal artefact names) — keep the claim, drop the path; and give every inline
-  `var(--horis-*)` a literal fallback in **both** schemes, because an unguarded
-  `fill: var(…)` renders black. `crates/`, `examples/`, `python/` and `make` targets are
-  fine as orientation. How to check each, and why: `docs/README.md` § Conventions.
+  internal artefact names) — keep the claim, drop the path; and a pointer is itself a
+  claim, so never substitute a link you have not opened and confirmed covers it — state
+  the fact in prose and cite nothing. And give every inline `var(--horis-*)` a literal
+  fallback **twice**, under the default scheme and under `[data-md-color-scheme="slate"]`:
+  an unguarded `fill: var(…)` falls back to its initial value, black, and Material's
+  content-hashed palette bundle keeps applying slate exactly when the unhashed
+  `extra.css` is the one request that failed, so light-only literals go dark-on-dark.
+  `crates/`, `examples/`, `python/` and `make` targets are fine as orientation. How to
+  check each, and why: `docs/README.md` § Conventions.
 - `research/README.md`: the research wiki — reality-checks the design against the field,
   every claim tagged `[measured]`/`[inference]`; consult before resolving a `[DECIDE]`.
   `research/neurosymbolic-landscape/pivot-alignment.md` is the standing verdict on the

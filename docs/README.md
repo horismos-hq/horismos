@@ -107,7 +107,7 @@ together, or every page ships a canonical link to the wrong host.
   needs none because it only uses `currentColor` and Material's own variables.
 - **Status is truthful.** The internal board is the authority on what is merged, in
   build, or planned; the Roadmap page restates its current state in the page's own
-  words and carries the date it was last reconciled, rather than pointing readers at a
+  words and defers to the board where the two drift, rather than pointing readers at a
   file they cannot open.
 
 ## Layout
