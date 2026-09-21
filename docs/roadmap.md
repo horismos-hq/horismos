@@ -1,6 +1,6 @@
 # Roadmap and status
 
-This page is the published status of record. It is reconciled against the project board — the internal single source of truth, updated in the same commit as any change it reports — so that what you read here is what is actually merged, in build, or planned. Last reconciled: 2026-09-03.
+This page is the published status of record. It is reconciled against the project board — the internal single source of truth, updated in the same commit as any change it reports — so that what you read here is what is actually merged, in build, or planned. Where the two ever drift, the board is authoritative. Last reconciled: 2026-09-05.
 
 ## At a glance
 
