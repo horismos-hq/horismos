@@ -36,7 +36,11 @@
 //!
 //! On the OpenRouter transport a `noul` question's `criteria` must carry
 //! **both** `"true"` and `"false"` keys; [`build_question`] always emits
-//! both, so one code path serves both transports.
+//! both, so one code path serves both transports. A `score` answer's
+//! `legend` is the endpoint's own level → option-key mapping, and it — not
+//! an index assumed to be 0-based — decides which level a continuous
+//! `score` of `1.05` means; absent a legend the level rounds to the nearest
+//! declared index.
 //!
 //! ## The schema → questions mapping
 //!
@@ -65,6 +69,23 @@
 //! an honest refusal routes the step to its `horis:fallback` edge instead,
 //! which is what the runtime's error handling is for (doc 08 § Operational
 //! semantics: every `BridgeError` is treated identically to low confidence).
+//!
+//! ## One class per call
+//!
+//! Jev answers every question it is asked. A perception schema carrying
+//! more than one `oneOf` branch would therefore come back with one instance
+//! of *every* class — including a class the text never mentions — and that
+//! instance would enter the World wearing a perception provenance, which is
+//! the same fabrication the numeric refusal exists to prevent. So a
+//! multi-class schema is refused by name, and a `PerceptionStep` that wants
+//! two classes runs as two steps.
+//!
+//! Inside the one class that is allowed, every declared property is asked
+//! and every question is answered: this bridge cannot yet say "the text
+//! does not state this" for an optional (`horis:cardinality "0..1"`)
+//! property — it proposes a value for it like any other. Whether perception
+//! grows a presence contract is an open design question owned elsewhere,
+//! not something this bridge decides on its own.
 //!
 //! ## Narration is impossible here
 //!
@@ -154,6 +175,39 @@ impl JevTransport {
         }
     }
 
+    /// Whether this transport's bearer token is configured at all: its
+    /// environment variable, **or** the `_FILE` variant naming a file to
+    /// read it from. [`JevBridge::from_env`] selects on this rather than on
+    /// the bare variable, so a file-only deployment is not routed to a
+    /// transport it never configured and then told at call time that some
+    /// other variable is unset.
+    pub fn key_configured(self) -> bool {
+        self.key_configured_in(|name| std::env::var(name).ok())
+    }
+
+    /// [`Self::key_configured`] against an injected environment, so the
+    /// precedence is testable without mutating the process's own
+    /// (`unsafe_code = "deny"` makes `std::env::set_var` a hard error).
+    fn key_configured_in(self, lookup: impl Fn(&str) -> Option<String>) -> bool {
+        let env = self.key_env();
+        lookup(env).is_some() || lookup(&format!("{env}_FILE")).is_some()
+    }
+
+    /// The price list [`CallAccounting::cost_usd`] was estimated from,
+    /// recorded in `raw_metadata` so a reported cost-per-case says which
+    /// list it came from. [`PROMPT_USD_PER_MTOK`] is OpenRouter's observed
+    /// price, so a TypeSafe call's estimate is carried at the resale price
+    /// — stated here rather than left to be inferred from `transport`.
+    fn price_basis(self) -> &'static str {
+        match self {
+            JevTransport::OpenRouter => "openrouter list price, observed 2026-09-21",
+            JevTransport::TypeSafe => {
+                "openrouter list price, observed 2026-09-21 — a resale price, not this \
+                 transport's own: TypeSafe publishes no direct per-token price"
+            }
+        }
+    }
+
     /// The short name recorded in `CallAccounting::raw_metadata`.
     fn name(self) -> &'static str {
         match self {
@@ -240,11 +294,12 @@ impl JevBridge {
         }
     }
 
-    /// Picks a transport from the environment: OpenRouter when
-    /// `OPENROUTER_API_KEY` is set, otherwise TypeSafe. `JEV_MODEL`
+    /// Picks a transport from the environment: OpenRouter when its key is
+    /// configured — `OPENROUTER_API_KEY`, or `OPENROUTER_API_KEY_FILE`
+    /// naming a file to read it from — otherwise TypeSafe. `JEV_MODEL`
     /// overrides the chosen transport's default model alias.
     pub fn from_env() -> Self {
-        let transport = if std::env::var(JevTransport::OpenRouter.key_env()).is_ok() {
+        let transport = if JevTransport::OpenRouter.key_configured() {
             JevTransport::OpenRouter
         } else {
             JevTransport::TypeSafe
@@ -378,10 +433,28 @@ impl JevBridge {
         &self,
         response: &JevResponse,
         elapsed: Duration,
-        extra: Value,
+        extra: Map<String, Value>,
     ) -> CallAccounting {
         let prompt_tokens = response.usage.as_ref().and_then(|u| u.input_tokens);
         let completion_tokens = response.usage.as_ref().and_then(|u| u.output_tokens);
+        let mut raw = Map::new();
+        raw.insert(
+            "transport".to_string(),
+            Value::String(self.transport.name().to_string()),
+        );
+        // `cost_usd` is an estimate from a published price list rather than
+        // an invoice, and the same constant is applied to both transports;
+        // the audit value says which list it came from so a cost-per-case
+        // derived from the wrong one is identifiable rather than silent.
+        raw.insert(
+            "price_basis".to_string(),
+            Value::String(self.transport.price_basis().to_string()),
+        );
+        raw.insert(
+            "prompt_usd_per_mtok".to_string(),
+            serde_json::json!(PROMPT_USD_PER_MTOK),
+        );
+        raw.extend(extra);
         CallAccounting {
             latency_ms: Some(elapsed.as_millis() as u64),
             prompt_tokens,
@@ -392,7 +465,7 @@ impl JevBridge {
             // Jev answers every question it is asked or fails the call; there
             // is no partial-completion concept for it to report.
             finish_reason: None,
-            raw_metadata: Some(extra),
+            raw_metadata: Some(Value::Object(raw)),
         }
     }
 }
@@ -421,6 +494,11 @@ struct JevAnswer {
     confidence: Option<f64>,
     #[serde(default)]
     score: Option<f64>,
+    /// The level → option-key mapping the endpoint reports alongside a
+    /// `score`. Authoritative when present: it is what says which scale the
+    /// level is on, which the level alone cannot.
+    #[serde(default)]
+    legend: Option<Map<String, Value>>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -521,6 +599,27 @@ impl JevBridge {
     /// with a [`BridgeError::Refused`] naming the property Jev cannot answer.
     fn plan_questions(&self, schema: &Value) -> Result<QuestionPlan, BridgeError> {
         let branches = class_schemas(schema);
+        if branches.len() > 1 {
+            let classes: Vec<String> = branches
+                .iter()
+                .enumerate()
+                .map(|(index, branch)| {
+                    branch
+                        .pointer("/properties/class/const")
+                        .and_then(Value::as_str)
+                        .map(str::to_string)
+                        .unwrap_or_else(|| format!("branch {index}"))
+                })
+                .collect();
+            return Err(self.refused(format!(
+                "the perception schema extracts {} classes ({}), and Jev answers every question \
+                 it is asked — it would propose an instance of each one even for a class the \
+                 text never mentions, which is a fabricated fact wearing a perception \
+                 provenance. Extract one class per perception step",
+                classes.len(),
+                classes.join(", ")
+            )));
+        }
         let mut instances = Vec::with_capacity(branches.len());
         let mut questions = Map::new();
 
@@ -676,11 +775,13 @@ fn build_question(
         }
         PropKind::Choice(options) => {
             // The ontology carries no per-member description vocabulary
-            // (doc 02), so the option key — the member's local name — is
-            // the whole of what the model is told about it.
+            // (doc 02), so the member itself — the compact IRI the schema's
+            // enum declares — is the whole of what the model is told about
+            // an option. That is also the value shape `rank` sends for the
+            // same `choice` primitive: one wire type, one criteria shape.
             let criteria: Map<String, Value> = options
                 .iter()
-                .map(|(key, _)| (key.clone(), Value::Null))
+                .map(|(key, member)| (key.clone(), Value::String(member.clone())))
                 .collect();
             serde_json::json!({
                 "type": "choice",
@@ -711,6 +812,40 @@ struct Answered {
 }
 
 impl JevBridge {
+    /// Resolves a continuous `score` through the response's own `legend`,
+    /// returning the option key of the nearest declared level for the
+    /// caller to match against the options actually offered. Never guesses:
+    /// a legend this bridge cannot read as `level → option key` is
+    /// malformed output rather than a silent fall back to the index, since
+    /// the index would be assuming the very scale the legend was there to
+    /// settle.
+    fn level_from_legend(
+        &self,
+        plan: &PropPlan,
+        legend: &Map<String, Value>,
+        raw: f64,
+    ) -> Result<String, BridgeError> {
+        let mut nearest: Option<(f64, &str)> = None;
+        for (level, key) in legend {
+            let (Ok(level), Some(key)) = (level.trim().parse::<f64>(), key.as_str()) else {
+                continue;
+            };
+            let distance = (level - raw).abs();
+            if nearest.is_none_or(|(best, _)| distance < best) {
+                nearest = Some((distance, key));
+            }
+        }
+        nearest.map(|(_, key)| key.to_string()).ok_or_else(|| {
+            self.malformed(format!(
+                "question {:?} carries a `legend` this bridge cannot read as a level → option \
+                 key mapping ({}), so the answered level {raw} cannot be resolved without \
+                 guessing which scale it is on",
+                plan.question_id,
+                Value::Object(legend.clone())
+            ))
+        })
+    }
+
     fn read_answer(&self, plan: &PropPlan, answer: &JevAnswer) -> Result<Answered, BridgeError> {
         match &plan.kind {
             PropKind::Noul => {
@@ -768,17 +903,36 @@ impl JevBridge {
                         plan.question_id
                     ))
                 })?;
-                // Jev reports a continuous level (e.g. 1.05); the declared
-                // levels are the only values the ontology admits, so the
-                // answer snaps to the nearest one.
-                let last = levels.len().saturating_sub(1);
-                let index = (raw.round().max(0.0) as usize).min(last);
+                if levels.is_empty() {
+                    return Err(self.malformed(format!(
+                        "question {:?} was asked as a score over no levels",
+                        plan.question_id
+                    )));
+                }
+                // Jev reports a continuous level (e.g. 1.05). *Which* level
+                // that is depends on the scale the endpoint used, and the
+                // response's own `legend` is the only authority on that: an
+                // index assumed to be 0-based would shift every answer by
+                // one on a 1-based scale, and put the top level out of
+                // reach — a silently wrong fact under perception
+                // provenance. Absent a legend, the declared levels are the
+                // only values the ontology admits, so the level snaps to
+                // the nearest of them.
+                let key = match answer.legend.as_ref().filter(|l| !l.is_empty()) {
+                    Some(legend) => self.level_from_legend(plan, legend, raw)?,
+                    None => {
+                        let index = (raw.round().max(0.0) as usize).min(levels.len() - 1);
+                        levels[index].0.clone()
+                    }
+                };
                 let member = levels
-                    .get(index)
+                    .iter()
+                    .find(|(option, _)| *option == key)
                     .map(|(_, member)| member.clone())
                     .ok_or_else(|| {
                         self.malformed(format!(
-                            "question {:?} was asked as a score over no levels",
+                            "question {:?} was answered at level {key:?}, which is not one of \
+                             the levels offered",
                             plan.question_id
                         ))
                     })?;
@@ -850,10 +1004,11 @@ impl Bridge for JevBridge {
         // Jev's per-question probabilities have no dedicated trace field and
         // `fact_confidence` is keyed by instance, so the per-property detail
         // rides the documented audit escape hatch rather than being dropped.
-        let extra = serde_json::json!({
-            "transport": self.transport.name(),
-            "fact_confidence_by_property": by_property,
-        });
+        let mut extra = Map::new();
+        extra.insert(
+            "fact_confidence_by_property".to_string(),
+            Value::Array(by_property),
+        );
         let accounting = self.accounting(&response, elapsed, extra);
         Ok(PerceiveResult {
             instances,
@@ -923,11 +1078,10 @@ impl Bridge for JevBridge {
                 .and_then(|p| p.get(key).copied())
                 .unwrap_or(0.0)
         });
-        let extra = serde_json::json!({"transport": self.transport.name()});
         Ok(RankResult {
             chosen,
             confidence,
-            accounting: self.accounting(&response, elapsed, extra),
+            accounting: self.accounting(&response, elapsed, Map::new()),
         })
     }
 
@@ -953,32 +1107,27 @@ fn round6(value: f64) -> f64 {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use horismos_core::Ontology;
+    use horismos_core::workflow::agent::extract_schema;
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
     use tokio::net::TcpListener;
 
-    /// The schema `horismos_core::workflow::agent::extract_schema` derives
-    /// for `examples/vte/vte.ttl`'s `:VteCase` — four booleans, and no
-    /// `:recommendation` (it is `horis:assignedBy horis:RulesOnly`, so the
-    /// derivation never shows it to a model).
+    const VTE_TTL: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../examples/vte/vte.ttl");
+
+    fn vte_ontology() -> Ontology {
+        Ontology::load(VTE_TTL).expect("vte.ttl must load and verify")
+    }
+
+    /// The schema the runtime really derives for `examples/vte/vte.ttl`'s
+    /// `:VteCase` — four booleans, and no `:recommendation` (it is
+    /// `horis:assignedBy horis:RulesOnly`, so the derivation never shows it
+    /// to a model). Derived rather than hand-copied, so every claim these
+    /// tests make about "what the model is shown" is a claim about the
+    /// shipped path instead of about a fixture.
     fn vte_schema() -> Value {
-        serde_json::json!({
-            "type": "object",
-            "properties": {
-                "instances": {"type": "array", "items": {"oneOf": [{
-                    "type": "object",
-                    "properties": {
-                        "class": {"const": ":VteCase"},
-                        "activeCancer": {"type": "boolean"},
-                        "bleedingRisk": {"type": "boolean"},
-                        "priorVte": {"type": "boolean"},
-                        "reducedMobility": {"type": "boolean"},
-                    },
-                    "required": ["class", "activeCancer", "bleedingRisk", "priorVte", "reducedMobility"],
-                }]}},
-                "confidence": {"type": "number", "minimum": 0, "maximum": 1},
-            },
-            "required": ["instances", "confidence"],
-        })
+        let onto = vte_ontology();
+        let vte_case = onto.node_ref(":VteCase").expect(":VteCase is declared");
+        extract_schema(&onto, &[vte_case])
     }
 
     fn bridge() -> JevBridge {
@@ -1060,9 +1209,15 @@ mod tests {
             .and_then(Value::as_object)
             .expect("choice criteria are an object");
         assert_eq!(criteria.len(), 3);
+        assert_eq!(
+            criteria.get("HoldProphylaxis"),
+            Some(&Value::String(":HoldProphylaxis".to_string())),
+            "each option is described by the member it stands for — the same criteria value \
+             shape `rank` sends for this primitive, rather than a null: {criteria:?}"
+        );
         assert!(
-            criteria.contains_key("HoldProphylaxis"),
-            "keys: {criteria:?}"
+            criteria.values().all(Value::is_string),
+            "no option may be described as null: {criteria:?}"
         );
     }
 
@@ -1227,17 +1382,79 @@ mod tests {
 
     #[test]
     fn a_rules_only_property_never_reaches_the_bridge() {
-        // Not this module's check — `derive_class_schema` drops
-        // `horis:assignedBy horis:RulesOnly` properties before a Bridge sees
-        // them. Pinned here because the VTE example's whole point is that
-        // `:recommendation` is absent from what the model is shown, not
-        // merely discouraged.
-        let plan = bridge().plan_questions(&vte_schema()).expect("planned");
+        // Not this module's check — `extract_schema` drops
+        // `horis:assignedBy horis:RulesOnly` properties before a Bridge
+        // sees them. Pinned here because the VTE example's whole point is
+        // that `:recommendation` is absent from what the model is shown,
+        // not merely discouraged — so the check runs over the real
+        // derivation, and first establishes that the property is there to
+        // be dropped at all.
+        let onto = vte_ontology();
+        assert!(
+            onto.node_ref(":recommendation").is_ok(),
+            "vte.ttl must declare :recommendation for this test to mean anything"
+        );
+        let vte_case = onto.node_ref(":VteCase").expect(":VteCase is declared");
+        let plan = bridge()
+            .plan_questions(&extract_schema(&onto, &[vte_case]))
+            .expect("planned");
+        assert_eq!(plan.questions.len(), 4, "the four extractable booleans");
         assert!(
             !plan.questions.keys().any(|k| k.contains("recommendation")),
             "questions: {:?}",
             plan.questions.keys().collect::<Vec<_>>()
         );
+    }
+
+    #[test]
+    fn a_multi_class_schema_is_refused_by_name() {
+        // Jev answers every question it is asked, so two class branches
+        // would come back as one instance of each — including one for a
+        // class the note never mentions, entering the World under
+        // perception provenance.
+        let schema = serde_json::json!({
+            "type": "object",
+            "properties": {"instances": {"type": "array", "items": {"oneOf": [
+                {"type": "object", "properties": {
+                    "class": {"const": ":VteCase"},
+                    "priorVte": {"type": "boolean"}}},
+                {"type": "object", "properties": {
+                    "class": {"const": ":Ward"},
+                    "isolationRequired": {"type": "boolean"}}},
+            ]}}},
+        });
+        let err = bridge()
+            .plan_questions(&schema)
+            .expect_err("a multi-class schema must be refused, not answered class by class");
+        let BridgeError::Refused { reason, .. } = &err else {
+            panic!("expected a refusal naming the classes, got {err:?}");
+        };
+        assert!(reason.contains(":VteCase"), "{reason}");
+        assert!(reason.contains(":Ward"), "{reason}");
+        assert!(
+            reason.contains("one class per perception step"),
+            "the refusal must point at the fix: {reason}"
+        );
+    }
+
+    #[test]
+    fn a_file_only_key_still_configures_its_transport() {
+        // A deployment holding its key in a gitignored file sets only the
+        // `_FILE` variant; selecting on the bare variable would route it to
+        // the other transport and then fail naming a variable it never set.
+        let file_only = |name: &str| {
+            (name == "OPENROUTER_API_KEY_FILE").then(|| "/run/secrets/openrouter".to_string())
+        };
+        assert!(JevTransport::OpenRouter.key_configured_in(file_only));
+        assert!(
+            !JevTransport::TypeSafe.key_configured_in(file_only),
+            "nothing names a TypeSafe key"
+        );
+        assert!(
+            JevTransport::TypeSafe
+                .key_configured_in(|name| (name == "TYPESAFE_API_KEY").then(|| "k".to_string()))
+        );
+        assert!(!JevTransport::OpenRouter.key_configured_in(|_| None));
     }
 
     // -- Answers → results --------------------------------------------------
@@ -1259,6 +1476,7 @@ mod tests {
                     probabilities: None,
                     confidence: None,
                     score: None,
+                    legend: None,
                 },
             )
             .expect("a noul answer is readable");
@@ -1292,6 +1510,7 @@ mod tests {
                     probabilities: None,
                     confidence: Some(0.81),
                     score: Some(1.05),
+                    legend: None,
                 },
             )
             .expect("a score answer is readable");
@@ -1316,6 +1535,7 @@ mod tests {
                     probabilities: None,
                     confidence: None,
                     score: None,
+                    legend: None,
                 },
             )
             .expect_err("an invented option must not be accepted");
@@ -1348,31 +1568,30 @@ mod tests {
 
     // -- Wire level ---------------------------------------------------------
 
-    /// One-shot local HTTP listener, mirroring `openrouter.rs`'s test
-    /// pattern: reads one request, hands its raw bytes to `assert_request`,
-    /// and always writes `response_body` back so a failed assertion reports
-    /// on the test's own thread rather than as a connection reset.
+    /// One-shot local HTTP listener: reads one whole request, hands its raw
+    /// bytes to `assert_request`, and always writes `response_body` back
+    /// first so a failed assertion surfaces as an assertion rather than as
+    /// a connection reset. Returns the server task's handle as well as its
+    /// address — [`join_server`] must be awaited, or every request-shape
+    /// assertion below is dead: a panic inside a dropped `JoinHandle` is
+    /// swallowed by the runtime and the test passes on the scripted
+    /// response alone.
     async fn one_shot_server(
         response_body: &'static str,
         assert_request: impl FnOnce(String) + Send + 'static,
-    ) -> String {
+    ) -> (String, tokio::task::JoinHandle<()>) {
         let listener = TcpListener::bind("127.0.0.1:0")
             .await
             .expect("binding a local test listener should not fail");
         let addr = listener
             .local_addr()
             .expect("a bound listener should have a local address");
-        tokio::spawn(async move {
+        let handle = tokio::spawn(async move {
             let (mut stream, _) = listener
                 .accept()
                 .await
                 .expect("accepting the one expected connection should not fail");
-            let mut buf = vec![0_u8; 65536];
-            let n = stream
-                .read(&mut buf)
-                .await
-                .expect("reading the request should not fail");
-            let request_text = String::from_utf8_lossy(&buf[..n]).to_string();
+            let request_text = read_request(&mut stream).await;
             let response = format!(
                 "HTTP/1.1 200 OK\r\ncontent-type: application/json\r\ncontent-length: {}\r\n\r\n{}",
                 response_body.len(),
@@ -1388,7 +1607,54 @@ mod tests {
                 .expect("flushing the scripted response should not fail");
             assert_request(request_text);
         });
-        format!("http://{addr}")
+        (format!("http://{addr}"), handle)
+    }
+
+    /// Awaits the server task so an assertion that failed inside it fails
+    /// *this* test, with its own message.
+    async fn join_server(handle: tokio::task::JoinHandle<()>) {
+        if let Err(err) = handle.await {
+            match err.try_into_panic() {
+                Ok(panic) => std::panic::resume_unwind(panic),
+                Err(err) => panic!("the mock server task did not finish: {err}"),
+            }
+        }
+    }
+
+    /// Reads a whole HTTP request: headers, then exactly `Content-Length`
+    /// body bytes. A single `read` would truncate a body split across TCP
+    /// segments and turn a real request into unparseable JSON.
+    async fn read_request(stream: &mut tokio::net::TcpStream) -> String {
+        let mut raw: Vec<u8> = Vec::new();
+        let mut chunk = vec![0_u8; 4096];
+        loop {
+            let n = stream
+                .read(&mut chunk)
+                .await
+                .expect("reading the request should not fail");
+            if n == 0 {
+                break;
+            }
+            raw.extend_from_slice(&chunk[..n]);
+            if request_len(&raw).is_some_and(|total| raw.len() >= total) {
+                break;
+            }
+        }
+        String::from_utf8_lossy(&raw).to_string()
+    }
+
+    /// The full byte length of the request in `raw`, once its headers have
+    /// arrived; `None` while they have not.
+    fn request_len(raw: &[u8]) -> Option<usize> {
+        let head_end = raw.windows(4).position(|w| w == b"\r\n\r\n")? + 4;
+        let head = String::from_utf8_lossy(&raw[..head_end]);
+        let body_len = head
+            .lines()
+            .filter_map(|line| line.split_once(':'))
+            .find(|(name, _)| name.eq_ignore_ascii_case("content-length"))
+            .and_then(|(_, value)| value.trim().parse::<usize>().ok())
+            .unwrap_or(0);
+        Some(head_end + body_len)
     }
 
     fn request_body(request_text: &str) -> Value {
@@ -1405,6 +1671,31 @@ mod tests {
         bridge
     }
 
+    /// One ordinal property over three declared levels, with the
+    /// deployment-side hint that makes it a `score` rather than a `choice`.
+    fn severity_schema() -> Value {
+        serde_json::json!({
+            "type": "object",
+            "properties": {"instances": {"type": "array", "items": {"oneOf": [{
+                "type": "object",
+                "properties": {
+                    "class": {"const": ":Case"},
+                    "severity": {"type": "string", "enum": [":Mild", ":Moderate", ":Severe"]},
+                },
+            }]}}},
+        })
+    }
+
+    fn ordinal_bridge_at(base_url: String) -> JevBridge {
+        bridge_at(base_url).with_hint(
+            "severity",
+            PropertyHint {
+                ordinal: true,
+                ..PropertyHint::default()
+            },
+        )
+    }
+
     const SCRIPTED_VTE_RESPONSE: &str = r#"{
         "model": "typesafe/jev-1.13-20260917",
         "answers": {
@@ -1418,7 +1709,7 @@ mod tests {
 
     #[tokio::test]
     async fn perceive_posts_the_decisions_body_and_maps_the_answers_back() {
-        let base_url = one_shot_server(SCRIPTED_VTE_RESPONSE, |request_text| {
+        let (base_url, server) = one_shot_server(SCRIPTED_VTE_RESPONSE, |request_text| {
             let body = request_body(&request_text);
             assert_eq!(
                 body.get("model"),
@@ -1467,6 +1758,7 @@ mod tests {
             })
             .await
             .expect("perceive should succeed against the scripted response");
+        join_server(server).await;
 
         assert_eq!(
             result.instances,
@@ -1532,7 +1824,7 @@ mod tests {
                                       "probabilities": {"c0": 0.19, "c1": 0.81}}},
             "usage": {"input_tokens": 88, "output_tokens": 4}
         }"#;
-        let base_url = one_shot_server(response, |request_text| {
+        let (base_url, server) = one_shot_server(response, |request_text| {
             let body = request_body(&request_text);
             let criteria = body
                 .pointer("/questions/selection/criteria")
@@ -1556,8 +1848,114 @@ mod tests {
             })
             .await
             .expect("rank should succeed");
+        join_server(server).await;
         assert_eq!(result.chosen, 1);
         assert_eq!(result.confidence, 0.81);
+        assert_eq!(
+            result
+                .accounting
+                .raw_metadata
+                .as_ref()
+                .and_then(|m| m.pointer("/price_basis"))
+                .and_then(Value::as_str),
+            Some("openrouter list price, observed 2026-09-21"),
+            "the estimate must say which price list it came from: {:?}",
+            result.accounting.raw_metadata
+        );
+    }
+
+    /// A `score` answer carrying a `legend`: the legend, not an assumed
+    /// 0-based index, decides which declared level the continuous score
+    /// means. Here the endpoint is on a 1-based scale, so `1.05` is the
+    /// *first* level — an index read would shift it to the second and put
+    /// the top level out of reach.
+    #[tokio::test]
+    async fn a_score_is_resolved_through_the_response_s_legend() {
+        let response = r#"{
+            "model": "typesafe/jev-1.13-20260917",
+            "answers": {"i0_severity": {"type": "score", "score": 1.05, "confidence": 0.81,
+                                        "legend": {"1": "Mild", "2": "Moderate", "3": "Severe"}}},
+            "usage": {"input_tokens": 42, "output_tokens": 3}
+        }"#;
+        let (base_url, server) = one_shot_server(response, |request_text| {
+            let body = request_body(&request_text);
+            assert_eq!(
+                body.pointer("/questions/i0_severity/type"),
+                Some(&Value::String("score".to_string())),
+                "an ordinal-hinted enum is asked as a score:\n{body}"
+            );
+            assert_eq!(
+                body.pointer("/questions/i0_severity/criteria"),
+                Some(&serde_json::json!(["Mild", "Moderate", "Severe"])),
+                "score levels must reach the wire in declared order:\n{body}"
+            );
+        })
+        .await;
+        let result = ordinal_bridge_at(base_url)
+            .perceive(PerceiveRequest {
+                text: "mild tenderness only".to_string(),
+                schema: severity_schema(),
+            })
+            .await
+            .expect("a score answer is readable");
+        join_server(server).await;
+        assert_eq!(
+            result.instances,
+            vec![serde_json::json!({"class": ":Case", "severity": ":Mild"})],
+            "the legend puts 1.05 at its own level 1, which is `:Mild`"
+        );
+        assert_eq!(result.confidence, 0.81);
+    }
+
+    /// Without a legend there is nothing to read the scale off, so the
+    /// level rounds to the nearest declared index — the documented
+    /// fallback, and the reason the legend is preferred when present.
+    #[tokio::test]
+    async fn a_score_without_a_legend_falls_back_to_the_declared_index() {
+        let response = r#"{
+            "model": "typesafe/jev-1.13-20260917",
+            "answers": {"i0_severity": {"type": "score", "score": 1.05, "confidence": 0.81}},
+            "usage": {"input_tokens": 42, "output_tokens": 3}
+        }"#;
+        let (base_url, server) = one_shot_server(response, |_| {}).await;
+        let result = ordinal_bridge_at(base_url)
+            .perceive(PerceiveRequest {
+                text: "moderate pain".to_string(),
+                schema: severity_schema(),
+            })
+            .await
+            .expect("a score answer is readable without a legend");
+        join_server(server).await;
+        assert_eq!(
+            result.instances,
+            vec![serde_json::json!({"class": ":Case", "severity": ":Moderate"})]
+        );
+    }
+
+    /// A legend naming an option the bridge never offered is malformed
+    /// output — the same treatment an invented `choice` key gets, rather
+    /// than a guess at which level was meant.
+    #[tokio::test]
+    async fn a_legend_naming_an_unoffered_level_is_malformed_output() {
+        let response = r#"{
+            "model": "typesafe/jev-1.13-20260917",
+            "answers": {"i0_severity": {"type": "score", "score": 1.05,
+                                        "legend": {"1": "Trivial", "2": "Catastrophic"}}}
+        }"#;
+        let (base_url, server) = one_shot_server(response, |_| {}).await;
+        let err = ordinal_bridge_at(base_url)
+            .perceive(PerceiveRequest {
+                text: "mild tenderness only".to_string(),
+                schema: severity_schema(),
+            })
+            .await
+            .expect_err("a level the bridge never offered must not be accepted");
+        join_server(server).await;
+        assert!(
+            matches!(err, BridgeError::MalformedOutput { .. }),
+            "{err:?}"
+        );
+        assert!(err.domain_text().contains("Trivial"), "{err:?}");
     }
 
     #[tokio::test]
@@ -1626,7 +2024,7 @@ mod tests {
     async fn an_unanswered_question_is_malformed_output() {
         let response = r#"{"model": "typesafe/jev-1.13", "answers": {
             "i0_reducedMobility": {"type": "noul", "noul": 0.9}}}"#;
-        let base_url = one_shot_server(response, |_| {}).await;
+        let (base_url, server) = one_shot_server(response, |_| {}).await;
         let bridge = bridge_at(base_url);
         let err = bridge
             .perceive(PerceiveRequest {
@@ -1635,6 +2033,7 @@ mod tests {
             })
             .await
             .expect_err("three of four questions went unanswered");
+        join_server(server).await;
         assert!(
             matches!(err, BridgeError::MalformedOutput { .. }),
             "{err:?}"

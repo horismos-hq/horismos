@@ -27,7 +27,7 @@ use horismos_core::workflow::agent::extract_schema;
 use horismos_core::{Iri, Ontology, Provenance, Value, World};
 
 #[cfg(feature = "bridges-jev")]
-use horismos_bridges::jev::{JevBridge, PropertyHint};
+use horismos_bridges::jev::{JevBridge, JevTransport, PropertyHint};
 
 const VTE: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../examples/vte/vte.ttl");
 
@@ -276,9 +276,25 @@ fn hinted_bridge() -> JevBridge {
         )
 }
 
+/// Whether a live key is configured, by the same rule `JevBridge` selects
+/// its transport with: the bearer-token variable, **or** the `_FILE`
+/// variant naming a gitignored file to read it from. Checking only the bare
+/// variable would run the mock while printing "no API key set" for a
+/// deployment that had configured one.
+#[cfg(feature = "bridges-jev")]
+fn live_key_configured() -> bool {
+    JevTransport::OpenRouter.key_configured() || JevTransport::TypeSafe.key_configured()
+}
+
+#[cfg(not(feature = "bridges-jev"))]
+fn live_key_configured() -> bool {
+    ["OPENROUTER_API_KEY", "TYPESAFE_API_KEY"]
+        .iter()
+        .any(|var| std::env::var(var).is_ok() || std::env::var(format!("{var}_FILE")).is_ok())
+}
+
 fn build_bridge() -> (Box<dyn Bridge>, &'static str) {
-    let live =
-        std::env::var("OPENROUTER_API_KEY").is_ok() || std::env::var("TYPESAFE_API_KEY").is_ok();
+    let live = live_key_configured();
 
     #[cfg(feature = "bridges-jev")]
     {
