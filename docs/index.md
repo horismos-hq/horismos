@@ -225,31 +225,6 @@ These are the failure classes working agent teams keep meeting. The numbers are 
 
 Horismos does not replace LangGraph, your agent SDK, your coding harness, or your system of record. It gates one decision inside them.
 
-<div class="horis-flow" markdown>
-
-```text
- your text, or your structured system-of-record data
-        │
-        │  perception: ONE schema-forced model call, confidence-gated, typed output
-        │  (structured input takes the same door with no model at all)
-        ▼
- ┌────────────────────────────┐
- │  five-check validation gate │  class · domain/range · constraints · cardinality · provenance
- └─────────────┬──────────────┘   rejects atomically, in domain terms
-               ▼
- ┌────────────────────────────┐
- │  typed world  ⇄  rules      │  forward chaining to a fixed point, proof per conclusion,
- └─────────────┬──────────────┘   derived facts recomputed on every base-fact change
-               ▼
-   preconditions hold ─► the runtime fires YOUR tool; its effects re-enter the gate
-               ▼
- ┌────────────────────────────┐
- │  proof + trace              │  narration renders the proof for humans; the trace is
- └────────────────────────────┘   replayable, auditable, training-grade
-```
-
-</div>
-
 See [Architecture](architecture.md) for the bounded projection kernel in one diagram, and [Coming from LangGraph](coming-from-langgraph.md) for the honest split of who does what.
 
 ## What Horismos does not claim

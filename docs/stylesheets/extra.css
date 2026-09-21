@@ -23,7 +23,7 @@
 [data-md-color-scheme="default"] {
   --horis-ink: #15171c;
   --horis-ink-2: #3d434f;
-  --horis-ink-3: #6b7280;
+  --horis-ink-3: #5b6472;
   --horis-paper: #ffffff;
   --horis-paper-2: #fafbfc;
   --horis-paper-3: #f4f6f8;
@@ -738,22 +738,6 @@
   color: var(--horis-ink-2);
 }
 
-/* The ASCII flow on the landing page is a diagram, not a code sample. */
-.horis-flow .highlight {
-  border: 1px solid var(--horis-line);
-  border-radius: 0.5rem;
-  background-color: var(--horis-paper-2);
-}
-.horis-flow .highlight pre > code {
-  background-color: var(--horis-paper-2);
-  color: var(--horis-ink-2);
-  font-size: 0.6rem;
-  line-height: 1.45;
-}
-.horis-flow .md-code__nav {
-  display: none;
-}
-
 /* ===================================================================== */
 /* Admonitions, roadmap status legend                                    */
 /* ===================================================================== */
@@ -809,8 +793,9 @@
     font-size: 0.62rem;
   }
   /* Wide tables scroll inside their wrapper rather than squashing to one word
-     per line; the page itself never scrolls sideways. */
-  .md-typeset table:not([class]) {
+     per line. The min-width applies only once Material's scroll wrapper exists
+     around the table, so the page itself never scrolls sideways. */
+  .md-typeset__scrollwrap table:not([class]) {
     min-width: 30rem;
   }
 }
