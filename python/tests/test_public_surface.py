@@ -43,5 +43,7 @@ def test_every_public_symbol_resolves() -> None:
 
 
 def test_the_version_strings_are_sane() -> None:
-    assert horismos.__version__ == "0.1.0"
+    # PEP 440 form of the workspace Cargo version `0.1.0-alpha.1`, as
+    # maturin normalises it into the distribution metadata.
+    assert horismos.__version__ == "0.1.0a1"
     assert horismos.PROFILE_VERSION == "0.1"

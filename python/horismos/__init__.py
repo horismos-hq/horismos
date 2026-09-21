@@ -8,6 +8,9 @@ This package is the public surface (doc 11); ``horismos._horismos`` is the
 private native module behind it — never import it directly.
 """
 
+from importlib.metadata import PackageNotFoundError
+from importlib.metadata import version as _distribution_version
+
 from horismos._horismos import (
     PROFILE_VERSION,
     Diff,
@@ -22,7 +25,6 @@ from horismos._horismos import (
     ProofNode,
     Ref,
     Rule,
-    __version__,
 )
 from horismos._ontology import (
     AssumptionManifest,
@@ -36,6 +38,16 @@ from horismos._ontology import (
     WorkflowVerification,
 )
 from horismos._world import Snapshot, Subscription, World
+
+# The distribution version, in PEP 440 form (``0.1.0a1``). The native module
+# carries the same version in Cargo's SemVer spelling (``0.1.0-alpha.1``);
+# ``horismos.__version__`` is the Python-facing one, so it is read from the
+# installed distribution metadata that maturin normalised. The native value is
+# the fallback for a source tree that was never installed.
+try:
+    __version__ = _distribution_version("horismos")
+except PackageNotFoundError:  # pragma: no cover - uninstalled source tree
+    from horismos._horismos import __version__
 
 __all__ = [
     "PROFILE_VERSION",

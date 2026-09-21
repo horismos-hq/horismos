@@ -8,14 +8,29 @@ description = "Ontology-first neuro-symbolic agent framework: Rust core, Python 
 readme = "README.md"
 requires-python = ">=3.11"
 license = "MIT OR Apache-2.0"
+authors = [{ name = "Ramkumar M" }]
+# Version is dynamic on purpose: maturin reads the workspace `version` in the
+# root Cargo.toml, so the Rust and Python versions can never drift apart.
+# Cargo takes SemVer (`0.1.0-alpha.1`); maturin normalises it to the PEP 440
+# `0.1.0a1`.
 dynamic = ["version"]
 keywords = ["ontology", "neuro-symbolic", "agents", "rdf", "reasoning"]
 classifiers = [
     "Development Status :: 2 - Pre-Alpha",
     "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Programming Language :: Rust",
     "Typing :: Typed",
 ]
+
+# `Source` and `Issues` are deliberately absent while the repository is
+# private — they would 404 for every PyPI visitor. Add both pointing at
+# https://github.com/horismos-hq/horismos when the repository goes public.
+[project.urls]
+Homepage = "https://horismos-hq.github.io/horismos/"
+Documentation = "https://horismos-hq.github.io/horismos/"
 
 [dependency-groups]
 dev = [

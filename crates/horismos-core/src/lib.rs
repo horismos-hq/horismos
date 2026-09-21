@@ -35,5 +35,7 @@ pub use world::{Diff, Fact, Provenance, Snapshot, World};
 /// (`horis:profileVersion`, docs/framework/02-ontology.md).
 pub const PROFILE_VERSION: &str = "0.1";
 
-/// Engine version, mirrored into `horismos.__version__` on the Python side.
+/// Engine version, in Cargo's SemVer spelling. The Python package reports the
+/// PEP 440 normalisation of the same version (`0.1.0-alpha.1` -> `0.1.0a1`),
+/// read from its distribution metadata.
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");

@@ -20,6 +20,11 @@ verification (PRP-005) are merged; standards & host integration (PRP-008) adds t
 format-neutral host SPI and the FHIR / coding-harness adapters. The shipped crates are
 listed below.
 
+Prebuilt wheels cover Linux x86_64, Linux aarch64, macOS universal2 and Windows x86_64;
+one abi3 wheel per platform serves every CPython from 3.11 onward. Anything else installs
+from the source distribution, which builds the Rust core locally — so it needs a Rust
+toolchain and a few minutes.
+
 - `docs/framework/` — the framework definition (docs 00–15), written in shipped voice
 - `PRPs/` — phase plans (PRP-000 vision → PRP-008 standards & host integration)
 - `AGENTS.md` — working conventions for agentic development sessions (`CLAUDE.md` is
