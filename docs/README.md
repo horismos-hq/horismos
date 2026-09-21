@@ -62,6 +62,10 @@ for the deploy job to succeed. `site_url` in `mkdocs.yml` is that address.
   finding in prose instead. Repository paths that describe the shape of the code a
   reader will get (`crates/…`, `examples/…`, `python/…`, `make` targets) are fine to
   keep as orientation.
+  **A pointer is a claim.** Never replace a private path with a link you have not
+  opened and confirmed covers the claim; a link that lands on a page not discussing the
+  topic reads as confusion, where a private path at least reads as missing access. If no
+  public page carries it, state the fact in prose and cite nothing.
   **Check it by enumeration, not by a prefix grep.** Grepping for known prefixes only
   finds the names someone already thought of; it misses bare filenames
   (`03-decisions.md`) and working-artefact names that carry no prefix at all. List

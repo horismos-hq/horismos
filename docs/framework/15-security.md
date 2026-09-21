@@ -235,8 +235,7 @@ constructed Bridges) but does not implement itself in v1.
 
 ## 5. The external system of record / host harness
 
-PRP-008 builds this boundary as a bounded prototype, and its design decisions fix the
-exact mitigations; this section states the threat
+PRP-008 builds this boundary as a bounded prototype; this section states the threat
 model and distinguishes what the library enforces from what a deployer still owns.
 
 **Threats:**

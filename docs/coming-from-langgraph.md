@@ -114,7 +114,7 @@ g.add_conditional_edges("decide", after_decide, {"route": "route", "escalate": "
 What changed: the model's extraction now has to clear a typed gate before it counts as a fact; the decision is made by a rule you can diff and `verify()` for completeness and conflicts before you deploy it; the proof travels in state to whoever needs to explain the call; and "no rule fired" is a visible branch rather than a confident-sounding guess. What did not change: your graph, your checkpointer, your streaming, your tools.
 
 !!! note "No adapter package yet"
-    A LangGraph node / agent-SDK tool adapter was deliberately deferred past v1 — see the [roadmap](roadmap.md). Today the glue is the ten lines above, and you own it. That is also why it works with any orchestrator: the kernel is whole-input-in, whole-outcome-out.
+    A LangGraph node / agent-SDK tool adapter was deliberately deferred past v1. Today the glue is the ten lines above, and you own it. That is also why it works with any orchestrator: the kernel is whole-input-in, whole-outcome-out.
 
 ## Concept mapping
 

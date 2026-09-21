@@ -43,10 +43,16 @@ proof → NL). Delete the LLM and the kernel still runs.
   claim, drop the path, per `docs/README.md` § Conventions. Check by enumerating every
   code span and link target under `docs/`, not by a prefix grep, and follow each
   pointer to its destination — a redirect onto a page that still carries a private
-  path just moves the dead end. `crates/`, `examples/`, `python/` and
+  path just moves the dead end. **A pointer is a claim**: never substitute a link you
+  have not opened and confirmed covers the claim — state the fact in prose and cite
+  nothing instead. `crates/`, `examples/`, `python/` and
   `make` targets are fine as orientation. Any inline `var(--horis-*)` in an SVG or
-  inline style needs a literal light-scheme fallback: `extra.css` is the one unhashed
-  stylesheet, and an unguarded `fill: var(…)` renders **black** when it is missing.
+  inline style needs literal fallbacks for **both** schemes: an unguarded `fill: var(…)`
+  renders **black** (`fill` falls back to its initial value), and `extra.css` is the one
+  unhashed stylesheet so it is the one that can go missing — but Material's palette
+  bundle is content-hashed and keeps applying `slate`, so light-only literals leave dark
+  text on a dark box. Declare a default block plus a `[data-md-color-scheme="slate"]`
+  override, as `extra.css` itself does.
 - `research/README.md`: the research wiki — reality-checks the design against the field,
   every claim tagged `[measured]`/`[inference]`; consult before resolving a `[DECIDE]`.
   `research/neurosymbolic-landscape/pivot-alignment.md` is the standing verdict on the
