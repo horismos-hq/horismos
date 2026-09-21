@@ -2,7 +2,7 @@
 
 The World is the typed instance store — an **admitted projection**, bound to one decision
 package and hydration, not the deployment's enterprise memory of record (pivot adopted
-2026-08-24, `PRPs/PRP-000-vision-positioning.md` §"Snapshot-scoped guarantees"). It holds
+2026-08-24: snapshot-scoped guarantees). It holds
 facts as instances of ontology classes, and **every mutation Horismos mediates passes the
 validation gate**. There is no back door *inside an evaluation or commit Horismos
 mediates* — that qualifier matters: Horismos cannot see, let alone gate, a write another
@@ -145,9 +145,8 @@ world.prove(p, ":acuity", ":Immediate")          # goal-directed, proof or None
 world.explain(p, ":acuity")                      # proof tree for an existing fact
 ```
 
-Tier 2's grammar is deliberately small (decided 2026-08-18, PRP-003 —
-`PRPs/PRP-003-python-bindings/03-decision-query.md`): one subject class per
-query, subsumption-aware; conjunctive property = value equality filters
+Tier 2's grammar is deliberately small (decided 2026-08-18, PRP-003): one subject
+class per query, subsumption-aware; conjunctive property = value equality filters
 (any value of a multi-valued property); results in the store's
 deterministic order; an undeclared class or property is a domain-term
 error, never a silently empty result. A textual SPARQL front-end

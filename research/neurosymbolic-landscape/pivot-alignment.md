@@ -24,13 +24,13 @@ D-items to evidence that now exists. None requires changing the pivot's shape.
 
 ## The commitments assessed
 
-**[measured — local repo]** The pivot is stated in [`PRPs/PRP-000-vision-positioning.md`](https://github.com/billaram/horismos/blob/main/PRPs/PRP-000-vision-positioning.md)
-§"Snapshot-scoped guarantees", [`PRPs/PRP-008-standards-host-integration/01-objective.md`](https://github.com/billaram/horismos/blob/main/PRPs/PRP-008-standards-host-integration/01-objective.md),
-[`docs/framework/03-world.md`](https://github.com/billaram/horismos/blob/main/docs/framework/03-world.md) §"World as a transaction projection",
-[`docs/framework/06-llm-boundaries.md`](https://github.com/billaram/horismos/blob/main/docs/framework/06-llm-boundaries.md) §"Candidate-artifact authoring",
-[`docs/framework/07-tools.md`](https://github.com/billaram/horismos/blob/main/docs/framework/07-tools.md) §"Adapter-mediated external commits",
-[`docs/framework/10-verification.md`](https://github.com/billaram/horismos/blob/main/docs/framework/10-verification.md) §"The assumption manifest", and
-[`docs/framework/13-authoring.md`](https://github.com/billaram/horismos/blob/main/docs/framework/13-authoring.md) §"Skills-to-fragment loop and trace-mining". This page
+**[measured — local repo]** The pivot is stated in [`PRPs/PRP-000-vision-positioning.md`](https://github.com/horismos-hq/horismos/blob/main/PRPs/PRP-000-vision-positioning.md)
+§"Snapshot-scoped guarantees", [`PRPs/PRP-008-standards-host-integration/01-objective.md`](https://github.com/horismos-hq/horismos/blob/main/PRPs/PRP-008-standards-host-integration/01-objective.md),
+[`docs/framework/03-world.md`](https://github.com/horismos-hq/horismos/blob/main/docs/framework/03-world.md) §"World as a transaction projection",
+[`docs/framework/06-llm-boundaries.md`](https://github.com/horismos-hq/horismos/blob/main/docs/framework/06-llm-boundaries.md) §"Candidate-artifact authoring",
+[`docs/framework/07-tools.md`](https://github.com/horismos-hq/horismos/blob/main/docs/framework/07-tools.md) §"Adapter-mediated external commits",
+[`docs/framework/10-verification.md`](https://github.com/horismos-hq/horismos/blob/main/docs/framework/10-verification.md) §"The assumption manifest", and
+[`docs/framework/13-authoring.md`](https://github.com/horismos-hq/horismos/blob/main/docs/framework/13-authoring.md) §"Skills-to-fragment loop and trace-mining". This page
 assesses eight commitments drawn from those texts:
 
 - **C1 — Snapshot-scoped guarantee**: hydrate a declared, versioned input closure into a
@@ -359,7 +359,7 @@ unchanged (0.57 → 0.53), and "the only defense that drives their rate to zero 
 enforcement, which reports ρ(v) in place of the model conclusion"
 ([arXiv:2606.19588](https://arxiv.org/abs/2606.19588)). **[inference]** The pivot
 *helps* here: it promotes the structured-input bypass to the primary path
-([`docs/framework/06-llm-boundaries.md`](https://github.com/billaram/horismos/blob/main/docs/framework/06-llm-boundaries.md)), moving the highest-risk boundary out of the
+([`docs/framework/06-llm-boundaries.md`](https://github.com/horismos-hq/horismos/blob/main/docs/framework/06-llm-boundaries.md)), moving the highest-risk boundary out of the
 main flow for standards-hydrated deployments. It does not address narration; a
 deterministic conclusion monitor (proof verdict vs narrated conclusion) is the missing
 piece (see A8).
@@ -500,7 +500,7 @@ would decide it. None is applied by this wiki.
 ## Open questions (decision-shaped — flagged, not answered here)
 
 - Which scenario (VTE / NEWS2 / sepsis-compliance) is PRP-008's first vertical slice —
-  captain call per [`PRPs/BOARD.md`](https://github.com/billaram/horismos/blob/main/PRPs/BOARD.md). Nothing in this sweep bears on the choice; Epic's
+  captain call per [`PRPs/BOARD.md`](https://github.com/horismos-hq/horismos/blob/main/PRPs/BOARD.md). Nothing in this sweep bears on the choice; Epic's
   CRD launch is prior-authorization, which [`../scenarios/ruled-out.md`](../scenarios/ruled-out.md) deprioritizes as
   a first slice.
 - PRP-008 D1–D5, D8, D9, D10 — evidence above (X7, A1–A7) narrows them; resolution stays
@@ -547,8 +547,8 @@ shape while stopping short of declaring preconditions or effects.
 
 - **J1 — Measure the confidence the perception threshold compares against.** Rests on:
   `accepted = result.confidence >= p.confidence` over a number the model self-reports
-  ([`crates/horismos-core/src/workflow/agent.rs`](https://github.com/billaram/horismos/blob/adfc27a/crates/horismos-core/src/workflow/agent.rs):492;
-  [`crates/horismos-bridges/src/openrouter.rs`](https://github.com/billaram/horismos/blob/adfc27a/crates/horismos-bridges/src/openrouter.rs):322-331,
+  ([`crates/horismos-core/src/workflow/agent.rs`](https://github.com/horismos-hq/horismos/blob/adfc27a/crates/horismos-core/src/workflow/agent.rs):492;
+  [`crates/horismos-bridges/src/openrouter.rs`](https://github.com/horismos-hq/horismos/blob/adfc27a/crates/horismos-bridges/src/openrouter.rs):322-331,
   **[measured — local repo]**);
   ConfidenceBench's finding that calibration and accuracy diverge across model families
   ([arXiv:2607.20526](https://arxiv.org/abs/2607.20526)); Kotte's measurement that

@@ -11,7 +11,7 @@ attempted.
 ## Evidence
 
 **[measured]** Formal verification does not prove the medicine is right. Horismos's
-own verification documentation ([`docs/framework/10-verification.md`](https://github.com/billaram/horismos/blob/main/docs/framework/10-verification.md)) already states
+own verification documentation ([`docs/framework/10-verification.md`](https://github.com/horismos-hq/horismos/blob/main/docs/framework/10-verification.md)) already states
 the limit: verification proves the reasoner is total and sound *around whatever
 perception does*, and claims nothing about tool implementations or anything
 probabilistic. **[inference]** The clinically load-bearing corollary: verification
@@ -52,9 +52,9 @@ calibration silently fails, and AUROC alone is blind to it
 rules right?* None of them asks the other question a Horismos deployment depends on:
 *is the acceptance threshold at the perception boundary right?* That boundary is
 `accepted = result.confidence >= horis:confidence`
-([`crates/horismos-core/src/workflow/agent.rs`](https://github.com/billaram/horismos/blob/adfc27a/crates/horismos-core/src/workflow/agent.rs):492,
+([`crates/horismos-core/src/workflow/agent.rs`](https://github.com/horismos-hq/horismos/blob/adfc27a/crates/horismos-core/src/workflow/agent.rs):492,
 **[measured — local repo]**), and the number it compares against is, today, self-reported by the model and never measured
-([`docs/framework/08-bridge.md`](https://github.com/billaram/horismos/blob/adfc27a/docs/framework/08-bridge.md): "the forced tool call's schema carries a `confidence`
+([`docs/framework/08-bridge.md`](https://github.com/horismos-hq/horismos/blob/adfc27a/docs/framework/08-bridge.md): "the forced tool call's schema carries a `confidence`
 number field the model must self-report"). A deployment could pass every rung on this
 ladder and still route the wrong third of its cases to a human — or fail to route the
 right ones.

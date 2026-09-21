@@ -6,8 +6,8 @@ with the verifier until the result is provably well-formed — then the SME sign
 rendered summary, never syntax. The runtime's principle applied at design time:
 **neural proposes, symbolic decides.**
 
-**Default job, amended 2026-08-24** (`PRPs/PRP-007-authoring-agent.md`, captain-adopted
-bounded-projection pivot): the primary authoring mode is no longer blank-slate drafting
+**Default job, amended 2026-08-24** (PRP-007, under the adopted bounded-projection
+pivot): the primary authoring mode is no longer blank-slate drafting
 from conversation alone — it is **import, align, and overlay**: ingest an existing FHIR
 profile, terminology subset, PlanDefinition, or a tool/skill's own schema/manifest without
 trusting it, deterministically lift whatever structure is already machine-readable (names,
@@ -108,8 +108,9 @@ invents IRIs in external namespaces.
   facts, no perception) and shows the proof tree. Dry-running the ontology *is* the
   review of its logic. **Amended (2026-08-24)**: the DoD extends this to include a seeded
   subtly-wrong-but-internally-consistent axiom, measuring — not assuming — whether an SME
-  reviewing only the rendered summary and scenario probes catches it
-  (`horismos-research-s1/report.md` §1.7; `PRPs/PRP-007-authoring-agent.md`'s DoD).
+  reviewing only the rendered summary and scenario probes catches it. This is in
+  PRP-007's definition of done because review-by-summary is exactly where formalized
+  guidelines have historically passed review while encoding the wrong thing.
 - **(Import/align mode, declared-future) Source-anchor view, mapping-loss report, and
   assumption diff** — which drafted clause traces to which line of the imported standard;
   what was lost or approximated in the mapping (never silently); and what changed in the
@@ -132,14 +133,15 @@ Two extensions, captain-adopted alongside the pivot, neither built in v1:
   → verify → sign-off loop above, pointed at an existing coding-agent skill/tool instead
   of a clinical standard, producing a **Capability Fragment** — a small overlay attached
   to, not replacing, the original package, with the formalization coverage report from the
-  overlay loop above. `PRPs/PRP-007-authoring-agent.md` §"Capability-fragment compiler
-  mode" has the full spec; `PRPs/PRP-000-vision-positioning.md` §"Comparison" has the
-  positioning against existing harnesses.
+  overlay loop above. PRP-007 owns the compiler mode's full specification; the
+  positioning against existing harnesses is on
+  [Coding agents](../governing-a-coding-agent.md).
 - **Trace-mining as a proposal source**: accumulated execution traces (doc 09) may suggest
   candidate ontology edits, but only by entering this exact gated loop as a new kind of
   draft proposal — never by mutating a signed-off ontology directly. This is a deliberate
-  rejection of a self-reinforcing ingest-learn-reingest loop (the documented NELL schema-
-  drift and Cognee-adjacent risk surveyed in `horismos-research-s1/report.md` §1.7):
+  rejection of a self-reinforcing ingest-learn-reingest loop — the documented schema-drift
+  failure mode of never-ending-learning systems, where a system that re-ingests its own
+  output degrades its schema over time:
   Horismos's principle 2 ("traces are output, not logging") stays one-directional at the
   authoring layer exactly as it is at the runtime layer.
 

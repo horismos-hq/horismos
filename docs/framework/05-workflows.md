@@ -4,11 +4,11 @@ A workflow is the agent loop, declared as ontology data. The Agent (runtime) is 
 generic interpreter; **all** domain behavior — what to extract, when to reason, what
 may execute — comes from the ontology. Changing the loop means editing `.ttl`, not code.
 
-**Scope under the bounded-projection pivot** (`PRPs/PRP-000-vision-positioning.md`): a
+**Scope under the bounded-projection pivot**: a
 Horismos workflow is best understood as an **optional decision microflow**, not a
 requirement that Horismos own a deployment's entire longitudinal process. A host may
 invoke one workflow fragment at a decision point — behind a CDS-Hooks-style call, or as a
-bounded PlanDefinition-subset mapping (`PRPs/PRP-008-standards-host-integration/01-objective.md`)
+bounded PlanDefinition-subset mapping (doc 14 § "Two-boundary data flow")
 — while continuing to own waits, longitudinal state, scheduling, and user
 interaction itself. Totality (below) applies to the invoked fragment, not to the whole
 care pathway or coding session it may be one step of. Nothing below changes for a

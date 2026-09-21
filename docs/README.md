@@ -20,7 +20,7 @@ uvx --with mkdocs-material mkdocs build --strict   # the gate: warnings are erro
 
 ## Published site
 
-The site is published at <https://horismos-hq.github.io/horismos/> by
+The site is published at <https://docs.horismos.ai/> by
 `.github/workflows/docs-pages.yml`: on every push to `main` that touches `mkdocs.yml`,
 `docs/` or `examples/` (and on manual dispatch) it runs the same strict build and
 deploys `site/` to GitHub Pages. It is a deploy-on-merge workflow, not a pull-request
@@ -48,9 +48,20 @@ for the deploy job to succeed. `site_url` in `mkdocs.yml` is that address.
 - **Turtle is pulled from the real files.** Ontology listings use
   `--8<-- "examples/…"` snippets so the page and the file cannot drift
   (`check_paths: true` fails the build if a file moves).
-- **Claims are sourced.** Numbers on the landing page and use-case pages come from
-  `research/` (each tagged `[measured]` there) or from `docs/framework/`; link the
-  source inline. Do not invent claims.
+- **Claims are sourced, but the citation must be public.** Numbers on the landing page
+  and use-case pages are researched against the internal wiki (each claim tagged
+  `[measured]` there) or against `docs/framework/`. Do not invent claims — and do not
+  publish the internal path either. **The repository is private and this site is
+  public**, so a reader cannot open `research/…`, `PRPs/…`, `decisions/…`, or any
+  internal sweep-report name; a path like that renders as a dead pointer that also
+  advertises what it cannot show. Instead: link a page on this site that covers the
+  same ground ([Verification](framework/10-verification.md), [Guarantees](guarantees.md),
+  [Roadmap](roadmap.md), …), cite the external primary source the wiki itself cites
+  (paper, standard, post-mortem) where there is one, or state what was measured in the
+  sentence. Never weaken a claim just to avoid citing a private source — say the
+  finding in prose instead. Repository paths that describe the shape of the code a
+  reader will get (`crates/…`, `examples/…`, `python/…`, `make` targets) are fine to
+  keep as orientation.
 - **The visual layer is one file.** `docs/stylesheets/extra.css` holds every colour
   as a `--horis-*` token with a light and a slate value; `mkdocs.yml` sets
   `primary: custom` / `accent: custom` so the theme ships no colour of its own. The
@@ -59,8 +70,10 @@ for the deploy job to succeed. `site_url` in `mkdocs.yml` is that address.
   and the slate scheme is kept working — a new token needs both values. There is no
   `theme.custom_dir`; `theme.font: false` and "no external assets" (no webfonts, no
   CDN, no images) are deliberate.
-- **Status is truthful.** `PRPs/BOARD.md` is the authority on what is merged, in build,
-  or planned; the Roadmap page links to it rather than duplicating it.
+- **Status is truthful.** The internal board is the authority on what is merged, in
+  build, or planned; the Roadmap page restates its current state in the page's own
+  words and carries the date it was last reconciled, rather than pointing readers at a
+  file they cannot open.
 
 ## Layout
 

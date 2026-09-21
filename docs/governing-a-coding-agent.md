@@ -4,7 +4,7 @@ Your coding agent — Claude Code, Codex, pi, a harness of your own — proposes
 
 ## Why prompt-level policy is not enough
 
-The research wiki's survey of harnesses (`research/neurosymbolic-landscape/coding-agent-harnesses.md`, 2026-09-02) finds the same shape everywhere:
+Our survey of the shipping coding-agent harnesses — Claude Code, Codex CLI, Gemini CLI and Cursor, read against their own documentation as of 2026-09-02 — finds the same shape everywhere:
 
 - **Policies cannot see state.** Codex rules "evaluate command prefixes only — they cannot reference repository state, file contents, or environmental conditions." Gemini CLI's policy engine predicates over tool name, argument patterns and annotations only.
 - **The approval step is going neural.** Codex `auto_review`, Claude Code `auto` mode, and Cursor Auto-review put a classifier inside the decision; Cursor calls its run modes "best-effort guardrails rather than a hard security boundary."
@@ -214,4 +214,4 @@ What the boundary proves: the proposal was policy-legal and passed its declared 
 | Compiling a fragment from an existing `SKILL.md` / tool schema, with a coverage report | **Planned in PRP-007** (after PRP-008) |
 | Completeness / conflict / dead-rule verification of the eleven rules, with domain-term witnesses | **Yes** — `verify()` proves `:gateDecision` total and conflict-free; `Ontology.load` refuses the overlay otherwise |
 
-Track the live status on the [roadmap](roadmap.md) and in `PRPs/BOARD.md`.
+Track the live status on the [roadmap](roadmap.md), which is reconciled against the project board on every status change.

@@ -26,21 +26,31 @@ hide:
 <div class="horis-flowcap"><b>Where the model is allowed to act</b> <span>Two declared boundaries. Nothing else calls a model.</span></div>
 <svg class="horis-flow-defs" width="0" height="0" aria-hidden="true" focusable="false">
   <style>
-    .hf-in   { fill: var(--horis-paper-2); stroke: var(--horis-line); }
-    .hf-neu  { fill: var(--horis-neural-soft); stroke: var(--horis-neural); stroke-opacity: .5; }
-    .hf-gate { fill: var(--horis-gate-soft); stroke: var(--horis-gate); stroke-opacity: .5; }
-    .hf-sym  { fill: var(--horis-symbolic-soft); stroke: var(--horis-symbolic); stroke-opacity: .5; }
-    .hf-out  { fill: var(--md-default-bg-color); stroke: var(--horis-gate); stroke-width: 1.8; }
-    .hf-k    { font-family: var(--horis-mono); font-size: 9.5px; font-weight: 650; letter-spacing: 1px; }
-    .hf-t    { font-family: inherit; font-size: 14px; font-weight: 650; fill: var(--horis-ink); }
-    .hf-s    { font-family: inherit; font-size: 11.5px; fill: var(--horis-ink-3); }
-    .hf-lead { font-family: inherit; font-size: 12.5px; font-weight: 600; fill: var(--horis-ink-2); }
-    .hf-a    { stroke: var(--horis-ink-3); stroke-width: 1.6; fill: none; marker-end: url(#horisFlowArrow); }
-    .hf-r    { stroke: var(--horis-refuse); stroke-width: 1.5; fill: none; stroke-dasharray: 4 3;
+    /* Every var() carries the light-scheme literal from docs/stylesheets/extra.css
+     * as its fallback. `fill` and `stroke` take their *initial* value when a custom
+     * property is invalid at computed-value time — black and none respectively — so
+     * an unguarded var() turns this diagram into solid black boxes on any hiccup that
+     * keeps extra.css from applying. extra.css is the one unhashed stylesheet on the
+     * site, so it is the one that can go missing while the hashed Material bundle is
+     * served from cache. The fallback is only ever reached when extra.css is absent,
+     * in which case Material renders its default light scheme — so light-scheme
+     * literals are the correct choice, and dark mode is unaffected. */
+    .hf-in   { fill: var(--horis-paper-2, #fafbfc); stroke: var(--horis-line, #e4e7ec); }
+    .hf-neu  { fill: var(--horis-neural-soft, #fdf2e2); stroke: var(--horis-neural, #96590a); stroke-opacity: .5; }
+    .hf-gate { fill: var(--horis-gate-soft, #dff0ed); stroke: var(--horis-gate, #12736a); stroke-opacity: .5; }
+    .hf-sym  { fill: var(--horis-symbolic-soft, #eaeefc); stroke: var(--horis-symbolic, #3b5bdb); stroke-opacity: .5; }
+    .hf-out  { fill: var(--md-default-bg-color, #ffffff); stroke: var(--horis-gate, #12736a); stroke-width: 1.8; }
+    .hf-k    { font-family: var(--horis-mono, ui-monospace, "SF Mono", Menlo, Consolas, monospace);
+               font-size: 9.5px; font-weight: 650; letter-spacing: 1px; }
+    .hf-t    { font-family: inherit; font-size: 14px; font-weight: 650; fill: var(--horis-ink, #15171c); }
+    .hf-s    { font-family: inherit; font-size: 11.5px; fill: var(--horis-ink-3, #5b6472); }
+    .hf-lead { font-family: inherit; font-size: 12.5px; font-weight: 600; fill: var(--horis-ink-2, #3d434f); }
+    .hf-a    { stroke: var(--horis-ink-3, #5b6472); stroke-width: 1.6; fill: none; marker-end: url(#horisFlowArrow); }
+    .hf-r    { stroke: var(--horis-refuse, #b4382e); stroke-width: 1.5; fill: none; stroke-dasharray: 4 3;
                marker-end: url(#horisFlowArrowRefuse); }
-    .hf-rt   { font-family: inherit; font-size: 11.5px; fill: var(--horis-refuse); }
-    .hf-mk   { fill: var(--horis-ink-3); }
-    .hf-mkr  { fill: var(--horis-refuse); }
+    .hf-rt   { font-family: inherit; font-size: 11.5px; fill: var(--horis-refuse, #b4382e); }
+    .hf-mk   { fill: var(--horis-ink-3, #5b6472); }
+    .hf-mkr  { fill: var(--horis-refuse, #b4382e); }
   </style>
   <defs>
     <marker id="horisFlowArrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
@@ -58,22 +68,22 @@ hide:
   <text class="hf-lead" x="74" y="85" text-anchor="middle">system state</text>
 
   <rect class="hf-neu" x="172" y="34" width="150" height="76" rx="9"/>
-  <text class="hf-k" x="247" y="57" text-anchor="middle" fill="var(--horis-neural)">NEURAL · BOUNDARY 1</text>
+  <text class="hf-k" x="247" y="57" text-anchor="middle" fill="var(--horis-neural, #96590a)">NEURAL · BOUNDARY 1</text>
   <text class="hf-t" x="247" y="77" text-anchor="middle">Perception</text>
   <text class="hf-s" x="247" y="95" text-anchor="middle">proposes typed facts</text>
 
   <rect class="hf-gate" x="354" y="34" width="150" height="76" rx="9"/>
-  <text class="hf-k" x="429" y="57" text-anchor="middle" fill="var(--horis-gate)">NO BACK DOOR</text>
+  <text class="hf-k" x="429" y="57" text-anchor="middle" fill="var(--horis-gate, #12736a)">NO BACK DOOR</text>
   <text class="hf-t" x="429" y="77" text-anchor="middle">Five-check gate</text>
   <text class="hf-s" x="429" y="95" text-anchor="middle">class · range · constraint</text>
 
   <rect class="hf-sym" x="536" y="34" width="150" height="76" rx="9"/>
-  <text class="hf-k" x="611" y="57" text-anchor="middle" fill="var(--horis-symbolic)">SYMBOLIC</text>
+  <text class="hf-k" x="611" y="57" text-anchor="middle" fill="var(--horis-symbolic, #3b5bdb)">SYMBOLIC</text>
   <text class="hf-t" x="611" y="77" text-anchor="middle">Rules decide</text>
   <text class="hf-s" x="611" y="95" text-anchor="middle">to a fixed point</text>
 
   <rect class="hf-out" x="718" y="34" width="174" height="76" rx="9"/>
-  <text class="hf-k" x="805" y="57" text-anchor="middle" fill="var(--horis-gate)">THE PRODUCT</text>
+  <text class="hf-k" x="805" y="57" text-anchor="middle" fill="var(--horis-gate, #12736a)">THE PRODUCT</text>
   <text class="hf-t" x="805" y="77" text-anchor="middle">Decision + proof</text>
   <text class="hf-s" x="805" y="95" text-anchor="middle">+ replayable trace</text>
 
@@ -92,17 +102,17 @@ hide:
   <text class="hf-lead" x="130" y="42" text-anchor="middle">system state</text>
 
   <rect class="hf-neu" x="20" y="80" width="220" height="72" rx="9"/>
-  <text class="hf-k" x="130" y="102" text-anchor="middle" fill="var(--horis-neural)">NEURAL · BOUNDARY 1</text>
+  <text class="hf-k" x="130" y="102" text-anchor="middle" fill="var(--horis-neural, #96590a)">NEURAL · BOUNDARY 1</text>
   <text class="hf-t" x="130" y="122" text-anchor="middle">Perception</text>
   <text class="hf-s" x="130" y="140" text-anchor="middle">proposes typed facts</text>
 
   <rect class="hf-gate" x="20" y="180" width="220" height="72" rx="9"/>
-  <text class="hf-k" x="130" y="202" text-anchor="middle" fill="var(--horis-gate)">NO BACK DOOR</text>
+  <text class="hf-k" x="130" y="202" text-anchor="middle" fill="var(--horis-gate, #12736a)">NO BACK DOOR</text>
   <text class="hf-t" x="130" y="222" text-anchor="middle">Five-check gate</text>
   <text class="hf-s" x="130" y="240" text-anchor="middle">class · range · constraint</text>
 
   <rect class="hf-sym" x="20" y="280" width="220" height="72" rx="9"/>
-  <text class="hf-k" x="130" y="302" text-anchor="middle" fill="var(--horis-symbolic)">SYMBOLIC</text>
+  <text class="hf-k" x="130" y="302" text-anchor="middle" fill="var(--horis-symbolic, #3b5bdb)">SYMBOLIC</text>
   <text class="hf-t" x="130" y="322" text-anchor="middle">Rules decide</text>
   <text class="hf-s" x="130" y="340" text-anchor="middle">to a fixed point</text>
 
@@ -174,7 +184,7 @@ That refusal is the product. It applies to every path into the world — percept
 
 ## What breaks in prompt-governed agents
 
-These are the failure classes working agent teams keep meeting. The numbers are from the research wiki in this repo (`research/`), where each is tagged `[measured]` with its source.
+These are the failure classes working agent teams keep meeting. Every number below is measured in the primary source cited beside it, not by us.
 
 <div class="horis-cmp" markdown>
 
@@ -205,7 +215,7 @@ These are the failure classes working agent teams keep meeting. The numbers are 
 <div class="horis-cmpcard" markdown>
 ### Policies that cannot see state
 
-<p class="horis-meas" markdown><span class="horis-lbl">What was measured</span>Codex rules "evaluate command prefixes only — they cannot reference repository state"; after PocketOS lost production data to a blanket-scope token, the post-mortem read "guardrails must be implemented at the API gateway and token-permission level, not in advisory text" (`research/neurosymbolic-landscape/coding-agent-harnesses.md`)</p>
+<p class="horis-meas" markdown><span class="horis-lbl">What was measured</span>Codex rules "evaluate command prefixes only — they cannot reference repository state"; after PocketOS lost production data to a blanket-scope token, the post-mortem read "guardrails must be implemented at the API gateway and token-permission level, not in advisory text" ([Codex rules documentation](https://learn.chatgpt.com/docs/agent-configuration/rules); [AIID 7311](https://incidentdatabase.ai/reports/7311))</p>
 
 <p class="horis-does" markdown><span class="horis-lbl">What Horismos does instead</span>Preconditions are declared over typed world state and checked by the runtime before any tool fires ([Tools](framework/07-tools.md))</p>
 </div>

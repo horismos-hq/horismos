@@ -1,6 +1,6 @@
 # Roadmap and status
 
-Truthful to `PRPs/BOARD.md`, which is the single source of truth for status and is updated in the same commit as any change. This page summarizes; when they disagree, the board wins. Last reconciled: 2026-09-03.
+This page is the published status of record. It is reconciled against the project board — the internal single source of truth, updated in the same commit as any change it reports — so that what you read here is what is actually merged, in build, or planned. Last reconciled: 2026-09-03.
 
 ## At a glance
 
@@ -30,7 +30,7 @@ Build order is a dependency DAG, not the numbering: 001 → 002 → 003 → 004 
 | Verification witnesses, assumption manifest | **Yes** | PRP-005 |
 | FHIR / repository hydration, conditional commit, CDS Hooks surface | **Yes** — `crates/horismos-fhir` (`FhirHydrationRequest`, the conditional-commit types, the CDS Hooks card module) over the generic host SPI in `crates/horismos-host`; `examples/vte` runs the VTE slice over a recorded bundle | PRP-008 (PR #15). Structured-input adapters against recorded fixtures — no live EHR connection ships |
 | `pip install horismos` / `cargo add horismos-core` from public registries | Not yet | PRP-006; today: `make develop` from a clone |
-| This docs site published at a public URL | **Yes** — <https://horismos-hq.github.io/horismos/>, deployed from `main` by `.github/workflows/docs-pages.yml` | Deploy-on-merge only; PR-triggered CI (this site's `--strict` build as a check) is still PRP-006 |
+| This docs site published at a public URL | **Yes** — <https://docs.horismos.ai/>, deployed from `main` by `.github/workflows/docs-pages.yml` | Deploy-on-merge only; PR-triggered CI (this site's `--strict` build as a check) is still PRP-006 |
 
 ## The end state
 
@@ -42,7 +42,13 @@ Beyond v1, as research rather than a phase: trace fine-tuning, provenance semiri
 
 ## Follow along
 
-- `PRPs/BOARD.md` — the board, current state, next goal, human side quests.
-- `PRPs/README.md` — reading order and the dependency-DAG rule.
-- `research/README.md` — the research wiki; `research/neurosymbolic-landscape/pivot-alignment.md` is re-verdicted every weekly sweep.
-- Open decisions are marked **[DECIDE]** in the framework docs, each owned by exactly one PRP and resolved there, never ad hoc.
+- This page is reconciled against the board on every status change — the date under the
+  title tells you how fresh it is.
+- The [Framework reference](framework/00-index.md) is the specification the phase plans
+  build against; each phase plan owns a slice of it, and the tracks above say which.
+- Design questions still open are marked **[DECIDE]** in the framework docs. Each is
+  owned by exactly one phase plan and resolved there, never ad hoc — so a **[DECIDE]**
+  you find in the reference is a live question, not an oversight.
+- Every design commitment is re-assessed against new literature on a weekly research
+  sweep; the standing verdict on the bounded-projection design is summarised on
+  [Guarantees](guarantees.md) § "Why we think the shape is right".

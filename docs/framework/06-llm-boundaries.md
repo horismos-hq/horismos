@@ -62,10 +62,10 @@ Same gate, same downstream behavior. A deployment fed only by monitors and EHR f
 runs with **no Bridge configured at all** — CI enforces this configuration works
 (the anti-wrapper gate, doc 14).
 
-**Under the bounded-projection pivot** (`PRPs/PRP-000-vision-positioning.md`), this
+**Under the bounded-projection pivot**, this
 bypass is promoted to the **primary structured-input path** for a standards-hydrated
-deployment: an Adapter's `ExternalSnapshot` (FHIR resources, repository/tool observations
-— `PRPs/PRP-008-standards-host-integration/01-objective.md`) is admitted exactly this
+deployment: an Adapter's `ExternalSnapshot` (FHIR resources, repository/tool
+observations — doc 14 § "Two-boundary data flow") is admitted exactly this
 way, with provenance `api`, never through perception. Mapping a FHIR resource or repo
 observation into ontology facts is **deterministic adapter code, checked before runtime —
 never a perception shortcut**. An LLM never infers what a structured standard resource
@@ -112,9 +112,8 @@ sometimes filenames — content an ordinary `ActionStep` cannot fit, because the
 contract says the model never constructs tool arguments (doc 07). Pretending free-form
 code generation is a normal ActionStep would weaken the neural-proposes/symbolic-decides
 principle by stealth. The honest extension, captain-adopted alongside the bounded-
-projection pivot (`decisions/captain-pivot-ruling.md` item 3) and owned jointly by
-`PRPs/PRP-007-authoring-agent.md` (vocabulary) and `PRPs/PRP-008-standards-host-
-integration/01-objective.md` (runtime): a **candidate-artifact boundary**. Model output is a typed
+projection pivot and owned jointly by PRP-007 (vocabulary) and PRP-008 (runtime):
+a **candidate-artifact boundary**. Model output is a typed
 patch/file/command *proposal envelope*, not a tool argument; deterministic policy
 validates target paths, base hashes, syntax, and permissions; a sandbox executes required
 tests/checks; only then does a symbolic authorization step permit application. Semantic

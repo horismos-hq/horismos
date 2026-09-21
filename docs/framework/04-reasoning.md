@@ -63,9 +63,8 @@ unassigned row above (no value exists to witness an ∃), with sigil-lang's `_UN
 precedent, and with `horis:none` (¬∨) composing as `none(is X)` ≡ `isNot X`. Pinned
 by the `is_not_is_the_negation_of_is` property test.
 
-**Scope of the closed-world reading under the bounded-projection pivot** (`PRPs/PRP-000-
-vision-positioning.md`): this pragmatic closed-world stance applies to a **declared-
-complete input closure**, not to an unbounded external record Horismos does not observe.
+**Scope of the closed-world reading under the bounded-projection pivot**: this pragmatic
+closed-world stance applies to a **declared-complete input closure**, not to an unbounded external record Horismos does not observe.
 "Property unassigned → false" is correct when the projection's declared closure states the
 property was in scope and genuinely absent; it is a category error to apply the same
 reading to a property that was simply never fetched from an external system. Distinguishing
@@ -131,7 +130,7 @@ standing claim about the current external record.
 - The same (ontology, world snapshot, input transaction) triple always yields the
   same (derived facts, proof trees, trace) — this is tested property-style in CI.
 - **Determinism is a property of materialized inputs, not of any external server**
-  (pivot clarification, `PRPs/PRP-000-vision-positioning.md`). Paging, `_include`
+  (pivot clarification). Paging, `_include`
   expansion, terminology expansion, server clocks, and network failures happen entirely
   *outside* the core transaction (in an Adapter, PRP-008) and are captured as one
   materialized input before core ever runs — a live/lazy World reading from an external

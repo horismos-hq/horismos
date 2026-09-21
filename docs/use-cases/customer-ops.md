@@ -2,7 +2,7 @@
 
 ## The scene
 
-A customer writes in: *"I booked yesterday but my plans changed, can I move my flight to next month?"* An airline support agent has to answer with the fare rules, not with sympathy. This is the shape of the τ-bench airline tasks, and the measured record is sobering: in τ²-bench airline, 78% of observed failures were **silent wrong-state failures** — the agent changed or refunded something it should not have, with no tool error to flag it. Deterministic, read-only pre-execution gates that inspect the proposed call and current state before allowing a write raised task success from 29.6% to 42.0% ([arXiv:2607.07405](https://arxiv.org/abs/2607.07405); `research/neurosymbolic-landscape/pivot-alignment.md`, C5).
+A customer writes in: *"I booked yesterday but my plans changed, can I move my flight to next month?"* An airline support agent has to answer with the fare rules, not with sympathy. This is the shape of the τ-bench airline tasks, and the measured record is sobering: in τ²-bench airline, 78% of observed failures were **silent wrong-state failures** — the agent changed or refunded something it should not have, with no tool error to flag it. Deterministic, read-only pre-execution gates that inspect the proposed call and current state before allowing a write raised task success from 29.6% to 42.0% ([arXiv:2607.07405](https://arxiv.org/abs/2607.07405)).
 
 That paper states Horismos's scope in its own words: such gates "do not guarantee task success, but they can deterministically prevent a known class of silent policy-violating writes."
 

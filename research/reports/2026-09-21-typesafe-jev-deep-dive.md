@@ -6,7 +6,7 @@
 > [RL-axis deep dive](2026-09-02-rl-deep-dive.md) as given and extends them along a
 > third axis: commercial, non-generative models that answer typed questions declared in
 > advance. Grounded read-only against
-> [`adfc27a`](https://github.com/billaram/horismos/blob/adfc27a) (`main`); repo-file
+> [`adfc27a`](https://github.com/horismos-hq/horismos/blob/adfc27a) (`main`); repo-file
 > references and `file:line` numbers are true at that commit only. **Where its findings
 > went:** the new topic page
 > [`neurosymbolic-landscape/typed-decision-models.md`](../neurosymbolic-landscape/typed-decision-models.md),
@@ -158,7 +158,7 @@ pub trait Bridge: Send + Sync {
 
 > **Python parallel.** A Rust `trait` is the same idea as a `typing.Protocol` (or an
 > `abc.ABC`): a named set of method signatures that a type can satisfy. Horismos's own
-> docs make the correspondence explicit — [`docs/framework/08-bridge.md`](https://github.com/billaram/horismos/blob/adfc27a/docs/framework/08-bridge.md) shows the
+> docs make the correspondence explicit — [`docs/framework/08-bridge.md`](https://github.com/horismos-hq/horismos/blob/adfc27a/docs/framework/08-bridge.md) shows the
 > Python side as `class Bridge(Protocol)` with the same three capabilities. The
 > difference that matters here is *when* it is checked: `Protocol` conformance is
 > checked by mypy (or not at all, at runtime); `trait` conformance is checked by the
@@ -168,7 +168,7 @@ pub trait Bridge: Send + Sync {
 > `PerceiveResult`, or fails with a `BridgeError`". In Python you would write
 > `def perceive(...) -> PerceiveResult` and `raise BridgeError`. The practical
 > difference is that Rust makes the caller *name* the failure branch — which is why
-> [`workflow/agent.rs`](https://github.com/billaram/horismos/blob/adfc27a/crates/horismos-core/src/workflow/agent.rs) has a visible `Err(_) => return Ok(self.fallback_outcome(fallback))`
+> [`workflow/agent.rs`](https://github.com/horismos-hq/horismos/blob/adfc27a/crates/horismos-core/src/workflow/agent.rs) has a visible `Err(_) => return Ok(self.fallback_outcome(fallback))`
 > arm rather than a `try/except` somewhere up the stack.
 
 Four facts about this trait decide most of what follows.
@@ -176,12 +176,12 @@ Four facts about this trait decide most of what follows.
 **(a) It is a client, not an orchestrator.** The module doc is explicit: "`Bridge` is a
 client, not another orchestrator (doc 08): three methods, nothing else. Thresholds,
 retries, fallbacks, and timeout enforcement are the runtime's job … never a `Bridge`
-implementation's" ([`bridge/mod.rs`](https://github.com/billaram/horismos/blob/adfc27a/crates/horismos-core/src/bridge/mod.rs):8-13). A Jev adapter therefore cannot bring its
+implementation's" ([`bridge/mod.rs`](https://github.com/horismos-hq/horismos/blob/adfc27a/crates/horismos-core/src/bridge/mod.rs):8-13). A Jev adapter therefore cannot bring its
 own control flow with it; it gets to answer three questions and nothing else.
 
 **(b) `rank` is already a Choice question.** `RankRequest { context: String, candidates:
 Vec<serde_json::Value> }` → `RankResult { chosen: usize, confidence: f64 }`
-([`bridge/mod.rs`](https://github.com/billaram/horismos/blob/adfc27a/crates/horismos-core/src/bridge/mod.rs):102-122). The doc comment states the constraint that makes it
+([`bridge/mod.rs`](https://github.com/horismos-hq/horismos/blob/adfc27a/crates/horismos-core/src/bridge/mod.rs):102-122). The doc comment states the constraint that makes it
 symbolic: "candidates come from a graph query (doc 07) — every candidate already
 satisfies its preconditions. The model ranks; it cannot add options." That is a
 categorical decision over a closed, runtime-computed option set, returning a scalar
@@ -191,21 +191,21 @@ the option set supplied by the kernel instead of the caller.
 **(c) There is no Score question and no distribution.** `RankResult::confidence` is one
 `f64` about the *call*, not a probability per candidate. `PerceiveResult` carries
 `confidence: f64` plus an optional `fact_confidence: BTreeMap<usize, f64>` keyed by
-index into `instances` ([`bridge/mod.rs`](https://github.com/billaram/horismos/blob/adfc27a/crates/horismos-core/src/bridge/mod.rs):63-80). Nothing in the trait can express
+index into `instances` ([`bridge/mod.rs`](https://github.com/horismos-hq/horismos/blob/adfc27a/crates/horismos-core/src/bridge/mod.rs):63-80). Nothing in the trait can express
 "the probability that the answer is A is 0.62 and B is 0.31".
 
 **(d) — and `rank` is never called.** This is the fact that most changes the shape of
 §6.2, and it is easy to miss. `ProposalStep` parses, has an ontology vocabulary
 (`horis:candidates`/`horis:rankBy`/`horis:confidence`/`horis:fallback`, doc 07), and has
 a real trace emission builder (`trace::emit::proposal_step`, `Step::Proposal` in
-[`trace/schema.rs`](https://github.com/billaram/horismos/blob/adfc27a/crates/horismos-core/src/trace/schema.rs):230-257) — but the runtime refuses it:
+[`trace/schema.rs`](https://github.com/horismos-hq/horismos/blob/adfc27a/crates/horismos-core/src/trace/schema.rs):230-257) — but the runtime refuses it:
 
 ```rust
 // crates/horismos-core/src/workflow/agent.rs:454
 StepBody::Proposal(_) => Err(deferred::proposal_deferred(world, step.iri)),
 ```
 
-and [`workflow/deferred.rs`](https://github.com/billaram/horismos/blob/adfc27a/crates/horismos-core/src/workflow/deferred.rs):5-7 says so in as many words: "`ProposalStep`'s
+and [`workflow/deferred.rs`](https://github.com/horismos-hq/horismos/blob/adfc27a/crates/horismos-core/src/workflow/deferred.rs):5-7 says so in as many words: "`ProposalStep`'s
 candidate ranking is deferred the same way — trace/2 gives it a real emission builder …
 for when ranking does land, but **nothing in this PRP calls `Bridge::rank`**."
 `ChoiceStep`, `WaitStep` and `SubflowStep` are deferred identically; reaching one is a
@@ -221,7 +221,7 @@ actually supply, instead of being retrofitted. §6.4 and OD-2 turn on this.
 This is the single most load-bearing measured fact in the report, so it is stated with
 its evidence in full.
 
-[`docs/framework/08-bridge.md`](https://github.com/billaram/horismos/blob/adfc27a/docs/framework/08-bridge.md) § "Provider mechanics (perception)":
+[`docs/framework/08-bridge.md`](https://github.com/horismos-hq/horismos/blob/adfc27a/docs/framework/08-bridge.md) § "Provider mechanics (perception)":
 
 > v1 ships one calibration strategy for every provider: the forced tool call's schema
 > carries a `confidence` number field the model must self-report, and a result that
@@ -252,7 +252,7 @@ let accepted = result.confidence >= p.confidence;
 
 where `p.confidence` is the ontology's declared `horis:confidence` threshold for that
 step. On `false`, the step follows `horis:fallback` and the trace records
-`confidence`/`threshold`/`accepted` ([`trace/schema.rs`](https://github.com/billaram/horismos/blob/adfc27a/crates/horismos-core/src/trace/schema.rs):151-167).
+`confidence`/`threshold`/`accepted` ([`trace/schema.rs`](https://github.com/horismos-hq/horismos/blob/adfc27a/crates/horismos-core/src/trace/schema.rs):151-167).
 
 **[inference]** So Horismos's acceptance decision is a threshold over a number the
 model wrote about itself. Doc 06 is careful that this number is "metadata, not truth:
@@ -265,7 +265,7 @@ boundary, and an uncalibrated input to it produces a mis-set boundary. This is t
 
 ### 2.3 An Adapter is explicitly not a Bridge
 
-[`docs/framework/08-bridge.md`](https://github.com/billaram/horismos/blob/adfc27a/docs/framework/08-bridge.md) § "Not a Bridge":
+[`docs/framework/08-bridge.md`](https://github.com/horismos-hq/horismos/blob/adfc27a/docs/framework/08-bridge.md) § "Not a Bridge":
 
 > an Adapter that hydrates an `ExternalSnapshot` from a FHIR server or repository is
 > *not* a Bridge, and gains no `Bridge` implementation — a Bridge supplies a neural
@@ -314,7 +314,7 @@ and R4).
 
 ### 2.5 What the gate checks, and what it does not
 
-[`crates/horismos-core/src/world/gate.rs`](https://github.com/billaram/horismos/blob/adfc27a/crates/horismos-core/src/world/gate.rs):12-28 fixes the five checks and their
+[`crates/horismos-core/src/world/gate.rs`](https://github.com/horismos-hq/horismos/blob/adfc27a/crates/horismos-core/src/world/gate.rs):12-28 fixes the five checks and their
 order — class exists; property domains/ranges; constraints (`horis:min`/`max`/
 `pattern`/`oneOf`); cardinality (`horis:cardinality`, `horis:immutable`); provenance
 policy (`horis:assignedBy`). A refusal returns a `Witness` carrying both domain text and
@@ -339,10 +339,10 @@ schema expresses.
 ### 2.6 Where the decision correctness actually comes from
 
 Horismos's decision is not the model's. The chain is: gate-admitted facts →
-forward-chaining to a fixed point over declared rules ([`reason/forward.rs`](https://github.com/billaram/horismos/blob/adfc27a/crates/horismos-core/src/reason/forward.rs)) →
-every derived fact carries a proof tree ([`reason/proof.rs`](https://github.com/billaram/horismos/blob/adfc27a/crates/horismos-core/src/reason/proof.rs)) → truth maintenance
+forward-chaining to a fixed point over declared rules ([`reason/forward.rs`](https://github.com/horismos-hq/horismos/blob/adfc27a/crates/horismos-core/src/reason/forward.rs)) →
+every derived fact carries a proof tree ([`reason/proof.rs`](https://github.com/horismos-hq/horismos/blob/adfc27a/crates/horismos-core/src/reason/proof.rs)) → truth maintenance
 re-chains on every external transaction, so a world built through the public API is
-always at its fixed point (CLAUDE.md; [`docs/framework/03-world.md`](https://github.com/billaram/horismos/blob/adfc27a/docs/framework/03-world.md) § Truth
+always at its fixed point (CLAUDE.md; [`docs/framework/03-world.md`](https://github.com/horismos-hq/horismos/blob/adfc27a/docs/framework/03-world.md) § Truth
 maintenance).
 
 **[inference]** This is the structural difference from every "typed decision model"
@@ -353,7 +353,7 @@ emit, whatever its calibration.
 
 ### 2.7 The honest limit Horismos already writes down
 
-[`docs/framework/15-security.md`](https://github.com/billaram/horismos/blob/adfc27a/docs/framework/15-security.md) § 1, on prompt injection at the perception
+[`docs/framework/15-security.md`](https://github.com/horismos-hq/horismos/blob/adfc27a/docs/framework/15-security.md) § 1, on prompt injection at the perception
 boundary, after listing what an attacker cannot do:
 
 > The residual risk is narrower and different in kind: injected text can still get a
@@ -1494,10 +1494,10 @@ separate questions"* **[measured]**. That is a vendor-published statement that *
 answers are not jointly constrained**.
 
 **[inference]** A rule layer evaluated to a fixed point is, structurally, the missing
-constraint. Horismos derives answers from other answers ([`reason/forward.rs`](https://github.com/billaram/horismos/blob/adfc27a/crates/horismos-core/src/reason/forward.rs)),
+constraint. Horismos derives answers from other answers ([`reason/forward.rs`](https://github.com/horismos-hq/horismos/blob/adfc27a/crates/horismos-core/src/reason/forward.rs)),
 resolves conflicts by declared priority and records the loser as `Suppressed` or
 `Overridden`, and the gate's cardinality and immutability checks
-([`world/gate.rs`](https://github.com/billaram/horismos/blob/adfc27a/crates/horismos-core/src/world/gate.rs), check 4) are joint constraints across a whole instance rather
+([`world/gate.rs`](https://github.com/horismos-hq/horismos/blob/adfc27a/crates/horismos-core/src/world/gate.rs), check 4) are joint constraints across a whole instance rather
 than per-field ones. Horismos supplies precisely the guarantee Jev documents itself as
 not having. This is a complementarity claim with a mechanism and a citation behind it,
 not a slogan — and it is the sharpest single sentence this dive produces for the
@@ -1546,9 +1546,9 @@ decision from a model is a proposal. It goes behind `Bridge`.
 
 **[inference]** The consequence is that **PRP-008's host SPI needs nothing at all for a
 Jev adapter** — the opposite of what the task brief anticipated, and worth stating
-plainly. `HostAdapter::hydrate`/`commit` ([`spi.rs`](https://github.com/billaram/horismos/blob/adfc27a/crates/horismos-host/src/spi.rs):501-507) is the
+plainly. `HostAdapter::hydrate`/`commit` ([`spi.rs`](https://github.com/horismos-hq/horismos/blob/adfc27a/crates/horismos-host/src/spi.rs):501-507) is the
 system-of-record boundary; `IntegrationTrace` already embeds the core `Trace`
-([`host/trace.rs`](https://github.com/billaram/horismos/blob/adfc27a/crates/horismos-host/src/trace.rs):36-49), so a perception step performed by any bridge is already
+([`host/trace.rs`](https://github.com/horismos-hq/horismos/blob/adfc27a/crates/horismos-host/src/trace.rs):36-49), so a perception step performed by any bridge is already
 carried inside the integration envelope with no schema change. The only host-adjacent
 question a hosted typed-decision model raises is **data egress** (§6.2.6).
 
@@ -1572,13 +1572,13 @@ self.bridges.insert(prefix.into(), Arc::new(bridge));
 
 | `Bridge` method | Jev fit | Consequence |
 |---|---|---|
-| `rank(RankRequest{context, candidates}) → RankResult{chosen, confidence}` | **Exact.** A Jev **Choice** over a closed option set with a probability is this signature — and Jev's Choice caps at 255 options **[measured]**, comfortably above any graph-derived candidate set | The best fit — but `rank` is **never called** in this build ([`deferred.rs`](https://github.com/billaram/horismos/blob/adfc27a/crates/horismos-core/src/workflow/deferred.rs):5-7). See §6.2.4 |
+| `rank(RankRequest{context, candidates}) → RankResult{chosen, confidence}` | **Exact.** A Jev **Choice** over a closed option set with a probability is this signature — and Jev's Choice caps at 255 options **[measured]**, comfortably above any graph-derived candidate set | The best fit — but `rank` is **never called** in this build ([`deferred.rs`](https://github.com/horismos-hq/horismos/blob/adfc27a/crates/horismos-core/src/workflow/deferred.rs):5-7). See §6.2.4 |
 | `perceive(PerceiveRequest{text, schema}) → PerceiveResult{instances, confidence, …}` | **Partial, and more partial than it first looks** — see §6.2.3 | Workable for a schema of enums and booleans; **not workable for numeric or free-string properties at all** |
 | `narrate(NarrateRequest{proof_text, audience}) → NarrateResult{text}` | **None.** Jev "does not write replies, produce code, or generate explanations of their reasoning" ([docs.typesafe.ai](https://docs.typesafe.ai/concepts/system-one)) **[measured]** | Already handled, and handled *well* — see §6.2.5 |
 
 #### 6.2.3 Worked example: the triage `:Intake` step, and where it stops working
 
-The canonical overlay declares ([`examples/triage/triage.ttl`](https://github.com/billaram/horismos/blob/adfc27a/examples/triage/triage.ttl):136-141):
+The canonical overlay declares ([`examples/triage/triage.ttl`](https://github.com/horismos-hq/horismos/blob/adfc27a/examples/triage/triage.ttl):136-141):
 
 ```turtle
 :Intake a horis:PerceptionStep ;
@@ -1717,14 +1717,14 @@ TypeSafe.
 **What the trace and snapshot would have to carry.** **[measured — local repo]**
 `Step::Perception` already carries `confidence`, `threshold`, `accepted`, `model` and
 `latency_ms`, all `Option`-typed with `skip_serializing_if`
-([`trace/schema.rs`](https://github.com/billaram/horismos/blob/adfc27a/crates/horismos-core/src/trace/schema.rs):151-167), so a Jev run is representable *today* with no schema
+([`trace/schema.rs`](https://github.com/horismos-hq/horismos/blob/adfc27a/crates/horismos-core/src/trace/schema.rs):151-167), so a Jev run is representable *today* with no schema
 change. Doc 09's design rule 1 ("schema versioning is sacred") plus the `allow_incomplete`
 precedent ("additive-optional under the versioning policy, not a reinterpretation of an
 existing field") give the mechanism for anything new. **[inference]** Two fields would be
 worth having and neither exists: **how the confidence was produced** (self-report /
 logprob / calibrated head, with a named method) and, optionally, the **full distribution**
 rather than its argmax. Both are additive-optional; both are OD-1. The snapshot binary
-form ([`world/snapshot.rs`](https://github.com/billaram/horismos/blob/adfc27a/crates/horismos-core/src/world/snapshot.rs)) needs nothing — a Jev-proposed fact is an ordinary
+form ([`world/snapshot.rs`](https://github.com/horismos-hq/horismos/blob/adfc27a/crates/horismos-core/src/world/snapshot.rs)) needs nothing — a Jev-proposed fact is an ordinary
 `Provenance::Perception` fact.
 
 **What the PRP-008 host SPI would need: nothing** (§6.2.1).
@@ -2353,7 +2353,7 @@ methods," and "model interpretability and formal verification techniques have se
 to date in production systems."
 
 **[inference]** Horismos's verification story is not the kind that report is criticising — it
-verifies an authored rule set, not a learned model, and [doc 10](https://github.com/billaram/horismos/blob/adfc27a/docs/framework/10-verification.md)
+verifies an authored rule set, not a learned model, and [doc 10](https://github.com/horismos-hq/horismos/blob/adfc27a/docs/framework/10-verification.md)
 already states the limit in the same terms the report uses. But the underlying caution applies
 without modification, and the [validation ladder](../validation/00-ladder.md) has already
 written it down: **a perfect derivation from a wrong rule is a perfectly auditable wrong
@@ -2414,7 +2414,7 @@ wrong with it.
 #### 6.4.1 Horismos's perception boundary already *is* a selective-prediction system
 
 **[measured — local repo]** The contract is: one Bridge call; `accepted =
-result.confidence >= p.confidence` ([`workflow/agent.rs`](https://github.com/billaram/horismos/blob/adfc27a/crates/horismos-core/src/workflow/agent.rs):492); on `false`, follow
+result.confidence >= p.confidence` ([`workflow/agent.rs`](https://github.com/horismos-hq/horismos/blob/adfc27a/crates/horismos-core/src/workflow/agent.rs):492); on `false`, follow
 `horis:fallback`, "typically to a human (`WaitStep`)" (doc 07). Doc 06 states the rule
 as "The LLM never guesses."
 
@@ -2433,7 +2433,7 @@ were not opened.]**
 without naming it, and the corpus has never cited the 56-year-old literature that owns
 the mechanism. Naming it is free and it buys something concrete: that literature says
 what the *threshold* is for. `horis:confidence 0.85` in
-[`examples/triage/triage.ttl`](https://github.com/billaram/horismos/blob/adfc27a/examples/triage/triage.ttl):139 is a number an ontology author picked. In Chow's
+[`examples/triage/triage.ttl`](https://github.com/horismos-hq/horismos/blob/adfc27a/examples/triage/triage.ttl):139 is a number an ontology author picked. In Chow's
 framing a threshold is chosen to hit a *target risk*, and there is a defined tradeoff
 curve between the risk you accept and the fraction you reject. Horismos publishes
 neither the curve nor the target.
@@ -2442,8 +2442,8 @@ neither the curve nor the target.
 
 **[measured — local repo]** `PerceiveResult::confidence` is "the `assert_facts`
 schema's self-reported `confidence` field, normalized by the `Bridge` implementation"
-([`bridge/mod.rs`](https://github.com/billaram/horismos/blob/adfc27a/crates/horismos-core/src/bridge/mod.rs):64-70); the only real Bridge reads it straight out of the tool
-call ([`openrouter.rs`](https://github.com/billaram/horismos/blob/adfc27a/crates/horismos-bridges/src/openrouter.rs):324-328); doc 08 says logprob-derived confidence "is a future
+([`bridge/mod.rs`](https://github.com/horismos-hq/horismos/blob/adfc27a/crates/horismos-core/src/bridge/mod.rs):64-70); the only real Bridge reads it straight out of the tool
+call ([`openrouter.rs`](https://github.com/horismos-hq/horismos/blob/adfc27a/crates/horismos-bridges/src/openrouter.rs):324-328); doc 08 says logprob-derived confidence "is a future
 per-backend enhancement."
 
 **[measured]** The GPT-4 Technical Report's Figure 8 caption states, verbatim: "The
@@ -2664,7 +2664,7 @@ move R1 is the remedy, and its first beneficiary is Horismos's own honesty.
 load-bearing, not conservative.**
 
 **[measured — local repo]** Horismos's forward chainer is deliberately one-at-a-time.
-[`crates/horismos-core/src/reason/forward.rs`](https://github.com/billaram/horismos/blob/adfc27a/crates/horismos-core/src/reason/forward.rs):1-30 reproduces doc 04's loop
+[`crates/horismos-core/src/reason/forward.rs`](https://github.com/horismos-hq/horismos/blob/adfc27a/crates/horismos-core/src/reason/forward.rs):1-30 reproduces doc 04's loop
 verbatim:
 
 ```text
@@ -2699,11 +2699,11 @@ Jev's headline architectural idea is genuinely *not* transferable.
 **What *is* transferable, in two places:**
 
 1. **Matching, not firing.** Computing `candidates` is a pure function of the graph; so
-   is each of the five gate checks ([`world/gate.rs`](https://github.com/billaram/horismos/blob/adfc27a/crates/horismos-core/src/world/gate.rs):1-12 — "*pure* functions of the
+   is each of the five gate checks ([`world/gate.rs`](https://github.com/horismos-hq/horismos/blob/adfc27a/crates/horismos-core/src/world/gate.rs):1-12 — "*pure* functions of the
    current store plus the proposed mutation"). Those could be evaluated in parallel
    inside an iteration without changing a single observable. That is an ordinary
    performance question, not an architectural one, and load+verification already
-   benchmark "below 1 ms here" ([`PRPs/BOARD.md`](https://github.com/billaram/horismos/blob/adfc27a/PRPs/BOARD.md)), so there is nothing to buy yet.
+   benchmark "below 1 ms here" ([`PRPs/BOARD.md`](https://github.com/horismos-hq/horismos/blob/adfc27a/PRPs/BOARD.md)), so there is nothing to buy yet.
 2. **The proposer's question set.** Jev's real idea is not "evaluate in parallel"; it is
    **"declare the whole question set before you look at the data."** Horismos already
    does exactly that, one step at a time: `horis:extracts` fixes the target classes, the
@@ -2816,7 +2816,7 @@ decide whether Horismos does this", and the corresponding OD in §9 is self-cont
 
 | # | Move | Why it is worth doing | Effort | Owner | Build or Decide |
 |---|---|---|---|---|---|
-| **R1** | **Measure the calibration of the confidence Horismos already gates on.** Publish a reliability diagram and an ECE for the `openrouter:` bridge on the triage and VTE fixtures, with the measurement protocol stated. | `accepted = result.confidence >= p.confidence` ([`agent.rs`](https://github.com/billaram/horismos/blob/adfc27a/crates/horismos-core/src/workflow/agent.rs):492) is a real decision boundary over a number nobody has ever measured (§2.2). ConfidenceBench shows the best-calibrated frontier model is not the most accurate one, and several are worse than a calibrated-random baseline — so the boundary moves silently when a deployment swaps models, which doc 08 explicitly permits as "a config change". This is a defect in something shipped, not a new feature. | M | **PRP-005** — it already owes the gate's ρ₀/ρ₁ under the RL dive's move 4; this is the same instrument pointed one step earlier | **Build** |
+| **R1** | **Measure the calibration of the confidence Horismos already gates on.** Publish a reliability diagram and an ECE for the `openrouter:` bridge on the triage and VTE fixtures, with the measurement protocol stated. | `accepted = result.confidence >= p.confidence` ([`agent.rs`](https://github.com/horismos-hq/horismos/blob/adfc27a/crates/horismos-core/src/workflow/agent.rs):492) is a real decision boundary over a number nobody has ever measured (§2.2). ConfidenceBench shows the best-calibrated frontier model is not the most accurate one, and several are worse than a calibrated-random baseline — so the boundary moves silently when a deployment swaps models, which doc 08 explicitly permits as "a config change". This is a defect in something shipped, not a new feature. | M | **PRP-005** — it already owes the gate's ρ₀/ρ₁ under the RL dive's move 4; this is the same instrument pointed one step earlier | **Build** |
 | **R2** | **Give `horis:confidence` a declared target risk, and choose the number by split-conformal calibration rather than by hand.** Publish the implied abstention rate beside it. | This is the strongest single idea in the dive. `horis:confidence 0.85` is currently a constant an author picked; Kotte ([arXiv:2606.29054](https://arxiv.org/abs/2606.29054)) measures heuristic abstention policies over exactly this class of task violating user-specified risk targets on **7.5–12.5% of settings, with no per-deployment guarantee**. Conformal calibration turns the constant into a statement an auditor can check ("5% target error, 12% abstention, calibrated on N held-out cases") **without making the gate probabilistic** — the gate stays boolean; only the threshold acquires a guarantee. Ships with two riders from §6.4.2a: the guarantee is **marginal, not per-case or per-subgroup** (Mehrtens et al., [arXiv:2506.18162](https://arxiv.org/abs/2506.18162): a 90% marginal guarantee delivering 92% coverage to one subgroup and **62%** to another), and abstention has its own measured clinical cost (Jabbour et al. 2026: **+18% missed diagnoses, +35% missed treatments**), so a higher threshold is not automatically the safer one. | M | **PRP-005** (procedure and acceptance item) + doc 06 text | **Decide** → OD-3 |
 | **R3** | **Restate the positioning around the two things this dive found are actually differentiating: cross-answer consistency, and structural-vs-epistemic auditability.** Add a typed-decision-model row to PRP-000's comparison table. | "Decisions should be typed" stopped being a differentiator on 2026-09-15 (§6.1). Two replacements are now evidence-backed and sharp: (a) TypeSafe *publishes* that its answers are not jointly constrained — Noul 0.22 vs Choice 0.01 on the same proposition, a claim and its negation summing to 1.19 — and a rule layer over a fixed point is exactly that missing constraint; (b) Jev gives structural auditability (which question, which threshold, which branch) and zero epistemic auditability (why this answer), while a proof tree is precisely the second. | S | **PRP-000** | **Decide** → OD-6 |
 | **R4** | **Record how a proposer's confidence was produced, in the trace.** An additive-optional field naming the method (self-report / logprob / calibrated head + named calibration), and optionally the full distribution rather than its argmax. | `Bridge::id()` records *which* model ran; nothing records *how trustworthy its number was*. Doc 09's design rule 5 and the `allow_incomplete` precedent give the exact mechanism ("additive-optional under the versioning policy"). Without it, R1's measurement is not attributable after the fact, and a trace cannot answer "was this threshold meaningful?". | S | **doc 09 / PRP-002** (trace schema is versioned forever) | **Decide** → OD-1 |
@@ -2832,7 +2832,7 @@ here rather than quietly dropped.** The proposal was to restate **R8**'s effort 
 the reasoning that OpenRouter resale put Jev within reach of the bridge this repo already
 ships. That reasoning is wrong, and the repo says why.
 
-**[measured — local repo, [`adfc27a`](https://github.com/billaram/horismos/blob/adfc27a)]**
+**[measured — local repo, [`adfc27a`](https://github.com/horismos-hq/horismos/blob/adfc27a)]**
 Registering a backend here really is cheap: `crates/horismos-bridges/src/openrouter.rs` is
 the only non-mock `Bridge`, and the registry is prefix-routed
 (`BTreeMap<String, Arc<dyn Bridge>>`, `crates/horismos-core/src/workflow/agent.rs:165`).
@@ -3394,7 +3394,7 @@ human factors), each with its date, the takeaway this report drew from it, its U
 the wiki page it was filed under. Q8 remains reserved
 for the RL dive's own sources.
 
-Repository facts cite `local repo` paths at [`adfc27a`](https://github.com/billaram/horismos/blob/adfc27a);
+Repository facts cite `local repo` paths at [`adfc27a`](https://github.com/horismos-hq/horismos/blob/adfc27a);
 `file:line` references are only true at that commit.
 
 ### Tag counts

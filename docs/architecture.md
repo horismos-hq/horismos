@@ -137,13 +137,13 @@ Everything after the Bridge call is allocation-light Rust over interned IRIs. Py
 | `MockBridge` (the CI workhorse) and `OpenRouterBridge` (feature `bridges-openrouter`) | `horismos-bridges` | [The Bridge](framework/08-bridge.md) |
 | PyO3 extension — marshaling only, no logic | `horismos-py` | [Python API](framework/11-python-api.md) |
 | The `horismos` Python package: naming sugar over the native handle | `python/horismos` | [Python API](framework/11-python-api.md) |
-| FHIR and coding-harness adapters, host SPI (`ExternalSnapshot`, `ProposedEffectSet`) | new crates outside `horismos-core` (PRP-008) | `PRPs/PRP-008-standards-host-integration.md` |
+| FHIR and coding-harness adapters, host SPI (`ExternalSnapshot`, `ProposedEffectSet`) | new crates outside `horismos-core` (PRP-008) | [Roadmap](roadmap.md) — not built yet |
 
 ## The invariants that make it a kernel
 
 - **Anti-wrapper boundary.** `horismos-core` never depends on `horismos-bridges`, a provider SDK, or the network. `make no-model-gate` builds and tests the core with `--no-default-features --features verify`; `make check-boundary` greps the manifest. Red means the "runs with the LLM deleted" claim broke.
 - **Determinism.** No wall-clock, randomness, or hash-order dependence in inference. `horis:now` is stamped once per transaction. Two runs of the same input produce byte-identical trajectories, and the test suite asserts it.
-- **One vocabulary end to end.** The CURIEs an author writes are the CURIEs the API takes, the errors print, and the proofs render. No second naming system in the bindings (a generated-proxy design was prototyped and rejected on evidence; `PRPs/PRP-003-python-bindings/03-decision-instances.md`).
+- **One vocabulary end to end.** The CURIEs an author writes are the CURIEs the API takes, the errors print, and the proofs render. No second naming system in the bindings — a generated-proxy design (one Python class per ontology class, emitted at load) was prototyped and rejected: it bought no type-checker help across a dynamically loaded ontology and cost a second vocabulary to keep in sync with the Turtle.
 - **Whole inputs in, whole outcomes out.** Each Python call is one transaction: gate, chaining, fixed point, diff, all under one lock acquisition with the GIL released.
 - **Two wire contracts, versioned forever.** The trace schema evolves only by minting a new version with a converter; the snapshot binary form has a versioned header.
 - **One world per case.** A `World` is a serial transaction stream; parallelism is many worlds sharing one immutable `Ontology`. Under the projection model, one world per *decision epoch*.

@@ -24,7 +24,7 @@ https://www.sciencedirect.com/science/article/pii/S0004370223002084).
 
 **[measured]** Horismos deliberately does the opposite: confidence gates *acceptance*,
 never *weights inference*, and there is no fuzzy logic anywhere in the reasoner (per
-[`docs/framework/06-llm-boundaries.md`](https://github.com/billaram/horismos/blob/main/docs/framework/06-llm-boundaries.md)). By the standard the field's own most-cited
+[`docs/framework/06-llm-boundaries.md`](https://github.com/horismos-hq/horismos/blob/main/docs/framework/06-llm-boundaries.md)). By the standard the field's own most-cited
 reference systems set, a hard, non-differentiable wall between neural and symbolic
 components is a **looser** claim to the "neurosymbolic" label than what
 Scallop/LNN/DeepProbLog actually do. Wikipedia's own overview of neuro-symbolic AI
