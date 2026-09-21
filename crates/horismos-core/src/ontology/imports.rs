@@ -364,19 +364,87 @@ fn read_to_string(path: &Path) -> Result<String, OntologyError> {
 /// directory. Canonicalizing requires the file to exist, so a missing root
 /// path (or an explicit `with_import` target) surfaces here as
 /// [`OntologyError::ImportNotFound`], naming the path as given.
+///
+/// The canonical path is spelled as an IRI by [`file_iri_from_canonical`],
+/// which is a byte-identical `format!("file://{}", …)` on Unix and rewrites
+/// Windows' backslashes and extended-length prefix into the conventional
+/// `file:///C:/…` form. [`path_from_file_uri`] is its exact inverse on both.
 fn file_uri(path: &Path) -> Result<String, OntologyError> {
     let canonical = std::fs::canonicalize(path).map_err(|e| OntologyError::ImportNotFound {
         import: path.display().to_string(),
         reason: e.to_string(),
     })?;
-    Ok(format!("file://{}", canonical.display()))
+    Ok(file_iri_from_canonical(&canonical))
+}
+
+/// Unix: the canonical path is already absolute and slash-separated, so the
+/// IRI is `file://` followed by it verbatim (`/tmp/a.ttl` → `file:///tmp/a.ttl`).
+#[cfg(not(windows))]
+fn file_iri_from_canonical(canonical: &Path) -> String {
+    format!("file://{}", canonical.display())
+}
+
+/// Windows: the canonical path is spelled as an IRI by
+/// [`windows_file_iri`], which drops the extended-length prefix and turns
+/// the backslashes into `/`.
+#[cfg(windows)]
+fn file_iri_from_canonical(canonical: &Path) -> String {
+    windows_file_iri(&canonical.display().to_string())
+}
+
+/// A Windows path as a `file:` IRI. `std::fs::canonicalize` returns an
+/// extended-length path there (`\\?\D:\a\x.ttl`, or `\\?\UNC\server\share\x.ttl`
+/// for a network share), and backslashes are not legal IRI code points, so
+/// the prefix is dropped and the separators become `/`:
+///
+/// - `\\?\D:\a\x.ttl` and a prefix-less `D:\a\x.ttl` → `file:///D:/a/x.ttl`
+/// - `\\?\UNC\server\share\x.ttl` and a prefix-less `\\server\share\x.ttl`
+///   → `file://server/share/x.ttl`, the authority-carrying form that
+///   `\\server\share` means
+///
+/// Compiled on every platform, and exercised by this module's tests on every
+/// platform, so the mapping is checked wherever the suite runs;
+/// [`file_iri_from_canonical`] only calls it on Windows.
+#[cfg(any(windows, test))]
+fn windows_file_iri(text: &str) -> String {
+    if let Some(share) = text.strip_prefix(r"\\?\UNC\") {
+        format!("file://{}", share.replace('\\', "/"))
+    } else if let Some(local) = text.strip_prefix(r"\\?\") {
+        format!("file:///{}", local.replace('\\', "/"))
+    } else if let Some(share) = text.strip_prefix(r"\\") {
+        format!("file://{}", share.replace('\\', "/"))
+    } else {
+        format!("file:///{}", text.replace('\\', "/"))
+    }
 }
 
 /// The inverse of [`file_uri`]'s scheme: strips the `file://` prefix. `None`
 /// for anything else (a remote import IRI, or a malformed one) — the fs
 /// convenience only ever reads local files.
+#[cfg(not(windows))]
 fn path_from_file_uri(iri: &str) -> Option<PathBuf> {
     iri.strip_prefix("file://").map(PathBuf::from)
+}
+
+/// The inverse of [`file_iri_from_canonical`] on Windows: `None` for
+/// anything that isn't a `file://` IRI, exactly as on Unix; otherwise the
+/// path [`windows_path_from_file_uri`] recovers.
+#[cfg(windows)]
+fn path_from_file_uri(iri: &str) -> Option<PathBuf> {
+    iri.strip_prefix("file://")
+        .map(|rest| PathBuf::from(windows_path_from_file_uri(rest)))
+}
+
+/// The inverse of [`windows_file_iri`], over the part of the IRI after
+/// `file://`: `/D:/a/x.ttl` → `D:\a\x.ttl`, and the authority form
+/// `server/share/x.ttl` → `\\server\share\x.ttl`. Compiled and tested on
+/// every platform; only called on Windows.
+#[cfg(any(windows, test))]
+fn windows_path_from_file_uri(rest: &str) -> String {
+    match rest.strip_prefix('/') {
+        Some(local) => local.replace('/', r"\"),
+        None => format!(r"\\{}", rest.replace('/', r"\")),
+    }
 }
 
 #[cfg(test)]
@@ -678,5 +746,114 @@ mod tests {
             matches!(err, OntologyError::ImportNotFound { .. }),
             "{err:?}"
         );
+    }
+
+    // -- the fs touch-point: `file_uri` / `path_from_file_uri` --------------
+
+    /// Constraint 1: the Unix IRI is unchanged — `file://` followed by the
+    /// canonical path verbatim. These strings are graph names and parser
+    /// bases, so moving them would move identifiers in snapshots and traces.
+    #[test]
+    #[cfg(not(windows))]
+    fn file_uri_on_unix_is_file_slash_slash_plus_the_canonical_path() {
+        let path = fixture_path("root.ttl");
+        let canonical = std::fs::canonicalize(&path).expect("fixture must exist");
+        assert_eq!(
+            file_uri(Path::new(&path)).expect("fixture must canonicalize"),
+            format!("file://{}", canonical.display())
+        );
+    }
+
+    /// Constraint 2, on whatever platform the suite runs: the IRI round-trips
+    /// back to a path that opens the very same file.
+    #[test]
+    fn file_uri_round_trips_back_to_the_same_file() {
+        let path = fixture_path("root.ttl");
+        let iri = file_uri(Path::new(&path)).expect("fixture must canonicalize");
+        let recovered = path_from_file_uri(&iri).expect("a file:// IRI must map back to a path");
+        assert!(recovered.is_file(), "{recovered:?} must be a readable file");
+        assert_eq!(
+            std::fs::canonicalize(&recovered).expect("recovered path must canonicalize"),
+            std::fs::canonicalize(&path).expect("fixture must canonicalize"),
+            "the recovered path must name the same file"
+        );
+        assert_eq!(
+            std::fs::read_to_string(&recovered).expect("recovered path must read"),
+            std::fs::read_to_string(&path).expect("fixture must read"),
+        );
+    }
+
+    /// Constraint 3: the four Windows path spellings, mapped to IRIs. Pure
+    /// string logic, so it is checked on every platform.
+    #[test]
+    fn windows_paths_become_conventional_file_iris() {
+        assert_eq!(
+            windows_file_iri(r"\\?\D:\a\horismos\examples\triage\triage.ttl"),
+            "file:///D:/a/horismos/examples/triage/triage.ttl"
+        );
+        assert_eq!(
+            windows_file_iri(r"D:\a\horismos\triage.ttl"),
+            "file:///D:/a/horismos/triage.ttl"
+        );
+        assert_eq!(
+            windows_file_iri(r"\\?\UNC\server\share\triage.ttl"),
+            "file://server/share/triage.ttl"
+        );
+        assert_eq!(
+            windows_file_iri(r"\\server\share\triage.ttl"),
+            "file://server/share/triage.ttl"
+        );
+    }
+
+    /// The bug this fixes: the IRI carried backslashes and the `\\?\`
+    /// extended-length prefix, which are not legal IRI code points, so the
+    /// Turtle parser rejected the base before reading a byte of the file.
+    #[test]
+    fn a_windows_file_iri_carries_no_backslash_and_no_extended_length_prefix() {
+        let iri = windows_file_iri(r"\\?\D:\a\horismos\horismos\examples\triage\triage.ttl");
+        assert!(!iri.contains('\\'), "{iri}");
+        assert!(!iri.contains('?'), "{iri}");
+        assert!(iri.starts_with("file:///D:/"), "{iri}");
+    }
+
+    /// Constraint 2 for the Windows halves specifically, checked on every
+    /// platform: the IRI maps back to a path naming the same file. A drive
+    /// path loses only its extended-length prefix, which `\\?\D:\…` and
+    /// `D:\…` both open through.
+    #[test]
+    fn windows_file_iris_round_trip_back_to_paths() {
+        for (path, expected) in [
+            (r"\\?\D:\a\triage.ttl", r"D:\a\triage.ttl"),
+            (r"D:\a\triage.ttl", r"D:\a\triage.ttl"),
+            (
+                r"\\?\UNC\server\share\triage.ttl",
+                r"\\server\share\triage.ttl",
+            ),
+            (r"\\server\share\triage.ttl", r"\\server\share\triage.ttl"),
+        ] {
+            let iri = windows_file_iri(path);
+            let rest = iri
+                .strip_prefix("file://")
+                .expect("windows_file_iri must emit a file:// IRI");
+            assert_eq!(windows_path_from_file_uri(rest), expected, "from {path}");
+        }
+    }
+
+    /// A relative import resolved against a Windows base comes back as a
+    /// sibling path — the property `fs_fetch` depends on.
+    #[test]
+    fn a_sibling_of_a_windows_base_iri_maps_back_to_a_sibling_path() {
+        let base = windows_file_iri(r"\\?\D:\a\triage\triage.ttl");
+        assert_eq!(base, "file:///D:/a/triage/triage.ttl");
+        let sibling = "file:///D:/a/triage/rules.ttl";
+        let rest = sibling.strip_prefix("file://").expect("file:// IRI");
+        assert_eq!(windows_path_from_file_uri(rest), r"D:\a\triage\rules.ttl");
+    }
+
+    /// Unchanged on both platforms: a non-`file://` IRI has no local path.
+    #[test]
+    fn path_from_file_uri_rejects_a_remote_iri() {
+        assert!(path_from_file_uri("https://example.org/a.ttl").is_none());
+        assert!(path_from_file_uri("urn:test:a").is_none());
     }
 }
