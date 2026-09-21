@@ -25,8 +25,35 @@ The PyPI release path. Nothing else in the plan was touched.
   version matches the root `Cargo.toml`, compared in Cargo's SemVer spelling on both
   sides. A mismatch or a non-tag ref fails with both values named. The manual dispatch
   route to `pypi` stays available. TestPyPI carries no tag requirement.
-- **`skip-existing` on the rehearsal index only.** A second TestPyPI rehearsal at the
-  same version is re-runnable; a duplicate on the real index stays a loud failure.
+- **Both indexes strict, no `skip-existing`.** A duplicate filename is answered with
+  HTTP 400 on TestPyPI exactly as on PyPI. Each rehearsal therefore needs a fresh
+  version — bump the alpha suffix (`a1`, `a2`, `a3`); TestPyPI version numbers are free.
+  A rehearsal that silently uploaded nothing and reported success would destroy the
+  evidence the manual checks below depend on.
+- **A build-and-verify route that touches no index.** The dispatch input takes a third
+  value, `none`, which runs the same wheel matrix, sdist and quickstart gate and then
+  skips the publish job. The default stays `testpypi`.
+
+## Decisions to resolve (before implementation)
+
+Carried over unresolved; none of them blocked the release path this branch landed, and
+this branch resolved none of them. Each is stated where it already lives — nothing new
+is recorded here.
+
+- [ ] D1. **Default redaction posture** (opt-in vs. opt-out) for `horis:redactInput`,
+      per domain pack. `[DECIDE, doc 15 §4 / doc 09]`, key decision 4 in
+      `01-objective.md`; blocks the redaction item of the security acceptance surface.
+- [ ] D2. **Encryption-at-rest and access-control hooks** for the default trace store —
+      a minimal `TraceStore` wrapper interface vs. fully deployer-owned infra.
+      `[DECIDE, doc 15 §4]`, key decision 5 in `01-objective.md`; blocks the trace-store
+      privacy item of the security acceptance surface.
+- [ ] D3. **SBOM format** (CycloneDX vs. SPDX) and whether the dependency-audit gate
+      blocks a release or only warns. `[DECIDE, doc 15 §4]`, key decision 6 in
+      `01-objective.md`; blocks the dependency-audit CI gate.
+- [ ] D4. **crates.io name availability** for `horismos`, with the fallbacks named in
+      key decision 3 of `01-objective.md` (`horismos-core`/`horismos-ai`/
+      `horismosframe`) — the open half of that decision, whose PyPI half was decided
+      2026-09-21. No crates.io check has been run, so nothing further is recorded here.
 
 ## Deliberately not covered
 
@@ -47,5 +74,5 @@ The PyPI release path. Nothing else in the plan was touched.
 
 ## Still open from the plan
 
-- **crates.io.** This branch did not touch it; the crates.io half of key decision 3
-  (name availability) and `cargo add horismos-core` in the DoD remain open.
+- **crates.io.** This branch did not touch it; D4 above and `cargo add horismos-core`
+  in the DoD remain open.

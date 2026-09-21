@@ -5,7 +5,8 @@
 # Two triggers, and only these two — nothing automatic (no push to a branch,
 # no schedule, no pull_request) can reach an index:
 #   * pushing a `v*` tag  -> build, test, publish to PyPI
-#   * manual dispatch     -> build, test, publish to TestPyPI (default) or PyPI
+#   * manual dispatch     -> build, test, then publish to TestPyPI (default) or
+#     PyPI, or stop at the gate with `index: none` and touch no index at all
 #
 # Publication uses PyPI Trusted Publishing (OIDC). There is no API token in
 # this workflow or in repository secrets, by design: `id-token: write` is
@@ -26,6 +27,9 @@ on:
         options:
           - testpypi
           - pypi
+          # Build the full matrix and run the quickstart gate, then stop:
+          # `none` skips the publish job, so no index is contacted.
+          - none
 
 permissions:
   contents: read
@@ -36,7 +40,8 @@ jobs:
   # version spends that version number permanently. Every route to the real
   # index, manual dispatch included, therefore has to come from a `v*` tag
   # whose version matches the root Cargo.toml. TestPyPI is a rehearsal index
-  # and carries no such requirement: dispatching it from any branch is fine.
+  # and carries no such requirement: dispatching it from any branch is fine,
+  # and `none` never publishes, so neither is gated here.
   guard:
     name: guard (${{ inputs.index || 'pypi' }})
     runs-on: ubuntu-latest
@@ -46,7 +51,7 @@ jobs:
         with:
           python-version: "3.11"
       - name: Require a matching v* tag before any upload to the real index
-        if: inputs.index != 'testpypi'
+        if: (inputs.index || 'pypi') == 'pypi'
         shell: bash
         env:
           REF_TYPE: ${{ github.ref_type }}
@@ -70,6 +75,7 @@ jobs:
 
   build:
     name: wheel (${{ matrix.target }})
+    needs: guard
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -105,6 +111,7 @@ jobs:
 
   sdist:
     name: sdist
+    needs: guard
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -196,6 +203,7 @@ jobs:
 
   publish:
     name: publish (${{ inputs.index || 'pypi' }})
+    if: inputs.index != 'none'
     needs: [guard, build, sdist, test, test-sdist]
     runs-on: ubuntu-latest
     # Registered against these exact names on PyPI / TestPyPI. A mismatch
@@ -217,7 +225,9 @@ jobs:
       - run: ls -l dist
       - uses: pypa/gh-action-pypi-publish@release/v1
         with:
+          # Both indexes are strict: no `skip-existing`. A duplicate filename
+          # is answered with HTTP 400, which is the true and useful answer —
+          # a rehearsal that silently uploads nothing and reports success would
+          # destroy the evidence the manual TestPyPI checks depend on. Each
+          # rehearsal therefore needs a fresh version; TestPyPI numbers are free.
           repository-url: ${{ inputs.index == 'testpypi' && 'https://test.pypi.org/legacy/' || 'https://upload.pypi.org/legacy/' }}
-          # Rehearsals are re-runnable at the same version; a duplicate on the
-          # real index stays a loud failure.
-          skip-existing: ${{ inputs.index == 'testpypi' }}
