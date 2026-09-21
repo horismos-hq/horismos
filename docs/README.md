@@ -39,7 +39,8 @@ for the deploy job to succeed. `site_url` in `mkdocs.yml` is that address.
   output the page shows for that sample, and the same test asserts it appears verbatim
   in the page's real stdout. Regenerate the block from the sample's stdout rather
   than hand-editing it; a diagram or shell transcript elsewhere on the page is not
-  matched.
+  matched. Styling markup (a `<div markdown>` wrapper, for instance) has to go
+  around the whole pair — anything between the two fences unpins the output.
 - **Illustrative code is labelled.** Anything that does not run against the installed
   package today — a LangGraph sketch, an API that lands with a later PRP — is fenced
   with a title, e.g. ```` ```python title="Illustrative — lands with PRP-008" ````, which
@@ -76,7 +77,7 @@ docs/
   architecture.md              the bounded projection kernel in one diagram
   roadmap.md                   merged / in build / planned
   framework/                   the framework definition (unchanged, mounted)
-  stylesheets/extra.css        small additions over Material defaults
+  stylesheets/extra.css        the whole visual layer — see the convention above
   assets/screenshots/          PR-body screenshots
 .github/workflows/docs-pages.yml   deploys the strict build to GitHub Pages on merge to main
 examples/triage/runs/          real trajectories quoted by the site (horismos.trace/2)
