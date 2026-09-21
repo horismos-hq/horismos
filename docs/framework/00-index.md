@@ -8,7 +8,7 @@
 > **Status**: framework *definition*, v0.1 — written in shipped voice so every contract
 > is concrete and arguable, reviewed before implementation. Where behavior is still an
 > open decision it is marked **[DECIDE]** and owned by exactly one phase plan, which is
-> where it gets resolved — never ad hoc. The [Roadmap](../roadmap.md) lists the phases.
+> where it gets resolved — never ad hoc.
 > **Pivot adopted 2026-08-24** (bounded projection kernel, snapshot-scoped guarantees):
 > docs below are updated at the contract level for the new positioning. PRP-008's host
 > SPI, FHIR and repository adapters, CDS-Hooks surface, and bounded PlanDefinition subset

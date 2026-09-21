@@ -773,7 +773,7 @@
 }
 
 /* ===================================================================== */
-/* Admonitions, roadmap status legend                                    */
+/* Admonitions                                                           */
 /* ===================================================================== */
 
 .md-typeset :is(.admonition, details) {
@@ -782,19 +782,6 @@
   border-radius: 0.4rem;
   box-shadow: none;
   font-size: 0.72rem;
-}
-
-.horis-status-merged {
-  color: var(--horis-gate);
-  font-weight: 600;
-}
-.horis-status-building {
-  color: var(--horis-neural);
-  font-weight: 600;
-}
-.horis-status-planned {
-  color: var(--horis-ink-3);
-  font-weight: 600;
 }
 
 /* ===================================================================== */

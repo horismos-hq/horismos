@@ -96,7 +96,6 @@ nav:
       - Customer operations: use-cases/customer-ops.md
   - Guarantees: guarantees.md
   - Architecture: architecture.md
-  - Roadmap: roadmap.md
   - Framework reference:
       - framework/00-index.md
       - Concepts: framework/01-concepts.md
