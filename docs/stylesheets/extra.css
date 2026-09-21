@@ -498,6 +498,16 @@
   background-color: var(--horis-gate-soft);
   color: var(--horis-gate);
 }
+/* A proof panel whose only fence is the output stands alone; it gets the same
+   treatment, minus the pull-up that closes the gap under a python block. */
+.md-typeset .horis-proof > .language-text {
+  border-color: rgba(18, 115, 106, 0.32);
+  border-left: 3px solid var(--horis-gate);
+}
+.md-typeset .horis-proof > .language-text > pre > code {
+  background-color: var(--horis-gate-soft);
+  color: var(--horis-gate);
+}
 
 /* Refusals — the product, not output noise. */
 .md-typeset .horis-refusal .language-python + .language-text {
@@ -510,6 +520,9 @@
   font-weight: 500;
 }
 [data-md-color-scheme="slate"] .md-typeset .horis-proof .language-python + .language-text {
+  border-color: rgba(79, 191, 175, 0.34);
+}
+[data-md-color-scheme="slate"] .md-typeset .horis-proof > .language-text {
   border-color: rgba(79, 191, 175, 0.34);
 }
 [data-md-color-scheme="slate"] .md-typeset .horis-refusal .language-python + .language-text {
