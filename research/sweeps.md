@@ -20,7 +20,7 @@ in three places:
 | Output | Where | Convention |
 |---|---|---|
 | A full report | [`reports/`](reports/index.md) | Imported verbatim, with a provenance header naming the task, date, repo commit it was grounded against, and where its findings went. The report is the snapshot; the wiki is the living version. |
-| Deltas on topic pages | the `research/<topic>/` pages | A dated "Sweep #N delta (YYYY-MM-DD)" section appended to each page it touches; founding text is never rewritten (supersessions are recorded in the delta, e.g. [regulatory](validation/regulatory.md#sweep-2-delta-2026-09-02-the-2022-cds-guidance-is-superseded-dsi-transparency-mandates-are-being-withdrawn)). |
+| Deltas on topic pages | the `research/<topic>/` pages | A dated section appended to each page it touches, named for its origin — "Sweep #N delta (YYYY-MM-DD)" for a weekly sweep, "<dive> deep dive delta (YYYY-MM-DD)" for a captain-directed dive; founding text is never rewritten (supersessions are recorded in the delta, e.g. [regulatory](validation/regulatory.md#sweep-2-delta-2026-09-02-the-2022-cds-guidance-is-superseded-dsi-transparency-mandates-are-being-withdrawn)). |
 | Rows in the reading log, a line in the changelog | [`reading-log.md`](reading-log.md), [`CHANGELOG.md`](CHANGELOG.md) | Append-only. The reading log is grouped by research question; `[unverified]` rows are marked, never silently upgraded. |
 
 A standing page — currently only [pivot alignment](neurosymbolic-landscape/pivot-alignment.md)
