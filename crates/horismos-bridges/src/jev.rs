@@ -58,12 +58,15 @@
 //!
 //! This bridge therefore reads the legend as the authority for which level
 //! an answer names, and rounds the level to the nearest declared index only
-//! when a response carries no legend, or carries one it cannot read as
-//! `{numeric: string}` — the latter is recorded in
-//! `CallAccounting::raw_metadata` rather than failing the call. The inverse
-//! orientation is deliberately not guessed at: accepting a flipped legend
-//! would emit plausible-but-wrong ordinal levels under perception
-//! provenance.
+//! when a response carries no legend, or carries one whose entries do not
+//! *all* read as `{numeric: string}` — a partly readable legend is not
+//! trusted for the part that did parse, because resolving from a surviving
+//! subset would name a level the answer did not. Either fallback is
+//! recorded in `CallAccounting::raw_metadata` rather than failing the call,
+//! and resolves the level exactly as the index path does, ties included.
+//! The inverse orientation is deliberately not guessed at: accepting a
+//! flipped legend would emit plausible-but-wrong ordinal levels under
+//! perception provenance.
 //!
 //! The same `usage` block reports the call's cost directly — measured
 //! `"usage": {"input_tokens": 383, "output_tokens": 32, "cost":
@@ -225,22 +228,17 @@ impl JevTransport {
         lookup(env).is_some() || lookup(&format!("{env}_FILE")).is_some()
     }
 
-    /// What [`CallAccounting::cost_usd`] falls back to when a response
-    /// carries no `usage.cost` of its own. [`PROMPT_USD_PER_MTOK`] is
-    /// OpenRouter's observed price, so on the TypeSafe transport the
-    /// fallback is a resale price rather than this transport's own — said
-    /// in `raw_metadata` so a reported cost-per-case names its source.
+    /// The `raw_metadata.price_basis` token for a response that carries no
+    /// `usage.cost` of its own, so a cost-per-case can be grouped by where
+    /// its number came from. [`PROMPT_USD_PER_MTOK`] is OpenRouter's
+    /// observed price, so on the TypeSafe transport the fallback is a
+    /// resale price rather than this transport's own, and says so in its
+    /// own token; what that means is in the constant's documentation, not
+    /// repeated into every trace.
     fn fallback_price_basis(self) -> &'static str {
         match self {
-            JevTransport::OpenRouter => {
-                "estimated from usage.input_tokens at OpenRouter's list price, observed \
-                 2026-09-21 ($0.042 per million prompt tokens, completion billed at zero)"
-            }
-            JevTransport::TypeSafe => {
-                "estimated from usage.input_tokens at OpenRouter's list price, observed \
-                 2026-09-21 ($0.042 per million prompt tokens) — a resale price, not this \
-                 transport's own: TypeSafe publishes no direct per-token price"
-            }
+            JevTransport::OpenRouter => "openrouter-list-price-estimate",
+            JevTransport::TypeSafe => "openrouter-list-price-estimate-on-typesafe-transport",
         }
     }
 
@@ -335,14 +333,21 @@ impl JevBridge {
     /// naming a file to read it from — otherwise TypeSafe. `JEV_MODEL`
     /// overrides the chosen transport's default model alias.
     pub fn from_env() -> Self {
-        let transport = if JevTransport::OpenRouter.key_configured() {
+        Self::from_env_in(|name| std::env::var(name).ok())
+    }
+
+    /// [`Self::from_env`] against an injected environment, so the routing
+    /// decision itself is testable without mutating the process's own
+    /// (`unsafe_code = "deny"` makes `std::env::set_var` a hard error).
+    fn from_env_in(lookup: impl Fn(&str) -> Option<String>) -> Self {
+        let transport = if JevTransport::OpenRouter.key_configured_in(&lookup) {
             JevTransport::OpenRouter
         } else {
             JevTransport::TypeSafe
         };
-        match std::env::var("JEV_MODEL") {
-            Ok(model) => Self::with_model(transport, model),
-            Err(_) => Self::new(transport),
+        match lookup("JEV_MODEL") {
+            Some(model) => Self::with_model(transport, model),
+            None => Self::new(transport),
         }
     }
 
@@ -478,7 +483,7 @@ impl JevBridge {
         // which of the two this number is, so a cost-per-case published as
         // a benchmark metric names where it came from.
         let (cost_usd, price_basis) = match response.usage.as_ref().and_then(|u| u.cost) {
-            Some(cost) => (Some(cost), "usage.cost, as reported by the endpoint"),
+            Some(cost) => (Some(cost), "wire-usage-cost"),
             None => (
                 prompt_tokens.map(|t| t as f64 * PROMPT_USD_PER_MTOK / 1_000_000.0),
                 self.transport.fallback_price_basis(),
@@ -847,21 +852,28 @@ fn build_question(
 
 /// The nearest level in a `{numeric level: option key}` legend to `raw`, as
 /// `(level key, option key)` — the level key being what `probabilities` is
-/// keyed by. `None` when no entry reads that way at all, which is the
-/// caller's signal to fall back to the declared index; the inverse
-/// orientation is deliberately not guessed at.
+/// keyed by. `None` unless *every* entry reads that way, which is the
+/// caller's signal to fall back to the declared index: a legend resolved
+/// from only the entries that happened to parse could name a level the
+/// answer did not. The inverse orientation is deliberately not guessed at.
 fn level_from_legend(legend: &Map<String, Value>, raw: f64) -> Option<(String, String)> {
-    let mut nearest: Option<(f64, &String, &str)> = None;
+    let mut nearest: Option<(f64, f64, &String, &str)> = None;
     for (level, option) in legend {
         let (Ok(parsed), Some(option)) = (level.trim().parse::<f64>(), option.as_str()) else {
-            continue;
+            return None;
         };
         let distance = (parsed - raw).abs();
-        if nearest.is_none_or(|(best, _, _)| distance < best) {
-            nearest = Some((distance, level, option));
+        let closer = nearest.is_none_or(|(best, best_level, _, _)| {
+            // Equidistant levels go to the higher one, the same round-half-up
+            // the index path's `f64::round` performs, so the two paths cannot
+            // disagree about a midpoint.
+            distance < best || (distance == best && parsed > best_level)
+        });
+        if closer {
+            nearest = Some((distance, parsed, level, option));
         }
     }
-    nearest.map(|(_, level, option)| (level.clone(), option.to_string()))
+    nearest.map(|(_, _, level, option)| (level.clone(), option.to_string()))
 }
 
 /// One answered property: the JSON value to put into the instance, and how
@@ -1609,6 +1621,96 @@ mod tests {
         );
     }
 
+    fn price_basis_of(accounting: &CallAccounting) -> String {
+        accounting
+            .raw_metadata
+            .as_ref()
+            .and_then(|m| m.pointer("/price_basis"))
+            .and_then(Value::as_str)
+            .expect("every call records where its cost came from")
+            .to_string()
+    }
+
+    /// Cost per case is grouped by `price_basis`, so the three real sources
+    /// — the wire's own number, the fallback constant, and that same
+    /// constant applied on the transport it was not priced for — each get
+    /// their own stable token.
+    #[test]
+    fn the_price_basis_names_the_source_the_cost_came_from() {
+        let response = |cost: Option<f64>| JevResponse {
+            model: None,
+            answers: BTreeMap::new(),
+            usage: Some(JevUsage {
+                input_tokens: Some(1_000_000),
+                output_tokens: Some(0),
+                cost,
+            }),
+        };
+        let elapsed = Duration::from_millis(1);
+
+        let openrouter = JevBridge::new(JevTransport::OpenRouter).accounting(
+            &response(None),
+            elapsed,
+            Map::new(),
+        );
+        assert_eq!(openrouter.cost_usd, Some(PROMPT_USD_PER_MTOK));
+        assert_eq!(
+            price_basis_of(&openrouter),
+            "openrouter-list-price-estimate"
+        );
+
+        let typesafe =
+            JevBridge::new(JevTransport::TypeSafe).accounting(&response(None), elapsed, Map::new());
+        assert_eq!(typesafe.cost_usd, Some(PROMPT_USD_PER_MTOK));
+        assert_eq!(
+            price_basis_of(&typesafe),
+            "openrouter-list-price-estimate-on-typesafe-transport",
+            "the estimate a TypeSafe call carries is not that transport's own price"
+        );
+
+        let from_wire = JevBridge::new(JevTransport::TypeSafe).accounting(
+            &response(Some(1.6086e-05)),
+            elapsed,
+            Map::new(),
+        );
+        assert_eq!(from_wire.cost_usd, Some(1.6086e-05));
+        assert_eq!(price_basis_of(&from_wire), "wire-usage-cost");
+    }
+
+    /// The transport `from_env` actually selects, driven through the same
+    /// injected-environment seam: a key held only in a gitignored file must
+    /// route to the transport that file names, not to the other one that
+    /// would then fail naming a variable nobody set.
+    #[test]
+    fn from_env_routes_on_the_file_variant_too() {
+        let file_only = |name: &str| {
+            (name == "OPENROUTER_API_KEY_FILE").then(|| "/run/secrets/openrouter".to_string())
+        };
+        let bridge = JevBridge::from_env_in(file_only);
+        assert_eq!(bridge.endpoint, JevTransport::OpenRouter.url());
+        assert_eq!(bridge.id(), "jev:typesafe/jev-1.13");
+
+        let typesafe_only = |name: &str| (name == "TYPESAFE_API_KEY").then(|| "k".to_string());
+        let bridge = JevBridge::from_env_in(typesafe_only);
+        assert_eq!(bridge.endpoint, JevTransport::TypeSafe.url());
+        assert_eq!(bridge.id(), "jev:jev-1.13");
+
+        let unconfigured = JevBridge::from_env_in(|_| None);
+        assert_eq!(
+            unconfigured.endpoint,
+            JevTransport::TypeSafe.url(),
+            "TypeSafe stays the default when nothing is configured"
+        );
+
+        let pinned = JevBridge::from_env_in(|name| match name {
+            "OPENROUTER_API_KEY" => Some("k".to_string()),
+            "JEV_MODEL" => Some("typesafe/jev-1.13-20260917".to_string()),
+            _ => None,
+        });
+        assert_eq!(pinned.id(), "jev:typesafe/jev-1.13-20260917");
+        assert_eq!(pinned.endpoint, JevTransport::OpenRouter.url());
+    }
+
     #[test]
     fn id_is_the_configured_alias_before_any_call() {
         assert_eq!(bridge().id(), "jev:typesafe/jev-1.13");
@@ -1862,7 +1964,7 @@ mod tests {
                 .as_ref()
                 .and_then(|m| m.pointer("/price_basis"))
                 .and_then(Value::as_str)
-                .is_some_and(|basis| basis.contains("estimated from usage.input_tokens")),
+                == Some("openrouter-list-price-estimate"),
             "a fallback estimate must name itself as one: {:?}",
             result.accounting.raw_metadata
         );
@@ -1933,7 +2035,7 @@ mod tests {
                 .as_ref()
                 .and_then(|m| m.pointer("/price_basis"))
                 .and_then(Value::as_str)
-                .is_some_and(|basis| basis.contains("OpenRouter's list price")),
+                == Some("openrouter-list-price-estimate"),
             "a cost the wire did not report must name the list it came from: {:?}",
             result.accounting.raw_metadata
         );
@@ -2047,7 +2149,7 @@ mod tests {
                 .as_ref()
                 .and_then(|m| m.pointer("/price_basis"))
                 .and_then(Value::as_str),
-            Some("usage.cost, as reported by the endpoint")
+            Some("wire-usage-cost")
         );
     }
 
@@ -2087,6 +2189,92 @@ mod tests {
             Some(serde_json::json!(["i0_severity"])),
             "the trace must show the level did not come from the legend: {:?}",
             result.accounting.raw_metadata
+        );
+    }
+
+    /// A legend only *partly* shaped `{numeric: string}` is not trusted for
+    /// the entries that did parse: resolving from the survivors would name
+    /// a level the answer did not (here level 1 drops out, leaving 0 and 2
+    /// equidistant from a score of 1.0). The whole legend is set aside for
+    /// the index, and the trace says so.
+    #[tokio::test]
+    async fn a_partly_readable_legend_is_not_trusted_at_all() {
+        let response = r#"{
+            "model": "typesafe/jev-1.13-20260917",
+            "answers": {"i0_severity": {"type": "score", "score": 1.0, "confidence": 0.7,
+                                        "legend": {"0": "Mild", "1": {"label": "Moderate"},
+                                                   "2": "Severe"}}},
+            "usage": {"input_tokens": 42, "output_tokens": 3}
+        }"#;
+        let (base_url, server) = one_shot_server(response, |_| {}).await;
+        let result = ordinal_bridge_at(base_url)
+            .perceive(PerceiveRequest {
+                text: "moderate pain".to_string(),
+                schema: severity_schema(),
+            })
+            .await
+            .expect("a partly readable legend must not fail the whole perception");
+        join_server(server).await;
+        assert_eq!(
+            result.instances,
+            vec![serde_json::json!({"class": ":Case", "severity": ":Moderate"})],
+            "the index answers 1.0 as the declared level 1, which the legend subset would not"
+        );
+        assert_eq!(
+            result
+                .accounting
+                .raw_metadata
+                .as_ref()
+                .and_then(|m| m.pointer("/unreadable_score_legends"))
+                .cloned(),
+            Some(serde_json::json!(["i0_severity"])),
+            "a legend set aside must be visible in the trace: {:?}",
+            result.accounting.raw_metadata
+        );
+    }
+
+    /// The two paths must not disagree about a midpoint: `f64::round` takes
+    /// 1.5 up to level 2, so the legend's equidistant tie goes the same way.
+    #[tokio::test]
+    async fn the_legend_and_the_index_agree_at_an_exact_midpoint() {
+        let with_legend = r#"{
+            "model": "typesafe/jev-1.13-20260917",
+            "answers": {"i0_severity": {"type": "score", "score": 1.5, "confidence": 0.6,
+                                        "legend": {"0": "Mild", "1": "Moderate",
+                                                   "2": "Severe"}}}
+        }"#;
+        let (base_url, server) = one_shot_server(with_legend, |_| {}).await;
+        let from_legend = ordinal_bridge_at(base_url)
+            .perceive(PerceiveRequest {
+                text: "borderline".to_string(),
+                schema: severity_schema(),
+            })
+            .await
+            .expect("a midpoint score is readable");
+        join_server(server).await;
+
+        let without_legend = r#"{
+            "model": "typesafe/jev-1.13-20260917",
+            "answers": {"i0_severity": {"type": "score", "score": 1.5, "confidence": 0.6}}
+        }"#;
+        let (base_url, server) = one_shot_server(without_legend, |_| {}).await;
+        let from_index = ordinal_bridge_at(base_url)
+            .perceive(PerceiveRequest {
+                text: "borderline".to_string(),
+                schema: severity_schema(),
+            })
+            .await
+            .expect("a midpoint score is readable");
+        join_server(server).await;
+
+        assert_eq!(
+            from_legend.instances, from_index.instances,
+            "the legend and the index must resolve a midpoint the same way"
+        );
+        assert_eq!(
+            from_index.instances,
+            vec![serde_json::json!({"class": ":Case", "severity": ":Severe"})],
+            "1.5 rounds up, as `f64::round` does"
         );
     }
 

@@ -115,6 +115,15 @@ a fabricated measurement wearing perception provenance; a numeric property
 belongs on the external-snapshot path, with the real reading and the real
 source. An honest refusal is worth more than a plausible wrong number.
 
+**One class per step.** A `jev:` PerceptionStep extracts exactly one class. A
+schema carrying more than one is refused by name, and a step that wants two runs
+as two steps. Jev answers every question it is asked, so a two-class schema would
+come back with an instance of *both* classes — including one for a class the text
+never mentioned, a fabricated fact wearing perception provenance, which is the
+same thing the numeric refusal exists to prevent. The `horis:extracts :Patient,
+:Symptom` step used as the canonical example elsewhere in this spec is right for a
+text-capable bridge; routed to `jev:` it is two steps.
+
 **Narration is impossible here** and says so: `narrate` returns a `BridgeError`
 explaining that the model has no text output channel and that narration needs a
 different bridge. Nothing is stitched out of answer keys, and no empty success is
