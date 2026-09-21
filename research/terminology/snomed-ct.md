@@ -3,7 +3,7 @@
 ## Claim
 
 The offline-compiled-subset pattern is correct and matches horismos's I/O-free,
-deterministic inference constraints — but [`examples/triage/snomed-ct-subset.ttl`](https://github.com/billaram/horismos/blob/main/examples/triage/snomed-ct-subset.ttl)
+deterministic inference constraints — but [`examples/triage/snomed-ct-subset.ttl`](https://github.com/horismos-hq/horismos/blob/main/examples/triage/snomed-ct-subset.ttl)
 already shows the exact risk this research question asked about: single-parent
 structure and no version provenance, on real SNOMED CT, which is a true polyhierarchy
 with ~368,000 active concepts. The recommendation is to make extraction a build-time,
@@ -35,9 +35,9 @@ version/release provenance recorded anywhere in the fixture, and SNOMED CT
 retires/replaces roughly a quarter of its concept space on an ongoing basis
 ([confluence.ihtsdotools.org](https://confluence.ihtsdotools.org/display/DOCEG/Concept+Inactivation)),
 so a hand-copied subset silently drifts stale with no mechanism to detect it. (See
-[`docs/framework/02-ontology.md`](https://github.com/billaram/horismos/blob/main/docs/framework/02-ontology.md) ~line 132 for the resolved D5/PRP-001 decision to
+[`docs/framework/02-ontology.md`](https://github.com/horismos-hq/horismos/blob/main/docs/framework/02-ontology.md) ~line 132 for the resolved D5/PRP-001 decision to
 consume vocabularies as pre-extracted subset imports, and
-[`docs/framework/13-authoring.md`](https://github.com/billaram/horismos/blob/main/docs/framework/13-authoring.md) for the planned, unbuilt `search_vocab`
+[`docs/framework/13-authoring.md`](https://github.com/horismos-hq/horismos/blob/main/docs/framework/13-authoring.md) for the planned, unbuilt `search_vocab`
 SNOMED-anchoring tool that is PRP-007 scope.)
 
 **[measured]** Chu et al. (JMIR Medical Informatics, 2019) directly quantify how much
@@ -80,7 +80,7 @@ SNOMED CT is free for Member countries, with fees by territory outside membershi
 free to US/international users via UMLS license
 ([nlm.nih.gov](https://www.nlm.nih.gov/healthit/snomedct/faq.html)). **[inference]**
 This is a deploying-org obligation horismos-the-framework cannot discharge on anyone's
-behalf — worth a line in [`docs/framework/02-ontology.md`](https://github.com/billaram/horismos/blob/main/docs/framework/02-ontology.md) or an ops guide before this
+behalf — worth a line in [`docs/framework/02-ontology.md`](https://github.com/horismos-hq/horismos/blob/main/docs/framework/02-ontology.md) or an ops guide before this
 becomes someone's surprise.
 
 **[measured]** SNOMED's own maps to ICD-10 are documented as one-directional and lossy

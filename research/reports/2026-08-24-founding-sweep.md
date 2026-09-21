@@ -1,6 +1,6 @@
 # Horismos Reality-Check Research Sweep
 
-> **Provenance.** Produced by scout task `horismos-research-s1` on **2026-08-24** (scope: knowledge only — no implementation, no PR). This is the report that founded the wiki: PR #9 distributed its §1 findings, §2 catalog and §4 reading log into the topic pages; §3 became the wiki's own structure and the intake convention. Repository facts in it were verified against the tree as of [`a164db4`](https://github.com/billaram/horismos/blob/a164db4) (2026-08-19, the last commit before the wiki landed), and repo-file references below link to that commit. Imported verbatim on 2026-09-03 by task `horismos-researchdocs-a1`: every [measured] / [inference] / [unverified] tag and citation is intact; the only edits are this header and path references turned into links. **Where it stands now:** the §1.1 diagnosis triggered the [thin-pivot second opinion](2026-08-24-thin-pivot-second-opinion.md) the same day and, through it, the bounded-projection pivot adopted in PR #10; the [standing verdict](../neurosymbolic-landscape/pivot-alignment.md) tracks whether that pivot stays aligned with the field.
+> **Provenance.** Produced by scout task `horismos-research-s1` on **2026-08-24** (scope: knowledge only — no implementation, no PR). This is the report that founded the wiki: PR #9 distributed its §1 findings, §2 catalog and §4 reading log into the topic pages; §3 became the wiki's own structure and the intake convention. Repository facts in it were verified against the tree as of [`a164db4`](https://github.com/horismos-hq/horismos/blob/a164db4) (2026-08-19, the last commit before the wiki landed), and repo-file references below link to that commit. Imported verbatim on 2026-09-03 by task `horismos-researchdocs-a1`: every [measured] / [inference] / [unverified] tag and citation is intact; the only edits are this header and path references turned into links. **Where it stands now:** the §1.1 diagnosis triggered the [thin-pivot second opinion](2026-08-24-thin-pivot-second-opinion.md) the same day and, through it, the bounded-projection pivot adopted in PR #10; the [standing verdict](../neurosymbolic-landscape/pivot-alignment.md) tracks whether that pivot stays aligned with the field.
 
 **Scout task**: `horismos-research-s1` · **Date**: 2026-08-24 · **Scope**: knowledge only — no implementation, no PR.
 
@@ -14,8 +14,8 @@ captain added mid-sweep (agent-authored and learnable ontologies, since horismos
 path eventually via PRP-007) and files one captain-supplied URL as a worked example of a
 proposed intake convention.
 
-**Method.** I read `README.md`, [`PRPs/README.md`](https://github.com/billaram/horismos/blob/a164db4/PRPs/README.md), [`PRPs/BOARD.md`](https://github.com/billaram/horismos/blob/a164db4/PRPs/BOARD.md), `PRP-000`, `PRP-007`,
-and [`docs/framework/00-index.md`](https://github.com/billaram/horismos/blob/a164db4/docs/framework/00-index.md)/`05-workflows.md`/`06-llm-boundaries.md` first, so every
+**Method.** I read `README.md`, [`PRPs/README.md`](https://github.com/horismos-hq/horismos/blob/a164db4/PRPs/README.md), [`PRPs/BOARD.md`](https://github.com/horismos-hq/horismos/blob/a164db4/PRPs/BOARD.md), `PRP-000`, `PRP-007`,
+and [`docs/framework/00-index.md`](https://github.com/horismos-hq/horismos/blob/a164db4/docs/framework/00-index.md)/`05-workflows.md`/`06-llm-boundaries.md` first, so every
 comparison below is against what horismos *actually* specifies, not a generic description.
 I then ran six parallel research agents (one per question below, each independently briefed
 on horismos's real architecture) with extensive WebSearch/WebFetch, plus one resumed run and
@@ -155,7 +155,7 @@ directly targets a documented, named historical failure:
 making symbolic structure **differentiable and probabilistically weighted**, not by hard-
 gating a trained model's output before it acts. Horismos deliberately does the opposite:
 confidence gates *acceptance*, never *weights inference*, and there is no fuzzy logic
-anywhere in the reasoner (per [`docs/framework/06-llm-boundaries.md`](https://github.com/billaram/horismos/blob/a164db4/docs/framework/06-llm-boundaries.md) and confirmed by every
+anywhere in the reasoner (per [`docs/framework/06-llm-boundaries.md`](https://github.com/horismos-hq/horismos/blob/a164db4/docs/framework/06-llm-boundaries.md) and confirmed by every
 research agent independently). By the standard the field's own most-cited reference systems
 set, a hard, non-differentiable wall between neural and symbolic components is a **looser**
 claim to the "neurosymbolic" label than what Scallop/LNN/DeepProbLog actually do — and,
@@ -244,7 +244,7 @@ Horismos's pattern of compiling *before* the runtime, not *during* it, is struct
 analogous to what that guidance recommends — it just needs the compilation step built.
 
 **[measured — I verified this directly against the repo, not from general description]**
-[`examples/triage/snomed-ct-subset.ttl`](https://github.com/billaram/horismos/blob/a164db4/examples/triage/snomed-ct-subset.ttl) today ships ~50 hand-picked concepts using
+[`examples/triage/snomed-ct-subset.ttl`](https://github.com/horismos-hq/horismos/blob/a164db4/examples/triage/snomed-ct-subset.ttl) today ships ~50 hand-picked concepts using
 **single-parent `rdfs:subClassOf` only** — real SNOMED CT is a true polyhierarchy (most
 concepts have multiple `is-a` parents by design; ~368,000 active concepts as of the June 2024
 figure in SNOMED's own guidance) and the shipped fixture represents none of that structure.
@@ -283,7 +283,7 @@ third parties is themselves distributing SNOMED CT and needs their own SNOMED In
 Affiliate status with sub-licensing obligations to *their* downstream users
 ([docs.snomed.org licensing](https://docs.snomed.org/snomed-ct-practical-guides/vendor-introduction-to-snomed-ct/7-licensing))
 — that's a deploying-org obligation horismos-the-framework cannot discharge on anyone's
-behalf, worth a line in [`docs/framework/02-ontology.md`](https://github.com/billaram/horismos/blob/a164db4/docs/framework/02-ontology.md) or an ops guide before this becomes
+behalf, worth a line in [`docs/framework/02-ontology.md`](https://github.com/horismos-hq/horismos/blob/a164db4/docs/framework/02-ontology.md) or an ops guide before this becomes
 someone's surprise.
 
 ### 1.6 Validation: horismos is at rung −1, and formal verification does not prove the medicine is right
@@ -298,7 +298,7 @@ preferences of a handful of Memorial Sloan Kettering specialists rather than gui
 consensus ([STAT News, 2018-07-25](https://www.statnews.com/2018/07/25/ibm-watson-recommended-unsafe-incorrect-treatments/)).
 That is mechanically horismos's exact current shape: one hand-authored ontology, built from
 one team's understanding of one scenario, with no external clinician review yet. Horismos's
-own verification documentation ([`docs/framework/10-verification.md`](https://github.com/billaram/horismos/blob/a164db4/docs/framework/10-verification.md)) already states the
+own verification documentation ([`docs/framework/10-verification.md`](https://github.com/horismos-hq/horismos/blob/a164db4/docs/framework/10-verification.md)) already states the
 limit plainly: verification proves the reasoner is total and sound *around whatever
 perception does*, and claims nothing about tool implementations or anything probabilistic.
 This report adds the clinically load-bearing corollary explicitly, because it is easy to
@@ -775,9 +775,9 @@ to a confirmed citation.
 | Daniel Vreeman, "Regenstrief's approach to licensing LOINC" | — | Free for commercial/non-commercial use; cannot fork/modify core content | https://danielvreeman.com/blog/2016/11/24/regenstriefs-approach-to-licensing-loinc/ |
 | NLM, RxNorm Terms of Service | accessed 2026 | Core RXCUI/names are US public domain; full releases need free UMLS license | https://www.nlm.nih.gov/research/umls/rxnorm/docs/termsofservice.html |
 | NLM, RxNav Data Sources | accessed 2026 | RxTerms/MED-RT ecosystem relationships | https://lhncbc.nlm.nih.gov/RxNav/information/DataSources.html |
-| Repo file: [`examples/triage/snomed-ct-subset.ttl`](https://github.com/billaram/horismos/blob/a164db4/examples/triage/snomed-ct-subset.ttl) | current HEAD | Shipped fixture: ~50 concepts, single-parent only, no polyhierarchy | local repo |
-| Repo file: [`docs/framework/02-ontology.md`](https://github.com/billaram/horismos/blob/a164db4/docs/framework/02-ontology.md) (~line 132) | current HEAD | Resolved decision D5/PRP-001: vocabularies consumed as pre-extracted subset imports | local repo |
-| Repo file: [`docs/framework/13-authoring.md`](https://github.com/billaram/horismos/blob/a164db4/docs/framework/13-authoring.md) | current HEAD | Planned (unbuilt) `search_vocab` SNOMED-anchoring tool, PRP-007 scope | local repo |
+| Repo file: [`examples/triage/snomed-ct-subset.ttl`](https://github.com/horismos-hq/horismos/blob/a164db4/examples/triage/snomed-ct-subset.ttl) | current HEAD | Shipped fixture: ~50 concepts, single-parent only, no polyhierarchy | local repo |
+| Repo file: [`docs/framework/02-ontology.md`](https://github.com/horismos-hq/horismos/blob/a164db4/docs/framework/02-ontology.md) (~line 132) | current HEAD | Resolved decision D5/PRP-001: vocabularies consumed as pre-extracted subset imports | local repo |
+| Repo file: [`docs/framework/13-authoring.md`](https://github.com/horismos-hq/horismos/blob/a164db4/docs/framework/13-authoring.md) | current HEAD | Planned (unbuilt) `search_vocab` SNOMED-anchoring tool, PRP-007 scope | local repo |
 
 ### Q6 — Agent-authored and learnable ontologies
 
@@ -825,9 +825,9 @@ tracked as follow-up if the captain wants to act on this:
 - **PRP-007 (unbuilt, Draft)**: add an explicit non-vacuity verification pass, and extend the
   planned DoD's seeded-incompleteness test to also cover seeded subtly-wrong-but-consistent
   axioms — see §1.7. Both are additions to an already-Draft PRP, not a change to shipped code.
-- **SNOMED fixture**: [`examples/triage/snomed-ct-subset.ttl`](https://github.com/billaram/horismos/blob/a164db4/examples/triage/snomed-ct-subset.ttl)'s single-parent structure and
+- **SNOMED fixture**: [`examples/triage/snomed-ct-subset.ttl`](https://github.com/horismos-hq/horismos/blob/a164db4/examples/triage/snomed-ct-subset.ttl)'s single-parent structure and
   missing version provenance are visible today, not hypothetical — worth a note in
-  [`docs/framework/02-ontology.md`](https://github.com/billaram/horismos/blob/a164db4/docs/framework/02-ontology.md) and consideration when `search_vocab`/PRP-007's output
+  [`docs/framework/02-ontology.md`](https://github.com/horismos-hq/horismos/blob/a164db4/docs/framework/02-ontology.md) and consideration when `search_vocab`/PRP-007's output
   format is designed — see §1.5.
 - **`research/`**: the directory structure and intake convention in §3 is ready to stand up
   as an actual first PR whenever the captain wants it — I did not create it in the repo,

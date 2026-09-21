@@ -14,12 +14,12 @@ recommendation.
 
 ## Evidence
 
-**[measured — local repo, [`examples/triage/snomed-ct-subset.ttl`](https://github.com/billaram/horismos/blob/main/examples/triage/snomed-ct-subset.ttl), re-verified
+**[measured — local repo, [`examples/triage/snomed-ct-subset.ttl`](https://github.com/horismos-hq/horismos/blob/main/examples/triage/snomed-ct-subset.ttl), re-verified
 2026-09-02]** The fixture declares 50 `rdfs:subClassOf` links, no concept carries more
 than one parent, and the file records no SNOMED release, edition, or version anywhere;
 its own header says "the fixture's point is the structure, not registry fidelity." The
-hard rules the pattern must stay compatible with are stated in [`CLAUDE.md`](https://github.com/billaram/horismos/blob/main/CLAUDE.md) § Hard rules
-(anti-wrapper boundary, determinism) and [`docs/framework/14-architecture.md`](https://github.com/billaram/horismos/blob/main/docs/framework/14-architecture.md).
+hard rules the pattern must stay compatible with are stated in [`CLAUDE.md`](https://github.com/horismos-hq/horismos/blob/main/CLAUDE.md) § Hard rules
+(anti-wrapper boundary, determinism) and [`docs/framework/14-architecture.md`](https://github.com/horismos-hq/horismos/blob/main/docs/framework/14-architecture.md).
 
 **[measured]** SNOMED International's own vendor guidance calls infrequently-updated
 custom subsets "a consistent weakness of existing systems not using a terminology
@@ -30,7 +30,7 @@ server" and recommends a terminology server plus ECL/ValueSets over hand-rolled 
 to make extraction a build-time, versioned, reproducible pipeline — not to change the
 architecture. Under the bounded-projection pivot this is now owned work: PRP-008's
 "Terminology provenance" scope item and its D8 (terminology service / build-time
-expansion policy) — see [`PRPs/PRP-008-standards-host-integration/01-objective.md`](https://github.com/billaram/horismos/blob/main/PRPs/PRP-008-standards-host-integration/01-objective.md).
+expansion policy) — see [`PRPs/PRP-008-standards-host-integration/01-objective.md`](https://github.com/horismos-hq/horismos/blob/main/PRPs/PRP-008-standards-host-integration/01-objective.md).
 
 See [`snomed-ct.md`](snomed-ct.md) for the full analysis. [`loinc.md`](loinc.md) and [`rxnorm.md`](rxnorm.md) cover the other two
 terminology systems horismos may need.
