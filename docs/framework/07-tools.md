@@ -41,10 +41,17 @@ fired by the runtime when workflow preconditions hold.
 | `mcp://` | `mcp://ehr-server/assign_queue` | MCP server tool; Horismos consumes the MCP schema and *narrows* it to the declared contract |
 | `http:` / `https:` | `https://api…/assign` | JSON POST; response validated like any effect |
 
-MCP deserves emphasis: the ecosystem already exposes domain tools over MCP. Horismos
-does not rebuild them — it wraps them in a typed contract. Where the MCP tool's own
-schema is looser than the `horis:takes`/`horis:effect` declaration, the declaration
-wins: out-of-contract calls can't be made, out-of-contract results can't land.
+Only `rust:` bindings are invocable in this build. The other three schemes are fully
+declared, parsed and validated — an ontology naming one loads like any other — they
+are simply not invocable: an ActionStep that reaches one is refused with a domain-term
+error naming the scheme, never a silent no-op.
+
+MCP deserves emphasis: the ecosystem already exposes domain tools over MCP. The
+Horismos answer is not to rebuild them but to wrap them in a typed contract, so that
+the runtime's authority over the call is the declaration's, not the server's. Where
+the MCP tool's own schema is looser than the `horis:takes`/`horis:effect`
+declaration, the declaration wins: out-of-contract calls can't be made,
+out-of-contract results can't land.
 
 ## Adapter-mediated external commits
 
