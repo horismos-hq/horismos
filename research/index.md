@@ -12,7 +12,7 @@ them feed. It is written for the team and for research-minded readers, depth ove
 marketing. It is **not** the developer documentation.
 
 <div class="verdict" markdown>
-<div><div class="verdict-word">aligned-with-adjustments</div><div class="verdict-meta">standing verdict · sweep #2 · 2026-09-02 · re-issued every sweep</div></div>
+<div><div class="verdict-word">aligned-with-adjustments</div><div class="verdict-meta">standing verdict · sweep #2 · 2026-09-02 · re-issued every sweep · last re-issued 2026-09-21 (typed-decision axis)</div></div>
 <div markdown>
 The bounded-projection pivot adopted on 2026-08-24 — snapshot-scoped guarantees over a
 versioned hydration, a conditional commit that fails closed on source-version drift, a
@@ -22,9 +22,10 @@ standards communities. Where the field moved differently it moved neural-ward at
 exact line Horismos draws, and the same papers supply the numbers for why Horismos
 should not follow. Fourteen shape-preserving adjustments (A1–A14) and ten challenge
 lines (X1–X10) are recorded, all captain-held. The RL-axis deep dive of the same day
-extends the verdict along its axis.
+extends the verdict along its axis, and the Jev deep dive (2026-09-21) re-issues it
+along a third — the non-generative typed-decision-model axis — unchanged in shape.
 **[Read the standing page →](neurosymbolic-landscape/pivot-alignment.md)** ·
-[Verdict history](verdict-history.md) · [RL-axis verdict](reports/2026-09-02-rl-deep-dive.md#41-alignment-verdict-on-the-rl-axis)
+[Verdict history](verdict-history.md) · [RL-axis verdict](reports/2026-09-02-rl-deep-dive.md#41-alignment-verdict-on-the-rl-axis) · [Typed-decision verdict](reports/2026-09-21-typesafe-jev-deep-dive.md#66-q-d6-the-standing-verdict-re-issued)
 </div>
 </div>
 
@@ -79,6 +80,12 @@ canonical — this site only points at it.
 </div>
 
 <div class="corpus-card" markdown>
+<p class="q">Deep dive · 2026-09-21</p>
+<h3><a href="neurosymbolic-landscape/typed-decision-models/">Typed decisions</a></h3>
+<p>The non-generative "System One model" category that appeared on 2026-09-15: what <a href="reports/2026-09-21-typesafe-jev-deep-dive/">TypeSafe's Jev</a> actually is from primary sources, which literature already owns each piece, how it is really doing six days in, and why the durable differentiators are cross-answer consistency and epistemic — not merely structural — auditability.</p>
+</div>
+
+<div class="corpus-card" markdown>
 <p class="q">Q2 · Q4 · Q5</p>
 <h3><a href="scenarios/00-catalog/">Clinical ground</a></h3>
 <p>The <a href="scenarios/00-catalog/">scenario catalog</a> beyond triage (VTE, NEWS2, sepsis-bundle compliance, and what was ruled out), the <a href="validation/00-ladder/">five-rung validation ladder</a> with its cautionary case studies, and <a href="terminology/00-overview/">terminology</a> licensing and subsumption at scale.</p>
@@ -113,7 +120,7 @@ canonical — this site only points at it.
   know why the design is shaped the way it is and what it does not claim.
 - **Owning a PRP `[DECIDE]`.** Start from the [verdict history](verdict-history.md), which
   indexes every captain-held adjustment (A1–A14), challenge (X1–X10) and open decision
-  (OD-1–OD-4) by owner; follow the links into the evidence; resolve the question in your
+  (OD-1–OD-4 on the RL axis, OD-1–OD-8 on the typed-decision axis) by owner; follow the links into the evidence; resolve the question in your
   PRP through the brainstorming protocol, not here.
 - **Skeptical.** Go straight to what the field does *differently*:
   [X1–X10](neurosymbolic-landscape/pivot-alignment.md#what-it-challenges-or-where-the-field-moved-differently),
@@ -128,11 +135,11 @@ canonical — this site only points at it.
 
 | | |
 |---|---|
-| Wiki topic pages (six research questions + Q7) | 30, each with Claim / Evidence / Source / Confidence / Last-verified |
-| Full deep-dive reports, imported verbatim | 3 — [index](reports/index.md) |
-| Sources in the [reading log](reading-log.md) | 293 rows across seven sections (sweeps #1 and #2); the RL deep dive's 100-odd further sources are in its own [§6 source log](reports/2026-09-02-rl-deep-dive.md#6-source-log) |
-| Standing verdicts | 2 — pivot alignment (sweep #2) and the RL axis (deep dive) — see the [verdict history](verdict-history.md) |
-| Captain-held items indexed | 14 adjustments, 10 challenge lines, 4 open decisions, 5 ranked moves, 5 PRP-007 open items |
+| Wiki topic pages (six research questions + Q7) | 31, each with Claim / Evidence / Source / Confidence / Last-verified |
+| Full deep-dive reports, imported verbatim | 4 — [index](reports/index.md) |
+| Sources in the [reading log](reading-log.md) | 438 rows across eight sections (sweeps #1 and #2, plus Q9 from the Jev deep dive); the RL deep dive's 100-odd further sources are still only in its own [§6 source log](reports/2026-09-02-rl-deep-dive.md#6-source-log) |
+| Standing verdicts | 3 — pivot alignment (sweep #2), the RL axis and the typed-decision axis (deep dives) — see the [verdict history](verdict-history.md) |
+| Captain-held items indexed | 14 adjustments, 10 challenge lines, 12 open decisions, 14 ranked moves, 5 PRP-007 open items |
 
 ## How it stays current
 

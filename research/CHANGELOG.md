@@ -32,3 +32,31 @@ Append-only. One line per merged PR: date, PR link, summary.
   links to the same targets (repo files link to GitHub), `README.md` gained invisible
   snippet markers, `reports/` and site-page lines in its structure block, and a corrected closing
   section (the founding report is now tracked). No claim text was rewritten or retagged.
+- 2026-09-21 — (this PR) — Jev deep dive (`horismos-research-jev-s1`): captain-directed
+  deep research on TypeSafe's **Jev** and the non-generative typed-decision-model axis,
+  landed as the fourth full report
+  ([`reports/2026-09-21-typesafe-jev-deep-dive.md`](reports/2026-09-21-typesafe-jev-deep-dive.md))
+  plus one new topic page
+  ([`neurosymbolic-landscape/typed-decision-models.md`](neurosymbolic-landscape/typed-decision-models.md))
+  and dated "Jev deep dive delta (2026-09-21)" sections on five existing pages
+  ([`neurosymbolic-landscape/00-overview.md`](neurosymbolic-landscape/00-overview.md),
+  [`neurosymbolic-landscape/lineage-assessment.md`](neurosymbolic-landscape/lineage-assessment.md),
+  [`neurosymbolic-landscape/coding-agent-harnesses.md`](neurosymbolic-landscape/coding-agent-harnesses.md),
+  [`validation/00-ladder.md`](validation/00-ladder.md),
+  [`validation/regulatory.md`](validation/regulatory.md)). Reading log: ~145 rows under a
+  new Q9 section (Q8 stays reserved for the RL dive's undistributed sources). The
+  standing pivot-alignment verdict was re-issued, scoped to this axis, and mirrored on
+  [`verdict-history.md`](verdict-history.md). **Corrections recorded:** fourteen intake
+  facts were checked against primary sources and four were wrong or misleading — the
+  benchmark's reference answers are two frontier models rather than humans, the "0%
+  structured-output error" figure is stated by its own author to be "not empirical", the
+  interpretability critique attributed to TypeSafe is a third party's, and there are
+  three co-founders rather than one. Two dates in
+  [`validation/regulatory.md`](validation/regulatory.md) were corrected against the FDA
+  documents themselves (the PCCP guidance is AUGUST 2025, not December 2024; the revised
+  CDS guidance's cover date is JANUARY 2026, confirming what sweep #2 could only mark
+  `[unverified]`), and one claim drafted in this report from a paywalled abstract was
+  wrong and is corrected in place with the error recorded in its §10 (Ghassemi et al.
+  attacks *inherently* explainable models too, not only post-hoc ones). Eight open
+  decisions (OD-1–OD-8) recorded, all captain-held; no PRP text edited and no `crates/`
+  change.
