@@ -18,7 +18,7 @@
 //! wire-protocol probe this bridge was written against, so the example and
 //! the probe agree on what was measured.
 //!
-//! Spec: `docs/framework/08-bridge.md` · Owner: PRP-004
+//! Spec: `docs/framework/08-bridge.md`
 
 use std::collections::BTreeMap;
 

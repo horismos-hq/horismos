@@ -144,7 +144,7 @@
 //! is why the published wheel cross-compiles cleanly to aarch64. Turning a
 //! TLS-carrying bridge on by default would silently undo that.
 //!
-//! Spec: `docs/framework/08-bridge.md` · Owner: PRP-004
+//! Spec: `docs/framework/08-bridge.md`
 
 use std::collections::BTreeMap;
 use std::sync::OnceLock;
