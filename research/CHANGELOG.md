@@ -43,7 +43,7 @@ Append-only. One line per merged PR: date, PR link, summary.
   [`neurosymbolic-landscape/lineage-assessment.md`](neurosymbolic-landscape/lineage-assessment.md),
   [`neurosymbolic-landscape/coding-agent-harnesses.md`](neurosymbolic-landscape/coding-agent-harnesses.md),
   [`validation/00-ladder.md`](validation/00-ladder.md),
-  [`validation/regulatory.md`](validation/regulatory.md)). Reading log: ~145 rows under a
+  [`validation/regulatory.md`](validation/regulatory.md)). Reading log: ~148 rows under a
   new Q9 section (Q8 stays reserved for the RL dive's undistributed sources). The
   standing pivot-alignment verdict was re-issued, scoped to this axis, and mirrored on
   [`verdict-history.md`](verdict-history.md). **Corrections recorded:** thirteen intake
@@ -60,3 +60,15 @@ Append-only. One line per merged PR: date, PR link, summary.
   attacks *inherently* explainable models too, not only post-hoc ones). Eight open
   decisions (OD-1–OD-8) recorded, all captain-held; no PRP text edited and no `crates/`
   change.
+ **Post-review correction folded into the same PR:** the dive enumerated
+  OpenRouter's model catalogue, found no TypeSafe entry, and so never recorded resale as a
+  channel at all — it described only the direct TypeSafe API. Jev is in fact **resold on
+  OpenRouter** (`typesafe/jev-1.13`, `text->decisions`, $0.042/Mtok prompt
+  and $0 completion) but does not appear in the standard `/api/v1/models` listing, so a
+  catalogue survey cannot see it. Recorded in §3.5 with the retrieval method, with the
+  consequence restated in §7 (R8 drops M→S, since `openrouter.rs` is the only non-mock
+  Bridge and the registry is prefix-routed) and an explicit statement in the "do not do"
+  list that cheap access leaves all four blockers standing. The OpenRouter record's
+  `supports_tool_choice` field, which appeared to contradict intake correction #6, was
+  checked against three non-tool models that carry the identical flag, so it is not a
+  capability statement about Jev; correction #6 stands.
