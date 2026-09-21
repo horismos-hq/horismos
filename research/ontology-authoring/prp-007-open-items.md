@@ -32,7 +32,7 @@ deferred.
 3. **`search_vocab`'s output format should support polyhierarchy and provenance
    metadata**, not just an `owl:sameAs` anchor — see
    [`../terminology/snomed-ct.md`](../terminology/snomed-ct.md) for the full finding (the current
-   [`examples/triage/snomed-ct-subset.ttl`](https://github.com/billaram/horismos/blob/main/examples/triage/snomed-ct-subset.ttl) fixture already shows single-parent
+   [`examples/triage/snomed-ct-subset.ttl`](https://github.com/horismos-hq/horismos/blob/main/examples/triage/snomed-ct-subset.ttl) fixture already shows single-parent
    structure with no version provenance).
 
 4. **[inference]** **Restate the sign-off gate's rationale from accuracy to safety, and treat the
