@@ -31,16 +31,45 @@
 //!   "answers": { "<id>": { "type": "...", "noul": 0.96, "choice": "<key>",
 //!                          "probabilities": {}, "confidence": 0.81,
 //!                          "score": 1.05, "legend": {} } },
-//!   "usage": { "input_tokens": 619, "output_tokens": 79 } }
+//!   "usage": { "input_tokens": 619, "output_tokens": 79, "cost": 1.6e-05 } }
 //! ```
 //!
 //! On the OpenRouter transport a `noul` question's `criteria` must carry
-//! **both** `"true"` and `"false"` keys; [`build_question`] always emits
-//! both, so one code path serves both transports. A `score` answer's
-//! `legend` is the endpoint's own level → option-key mapping, and it — not
-//! an index assumed to be 0-based — decides which level a continuous
-//! `score` of `1.05` means; absent a legend the level rounds to the nearest
-//! declared index.
+//! **both** `"true"` and `"false"` keys; `build_question` always emits
+//! both, so one code path serves both transports.
+//!
+//! ### What a `score` answer looks like — measured
+//!
+//! The populated `legend` shape was measured live on 2026-09-21 against
+//! the OpenRouter transport (routed model `typesafe/jev-1.13-20260917`). A
+//! three-level question answered:
+//!
+//! ```json
+//! { "score": 1.99, "legend": {"0": "Mild", "1": "Moderate", "2": "Severe"},
+//!   "probabilities": {"0": 0, "1": 0.01, "2": 0.99}, "confidence": 0.98 }
+//! ```
+//!
+//! and a four-level one answered `"score": 1.99` with `"legend": {"0":
+//! "Independent", "1": "NeedsAssistance", "2": "BedBound", "3":
+//! "Immobile"}` and `"confidence": 0.97`. So, as measured: the legend maps
+//! **numeric level → option key**, the scale is **0-based**, there is no
+//! off-by-one against the declared levels, and `probabilities` is keyed by
+//! the same level strings as the legend.
+//!
+//! This bridge therefore reads the legend as the authority for which level
+//! an answer names, and rounds the level to the nearest declared index only
+//! when a response carries no legend, or carries one it cannot read as
+//! `{numeric: string}` — the latter is recorded in
+//! `CallAccounting::raw_metadata` rather than failing the call. The inverse
+//! orientation is deliberately not guessed at: accepting a flipped legend
+//! would emit plausible-but-wrong ordinal levels under perception
+//! provenance.
+//!
+//! The same `usage` block reports the call's cost directly — measured
+//! `"usage": {"input_tokens": 383, "output_tokens": 32, "cost":
+//! 1.6086e-05}` — so [`CallAccounting::cost_usd`] is the wire's own number,
+//! with `PROMPT_USD_PER_MTOK` only as the fallback for a response that
+//! omits it.
 //!
 //! ## The schema → questions mapping
 //!
@@ -129,13 +158,16 @@ use serde_json::{Map, Value};
 const MAX_CHOICE_OPTIONS: usize = 255;
 /// Jev's `score` primitive accepts this many ordered levels.
 const SCORE_LEVELS: std::ops::RangeInclusive<usize> = 2..=10;
-/// OpenRouter's observed list price for `typesafe/jev-1.13` on 2026-09-21:
-/// prompt tokens at $0.042 per million, completion tokens billed at zero.
-/// The Decisions response carries no `cost` field of its own, so
-/// [`CallAccounting::cost_usd`] is computed from `usage.input_tokens` and
-/// this constant. It is a published price, not a measured invoice — treat a
-/// trace's `cost_usd` as an estimate, which is what doc 08 § Accounting
-/// already calls it ("cost estimate").
+/// The **fallback** price for a Decisions response that carries no
+/// `usage.cost`: OpenRouter's observed list price for `typesafe/jev-1.13`
+/// on 2026-09-21, prompt tokens at $0.042 per million with completion
+/// tokens billed at zero. The wire normally reports the cost itself
+/// (measured 2026-09-21: `"usage": {"input_tokens": 383, "output_tokens":
+/// 32, "cost": 1.6086e-05}`, exactly 383 × 0.042 / 1e6) and that number is
+/// preferred — it is per-transport-correct by construction and cannot go
+/// stale when a price changes. Either way a trace's `cost_usd` is what doc
+/// 08 § Accounting calls it, a "cost estimate", and
+/// `raw_metadata.price_basis` says which of the two sources it came from.
 const PROMPT_USD_PER_MTOK: f64 = 0.042;
 const HTTP_TIMEOUT: Duration = Duration::from_secs(60);
 
@@ -193,16 +225,20 @@ impl JevTransport {
         lookup(env).is_some() || lookup(&format!("{env}_FILE")).is_some()
     }
 
-    /// The price list [`CallAccounting::cost_usd`] was estimated from,
-    /// recorded in `raw_metadata` so a reported cost-per-case says which
-    /// list it came from. [`PROMPT_USD_PER_MTOK`] is OpenRouter's observed
-    /// price, so a TypeSafe call's estimate is carried at the resale price
-    /// — stated here rather than left to be inferred from `transport`.
-    fn price_basis(self) -> &'static str {
+    /// What [`CallAccounting::cost_usd`] falls back to when a response
+    /// carries no `usage.cost` of its own. [`PROMPT_USD_PER_MTOK`] is
+    /// OpenRouter's observed price, so on the TypeSafe transport the
+    /// fallback is a resale price rather than this transport's own — said
+    /// in `raw_metadata` so a reported cost-per-case names its source.
+    fn fallback_price_basis(self) -> &'static str {
         match self {
-            JevTransport::OpenRouter => "openrouter list price, observed 2026-09-21",
+            JevTransport::OpenRouter => {
+                "estimated from usage.input_tokens at OpenRouter's list price, observed \
+                 2026-09-21 ($0.042 per million prompt tokens, completion billed at zero)"
+            }
             JevTransport::TypeSafe => {
-                "openrouter list price, observed 2026-09-21 — a resale price, not this \
+                "estimated from usage.input_tokens at OpenRouter's list price, observed \
+                 2026-09-21 ($0.042 per million prompt tokens) — a resale price, not this \
                  transport's own: TypeSafe publishes no direct per-token price"
             }
         }
@@ -437,30 +473,32 @@ impl JevBridge {
     ) -> CallAccounting {
         let prompt_tokens = response.usage.as_ref().and_then(|u| u.input_tokens);
         let completion_tokens = response.usage.as_ref().and_then(|u| u.output_tokens);
+        // The endpoint reports the call's cost itself; the constant is only
+        // what a response that omits it falls back to. `price_basis` says
+        // which of the two this number is, so a cost-per-case published as
+        // a benchmark metric names where it came from.
+        let (cost_usd, price_basis) = match response.usage.as_ref().and_then(|u| u.cost) {
+            Some(cost) => (Some(cost), "usage.cost, as reported by the endpoint"),
+            None => (
+                prompt_tokens.map(|t| t as f64 * PROMPT_USD_PER_MTOK / 1_000_000.0),
+                self.transport.fallback_price_basis(),
+            ),
+        };
         let mut raw = Map::new();
         raw.insert(
             "transport".to_string(),
             Value::String(self.transport.name().to_string()),
         );
-        // `cost_usd` is an estimate from a published price list rather than
-        // an invoice, and the same constant is applied to both transports;
-        // the audit value says which list it came from so a cost-per-case
-        // derived from the wrong one is identifiable rather than silent.
         raw.insert(
             "price_basis".to_string(),
-            Value::String(self.transport.price_basis().to_string()),
-        );
-        raw.insert(
-            "prompt_usd_per_mtok".to_string(),
-            serde_json::json!(PROMPT_USD_PER_MTOK),
+            Value::String(price_basis.to_string()),
         );
         raw.extend(extra);
         CallAccounting {
             latency_ms: Some(elapsed.as_millis() as u64),
             prompt_tokens,
             completion_tokens,
-            // Completion tokens are billed at zero (see PROMPT_USD_PER_MTOK).
-            cost_usd: prompt_tokens.map(|t| t as f64 * PROMPT_USD_PER_MTOK / 1_000_000.0),
+            cost_usd,
             model: response.model.clone(),
             // Jev answers every question it is asked or fails the call; there
             // is no partial-completion concept for it to report.
@@ -507,6 +545,10 @@ struct JevUsage {
     input_tokens: Option<u64>,
     #[serde(default)]
     output_tokens: Option<u64>,
+    /// The call's cost in USD, reported by the endpoint itself (measured
+    /// 2026-09-21). Preferred over `PROMPT_USD_PER_MTOK`.
+    #[serde(default)]
+    cost: Option<f64>,
 }
 
 // -- Schema → questions ----------------------------------------------------
@@ -803,49 +845,38 @@ fn build_question(
     }
 }
 
+/// The nearest level in a `{numeric level: option key}` legend to `raw`, as
+/// `(level key, option key)` — the level key being what `probabilities` is
+/// keyed by. `None` when no entry reads that way at all, which is the
+/// caller's signal to fall back to the declared index; the inverse
+/// orientation is deliberately not guessed at.
+fn level_from_legend(legend: &Map<String, Value>, raw: f64) -> Option<(String, String)> {
+    let mut nearest: Option<(f64, &String, &str)> = None;
+    for (level, option) in legend {
+        let (Ok(parsed), Some(option)) = (level.trim().parse::<f64>(), option.as_str()) else {
+            continue;
+        };
+        let distance = (parsed - raw).abs();
+        if nearest.is_none_or(|(best, _, _)| distance < best) {
+            nearest = Some((distance, level, option));
+        }
+    }
+    nearest.map(|(_, level, option)| (level.clone(), option.to_string()))
+}
+
 /// One answered property: the JSON value to put into the instance, and how
 /// sure the model was **of that value** (not of `true`).
 #[derive(Debug)]
 struct Answered {
     value: Value,
     confidence: f64,
+    /// The answer carried a `legend` this bridge could not read as
+    /// `{numeric level: option key}`, so the level was resolved by the
+    /// index fallback instead. Surfaced in `raw_metadata`.
+    legend_unreadable: bool,
 }
 
 impl JevBridge {
-    /// Resolves a continuous `score` through the response's own `legend`,
-    /// returning the option key of the nearest declared level for the
-    /// caller to match against the options actually offered. Never guesses:
-    /// a legend this bridge cannot read as `level → option key` is
-    /// malformed output rather than a silent fall back to the index, since
-    /// the index would be assuming the very scale the legend was there to
-    /// settle.
-    fn level_from_legend(
-        &self,
-        plan: &PropPlan,
-        legend: &Map<String, Value>,
-        raw: f64,
-    ) -> Result<String, BridgeError> {
-        let mut nearest: Option<(f64, &str)> = None;
-        for (level, key) in legend {
-            let (Ok(level), Some(key)) = (level.trim().parse::<f64>(), key.as_str()) else {
-                continue;
-            };
-            let distance = (level - raw).abs();
-            if nearest.is_none_or(|(best, _)| distance < best) {
-                nearest = Some((distance, key));
-            }
-        }
-        nearest.map(|(_, key)| key.to_string()).ok_or_else(|| {
-            self.malformed(format!(
-                "question {:?} carries a `legend` this bridge cannot read as a level → option \
-                 key mapping ({}), so the answered level {raw} cannot be resolved without \
-                 guessing which scale it is on",
-                plan.question_id,
-                Value::Object(legend.clone())
-            ))
-        })
-    }
-
     fn read_answer(&self, plan: &PropPlan, answer: &JevAnswer) -> Result<Answered, BridgeError> {
         match &plan.kind {
             PropKind::Noul => {
@@ -861,6 +892,7 @@ impl JevBridge {
                     // Certainty in the value actually asserted: a `noul` of
                     // 0.04 is a confident `false`, not an unconfident one.
                     confidence: p.max(1.0 - p),
+                    legend_unreadable: false,
                 })
             }
             PropKind::Choice(options) => {
@@ -893,6 +925,7 @@ impl JevBridge {
                             // to 0.0 — fails safe into the fallback edge.
                             .unwrap_or(0.0)
                     }),
+                    legend_unreadable: false,
                 })
             }
             PropKind::Score(levels) => {
@@ -909,22 +942,20 @@ impl JevBridge {
                         plan.question_id
                     )));
                 }
-                // Jev reports a continuous level (e.g. 1.05). *Which* level
-                // that is depends on the scale the endpoint used, and the
-                // response's own `legend` is the only authority on that: an
-                // index assumed to be 0-based would shift every answer by
-                // one on a 1-based scale, and put the top level out of
-                // reach — a silently wrong fact under perception
-                // provenance. Absent a legend, the declared levels are the
-                // only values the ontology admits, so the level snaps to
-                // the nearest of them.
-                let key = match answer.legend.as_ref().filter(|l| !l.is_empty()) {
-                    Some(legend) => self.level_from_legend(plan, legend, raw)?,
-                    None => {
-                        let index = (raw.round().max(0.0) as usize).min(levels.len() - 1);
-                        levels[index].0.clone()
-                    }
-                };
+                // Jev reports a continuous level (e.g. 1.99), and the
+                // response's own `legend` says which declared level that
+                // names — measured as `{numeric level: option key}` on a
+                // 0-based scale, with `probabilities` keyed by the same
+                // level strings. A response without a readable legend still
+                // has to be answerable, so the level rounds to the nearest
+                // declared index instead; nothing is invented either way.
+                let legend = answer.legend.as_ref().filter(|l| !l.is_empty());
+                let resolved = legend.and_then(|legend| level_from_legend(legend, raw));
+                let legend_unreadable = legend.is_some() && resolved.is_none();
+                let (level_key, key) = resolved.unwrap_or_else(|| {
+                    let index = (raw.round().max(0.0) as usize).min(levels.len() - 1);
+                    (index.to_string(), levels[index].0.clone())
+                });
                 let member = levels
                     .iter()
                     .find(|(option, _)| *option == key)
@@ -938,7 +969,16 @@ impl JevBridge {
                     })?;
                 Ok(Answered {
                     value: Value::String(member),
-                    confidence: answer.confidence.unwrap_or(0.0),
+                    confidence: answer.confidence.unwrap_or_else(|| {
+                        answer
+                            .probabilities
+                            .as_ref()
+                            .and_then(|p| p.get(&level_key).copied())
+                            // D9, as on the choice path: a confidence the
+                            // wire omitted normalizes to 0.0.
+                            .unwrap_or(0.0)
+                    }),
+                    legend_unreadable,
                 })
             }
         }
@@ -954,6 +994,7 @@ impl Bridge for JevBridge {
         let mut instances = Vec::with_capacity(plan.instances.len());
         let mut fact_confidence = BTreeMap::new();
         let mut by_property = Vec::with_capacity(plan.instances.len());
+        let mut unreadable_legends: Vec<Value> = Vec::new();
 
         for (index, instance) in plan.instances.iter().enumerate() {
             let mut object = Map::new();
@@ -970,6 +1011,9 @@ impl Bridge for JevBridge {
                     ))
                 })?;
                 let answered = self.read_answer(prop, answer)?;
+                if answered.legend_unreadable {
+                    unreadable_legends.push(Value::String(prop.question_id.clone()));
+                }
                 let value = if prop.multi {
                     Value::Array(vec![answered.value])
                 } else {
@@ -1009,6 +1053,15 @@ impl Bridge for JevBridge {
             "fact_confidence_by_property".to_string(),
             Value::Array(by_property),
         );
+        if !unreadable_legends.is_empty() {
+            // The level came from the declared index because the legend it
+            // should have come from did not read as `{numeric: string}`.
+            // Visible in the trace rather than failing the perception.
+            extra.insert(
+                "unreadable_score_legends".to_string(),
+                Value::Array(unreadable_legends),
+            );
+        }
         let accounting = self.accounting(&response, elapsed, extra);
         Ok(PerceiveResult {
             instances,
@@ -1742,6 +1795,15 @@ mod tests {
                     "{id} lacks criteria.false"
                 );
             }
+            let head = request_text
+                .split("\r\n\r\n")
+                .next()
+                .unwrap_or_default()
+                .to_ascii_lowercase();
+            assert!(
+                head.contains("authorization: bearer test-key"),
+                "the supplied bearer token must reach the wire:\n{request_text}"
+            );
             assert!(
                 !request_text.contains("chat/completions"),
                 "this bridge must post to the Decisions endpoint:\n{request_text}"
@@ -1786,11 +1848,24 @@ mod tests {
             Some("typesafe/jev-1.13-20260917")
         );
         assert!(result.accounting.latency_ms.is_some());
+        // This scripted `usage` carries no `cost`, so the estimate falls
+        // back to the constant — and says so.
         let cost = result
             .accounting
             .cost_usd
             .expect("cost is estimated from usage");
         assert!((cost - 619.0 * 0.042 / 1e6).abs() < 1e-12, "{cost}");
+        assert!(
+            result
+                .accounting
+                .raw_metadata
+                .as_ref()
+                .and_then(|m| m.pointer("/price_basis"))
+                .and_then(Value::as_str)
+                .is_some_and(|basis| basis.contains("estimated from usage.input_tokens")),
+            "a fallback estimate must name itself as one: {:?}",
+            result.accounting.raw_metadata
+        );
 
         // Per-question probabilities survive into the audit escape hatch.
         let per_property = result
@@ -1851,24 +1926,23 @@ mod tests {
         join_server(server).await;
         assert_eq!(result.chosen, 1);
         assert_eq!(result.confidence, 0.81);
-        assert_eq!(
+        assert!(
             result
                 .accounting
                 .raw_metadata
                 .as_ref()
                 .and_then(|m| m.pointer("/price_basis"))
-                .and_then(Value::as_str),
-            Some("openrouter list price, observed 2026-09-21"),
-            "the estimate must say which price list it came from: {:?}",
+                .and_then(Value::as_str)
+                .is_some_and(|basis| basis.contains("OpenRouter's list price")),
+            "a cost the wire did not report must name the list it came from: {:?}",
             result.accounting.raw_metadata
         );
     }
 
-    /// A `score` answer carrying a `legend`: the legend, not an assumed
-    /// 0-based index, decides which declared level the continuous score
-    /// means. Here the endpoint is on a 1-based scale, so `1.05` is the
-    /// *first* level — an index read would shift it to the second and put
-    /// the top level out of reach.
+    /// The legend, not the index, decides which declared level a continuous
+    /// score names. The measured wire is 0-based, on which both paths agree
+    /// — so this case is deliberately offset (a 1-based legend) to tell
+    /// them apart: an index read would answer `:Moderate` here.
     #[tokio::test]
     async fn a_score_is_resolved_through_the_response_s_legend() {
         let response = r#"{
@@ -1929,6 +2003,90 @@ mod tests {
         assert_eq!(
             result.instances,
             vec![serde_json::json!({"class": ":Case", "severity": ":Moderate"})]
+        );
+    }
+
+    /// The shape the live probe actually measured on 2026-09-21: a 0-based
+    /// legend, `probabilities` keyed by the same level strings, no
+    /// `confidence` field of its own, and a `usage.cost` the endpoint
+    /// reports directly. The confidence comes from the answered level's
+    /// probability rather than normalizing to 0.0, exactly as the `choice`
+    /// path does, and the cost is the wire's number, not the constant.
+    #[tokio::test]
+    async fn a_measured_score_answer_reads_its_probability_and_the_wire_s_cost() {
+        let response = r#"{
+            "model": "typesafe/jev-1.13-20260917",
+            "answers": {"i0_severity": {"type": "score", "score": 1.99,
+                                        "legend": {"0": "Mild", "1": "Moderate", "2": "Severe"},
+                                        "probabilities": {"0": 0, "1": 0.01, "2": 0.99}}},
+            "usage": {"input_tokens": 383, "output_tokens": 32, "cost": 1.6086e-05}
+        }"#;
+        let (base_url, server) = one_shot_server(response, |_| {}).await;
+        let result = ordinal_bridge_at(base_url)
+            .perceive(PerceiveRequest {
+                text: "severe, unremitting".to_string(),
+                schema: severity_schema(),
+            })
+            .await
+            .expect("a score answer is readable");
+        join_server(server).await;
+        assert_eq!(
+            result.instances,
+            vec![serde_json::json!({"class": ":Case", "severity": ":Severe"})],
+            "1.99 on the measured 0-based legend is its level 2"
+        );
+        assert_eq!(
+            result.confidence, 0.99,
+            "an omitted confidence falls back to the answered level's probability"
+        );
+        assert_eq!(result.accounting.cost_usd, Some(1.6086e-05));
+        assert_eq!(
+            result
+                .accounting
+                .raw_metadata
+                .as_ref()
+                .and_then(|m| m.pointer("/price_basis"))
+                .and_then(Value::as_str),
+            Some("usage.cost, as reported by the endpoint")
+        );
+    }
+
+    /// A legend this bridge cannot read as `{numeric level: option key}` —
+    /// here the inverse orientation, which is deliberately not guessed at —
+    /// must not fail an otherwise answerable perception: the level falls
+    /// back to the declared index, and the trace records that it did.
+    #[tokio::test]
+    async fn an_unreadable_legend_falls_back_to_the_index_and_records_it() {
+        let response = r#"{
+            "model": "typesafe/jev-1.13-20260917",
+            "answers": {"i0_severity": {"type": "score", "score": 1.05, "confidence": 0.7,
+                                        "legend": {"Mild": 1, "Moderate": 2, "Severe": 3}}},
+            "usage": {"input_tokens": 42, "output_tokens": 3}
+        }"#;
+        let (base_url, server) = one_shot_server(response, |_| {}).await;
+        let result = ordinal_bridge_at(base_url)
+            .perceive(PerceiveRequest {
+                text: "moderate pain".to_string(),
+                schema: severity_schema(),
+            })
+            .await
+            .expect("an unreadable legend must not fail the whole perception");
+        join_server(server).await;
+        assert_eq!(
+            result.instances,
+            vec![serde_json::json!({"class": ":Case", "severity": ":Moderate"})],
+            "the index fallback answers 1.05 as the declared level 1"
+        );
+        assert_eq!(
+            result
+                .accounting
+                .raw_metadata
+                .as_ref()
+                .and_then(|m| m.pointer("/unreadable_score_legends"))
+                .cloned(),
+            Some(serde_json::json!(["i0_severity"])),
+            "the trace must show the level did not come from the legend: {:?}",
+            result.accounting.raw_metadata
         );
     }
 
