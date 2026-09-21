@@ -453,7 +453,8 @@ land *between* levels; **Noul** returns a single 0–1 number and **no `confiden
 Question keys are client-side only — *"The key is not sent to the underlying model and is
 not used in inference."* Questions are *"evaluated independently, so adding more questions
 does not create context-rot."* Context is **64k tokens per request, 32k for `state` plus
-the single longest question**. Input is **text only** — no image, audio or video. Rate
+the single longest question** — reconciled against OpenRouter's `context_length` of 32000
+in §3.5. Input is **text only** — no image, audio or video. Rate
 limits are **250,000 tokens/sec and 1,200 requests/min**, explicitly subject to change
 without notice. There is **no fine-tuning or LoRA** — "the same weights serve every
 account". English is "the primary training language and where accuracy is currently best."
@@ -600,6 +601,18 @@ TypeSafe API priced above and the unresolved waitlist-vs-general-availability qu
 | `supported_parameters` | **`[]`** — empty |
 | `uptime_last_1d` | 100 |
 
+**[measured]** **One row of that table sits beside a number §3.2 already records, so it is
+reconciled here rather than left to collide.** The OpenRouter record gives `context_length`
+**32000** and `max_completion_tokens` **28800** (retrieved 2026-09-21). §3.2 gives, from
+TypeSafe's own API reference, **64k tokens per request, of which 32k is for `state` plus the
+single longest question**.
+
+**[inference]** The two are consistent rather than contradictory: OpenRouter exposes a
+single model-level window, and 32000 lines up with the state-plus-question limit rather than
+the 64k per-request total. `max_completion_tokens` is exactly 90% of `context_length`, which
+may help a reader see the shape — but **neither source explains that ratio**, and this dive
+does not guess at one. It is recorded as unexplained.
+
 **[measured]** **How the dive missed it, recorded because the retrieval method is the
 finding.** Jev does **not** appear in the standard `GET /api/v1/models` listing — 446
 models on 2026-09-21, zero TypeSafe or Jev entries. It is reachable only by the
@@ -628,7 +641,7 @@ said plainly.
   it, and for a clinical deployment an extra intermediary is a fact to assess, not a
   reassurance.
 
-**[measured]** **And the one apparent contradiction is measurable, not a new open
+**[measured]** **And the other apparent contradiction is measurable too, not a new open
 question.** The OpenRouter endpoint record advertises `supports_tool_choice` with `none`, `auto`, `required` and
 `function` all `true`, which appears to contradict correction #6 in §3.1 ("Jev has no
 tool-calling surface at all", from TypeSafe's launch blog). Three sampled models whose

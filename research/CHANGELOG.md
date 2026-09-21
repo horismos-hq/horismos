@@ -81,4 +81,8 @@ Append-only. One line per merged PR: date, PR link, summary.
   blockers standing, and that this adds a fifth practical one. The OpenRouter record's
   `supports_tool_choice` field, which appeared to contradict intake correction #6, was
   checked against three non-tool models that carry the identical flag, so it is not a
-  capability statement about Jev; correction #6 stands.
+  capability statement about Jev; correction #6 stands. Also completes a correction PR #17
+  left half-applied: the PCCP-date marker on
+  [`validation/regulatory.md`](validation/regulatory.md) reached only that page's **Claim**,
+  though its own Last-verified note already recorded the correction as appearing in both —
+  the **Evidence** paragraph now carries it too.
