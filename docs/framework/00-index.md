@@ -57,7 +57,7 @@ workflow, your provider clients, or your standard terminology — it overlays th
 - **"I build agents today"** → 01 (the comparison table), 07 (tools inversion), 06.
 - **"I'm the SME"** → 13 only. You will never read Turtle unless you want to.
 - **"I'm integrating against FHIR/CIS or a coding harness"** → 01's comparison table for
-  where Horismos sits, then 08 and 14 for the host SPI mechanism and its exact prototype
+  where Horismos sits, then 14 for the host SPI mechanism and its exact prototype
   limits; docs 03 and 14 for how the projection boundary works today, and `examples/vte/`
   for the recorded vertical slice.
 
