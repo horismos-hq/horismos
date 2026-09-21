@@ -5,8 +5,7 @@ Everything here is importable from the top level unless noted.
 
 The PRP-008 host SPI and adapters are Rust-only in v1. Whole-bundle Python entry/exit
 surfaces are not exported yet; FHIR/repository parsing and mapping logic stay outside
-`horismos-py` and this package (no logic in bindings, `.claude/skills/pyo3-boundary`,
-unchanged). Everything below remains the current shipped Python API.
+`horismos-py` and this package (no logic in bindings). Everything below remains the current shipped Python API.
 
 ## Quickstart (the canonical triage run)
 
@@ -61,7 +60,7 @@ print(world.explain(p, ":acuity").render())
 | `ns` | `NamespaceMap` | `onto.ns.triage.Patient` → IRI |
 | `schema_for` | `(class_or_step) -> dict` | The derived JSON Schema (doc 06) — inspectable |
 | `diff` | `(other) -> OntologyDiff` | Domain-term rendered diff |
-| `version` / `hash` | `str` | Deployment identity, stamped into traces — deferred (2026-08-18): no ontology-level version vocabulary exists to bind yet; PRP-004's trace stamping is the consumer (gap note in `PRPs/PRP-003-python-bindings/02-tasks-and-gaps.md`) |
+| `version` / `hash` | `str` | Deployment identity, stamped into traces — deferred (2026-08-18): no ontology-level version vocabulary exists to bind yet, and PRP-004's trace stamping is the consumer that would need it |
 
 ### `VerificationReport`
 
@@ -115,10 +114,9 @@ exact quickstart and deliberately not shipped: imported vocabularies flood
 the proxy namespace (the SNOMED subset alone contributes ~50 numeric
 locals, which are not even legal Python attribute names), and a second
 Python-side naming system would diverge from what errors and proofs
-render. Decision record and evidence:
-`PRPs/PRP-003-python-bindings/03-decision-instances.md` (2026-08-18) —
-revisit alongside `horismos stubgen` codegen when PRP-007's authoring
-tooling generates ontology artifacts anyway.
+render. Decided 2026-08-18 in PRP-003 on a prototyped-and-rejected
+generated-proxy design — revisit alongside `horismos stubgen` codegen
+when PRP-007's authoring tooling generates ontology artifacts anyway.
 
 ## `World`
 
@@ -128,7 +126,7 @@ tooling generates ontology artifacts anyway.
 | `retract` | `(ref, property, value)` | Policy-checked (doc 03) |
 | `instances` | `(class_) -> list[Ref]` | Subsumption-aware |
 | `value` / `values` | `(ref, property)` | Single / multi-valued |
-| `query` | `(class_, **patterns) -> list[Ref]` | Class-scoped conjunctive patterns (doc 03 § Queries); a textual SPARQL front end is deferred beyond v1 (2026-08-18, `PRPs/PRP-003-python-bindings/03-decision-query.md`) |
+| `query` | `(class_, **patterns) -> list[Ref]` | Class-scoped conjunctive patterns (doc 03 § Queries); a textual SPARQL front end is deferred beyond v1 (decided 2026-08-18 in PRP-003) |
 | `prove` | `(ref, property, value) -> ProofNode \| None` | Backward chaining |
 | `explain` | `(ref, property) -> ProofNode \| None` | Derivation of an existing fact |
 | `snapshot` / `from_snapshot` / `diff` | | Persistent snapshots |

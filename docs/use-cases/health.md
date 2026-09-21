@@ -1,6 +1,6 @@
 # Health
 
-Three scenes: VTE prophylaxis (the recommended first standards-anchored vertical slice for PRP-008), the triage flagship you met in the quickstart, and prior authorization — which is precisely the kind of decision that needs an appealable proof, and precisely why it is not the first build.
+Three scenes: VTE prophylaxis (the standards-anchored vertical slice that was built for PRP-008), the triage flagship you met in the quickstart, and prior authorization — which is precisely the kind of decision that needs an appealable proof, and precisely why it is not the first build.
 
 ## VTE prophylaxis
 
@@ -8,7 +8,7 @@ Three scenes: VTE prophylaxis (the recommended first standards-anchored vertical
 
 A patient is admitted. Hospital-acquired venous thromboembolism is a leading preventable cause of in-hospital death, and the intervention is well understood: stratify risk, check contraindications, order prophylaxis. A randomized trial of a computerized alert for exactly this decision (Kucher et al., NEJM 2005; 1,255 vs. 1,251 patients) markedly reduced DVT and PE — the mechanism class works when it fires reliably. An LLM agent reading the chart can tell you the risk factors; what it cannot give you is a guarantee that it applied the protocol the same way for every patient, or a reason a pharmacist can audit.
 
-The research wiki ranks this scenario first for Horismos (`research/scenarios/vte-prophylaxis.md`): the inputs are almost entirely structured EHR facts, the logic is bounded (a published score plus a contraindication check), and the action is a typed order. That is the structured-input path — no model in the loop at all.
+Our scenario ranking puts this one first for Horismos: the inputs are almost entirely structured EHR facts, the logic is bounded (a published score plus a contraindication check), and the action is a typed order. That is the structured-input path — no model in the loop at all.
 
 ### The overlay
 
@@ -108,9 +108,9 @@ What it would not do: say anything about whether the Padua thresholds are clinic
 
 ### Status and honest edges
 
-- The overlay runs today with structured input. Hydrating it from FHIR (Observation, Condition, MedicationStatement) with source versions in the proof, and committing a proposed order back conditionally, is PRP-008's vertical slice — which scenario it builds first (VTE, NEWS2, sepsis-bundle compliance) is a pending captain decision recorded in `PRPs/BOARD.md`.
+- The overlay runs today with structured input. Hydrating it from FHIR (Observation, Condition, MedicationStatement) with source versions in the proof, and committing a proposed order back conditionally, was PRP-008's vertical slice, and VTE is the scenario it was built for: `examples/vte` runs that slice over a recorded bundle.
 - Thresholds here are illustrative. Padua ≥ 4 is the published high-risk cutoff; the contraindication values are teaching numbers.
-- No head-to-head clinical trial of a hard-gated ontology system exists in the literature the wiki surveyed. Horismos's safety argument is architectural, not yet measured for itself.
+- No head-to-head clinical trial of a hard-gated ontology system exists in the literature we surveyed. Horismos's safety argument is architectural, not yet measured for itself.
 
 ## Triage (the flagship)
 
@@ -120,4 +120,4 @@ The quickstart runs it end to end. The point it makes for health specifically: a
 
 Prior authorization has the strongest FHIR prior art of anything surveyed (Da Vinci CRD/DTR/PAS is literally the use case), CMS-0057-F mandates FHIR PA APIs, and Epic put hook-triggered third-party coverage-requirements services into production in August 2026. The shape fits Horismos exactly: structured inputs, bounded rules, a typed determination, and a proof tree that makes every denial appealable.
 
-The research wiki nonetheless rules it out as a *first* build (`research/scenarios/ruled-out.md`): the documented harms — a litigated "known 90% error rate" in one Medicare Advantage tool, 300,000 claims batch-denied at about 1.2 seconds each in another — came from opaque automation in an adversarial payer workflow, and a pre-alpha framework has no business there until it has a trust record. The [Insurance](insurance.md) page shows the adjudication shape with a proof per denial; the operating decision about when to deploy it is a human one.
+We nonetheless rule it out as a *first* build: the documented harms — a litigated "known 90% error rate" in one Medicare Advantage tool, 300,000 claims batch-denied at about 1.2 seconds each in another — came from opaque automation in an adversarial payer workflow, and a pre-alpha framework has no business there until it has a trust record. The [Insurance](insurance.md) page shows the adjudication shape with a proof per denial; the operating decision about when to deploy it is a human one.

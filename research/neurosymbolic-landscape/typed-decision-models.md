@@ -116,25 +116,25 @@ choose the wrong one."*
 **[measured — local repo]** at `adfc27a`:
 
 - The neural surface is one trait with three working methods — `perceive`, `narrate`,
-  `rank` ([`crates/horismos-core/src/bridge/mod.rs`](https://github.com/billaram/horismos/blob/adfc27a/crates/horismos-core/src/bridge/mod.rs):23-41) —
+  `rank` ([`crates/horismos-core/src/bridge/mod.rs`](https://github.com/horismos-hq/horismos/blob/adfc27a/crates/horismos-core/src/bridge/mod.rs):23-41) —
   routed by model-string prefix through a `BTreeMap<String, Arc<dyn Bridge>>`
-  ([`workflow/agent.rs`](https://github.com/billaram/horismos/blob/adfc27a/crates/horismos-core/src/workflow/agent.rs):165, 207), with
+  ([`workflow/agent.rs`](https://github.com/horismos-hq/horismos/blob/adfc27a/crates/horismos-core/src/workflow/agent.rs):165, 207), with
   `hf:` and `onnx:` already reserved for "classification-style perception without a
-  frontier model" ([`docs/framework/08-bridge.md`](https://github.com/billaram/horismos/blob/adfc27a/docs/framework/08-bridge.md)).
+  frontier model" ([`docs/framework/08-bridge.md`](https://github.com/horismos-hq/horismos/blob/adfc27a/docs/framework/08-bridge.md)).
 - `rank`'s signature is a categorical decision over a closed, runtime-computed candidate
   set returning `chosen` plus a confidence — the same shape as a Choice question — but
   **`ProposalStep` does not execute in v1**: `StepBody::Proposal(_) => Err(…)`
-  ([`workflow/agent.rs`](https://github.com/billaram/horismos/blob/adfc27a/crates/horismos-core/src/workflow/agent.rs):454)
+  ([`workflow/agent.rs`](https://github.com/horismos-hq/horismos/blob/adfc27a/crates/horismos-core/src/workflow/agent.rs):454)
   and "nothing in this PRP calls `Bridge::rank`"
-  ([`workflow/deferred.rs`](https://github.com/billaram/horismos/blob/adfc27a/crates/horismos-core/src/workflow/deferred.rs):5-7).
+  ([`workflow/deferred.rs`](https://github.com/horismos-hq/horismos/blob/adfc27a/crates/horismos-core/src/workflow/deferred.rs):5-7).
 - Acceptance is `accepted = result.confidence >= p.confidence`
-  ([`workflow/agent.rs`](https://github.com/billaram/horismos/blob/adfc27a/crates/horismos-core/src/workflow/agent.rs):492)
+  ([`workflow/agent.rs`](https://github.com/horismos-hq/horismos/blob/adfc27a/crates/horismos-core/src/workflow/agent.rs):492)
   over a number the model **self-reports** in a tool-call field
-  ([`crates/horismos-bridges/src/openrouter.rs`](https://github.com/billaram/horismos/blob/adfc27a/crates/horismos-bridges/src/openrouter.rs):322-331);
+  ([`crates/horismos-bridges/src/openrouter.rs`](https://github.com/horismos-hq/horismos/blob/adfc27a/crates/horismos-bridges/src/openrouter.rs):322-331);
   doc 08 states this is "one calibration strategy for every provider" with logprob-derived confidence "a future
   per-backend enhancement".
 - Narration falls back to the mechanical `proof.render()` on any bridge error
-  ([`workflow/agent.rs`](https://github.com/billaram/horismos/blob/adfc27a/crates/horismos-core/src/workflow/agent.rs):814-822, D7).
+  ([`workflow/agent.rs`](https://github.com/horismos-hq/horismos/blob/adfc27a/crates/horismos-core/src/workflow/agent.rs):814-822, D7).
 - Doc 06 states the invariant the whole comparison turns on: confidence is "metadata, not
   truth: it gates acceptance … it never weights inference. There is no fuzzy logic in
   Horismos."
@@ -265,7 +265,7 @@ surface**" rather than contradicting it.
 **[inference]** Resale changes the contracting party, not the processing, so **every
 trust-posture finding on this page stands unchanged**. And what improved is *access*, not
 *integration*: this repo's only non-mock `Bridge`
-([`crates/horismos-bridges/src/openrouter.rs`](https://github.com/billaram/horismos/blob/adfc27a/crates/horismos-bridges/src/openrouter.rs))
+([`crates/horismos-bridges/src/openrouter.rs`](https://github.com/horismos-hq/horismos/blob/adfc27a/crates/horismos-bridges/src/openrouter.rs))
 forces a `tool_choice` on every call and fails when the reply carries no `tool_calls`, so
 it cannot talk to Jev as written.
 

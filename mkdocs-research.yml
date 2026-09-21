@@ -14,8 +14,8 @@ site_description: >-
   The evidence-tagged research corpus behind Horismos: the founding reality-check
   sweep, the bounded-projection pivot and its standing alignment verdict, the
   RL-axis deep dive, and the living wiki they feed.
-repo_url: https://github.com/billaram/horismos
-repo_name: billaram/horismos
+repo_url: https://github.com/horismos-hq/horismos
+repo_name: horismos-hq/horismos
 edit_uri: edit/main/research/
 copyright: Research corpus of the Horismos project. Every claim carries a [measured] or [inference] tag.
 

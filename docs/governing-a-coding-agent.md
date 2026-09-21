@@ -4,7 +4,7 @@ Your coding agent — Claude Code, Codex, pi, a harness of your own — proposes
 
 ## Why prompt-level policy is not enough
 
-The research wiki's survey of harnesses (`research/neurosymbolic-landscape/coding-agent-harnesses.md`, 2026-09-02) finds the same shape everywhere:
+Our survey of the shipping coding-agent harnesses — Claude Code, Codex CLI, Gemini CLI and Cursor, read against their own documentation as of 2026-09-02 — finds the same shape everywhere:
 
 - **Policies cannot see state.** Codex rules "evaluate command prefixes only — they cannot reference repository state, file contents, or environmental conditions." Gemini CLI's policy engine predicates over tool name, argument patterns and annotations only.
 - **The approval step is going neural.** Codex `auto_review`, Claude Code `auto` mode, and Cursor Auto-review put a classifier inside the decision; Cursor calls its run modes "best-effort guardrails rather than a hard security boundary."
@@ -209,9 +209,9 @@ What the boundary proves: the proposal was policy-legal and passed its declared 
 |---|---|
 | Typed proposal facts, RulesOnly decision, proofs, truth maintenance, the gate refusing self-approval | **Runs today** — everything on this page executed against the shipped engine |
 | Workflow around it (`ReasoningStep` with `onUnreachable` → human, `ActionStep` firing a merge tool with a validated effect) | Declared vocabulary and Rust interpreter exist today (`make demo` runs the triage workflow); a change-gate workflow is a Turtle exercise, not new engine work |
-| Base-hash check, sandbox execution, and the proposal envelope as a first-class typed boundary | **Landing in PRP-008** (host-adapter/runtime side) — the envelope's `horis:` vocabulary is minted jointly with PRP-007 |
-| A coding-harness adapter that materializes repository state (branch, dirty files, test status, path scopes) as a versioned projection with conditional commit | **Landing in PRP-008** — the second-domain proof that the host SPI is format-neutral, not FHIR-shaped |
+| Base-hash check, sandbox execution, and the proposal envelope as a first-class typed boundary | **Ships today** — `horismos-host::artifact` carries the typed proposal envelope, the base-hash check (`RejectionStage::BaseHash`), and the sandbox and authorization evidence terms; running the sandbox stays yours (the `Sandbox` trait), and the kernel checks only the typed results it hands back |
+| A coding-harness adapter that materializes repository state (branch, dirty files, test status, path scopes) as a versioned projection with conditional commit | **Ships today** — `horismos-harness`, the second-domain proof that the host SPI is format-neutral, not FHIR-shaped |
 | Compiling a fragment from an existing `SKILL.md` / tool schema, with a coverage report | **Planned in PRP-007** (after PRP-008) |
 | Completeness / conflict / dead-rule verification of the eleven rules, with domain-term witnesses | **Yes** — `verify()` proves `:gateDecision` total and conflict-free; `Ontology.load` refuses the overlay otherwise |
 
-Track the live status on the [roadmap](roadmap.md) and in `PRPs/BOARD.md`.
+Track the live status on the [roadmap](roadmap.md), which is reconciled against the project board on every status change.

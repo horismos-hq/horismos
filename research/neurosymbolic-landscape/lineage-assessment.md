@@ -55,7 +55,7 @@ a roadmap conversation.
 **[measured]** Under the pivot the inherited positioning statement is "a deterministic,
 ontology-first decision and capability kernel that evaluates a versioned projection of
 an existing system, proves why an effect is allowed, and conditionally commits through
-standards-native adapters" ([`PRPs/PRP-000-vision-positioning.md`](https://github.com/billaram/horismos/blob/main/PRPs/PRP-000-vision-positioning.md)). The closest
+standards-native adapters" ([`PRPs/PRP-000-vision-positioning.md`](https://github.com/horismos-hq/horismos/blob/main/PRPs/PRP-000-vision-positioning.md)). The closest
 architectural precedents found this sweep: ATA — offline LLM ingestion into a
 human-verifiable symbolic knowledge base, an online symbolic decision engine "without
 invoking the LLM," claiming perfect determinism and prompt-injection immunity
@@ -109,7 +109,7 @@ abstracts**; the vocabulary attaches to him through his NeurIPS 2019 keynote
 
 **[inference]** Under the literature's own definitions, **Horismos is a System 2** —
 explicit search over declared rules with backtracking
-([`crates/horismos-core/src/reason/backward.rs`](https://github.com/billaram/horismos/blob/adfc27a/crates/horismos-core/src/reason/backward.rs)), a symbolic decision procedure, and a
+([`crates/horismos-core/src/reason/backward.rs`](https://github.com/horismos-hq/horismos/blob/adfc27a/crates/horismos-core/src/reason/backward.rs)), a symbolic decision procedure, and a
 proof. That is a third lineage label available to this page, and it has a property the
 other two lack: it is *current*, it is *published*, and it places Horismos in the slot a
 2025 ICLR paper already reserved for a symbolic engine.

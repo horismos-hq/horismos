@@ -2,7 +2,7 @@
 
 ## The scene
 
-A claim arrives. First-pass adjudication is exactly the decision regulators and courts have been looking at: when it is automated opaquely, the record is not good. One Medicare Advantage tool faced litigation over an alleged "known 90% error rate"; ProPublica found another payer batch-denied 300,000 claims in two months at roughly 1.2 seconds per claim; a 2026 Senate and OIG inquiry followed (`research/scenarios/ruled-out.md`). CMS-0057-F now requires FHIR prior-authorization APIs, and the Da Vinci CRD/DTR/PAS guides define the wire.
+A claim arrives. First-pass adjudication is exactly the decision regulators and courts have been looking at: when it is automated opaquely, the record is not good. One Medicare Advantage tool faced litigation over an alleged "known 90% error rate"; ProPublica found another payer batch-denied 300,000 claims in two months at roughly 1.2 seconds per claim; a 2026 Senate and OIG inquiry followed. CMS-0057-F now requires FHIR prior-authorization APIs, and the Da Vinci CRD/DTR/PAS guides define the wire.
 
 None of that argues against automation. It argues against automation that cannot say *why*. The Horismos version of this decision produces, for every determination, a proof tree that names the exact clause it rests on — which is what makes a denial appealable and an approval auditable.
 
@@ -102,5 +102,5 @@ What verification does not claim: that the plan document was transcribed correct
 ## Status and honest edges
 
 - Runs today with structured input. Hydrating claims from a FHIR Claim/Coverage bundle with source versions in the proof, and returning a ClaimResponse or a CDS Hooks card conditionally, is PRP-008 territory.
-- The research wiki deliberately deprioritizes prior authorization as a *first* Horismos deployment because of the harm record above — a maturity and liability judgment, not a technical one. The mechanism shown here is what a trustworthy deployment would need; when to deploy it is a human decision.
+- We deliberately deprioritize prior authorization as a *first* Horismos deployment because of the harm record above — a maturity and liability judgment, not a technical one. The mechanism shown here is what a trustworthy deployment would need; when to deploy it is a human decision.
 - Thresholds and rules are illustrative. A real plan has hundreds of clauses; the shape does not change.

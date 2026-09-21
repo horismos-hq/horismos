@@ -123,17 +123,16 @@ Summarized here, specified in doc 05:
 
 ## Standard-artifact anchoring
 
-The pivot to a bounded projection kernel (`PRPs/PRP-000-vision-positioning.md`) keeps this
-profile exactly as specified above — no new `horis:` terms are minted for external
-terminology anchoring itself;
-the governing D-items are resolved in
-`PRPs/PRP-008-standards-host-integration/03-decisions.md`, per this repo's rule that
+The pivot to a bounded projection kernel keeps this profile exactly as specified above —
+no new `horis:` terms are minted for external terminology anchoring itself, and the
+governing design questions are resolved inside PRP-008, per this project's rule that
 vocabulary is never invented ad hoc. What changes is the
 *honesty* of the anchoring story: `owl:sameAs` alone is necessary but not sufficient for
 real interoperability. A single-parent, unversioned anchor (`:ChestPain owl:sameAs
 sct:29857009`, no edition) loses SNOMED CT's polyhierarchy and cannot express "which
 release this anchor was checked against" — the current triage fixture demonstrates exactly
-this gap (`research/terminology/snomed-ct.md`). PRP-008 extends anchoring with:
+this gap: its SNOMED subset is ~50 concepts, single-parent only, with no edition
+recorded. PRP-008 extends anchoring with:
 
 - **versioned mappings** — which standard-vocabulary edition/version an anchor was
   verified against, not just the bare IRI;

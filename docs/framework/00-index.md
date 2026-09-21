@@ -7,12 +7,12 @@
 
 > **Status**: framework *definition*, v0.1 — written in shipped voice so every contract
 > is concrete and arguable, reviewed before implementation. Where behavior is still an
-> open decision it is marked **[DECIDE]** and cross-referenced to a PRP in `../../PRPs/`.
-> **Pivot adopted 2026-08-24** (bounded projection kernel — `PRPs/PRP-000-vision-
-> positioning.md` §"Snapshot-scoped guarantees"): docs below are updated at the contract
-> level for the new positioning. PRP-008's host SPI, FHIR and repository adapters,
-> CDS-Hooks surface, and bounded PlanDefinition subset are now shipped; remaining
-> future behavior stays marked and owned by its PRP.
+> open decision it is marked **[DECIDE]** and owned by exactly one phase plan, which is
+> where it gets resolved — never ad hoc. The [Roadmap](../roadmap.md) lists the phases.
+> **Pivot adopted 2026-08-24** (bounded projection kernel, snapshot-scoped guarantees):
+> docs below are updated at the contract level for the new positioning. PRP-008's host
+> SPI, FHIR and repository adapters, CDS-Hooks surface, and bounded PlanDefinition subset
+> are now shipped; remaining future behavior stays marked and owned by its PRP.
 
 ## The one-paragraph mental model
 
@@ -56,10 +56,10 @@ workflow, your provider clients, or your standard terminology — it overlays th
 - **"I'm reviewing trust/deployment risk"** → 15, then 06/07/08/09/13 for the boundaries it cites.
 - **"I build agents today"** → 01 (the comparison table), 07 (tools inversion), 06.
 - **"I'm the SME"** → 13 only. You will never read Turtle unless you want to.
-- **"I'm integrating against FHIR/CIS or a coding harness"** → `PRPs/PRP-000-vision-
-  positioning.md`'s comparison table, then `PRPs/PRP-008-standards-host-integration/01-objective.md`
-  for the mechanism and its exact prototype limits; docs 03 and 14 for how the projection
-  boundary works today, and `examples/vte/` for the recorded vertical slice.
+- **"I'm integrating against FHIR/CIS or a coding harness"** → 01's comparison table for
+  where Horismos sits, then 14 for the host SPI mechanism and its exact prototype
+  limits; docs 03 and 14 for how the projection boundary works today, and `examples/vte/`
+  for the recorded vertical slice.
 
 ## The running example
 
@@ -69,11 +69,13 @@ derives acuity through rules over a SNOMED-anchored symptom hierarchy, and route
 a queue via an EHR tool. It exercises every framework feature. The full file is built
 up progressively in docs 02–07.
 
-## Research wiki
+## Research
 
-`../../research/` reality-checks this design against the field (CIG formalisms,
+A standing research corpus reality-checks this design against the field (CIG formalisms,
 neuro-symbolic AI, clinical validation practice, terminology engineering,
-agent-authored ontologies) — see `research/README.md`.
+agent-authored ontologies). Every claim in it is tagged `[measured]` or `[inference]`
+with its primary source, and it is re-run weekly; what it currently concludes about the
+load-bearing commitments is summarised on [Guarantees](../guarantees.md).
 
 ## Prior art
 

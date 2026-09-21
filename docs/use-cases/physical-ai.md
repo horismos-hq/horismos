@@ -4,7 +4,7 @@
 
 A learned policy — a VLA model, an RL controller, an LLM planner — proposes a motion command for a mobile manipulator. The proposal is probably fine. "Probably" is not the standard for a robot arm moving near a person. The established pattern is a **shield**: a deterministic layer between the policy and the actuator that checks each proposed action against a specification of safe states and blocks or attenuates the ones that violate it (Alshiekh et al., "Safe Reinforcement Learning via Shielding", AAAI 2018). The policy stays free to be clever inside the envelope; the envelope is not negotiable.
 
-The 2026 agent-safety literature the research wiki tracks converges on the same shape for software agents — deterministic pre-execution gates over declared constraints and current state (`research/neurosymbolic-landscape/pivot-alignment.md`, C6): SMT policies checked before a call, temporal-logic monitors over action traces, in-kernel enforcement because "tool-call guardrails cannot intercept system actions that bypass the tool layer," and freshness-bounded approval because a verdict "correct at check time" can be "stale by actuation." A robot makes every one of those concerns physical.
+The 2026 agent-safety literature converges on the same shape for software agents — deterministic pre-execution gates over declared constraints and current state: SMT policies checked before a call, temporal-logic monitors over action traces, in-kernel enforcement because "tool-call guardrails cannot intercept system actions that bypass the tool layer," and freshness-bounded approval because a verdict "correct at check time" can be "stale by actuation." A robot makes every one of those concerns physical.
 
 ## The overlay
 

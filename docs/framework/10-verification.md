@@ -109,17 +109,20 @@ Every `VerificationReport` carries an explicit `assumptions` manifest alongside
 `supported_subset`, and `unverified_external_effects`. Each field is populated or
 explicitly empty, so scope is machine-readable rather than implied by silence. The
 container is the provisional PRP-005 shape; PRP-008 may replace its value types with
-`ExternalSnapshot`-native types, but the five fields are fixed.
-Full spec: `PRPs/PRP-005-guarantees-verification/01-objective.md`
-§"Assumption manifest". This section
+`ExternalSnapshot`-native types, but the five fields are fixed. This section
+is the contract; PRP-005 owns the manifest's full specification. It
 exists precisely so the "does not claim" list below is enforced structurally, not just
 stated in prose.
 
 ## Non-vacuity (added 2026-08-24)
 
 A rule or constraint can be internally consistent and BDD-verifiable while binding
-nothing — the LASA/CHARGE "vacuous verification" failure mode
-(`horismos-research-s1/report.md` §1.7). The distinct non-vacuity pass flags a
+nothing — "vacuous verification", a failure mode named and explicitly designed against
+in the formal-code-verification literature ([LASA](https://arxiv.org/abs/2506.17865),
+[CHARGE](https://arxiv.org/abs/2607.27776), ["From Natural Language to Verified
+Code"](https://arxiv.org/abs/2604.22601)). It has no ontology-specific precedent yet,
+but an exact structural analog here: a drafted rule that never fires, or a constraint
+that excludes nothing. The distinct non-vacuity pass flags a
 satisfiable condition whose conclusion adds no new fact and a constraint that excludes
 no value in the declared domain. Both findings carry a domain-term witness and a
 machine-readable region. A bound that can never reject a value of the property's own
@@ -127,9 +130,8 @@ type — `horis:min`/`horis:max` on a non-numeric property, `horis:pattern` on a
 non-string property, or a universal pattern — is an error. An explicit
 `horis:cardinality "0..*"` is a documented authored value (doc 02) that restates the
 default, so it is reported at `info` severity: the note appears in `report.witnesses`
-but does not make `report.ok` false or block the default-hard load. Full spec:
-`PRPs/PRP-005-guarantees-verification/01-objective.md`
-§"Non-vacuity checks".
+but does not make `report.ok` false or block the default-hard load. PRP-005 owns the
+full specification of these checks.
 
 ## Imported-artifact and capability checks
 

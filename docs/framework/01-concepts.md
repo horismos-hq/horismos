@@ -14,8 +14,8 @@
 ## The nouns
 
 Four nouns added by the bounded-projection pivot (2026-08-24) sit alongside the original
-seven; host-integration ones name mechanism `PRPs/PRP-008-standards-host-integration/01-objective.md`
-owns, not new `horis:` vocabulary minted here (`docs/framework/02-ontology.md`):
+seven; the host-integration ones name mechanism that PRP-008 owns, not new `horis:`
+vocabulary minted here (see [The Ontology](02-ontology.md)):
 
 | Noun | What it is | Lives in |
 |------|-----------|----------|
@@ -53,9 +53,12 @@ verification, or a transaction in progress (doc 03, doc 14).
 | Relationship to your existing state | Replaces it, or bolts state onto its own scratch | Overlays it: gates selected high-stakes decisions/effects inside your system of record, doesn't replace your state or control flow |
 
 Horismos is not "we replace your state and control flow" — it is "we prove and gate one
-decision inside it." See `PRPs/PRP-000-vision-positioning.md` §"Comparison" for how this
-overlay posture differs specifically from FHIR, CQL, CDS Hooks, PlanDefinition, and
-coding-agent harnesses.
+decision inside it." Against the adjacent standards the distinction is the same one:
+FHIR and its profiles model the data, CQL computes over it, CDS Hooks carries the call,
+and PlanDefinition describes the plan — none of them decides under a rule set you can
+verify before deployment and hands back a proof of the decision. Horismos composes with
+all four rather than replacing any. The comparison against coding-agent harnesses is on
+[Coding agents](../governing-a-coding-agent.md).
 
 ## What Horismos is not
 
