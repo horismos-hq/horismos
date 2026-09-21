@@ -179,7 +179,7 @@ These are the failure classes working agent teams keep meeting. The numbers are 
 <div class="horis-cmp" markdown>
 
 <div class="horis-cmpcard" markdown>
-#### Silent wrong-state failures — the run "succeeds", the state is wrong, no tool errored
+### Silent wrong-state failures — the run "succeeds", the state is wrong, no tool errored
 
 <p class="horis-meas" markdown><span class="horis-lbl">What was measured</span>In τ²-bench airline, 78% of observed failures were silent wrong-state failures with no tool error; deterministic read-only pre-execution gates raised task success from 29.6% to 42.0% ([arXiv:2607.07405](https://arxiv.org/abs/2607.07405))</p>
 
@@ -187,7 +187,7 @@ These are the failure classes working agent teams keep meeting. The numbers are 
 </div>
 
 <div class="horis-cmpcard" markdown>
-#### Stale approvals — correct when checked, stale when acted on
+### Stale approvals — correct when checked, stale when acted on
 
 <p class="horis-meas" markdown><span class="horis-lbl">What was measured</span>Approval verdicts changed in 5.3–48.4% of cases after an eight-step replay shift ([arXiv:2608.26306](https://arxiv.org/abs/2608.26306)); models produced stale-aligned decisions 74.7–77.3% of the time, while version-stamp checks were 100% deterministic ([arXiv:2608.25553](https://arxiv.org/abs/2608.25553), [arXiv:2609.00243](https://arxiv.org/abs/2609.00243))</p>
 
@@ -195,7 +195,7 @@ These are the failure classes working agent teams keep meeting. The numbers are 
 </div>
 
 <div class="horis-cmpcard" markdown>
-#### Prompt injection flipping the conclusion
+### Prompt injection flipping the conclusion
 
 <p class="horis-meas" markdown><span class="horis-lbl">What was measured</span>Under injection, five open models inverted a verified conclusion in 61% of trials; a hardened prompt cut that to 14%; only enforcement drove it to zero ([arXiv:2606.19588](https://arxiv.org/abs/2606.19588)). Six LLMs repeated a single planted fake lab value in 50–83% of clinical vignettes ([Communications Medicine, 2025](https://www.nature.com/articles/s43856-025-01021-3))</p>
 
@@ -203,7 +203,7 @@ These are the failure classes working agent teams keep meeting. The numbers are 
 </div>
 
 <div class="horis-cmpcard" markdown>
-#### Policies that cannot see state
+### Policies that cannot see state
 
 <p class="horis-meas" markdown><span class="horis-lbl">What was measured</span>Codex rules "evaluate command prefixes only — they cannot reference repository state"; after PocketOS lost production data to a blanket-scope token, the post-mortem read "guardrails must be implemented at the API gateway and token-permission level, not in advisory text" (`research/neurosymbolic-landscape/coding-agent-harnesses.md`)</p>
 
