@@ -16,6 +16,7 @@ hide:
 [Governing a coding agent](governing-a-coding-agent.md){ .md-button }
 
 <div class="horis-chips" markdown="span">
+<span>Day one: an opt-in bridge for [TypeSafe AI's Jev](#when-the-model-is-the-boundary) — typed answers, never prose</span>
 <span>Rust core · Python bindings</span>
 <span>Standard Turtle, RDFS-plus</span>
 <span>MIT OR Apache-2.0</span>
@@ -256,7 +257,7 @@ These are the failure classes working agent teams keep meeting. Every number bel
 
 ## When the model *is* the boundary
 
-Everything above is a discipline the kernel imposes on a model that would happily do more. TypeSafe's **Jev** is the other case. It is a `text → decisions` model: it takes free text plus a set of typed *questions* and returns one typed *answer* each — a probability, an option key, or an ordinal level. It has no text output channel at all. Not instructed not to write prose. **Cannot.**
+Everything above is a discipline the kernel imposes on a model that would happily do more. TypeSafe AI's **Jev** is the other case. It is a `text → decisions` model: it takes free text plus a set of typed *questions* and returns one typed *answer* each — a probability, an option key, or an ordinal level. It has no text output channel at all. Not instructed not to write prose. **Cannot.**
 
 Routed through the perception boundary, Jev proposes and only proposes. `JevBridge` translates the perception schema the runtime derives from your ontology into those three primitives: a boolean property becomes a probability, a closed vocabulary becomes a choice, an enumeration a deployment declares ordinal becomes a score. An ontology names it the same way it names any other model — `horis:model "jev:jev-1.13"` — and routing is per step, so a workflow can send perception to Jev and narration to a text-capable bridge in the same run. Ask Jev itself to narrate and it refuses without making a call: the model has no text output channel, and the bridge will not stitch prose out of answer keys.
 
