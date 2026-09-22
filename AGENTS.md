@@ -85,7 +85,8 @@ proof → NL). Delete the LLM and the kernel still runs.
   by declaring roots explicitly (`LoadOptions::permitted_import_roots` /
   `permitted_import_roots=[...]`), never by loosening the check — containment is a
   canonical-path comparison, so symlinks and name-prefix siblings do not slip through.
-  A `file:` IRI carrying a host is not a local path and is refused on every platform.
+  A `file:` IRI carrying a host other than `localhost` is not a local path and is refused
+  on every platform.
   Condition nesting and import chains are depth-capped (`reason::rule::MAX_CONDITION_DEPTH`,
   `ontology::imports::MAX_IMPORT_DEPTH`) because a stack overflow aborts the process
   rather than raising. Spec: `docs/framework/15-security.md` § Ontology loading.

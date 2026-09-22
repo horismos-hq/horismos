@@ -301,7 +301,7 @@ directory declares those directories explicitly at load; nothing else resolves.
 Containment is decided on canonical paths, so a symbolic link cannot walk out of a
 permitted root, and an out-of-root refusal reads identically whether or not the target
 exists, so it cannot be used to probe the filesystem. A `file:` IRI that names a host
-is not a local path and is refused outright, on every platform.
+other than `localhost` is not a local path and is refused outright, on every platform.
 
 **Deployer-owned:** reviewing what an ontology says before signing it off (doc 13),
 and the filesystem permissions of the process doing the loading. Confinement bounds
