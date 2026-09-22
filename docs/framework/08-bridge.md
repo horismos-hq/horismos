@@ -136,7 +136,7 @@ single call-level `confidence` carries, so `JevBridge` fills `fact_confidence`
 per proposed instance and records the per-property detail in the call's audit
 metadata. Both the per-instance and the call-level number are the *weakest*
 answer they cover, not an average: one coin-flip must not hide behind three
-certainties when the runtime compares against `horis:threshold`.
+certainties when the runtime compares against `horis:confidence`.
 
 The RDFS-plus profile has no vocabulary for "this enum is ordered" or for
 question wording, and neither is invented for this bridge. A deployment supplies
@@ -147,6 +147,306 @@ Worked end to end in `crates/horismos-bridges/examples/jev_vte_demo.rs`
 booleans with a probability each, and `examples/vte/vte.ttl`'s rules derive
 `:recommendation` — which is `horis:assignedBy horis:RulesOnly`, so it never
 appears in the schema the model is shown.
+
+#### The ontology it runs on
+
+```turtle title="examples/vte/vte.ttl — pulled from the file, in full"
+--8<-- "examples/vte/vte.ttl"
+```
+
+Four `xsd:boolean` properties on `:VteCase`, three rules, and a
+`:recommendation` carrying `horis:assignedBy horis:RulesOnly`. That last
+declaration is what makes the demo's claim checkable, because schema
+derivation drops a rules-only property before any Bridge is handed the
+schema. Derived from the file above, what the model is shown is:
+
+```json title="horismos_core::workflow::agent::extract_schema(&onto, &[:VteCase]), serialised"
+{
+  "properties": {
+    "confidence": {
+      "maximum": 1,
+      "minimum": 0,
+      "type": "number"
+    },
+    "instances": {
+      "items": {
+        "oneOf": [
+          {
+            "properties": {
+              "activeCancer": { "type": "boolean" },
+              "bleedingRisk": { "type": "boolean" },
+              "class": { "const": ":VteCase" },
+              "priorVte": { "type": "boolean" },
+              "reducedMobility": { "type": "boolean" }
+            },
+            "required": [
+              "class",
+              "reducedMobility",
+              "activeCancer",
+              "priorVte",
+              "bleedingRisk"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "type": "array"
+    }
+  },
+  "required": [
+    "instances",
+    "confidence"
+  ],
+  "type": "object"
+}
+```
+
+`:recommendation` is not in it. Not marked read-only, not discouraged in the
+instructions — absent. There is no field in which the model could return a
+recommendation, so the one thing the rules decide is the one thing perception
+cannot propose.
+
+#### Routing a step to it
+
+`vte.ttl` declares no workflow of its own; the demo calls `Bridge::perceive`
+directly with the schema above. A workflow that wanted the same perception
+routed to Jev declares the model the way any step declares one — the prefix
+before the colon is what selects the Bridge, and a `jev:` step extracts a
+single class. Routing is per step, so the mixed run described above is just
+two declarations in the one workflow:
+
+```turtle title="Illustrative — examples/vte/ ships no workflow; two steps, two prefixes, one run"
+:ReadNote a horis:PerceptionStep ;          # → the jev: Bridge
+    horis:extracts :VteCase ;
+    horis:model "jev:jev-1.13" ;
+    horis:confidence 0.85 ;
+    horis:fallback :EscalateToClinician ;
+    horis:next :Decide .
+
+:Explain a horis:NarrationStep ;            # → a text-capable Bridge
+    horis:narrates [ horis:property :recommendation ] ;
+    horis:audience "charge-nurse" ;
+    horis:model "claude:claude-fable-5" ;
+    horis:next :Done .
+```
+
+Each prefix is bound to a Bridge instance at deployment, and the binding is
+checked when the agent is built rather than when the step runs: with more than
+one Bridge bound, a step naming a prefix none of them covers fails there. A
+deployment that binds exactly one Bridge routes every step to it whatever
+prefix the step declares — which is how a single `mock:` bridge can stand in
+for both of the steps above.
+
+#### What each primitive becomes
+
+**A boolean becomes a `noul`.** Each of `:VteCase`'s four properties is one
+question. With no deployment hint the wording is generated from the property
+and class names:
+
+```json title="One of the four questions derived from vte.ttl, unhinted"
+"i0_reducedMobility": {
+  "type": "noul",
+  "instructions": "Does `reducedMobility` hold for this `:VteCase`?",
+  "criteria": {
+    "true":  "The text supports `reducedMobility` for this `:VteCase`.",
+    "false": "The text does not support `reducedMobility`, or states the contrary."
+  }
+}
+```
+
+A `PropertyHint` replaces all three strings — the ontology has no vocabulary
+for question wording, so the deployment supplies it alongside the Bridge:
+
+```json title="The same question, with the demo's hint wording"
+"i0_reducedMobility": {
+  "type": "noul",
+  "instructions": "Is the patient's mobility reduced relative to their usual baseline?",
+  "criteria": {
+    "true":  "Bed-bound, immobile, confined to a chair, or mobilising only with assistance.",
+    "false": "Independently mobile at their usual baseline."
+  }
+}
+```
+
+The answer is a probability, read back as a typed boolean plus a confidence:
+a `noul` of 0.04 is `false` at confidence 0.96.
+
+**A closed vocabulary becomes a `choice`.** The same three-member vocabulary
+`:VteRecommendation` declares, on a class where the property is not rules-only
+and so does reach the bridge:
+
+```json title="A three-member horis:oneOf, as a choice question"
+"i0_recommendation": {
+  "type": "choice",
+  "instructions": "Which `recommendation` does the text support for this `:Case`?",
+  "criteria": {
+    "PharmacologicProphylaxis": ":PharmacologicProphylaxis",
+    "HoldProphylaxis":          ":HoldProphylaxis",
+    "NoProphylaxisIndicated":   ":NoProphylaxisIndicated"
+  }
+}
+```
+
+The wire key is each member's local name — a safe identifier — and the
+answer is mapped back to the full member before it becomes a proposed fact.
+An answer naming an option the bridge never offered is not coerced to the
+nearest one; it is malformed output, and the step takes its fallback edge.
+When two members' local names collide, the later one falls back to its full
+member string rather than shadowing the first.
+
+**An ordinal enumeration becomes a `score`.** Ordinality is a deployment
+hint, not ontology vocabulary, and absent the hint an enum stays an unordered
+`choice`. With it, the members are sent as levels in declared order:
+
+```json title="The same shape of enum, declared ordinal"
+"i0_severity": {
+  "type": "score",
+  "instructions": "Which `severity` does the text support for this `:Case`?",
+  "criteria": ["Mild", "Moderate", "Severe"]
+}
+```
+
+A `score` of 1.05 over those three levels resolves to `:Moderate`, carrying
+the answer's own confidence. Where the response reports a legend mapping
+level to option key, that legend decides which level was named; only a
+response carrying no legend, or one that does not read as a whole, falls back
+to rounding to the nearest declared index — and an unreadable legend is
+recorded in the call's audit metadata rather than failing the call. The
+primitive takes 2–10 levels, so a twelve-member enum declared ordinal is
+refused rather than collapsed.
+
+#### The refusals, in their own words
+
+Every refusal below is raised while the schema is being translated, before
+any request is sent. The runtime treats each one exactly as it treats low
+confidence: the step takes its `horis:fallback` edge. The
+`jev:typesafe/jev-1.13` each message opens with is the `jev:` prefix and the
+model alias the bridge was configured with.
+
+```text title="BridgeError::Refused — domain_text(), one per offending schema"
+bridge jev:typesafe/jev-1.13 refused: property `heartRate` on `:Patient` has JSON Schema type `number`, and Jev answers only noul/choice/score — it cannot produce a number or a free string. Approximating it as a score would fabricate a measurement under perception provenance; supply `heartRate` through the external-snapshot path instead, or narrow its range to a closed vocabulary
+
+bridge jev:typesafe/jev-1.13 refused: property `chiefComplaint` on `:Patient` has JSON Schema type `string`, and Jev answers only noul/choice/score — it cannot produce a number or a free string. Approximating it as a score would fabricate a measurement under perception provenance; supply `chiefComplaint` through the external-snapshot path instead, or narrow its range to a closed vocabulary
+
+bridge jev:typesafe/jev-1.13 refused: property `admittedAt` on `:Patient` has JSON Schema type `string` (format `date-time`), and Jev answers only noul/choice/score — it cannot produce a number or a free string. Approximating it as a score would fabricate a measurement under perception provenance; supply `admittedAt` through the external-snapshot path instead, or narrow its range to a closed vocabulary
+
+bridge jev:typesafe/jev-1.13 refused: property `grade` on `:Case` is declared ordinal but has 12 levels; Jev's score primitive takes 2-10 ordered levels
+```
+
+Declaring `heartRate` ordinal does not unlock it. There are no declared
+levels to bucket a number into, and inventing some would be the fabricated
+measurement the refusal exists to prevent, so the hinted schema is refused by
+the same message.
+
+Narration is refused the same way, without making a call at all:
+
+```text title="BridgeError::Refused from narrate()"
+bridge jev:typesafe/jev-1.13 refused: Jev is a text→decisions model with no text output channel, so it cannot render a proof into prose. Register a text-capable bridge for the narration step; this bridge will not stitch prose out of answer keys.
+```
+
+#### One class per step, as a failure
+
+A schema whose `instances.items` carries two `oneOf` branches:
+
+```json title="Refused: two classes in one perception step"
+{"oneOf": [
+  {"type": "object", "properties": {
+      "class":     {"const": ":VteCase"},
+      "priorVte":  {"type": "boolean"}}},
+  {"type": "object", "properties": {
+      "class":             {"const": ":Ward"},
+      "isolationRequired": {"type": "boolean"}}}
+]}
+```
+
+```text title="BridgeError::Refused — the classes are named"
+bridge jev:typesafe/jev-1.13 refused: the perception schema extracts 2 classes (:VteCase, :Ward), and Jev answers every question it is asked — it would propose an instance of each one even for a class the text never mentions, which is a fabricated fact wearing a perception provenance. Extract one class per perception step
+```
+
+The working version is two steps, each with one `horis:extracts` class,
+chained by `horis:next`: the note is read twice, and a `:Ward` instance only
+exists if a step that asked about wards produced one.
+
+#### The demo, printed
+
+`make demo-jev` builds without `bridges-jev` and runs against `MockBridge`:
+no key, no network, same output every time. The mock replays probabilities in
+the shape a live `JevBridge` returns them, so the printing has one code path
+either way.
+
+```text title="make demo-jev, no provider key in the environment — verbatim, less cargo's own lines and the latency and cost columns of the two accounting lines"
+Horismos VTE text→decisions demo — mock
+ontology: examples/vte/vte.ttl  ·  model requested: mock:jev-1.13
+
+:recommendation is `horis:assignedBy horis:RulesOnly`, so it is absent from the
+schema the model is shown. The model proposes facts; the rules decide.
+schema asks the model for: activeCancer, bleedingRisk, priorVte, reducedMobility
+
+──────────────────────────────────────────────────────────────────────────────
+Note 1
+──────────────────────────────────────────────────────────────────────────────
+  72-year-old admitted yesterday following a fall at home with a fractured
+  right neck of femur, awaiting theatre. Mobilising only with assistance and
+  largely confined to bed since admission. Past history of breast carcinoma
+  treated eight years ago, in remission, no current therapy. No previous clots
+  documented. Haemoglobin stable, platelets 210, not anticoagulated, no
+  bleeding noted on the ward round.
+
+  Jev proposed these typed facts, one parallel pass:
+    reducedMobility    true   p=0.960  ███████████████████████·
+    activeCancer       false  p=0.880  █████████████████████···
+    priorVte           false  p=0.960  ███████████████████████·
+    bleedingRisk       false  p=0.930  ██████████████████████··
+
+  call confidence 0.880 (the weakest fact in the call — nothing averages away)
+  instance[0] confidence 0.880
+
+  The rules decided. The model had no vote:
+    :recommendation = :PharmacologicProphylaxis   via risk-without-contraindication — "VTE risk factor without bleeding contraindication"
+      ├─ any of:
+      │  ├─ reducedMobility true is true   (asserted by perception)
+      │  ├─ activeCancer is true   (not held)
+      │  └─ priorVte is true   (not held)
+      └─ bleedingRisk false is false   (asserted by perception)
+
+  619 in / 79 out tokens  ·  model mock:jev-1.13
+
+──────────────────────────────────────────────────────────────────────────────
+Note 2
+──────────────────────────────────────────────────────────────────────────────
+  78yo, post-op day 2, on warfarin, bed-bound
+
+  Jev proposed these typed facts, one parallel pass:
+    reducedMobility    true   p=0.940  ███████████████████████·
+    activeCancer       false  p=0.910  ██████████████████████··
+    priorVte           false  p=0.720  █████████████████·······
+    bleedingRisk       true   p=0.610  ███████████████·········
+
+  call confidence 0.610 (the weakest fact in the call — nothing averages away)
+  instance[0] confidence 0.610
+
+  The rules decided. The model had no vote:
+    :recommendation = :HoldProphylaxis   via bleeding-contraindication — "Bleeding contraindication — hold pharmacologic prophylaxis"
+      └─ bleedingRisk true is true   (asserted by perception)
+
+  58 in / 79 out tokens  ·  model mock:jev-1.13
+
+──────────────────────────────────────────────────────────────────────────────
+Why this is the whole point
+──────────────────────────────────────────────────────────────────────────────
+  model actually invoked (Bridge::id, the trace's `model` field): mock:jev-1.13
+  Two notes, two different fact sets, two different rules firing — and in both
+  cases the recommendation is a derivation you can read, not a model's opinion.
+  Delete the bridge and the rules still run; delete the rules and there is no
+  decision at all.
+```
+
+Note 1 and note 2 differ in one fact — `bleedingRisk` — and that one fact
+sends the two runs down two different rules. Note 2's weakest answer is 0.610,
+which is what the runtime would compare against the step's `horis:confidence`
+threshold: the weakest fact in the call, not the average of the four. The
+recommendation in both runs is a derivation with a proof, and in neither run
+was it a field the model could have filled in.
 
 ## Operational semantics
 
