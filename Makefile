@@ -1,7 +1,7 @@
 # Horismos dev entry points. Requires: rustup (stable), uv. Everything Python
 # runs through uv; maturin is a dev dependency, never a global install.
 
-.PHONY: build develop test test-rust test-py lint fmt no-model-gate check-boundary verify clean demo demo-live demo-jev demo-jev-live
+.PHONY: build develop test test-rust test-py lint fmt notices no-model-gate check-boundary verify clean demo demo-live demo-jev demo-jev-live
 
 build:
 	cargo build --workspace
@@ -22,14 +22,20 @@ test-py:
 lint:
 	cargo fmt --all --check
 	cargo clippy --workspace --all-targets -- -D warnings
-	uv run ruff check python
-	uv run ruff format --check python
+	uv run ruff check python scripts
+	uv run ruff format --check python scripts
 	uv run mypy
 
 fmt:
 	cargo fmt --all
-	uv run ruff format python
-	uv run ruff check --fix python
+	uv run ruff format python scripts
+	uv run ruff check --fix python scripts
+
+# Regenerate THIRD_PARTY_NOTICES.txt (shipped in the wheel and sdist) from the
+# release closure. Run after any change to Cargo.lock; `make test` fails while
+# it is stale.
+notices:
+	uv run python scripts/generate_third_party_notices.py
 
 # The anti-wrapper gate: the symbolic core must build and test with no
 # default features, no bridges, no network (docs/framework/14-architecture.md)

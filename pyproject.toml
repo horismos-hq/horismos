@@ -13,8 +13,11 @@ license = "MIT OR Apache-2.0"
 # `License-File:` metadata names a file the tarball does not contain. The
 # `maturin>=1.9.3` floor above is a requirement of this key, not incidental: do
 # not lower it without rebuilding the sdist and checking both licence files are
-# inside it.
-license-files = ["LICENSE-APACHE", "LICENSE-MIT"]
+# inside it. THIRD_PARTY_NOTICES.txt carries the notices of the third-party crates
+# compiled into the native module; it is generated (`make notices`), and
+# python/tests/test_third_party_notices.py fails if it is stale or missing from
+# a built artefact.
+license-files = ["LICENSE-APACHE", "LICENSE-MIT", "THIRD_PARTY_NOTICES.txt"]
 authors = [{ name = "Ramkumar M" }]
 # Version is dynamic on purpose: maturin reads the workspace `version` in the
 # root Cargo.toml, so the Rust and Python versions can never drift apart.
@@ -63,7 +66,7 @@ select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]
 
 [tool.mypy]
 strict = true
-files = ["python"]
+files = ["python", "scripts"]
 
 [tool.pytest.ini_options]
 testpaths = ["python/tests"]

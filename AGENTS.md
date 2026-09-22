@@ -106,6 +106,7 @@ make fmt           # auto-format both languages
 make no-model-gate # horismos-core --no-default-features --features verify, build+test
 make check-boundary
 make verify        # all of the above — run before claiming work done
+make notices       # regenerate THIRD_PARTY_NOTICES.txt after any Cargo.lock change (make test fails while stale)
 ```
 
 `make verify` must be green before any commit that claims a task complete.
