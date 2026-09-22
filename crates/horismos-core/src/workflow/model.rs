@@ -25,7 +25,8 @@ use crate::ontology::schema::Schema;
 use crate::ontology::term::{Interner, Iri};
 use crate::ontology::turtle::{Document, Literal, Node, Object, Triple};
 use crate::reason::rule::{
-    Condition, ConditionTree, Op, SubjectGraph, node_iri, object_text, term_operand,
+    Condition, ConditionTree, MAX_CONDITION_DEPTH, Op, SubjectGraph, node_iri, object_text,
+    term_operand,
 };
 use crate::workflow::tool::Tool;
 
@@ -738,6 +739,7 @@ fn parse_reasoning(
         interner,
         &format!("{} horis:goal", interner.resolve(iri)),
         &mut BTreeSet::new(),
+        0,
     )?;
     Ok(ReasoningStep {
         goal,
@@ -770,6 +772,7 @@ fn parse_action(
             interner,
             &format!("{} horis:requires", interner.resolve(iri)),
             &mut BTreeSet::new(),
+            0,
         )?),
         _ => None,
     };
@@ -906,6 +909,7 @@ fn parse_choice(
                     interner,
                     &format!("{} horis:branches", interner.resolve(iri)),
                     &mut BTreeSet::new(),
+                    0,
                 )?;
                 let next = required_iri(branch_iri, graph, HORIS_NEXT, "horis:next", interner)?;
                 out.push(Branch { when, next });
@@ -959,7 +963,14 @@ fn parse_condition_tree(
     interner: &Interner,
     subject_text: &str,
     on_path: &mut BTreeSet<Iri>,
+    depth: usize,
 ) -> Result<ConditionTree, OntologyError> {
+    if depth > MAX_CONDITION_DEPTH {
+        return Err(OntologyError::StepNestingTooDeep {
+            subject: subject_text.to_owned(),
+            max: MAX_CONDITION_DEPTH,
+        });
+    }
     let subject = node_iri(node);
     if !on_path.insert(subject) {
         return Err(OntologyError::WorkflowMissingPart {
@@ -1003,6 +1014,7 @@ fn parse_condition_tree(
                 interner,
                 subject_text,
                 on_path,
+                depth + 1,
             )?);
         }
         Ok(build(children))
@@ -1368,5 +1380,112 @@ mod tests {
             matches!(err, OntologyError::SubflowNestingTooDeep { .. }),
             "{err:?}"
         );
+    }
+
+    // -- B1: workflow condition nesting is bounded like rule bodies ---------
+
+    /// `levels` nested single-element `horis:all` combinators over one leaf
+    /// condition, built programmatically for the same reason as the rule
+    /// side's `nested_when`.
+    fn nested_condition(levels: usize) -> String {
+        let mut body = "[ horis:property :flag ; horis:isAssigned true ]".to_owned();
+        for _ in 0..levels {
+            body = format!("[ horis:all ( {body} ) ]");
+        }
+        body
+    }
+
+    /// One workflow per entry point: a `ReasoningStep` goal, an
+    /// `ActionStep`'s `horis:requires`, and a `ChoiceStep` branch
+    /// `horis:when`, each carrying `levels` of nesting.
+    fn nested_workflow_sources(levels: usize) -> [(&'static str, String); 3] {
+        let body = nested_condition(levels);
+        let head = format!(
+            "{DEFERRED_PRELUDE}\
+             :Patient a rdfs:Class .\n\
+             :flag a rdf:Property ; rdfs:domain :Patient ; rdfs:range xsd:boolean .\n\
+             :Wf a horis:Workflow ; horis:startsAt :A .\n\
+             :End a horis:Step ; horis:terminal true .\n"
+        );
+        [
+            (
+                "horis:goal",
+                format!(
+                    "{head}:A a horis:ReasoningStep ; horis:goal {body} ;\n\
+                     \x20 horis:onUnreachable :End ; horis:next :End .\n"
+                ),
+            ),
+            (
+                "horis:requires",
+                format!(
+                    "{head}:t a horis:Tool ; horis:binding \"rust:t\" ;\n\
+                     \x20 horis:takes [ horis:arg [ horis:name \"p\" ; horis:type :Patient ] ] ;\n\
+                     \x20 horis:effect [ horis:asserts [ horis:property :flag ; horis:type xsd:boolean ] ] .\n\
+                     :A a horis:ActionStep ; horis:tool :t ; horis:requires {body} ;\n\
+                     \x20 horis:onError :End ; horis:next :End .\n"
+                ),
+            ),
+            (
+                "horis:branches",
+                format!(
+                    "{head}:A a horis:ChoiceStep ;\n\
+                     \x20 horis:branches ( [ horis:when {body} ; horis:next :End ] ) ;\n\
+                     \x20 horis:otherwise :End .\n"
+                ),
+            ),
+        ]
+    }
+
+    /// The defect: `parse_condition_tree` guarded cycles but not depth, so a
+    /// workflow condition a few thousand levels deep overflowed the stack
+    /// on every load, exactly as a rule body did.
+    #[test]
+    fn a_workflow_condition_nested_deeper_than_the_cap_is_refused() {
+        for (entry, source) in nested_workflow_sources(MAX_CONDITION_DEPTH + 1) {
+            let err = Ontology::load_from_str_allow_incomplete(&source, |_| None)
+                .expect_err("nesting past the cap must be a load error, not a crash");
+            assert!(
+                matches!(
+                    &err,
+                    OntologyError::StepNestingTooDeep { max, .. } if *max == MAX_CONDITION_DEPTH
+                ),
+                "{entry}: {err:?}"
+            );
+            assert!(
+                err.domain_text().contains(entry),
+                "{entry}: the message names where the nesting is: {err}"
+            );
+        }
+    }
+
+    /// Companion: each entry point still loads at the cap, so the refusal
+    /// above is about depth and nothing else.
+    #[test]
+    fn a_workflow_condition_nested_to_the_cap_still_loads() {
+        for (entry, source) in nested_workflow_sources(MAX_CONDITION_DEPTH) {
+            let onto = Ontology::load_from_str_allow_incomplete(&source, |_| None)
+                .unwrap_or_else(|e| panic!("{entry}: nesting at the cap must still load: {e:?}"));
+            let wf_iri = onto
+                .iri("https://example.org/t#Wf")
+                .expect("Wf is declared");
+            let a_iri = onto.iri("https://example.org/t#A").expect("A is declared");
+            let step = onto
+                .workflow(wf_iri)
+                .and_then(|wf| wf.step(a_iri))
+                .expect(":A must parse");
+            let mut node = match &step.body {
+                StepBody::Reasoning(r) => &r.goal,
+                StepBody::Action(a) => a.requires.as_ref().expect("requires is present"),
+                StepBody::Choice(c) => &c.branches[0].when,
+                other => panic!("{entry}: unexpected step body {other:?}"),
+            };
+            let mut depth = 0;
+            while let ConditionTree::All(children) = node {
+                depth += 1;
+                node = &children[0];
+            }
+            assert_eq!(depth, MAX_CONDITION_DEPTH, "{entry}");
+            assert!(matches!(node, ConditionTree::Leaf(_)), "{entry}: {node:?}");
+        }
     }
 }

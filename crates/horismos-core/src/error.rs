@@ -486,6 +486,17 @@ pub enum OntologyError {
         b: String,
     },
 
+    /// A step condition (goal/requires/branch `horis:when`) nests
+    /// `horis:all`/`horis:any`/`horis:none` deeper than
+    /// `reason::rule::MAX_CONDITION_DEPTH` — the step-scoped sibling of
+    /// [`OntologyError::RuleNestingTooDeep`], bounded at parse time for the
+    /// same reason.
+    #[error(
+        "{subject} nests its condition combinators more than {max} levels deep; \
+         flatten the horis:all/any/none nesting"
+    )]
+    StepNestingTooDeep { subject: String, max: usize },
+
     /// A step condition operator was given an operand of the wrong shape.
     #[error("{subject} {operator} {value} is not usable here (expected {expected})")]
     StepInvalidOperand {

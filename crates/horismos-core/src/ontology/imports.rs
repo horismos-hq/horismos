@@ -354,23 +354,7 @@ fn fs_fetch(
         let Some(path) = path_from_file_uri(target) else {
             return Ok(None);
         };
-        // Resolve symlinks where the filesystem lets us — a link inside a
-        // permitted root that points outside it is an escape. A target that
-        // does not exist has no canonical form, so fall back to its deepest
-        // existing ancestor's (which keeps the comparison in the same
-        // spelling the roots are in — on Windows, canonicalization adds the
-        // extended-length prefix, and a lexical path would compare against
-        // it as an escape rather than as the missing file it is), and to
-        // plain lexical normalization only if even that fails. Every branch
-        // produces the identical refusal, so none of them leaks.
-        let resolved = std::fs::canonicalize(&path).unwrap_or_else(|_| {
-            match (path.parent(), path.file_name()) {
-                (Some(parent), Some(name)) => std::fs::canonicalize(parent)
-                    .map(|dir| dir.join(name))
-                    .unwrap_or_else(|_| lexically_normalize(&path)),
-                _ => lexically_normalize(&path),
-            }
-        });
+        let resolved = resolve_for_containment(&path);
         if !roots.permits(&resolved) {
             return Err(OntologyError::ImportOutsideRoots {
                 import: target.to_owned(),
@@ -385,10 +369,37 @@ fn fs_fetch(
     }
 }
 
+/// `path` as the containment check judges it: `.` and `..` folded out
+/// lexically, then its deepest existing ancestor canonicalized (symlinks
+/// resolved) and the not-yet-existing remainder re-joined beneath it.
+///
+/// Resolving the deepest existing ancestor, rather than only the target or
+/// its immediate parent, is what makes the verdict independent of how much
+/// of the path exists: a symlink inside a permitted root that points
+/// outside it is judged by where it points whether or not anything exists
+/// beneath its target, so an out-of-root refusal reads identically either
+/// way. It also keeps the comparison in the spelling the roots are in —
+/// on Windows, canonicalization adds the extended-length prefix, and a
+/// lexical path would compare against it as an escape rather than as the
+/// missing file it is. Plain lexical normalization is the result only if
+/// no ancestor at all canonicalizes.
+fn resolve_for_containment(path: &Path) -> PathBuf {
+    let path = lexically_normalize(path);
+    for ancestor in path.ancestors() {
+        if let Ok(canonical) = std::fs::canonicalize(ancestor) {
+            return match path.strip_prefix(ancestor) {
+                Ok(rest) if !rest.as_os_str().is_empty() => canonical.join(rest),
+                _ => canonical,
+            };
+        }
+    }
+    path
+}
+
 /// `path` with `.` and `..` segments folded out textually — no filesystem
 /// access, so no symlink resolution. Only ever a fallback for a path
-/// [`std::fs::canonicalize`] refused (which, for an import, means it does
-/// not exist): a real target is judged canonically.
+/// [`resolve_for_containment`] to canonicalize: existing ancestors are
+/// judged canonically.
 fn lexically_normalize(path: &Path) -> PathBuf {
     use std::path::Component;
     let mut out = PathBuf::new();
@@ -639,13 +650,23 @@ fn windows_file_iri(text: &str) -> String {
 /// that equivalence, and a `localhost` target resolves locally rather than
 /// over the network, so accepting it costs nothing). Every other authority
 /// is refused.
+///
+/// A body whose first segment is empty (`file://///server/share/x.ttl`,
+/// body `///server/share/x.ttl`) is refused too: it is the same host smuggled
+/// in as the path, and it survives IRI resolution because dot-segment
+/// removal never collapses empty segments.
 fn file_uri_local_body(rest: &str) -> Option<&str> {
-    if rest.is_empty() || rest.starts_with('/') {
-        return Some(rest); // empty authority: file:///path
-    }
-    let split = rest.find('/')?;
-    let (authority, body) = rest.split_at(split);
-    authority.eq_ignore_ascii_case("localhost").then_some(body)
+    let body = if rest.is_empty() || rest.starts_with('/') {
+        rest // empty authority: file:///path
+    } else {
+        let split = rest.find('/')?;
+        let (authority, body) = rest.split_at(split);
+        if !authority.eq_ignore_ascii_case("localhost") {
+            return None;
+        }
+        body
+    };
+    (!body.starts_with("//")).then_some(body)
 }
 
 /// The inverse of [`file_uri`]'s scheme: the local path a `file:` IRI
@@ -668,7 +689,10 @@ fn path_from_file_uri(iri: &str) -> Option<PathBuf> {
 /// `file://`: `/D:/a/x.ttl` → `D:\a\x.ttl`. `None` for the authority form
 /// (`server/share/x.ttl`), which would otherwise become the UNC path
 /// `\\server\share\x.ttl` — see [`file_uri_local_body`] for why that is
-/// refused rather than mapped.
+/// refused rather than mapped. `None`, likewise, for any body that does not
+/// start with a drive (`/D:` or `/D:/…`): whatever else follows the leading
+/// `/` — another `/`, a `\`, a `\\?\` device prefix — is a spelling that
+/// Windows could open as something other than a local drive path.
 ///
 /// [`windows_file_iri`] still *emits* `file://server/share/…` for a UNC
 /// path handed to it as the root document, because that is the honest IRI
@@ -681,9 +705,13 @@ fn path_from_file_uri(iri: &str) -> Option<PathBuf> {
 /// Compiled and tested on every platform; only called on Windows.
 #[cfg(any(windows, test))]
 fn windows_path_from_file_uri(rest: &str) -> Option<String> {
-    let body = file_uri_local_body(rest)?;
-    let local = body.strip_prefix('/').unwrap_or(body);
-    Some(local.replace('/', r"\"))
+    let local = file_uri_local_body(rest)?.strip_prefix('/')?;
+    let bytes = local.as_bytes();
+    let names_a_drive = bytes.len() >= 2
+        && bytes[0].is_ascii_alphabetic()
+        && bytes[1] == b':'
+        && matches!(bytes.get(2), None | Some(b'/'));
+    names_a_drive.then(|| local.replace('/', r"\"))
 }
 
 #[cfg(test)]
@@ -1128,6 +1156,9 @@ mod tests {
             "file://10.1.2.3/pwn/x.ttl",
             "file://server/share/triage.ttl",
             "file://LOCALHOST.attacker.example.com/share/x.ttl",
+            "file://///attacker.example.com/share/evil.ttl",
+            "file:////server/share/x.ttl",
+            "file://localhost//server/share/x.ttl",
         ] {
             let rest = iri.strip_prefix("file://").expect("file:// IRI");
             assert_eq!(
@@ -1141,6 +1172,27 @@ mod tests {
                 "{iri} must not map to any local path"
             );
         }
+    }
+
+    /// On Windows only a drive spelling maps to a path: a body whose first
+    /// segment is not `X:` could open as a device or network path however
+    /// it is spelled, so it is refused rather than guessed at.
+    #[test]
+    fn only_a_drive_body_maps_to_a_windows_path() {
+        for rest in [
+            r"/\\?\UNC\server\share\x.ttl",
+            r"/\\server\share\x.ttl",
+            "/server/share/x.ttl",
+            "/1:/a/x.ttl",
+            "/D:x.ttl",
+            "",
+        ] {
+            assert_eq!(windows_path_from_file_uri(rest), None, "{rest:?}");
+        }
+        assert_eq!(
+            windows_path_from_file_uri("/d:/a/x.ttl").as_deref(),
+            Some(r"d:\a\x.ttl")
+        );
     }
 
     /// The forward direction from commit `a40a496` is untouched: a UNC path
@@ -1409,6 +1461,60 @@ mod tests {
         assert!(
             matches!(&err, OntologyError::ImportOutsideRoots { .. }),
             "{err:?}"
+        );
+    }
+
+    /// A symlink inside a permitted root that points outside it is judged
+    /// by where it points however much of the path beneath it exists.
+    /// Before, a missing target whose parent was also missing fell back to
+    /// its lexical spelling, which looked contained — so the refusal
+    /// differed with whether a directory *outside* the roots existed.
+    #[test]
+    #[cfg(unix)]
+    fn a_symlinked_directory_out_of_the_roots_is_refused_whether_or_not_the_target_exists() {
+        let scratch = Scratch::new("symlinked-dir-oracle");
+        let outside = scratch.dir("outside");
+        scratch.dir("outside/present");
+        let project = scratch.dir("project");
+        std::os::unix::fs::symlink(&outside, project.join("l"))
+            .expect("the scratch symlink must be creatable");
+
+        for probe in ["present", "absent"] {
+            let root = scratch.write(
+                "project/root.ttl",
+                &format!("{HORIS_PREFIX}<> horis:imports <./l/{probe}/x.ttl> .\n"),
+            );
+            let mut interner = Interner::new();
+            let err = OntologySet::load(&root, &mut interner)
+                .expect_err("an import through an out-of-root symlink must be refused");
+            assert!(
+                matches!(&err, OntologyError::ImportOutsideRoots { .. }),
+                "{probe}: {err:?}"
+            );
+        }
+    }
+
+    /// A missing file in a missing subdirectory is judged through its
+    /// deepest existing ancestor's canonical spelling, not its lexical one —
+    /// the spelling the canonicalized roots are in. Before, only the
+    /// immediate parent was tried, so this path stayed lexical; on Windows
+    /// that is a `D:\…` path compared against a `\\?\D:\…` root, and a
+    /// missing import read as an escape.
+    #[test]
+    #[cfg(unix)]
+    fn a_missing_path_is_judged_through_its_deepest_existing_ancestor() {
+        let scratch = Scratch::new("deepest-existing-ancestor");
+        let real = scratch.dir("real");
+        std::os::unix::fs::symlink(&real, scratch.0.join("link"))
+            .expect("the scratch symlink must be creatable");
+        let canonical_real = std::fs::canonicalize(&real).expect("real must canonicalize");
+        assert_eq!(
+            resolve_for_containment(&scratch.0.join("link/absent/deeper/x.ttl")),
+            canonical_real.join("absent/deeper/x.ttl")
+        );
+        assert_eq!(
+            resolve_for_containment(&scratch.0.join("link/absent/../x.ttl")),
+            canonical_real.join("x.ttl")
         );
     }
 
