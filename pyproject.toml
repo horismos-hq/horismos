@@ -15,8 +15,8 @@ license-files = ["LICENSE-APACHE", "LICENSE-MIT"]
 authors = [{ name = "Ramkumar M" }]
 # Version is dynamic on purpose: maturin reads the workspace `version` in the
 # root Cargo.toml, so the Rust and Python versions can never drift apart.
-# Cargo takes SemVer (`0.1.0-alpha.1`); maturin normalises it to the PEP 440
-# `0.1.0a1`.
+# Cargo takes SemVer (`X.Y.Z-alpha.N`); maturin normalises it to the PEP 440
+# `X.Y.ZaN`.
 dynamic = ["version"]
 keywords = ["ontology", "neuro-symbolic", "agents", "rdf", "reasoning"]
 classifiers = [
