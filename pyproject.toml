@@ -1,5 +1,5 @@
 [build-system]
-requires = ["maturin>=1.8,<2"]
+requires = ["maturin>=1.9.3,<2"]
 build-backend = "maturin"
 
 [project]
@@ -8,11 +8,18 @@ description = "Ontology-first neuro-symbolic agent framework: Rust core, Python 
 readme = "README.md"
 requires-python = ">=3.11"
 license = "MIT OR Apache-2.0"
+# Declared explicitly (PEP 639): maturin's sdist packer does not otherwise
+# reach files at the repository root, and PyPI rejects an sdist whose
+# `License-File:` metadata names a file the tarball does not contain. The
+# `maturin>=1.9.3` floor above is a requirement of this key, not incidental: do
+# not lower it without rebuilding the sdist and checking both licence files are
+# inside it.
+license-files = ["LICENSE-APACHE", "LICENSE-MIT"]
 authors = [{ name = "Ramkumar M" }]
 # Version is dynamic on purpose: maturin reads the workspace `version` in the
 # root Cargo.toml, so the Rust and Python versions can never drift apart.
-# Cargo takes SemVer (`0.1.0-alpha.1`); maturin normalises it to the PEP 440
-# `0.1.0a1`.
+# Cargo takes SemVer (`X.Y.Z-alpha.N`); maturin normalises it to the PEP 440
+# `X.Y.ZaN`.
 dynamic = ["version"]
 keywords = ["ontology", "neuro-symbolic", "agents", "rdf", "reasoning"]
 classifiers = [
@@ -34,7 +41,7 @@ Documentation = "https://horismos-hq.github.io/horismos/"
 
 [dependency-groups]
 dev = [
-    "maturin>=1.8,<2",
+    "maturin>=1.9.3,<2",
     "pytest>=8",
     "mypy>=1.14",
     "ruff>=0.8",

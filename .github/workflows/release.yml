@@ -63,7 +63,7 @@ jobs:
             exit 1
           fi
           # Both sides are compared in Cargo's SemVer spelling, so the
-          # intended tag `v0.1.0-alpha.1` / distribution `0.1.0a1` difference
+          # intended tag `vX.Y.Z-alpha.N` / distribution `X.Y.ZaN` difference
           # never trips this.
           cargo_version="$(python -c 'import pathlib, tomllib; print(tomllib.loads(pathlib.Path("Cargo.toml").read_text())["workspace"]["package"]["version"])')"
           tag_version="${REF_NAME#v}"
