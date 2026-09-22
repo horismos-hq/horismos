@@ -83,20 +83,32 @@ impl PyOntology {
     /// `Ontology.load(path, imports=[...])` — core `load` + one
     /// `with_import` per entry, all inside one boundary crossing, GIL
     /// released while the parser and schema builder run (D3).
+    /// `permitted_import_roots` is marshaled straight through to
+    /// `LoadOptions`: the directories a `horis:imports` target may name
+    /// besides the root document's own.
     #[staticmethod]
-    #[pyo3(signature = (path, imports = Vec::new(), allow_incomplete = false))]
+    #[pyo3(signature = (
+        path,
+        imports = Vec::new(),
+        allow_incomplete = false,
+        permitted_import_roots = Vec::new(),
+    ))]
     fn load(
         py: Python<'_>,
         path: PathBuf,
         imports: Vec<PathBuf>,
         allow_incomplete: bool,
+        permitted_import_roots: Vec<PathBuf>,
     ) -> PyResult<PyOntology> {
         let loaded = py
             .detach(|| {
                 horismos_core::Ontology::load_with_imports_and_options(
                     &path,
                     &imports,
-                    horismos_core::LoadOptions { allow_incomplete },
+                    horismos_core::LoadOptions {
+                        allow_incomplete,
+                        permitted_import_roots,
+                    },
                 )
             })
             .map_err(|e| ontology_err(py, e))?;

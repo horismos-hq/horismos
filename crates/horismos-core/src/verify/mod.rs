@@ -1780,6 +1780,7 @@ mod load_verification_tests {
             |_| None,
             LoadOptions {
                 allow_incomplete: true,
+                ..LoadOptions::default()
             },
         )
         .expect("the explicit authoring escape returns the ontology");

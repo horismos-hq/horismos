@@ -246,6 +246,33 @@ pub enum OntologyError {
     #[error("import cycle: {cycle}")]
     ImportCycle { cycle: String },
 
+    /// The import chain reachable from the root nests deeper than
+    /// `ontology::imports::MAX_IMPORT_DEPTH`. Acyclic but unbounded nesting
+    /// is still unbounded recursion, so the depth is capped the same way the
+    /// backward chainer caps its search.
+    #[error(
+        "horis:imports {import}: the import chain nests more than {max} levels deep; \
+         flatten the chain or import the deeper graphs directly"
+    )]
+    ImportChainTooDeep { import: String, max: usize },
+
+    /// A declared `horis:imports` target resolved to a file outside every
+    /// permitted ontology root. Distinct from [`OntologyError::ImportNotFound`]
+    /// on purpose: "this import is outside the permitted roots" and "this
+    /// file does not exist" are different facts, and the refusal deliberately
+    /// does not say which side of that line a *contained* path would fall on.
+    #[error(
+        "horis:imports {import}: outside the permitted ontology roots ({roots}); \
+         an import may only name a file under the root document's own directory \
+         or under an explicitly permitted root"
+    )]
+    ImportOutsideRoots { import: String, roots: String },
+
+    /// A caller-supplied permitted ontology root could not be used: it does
+    /// not exist, or it is not a directory.
+    #[error("permitted ontology root {root}: {reason}")]
+    PermittedRootInvalid { root: String, reason: String },
+
     /// An explicit `with_import` named a graph that is already loaded —
     /// either the root itself or an already-resolved import.
     #[error("duplicate import graph: {name}")]
@@ -266,6 +293,17 @@ pub enum OntologyError {
     /// body where a condition node was expected.
     #[error("rule {rule} is missing {part}")]
     RuleMissingPart { rule: String, part: String },
+
+    /// A `horis:Rule`'s `horis:when` body nests `horis:all`/`horis:any`/
+    /// `horis:none` deeper than `reason::rule::MAX_CONDITION_DEPTH`. The
+    /// condition tree is walked recursively by the parser, the evaluator,
+    /// verification, and the proof renderer alike, so the depth is bounded
+    /// once, at parse time, for all of them.
+    #[error(
+        "rule {rule} nests its horis:when combinators more than {max} levels deep; \
+         flatten the horis:all/any/none nesting"
+    )]
+    RuleNestingTooDeep { rule: String, max: usize },
 
     /// A rule condition or conclusion names a property the schema does not
     /// declare.
@@ -447,6 +485,17 @@ pub enum OntologyError {
         a: String,
         b: String,
     },
+
+    /// A step condition (goal/requires/branch `horis:when`) nests
+    /// `horis:all`/`horis:any`/`horis:none` deeper than
+    /// `reason::rule::MAX_CONDITION_DEPTH` — the step-scoped sibling of
+    /// [`OntologyError::RuleNestingTooDeep`], bounded at parse time for the
+    /// same reason.
+    #[error(
+        "{subject} nests its condition combinators more than {max} levels deep; \
+         flatten the horis:all/any/none nesting"
+    )]
+    StepNestingTooDeep { subject: String, max: usize },
 
     /// A step condition operator was given an operand of the wrong shape.
     #[error("{subject} {operator} {value} is not usable here (expected {expected})")]

@@ -130,10 +130,9 @@ unaffected.
 - **Trusted after sign-off**: the ontology (it *is* the program — its supply chain is
   git + SME sign-off + verification, doc 13).
 - **Sandboxing tool-execution processes** (including MCP servers and the authoring
-  agent) is the deployer's concern; `horis:redactInput` bounds sensitive NL retention
-  (doc 09). This is the deployer-process-isolation boundary specifically — for the v1
-  threat model in full (assets, all four trust boundaries, per-boundary mitigations
-  vs. what stays deployer-owned), see doc 15.
+  agent) is the deployer's concern. This is the deployer-process-isolation boundary
+  specifically — for the v1 threat model in full (assets, every trust boundary,
+  per-boundary mitigations vs. what stays deployer-owned), see doc 15.
 
 ## Definition → build mapping
 

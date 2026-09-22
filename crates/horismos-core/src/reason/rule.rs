@@ -49,6 +49,22 @@ const HORIS_IS_EMPTY: &str = "https://w3id.org/horismos#isEmpty";
 const HORIS_CONTAINS: &str = "https://w3id.org/horismos#contains";
 const HORIS_IN_LIST: &str = "https://w3id.org/horismos#inList";
 
+/// The deepest `horis:all`/`horis:any`/`horis:none` nesting a `horis:when`
+/// body may declare. The same figure as
+/// [`crate::reason::backward::MAX_DEPTH`], for the same reason: a bound is
+/// needed, and the two are the only recursive walks over authored structure
+/// in the reasoner, so one number is easier to reason about than two.
+///
+/// It is not a crash threshold rounded down — it is an authoring bound with
+/// an order of magnitude of headroom. The deepest `horis:when` across every
+/// shipped ontology in `examples/` is four levels
+/// (`examples/gallery/rebooking.ttl`, `examples/gallery/ci-triage.ttl`,
+/// `examples/change-gate/change-gate.ttl`); a body anywhere near 50 is
+/// unreadable long before it is unparseable. Capping here bounds every
+/// consumer of the tree at once — [`crate::reason::eval`],
+/// `crate::verify::rules`, and the proof renderer all walk it recursively.
+pub const MAX_CONDITION_DEPTH: usize = 50;
+
 // -- Public model ----------------------------------------------------------
 
 /// The value position of `horis:is`/`isNot`/`inList`/`horis:value`: either a
@@ -353,7 +369,7 @@ fn parse_rule(
             });
         }
     };
-    let when = parse_condition_node(when_node, graph, &mut cx, &mut BTreeSet::new())?;
+    let when = parse_condition_node(when_node, graph, &mut cx, &mut BTreeSet::new(), 0)?;
 
     let then_node = match graph.object(rule_iri, HORIS_THEN, interner) {
         Some(Object::Node(node)) => *node,
@@ -387,12 +403,27 @@ fn parse_rule(
 /// list) or a leaf condition. `on_path` carries the condition nodes above
 /// this one — a node reachable from itself (`_:a horis:all ( _:a )`, valid
 /// Turtle) is a load error, not unbounded recursion.
+///
+/// `depth` is the second bound, and a different one: `on_path` catches a
+/// body that *re-enters itself*, while `depth` catches one that is merely
+/// very deep without ever repeating a node. An acyclic chain of a few
+/// thousand single-element combinators is valid Turtle, and recursing
+/// through it overflows the stack — which aborts the process rather than
+/// raising anything a caller could catch — so it is refused at
+/// [`MAX_CONDITION_DEPTH`] instead.
 fn parse_condition_node(
     node: Node,
     graph: &SubjectGraph,
     cx: &mut RuleCx<'_>,
     on_path: &mut BTreeSet<Iri>,
+    depth: usize,
 ) -> Result<ConditionTree, OntologyError> {
+    if depth > MAX_CONDITION_DEPTH {
+        return Err(OntologyError::RuleNestingTooDeep {
+            rule: cx.rule_name(),
+            max: MAX_CONDITION_DEPTH,
+        });
+    }
     let subject = node_iri(node);
     if !on_path.insert(subject) {
         return Err(OntologyError::RuleMissingPart {
@@ -429,7 +460,7 @@ fn parse_condition_node(
                     part: "a condition node inside its combinator list".to_owned(),
                 });
             };
-            children.push(parse_condition_node(child, graph, cx, on_path)?);
+            children.push(parse_condition_node(child, graph, cx, on_path, depth + 1)?);
         }
         Ok(build(children))
     } else {
@@ -841,6 +872,70 @@ mod tests {
             ],
             "priority desc, ties by rule IRI lexicographic"
         );
+    }
+
+    // -- B1: condition nesting is bounded, not merely acyclic ---------------
+
+    /// A rule whose `horis:when` is `levels` nested single-element
+    /// `horis:all` combinators over one leaf condition. Built
+    /// programmatically: the nesting that actually overflows the stack is
+    /// ~2,500 levels / 141 KB of Turtle, which is not a fixture anyone
+    /// should commit.
+    fn nested_when(levels: usize) -> String {
+        let mut body =
+            "[ horis:subject :Patient ; horis:property :heartRate ; horis:exceeds 100 ]".to_owned();
+        for _ in 0..levels {
+            body = format!("[ horis:all ( {body} ) ]");
+        }
+        format!(
+            ":rDeep a horis:Rule ; horis:priority 1 ;\n\
+             \x20 horis:when {body} ;\n\
+             \x20 horis:then [ horis:property :acuity ; horis:value :Urgent ] .\n"
+        )
+    }
+
+    /// The defect: `on_path` caught a body that re-entered *itself*, but
+    /// nothing bounded a body that was merely very deep. Recursing through
+    /// a few thousand acyclic levels overflowed the stack, which aborts the
+    /// process — no exception, nothing to catch, no cleanup.
+    #[test]
+    fn a_horis_when_nested_deeper_than_the_cap_is_refused() {
+        let err = load(&nested_when(MAX_CONDITION_DEPTH + 1))
+            .expect_err("nesting past the cap must be a load error, not a crash");
+        assert!(
+            matches!(
+                &err,
+                OntologyError::RuleNestingTooDeep { max, .. } if *max == MAX_CONDITION_DEPTH
+            ),
+            "{err:?}"
+        );
+        assert!(
+            err.domain_text().contains("horis:when"),
+            "the message is what an author acts on: {err}"
+        );
+    }
+
+    /// The bound is a bound, not a ban: a body right at the cap still
+    /// parses, so the refusal above is about depth and nothing else. The
+    /// deepest `horis:when` in any shipped ontology under `examples/` is
+    /// four levels.
+    #[test]
+    fn a_horis_when_nested_to_the_cap_still_parses() {
+        let onto =
+            load(&nested_when(MAX_CONDITION_DEPTH)).expect("nesting at the cap must still load");
+        let rule = onto
+            .rules()
+            .iter()
+            .find(|r| onto.resolve(r.iri).ends_with("#rDeep"))
+            .expect("rDeep must be parsed");
+        let mut depth = 0;
+        let mut node = &rule.when;
+        while let ConditionTree::All(children) = node {
+            depth += 1;
+            node = &children[0];
+        }
+        assert_eq!(depth, MAX_CONDITION_DEPTH);
+        assert!(matches!(node, ConditionTree::Leaf(_)), "{node:?}");
     }
 
     #[test]
