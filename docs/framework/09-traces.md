@@ -126,7 +126,5 @@ the deployment's retention and redaction policy in addition to the core trace ru
 ## Storage & privacy
 
 Traces are JSONL on disk by default; a store interface (append, query by run/outcome/
-time) supports production backends. Perception steps can be marked
-`horis:redactInput true` for domains where the raw NL must not persist (the typed
-facts and hashes remain — auditability without payload retention).
+time) supports production backends.
 **[DECIDE: redaction defaults per domain pack — PRP-006]**
