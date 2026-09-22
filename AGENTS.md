@@ -100,7 +100,7 @@ Always use the Makefile (identical for humans, CI, and agent sessions):
 ```
 make build         # cargo build --workspace
 make develop       # uv sync + maturin develop (builds the extension into .venv)
-make test          # Rust tests + pytest
+make test          # Rust tests + pytest + release-guard tests (make test-workflows)
 make lint          # cargo fmt --check, clippy -D warnings, ruff, mypy --strict
 make fmt           # auto-format both languages
 make no-model-gate # horismos-core --no-default-features --features verify, build+test
