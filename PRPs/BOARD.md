@@ -80,7 +80,10 @@ the repo. PyPI still has nothing. The first TestPyPI rehearsal (run 35682837533)
 uploaded four wheels and was then refused on the sdist, whose `License-File:` metadata
 named licence files the tarball did not contain; `pyproject.toml` now declares them
 under PEP 639. Those wheels were `0.1.0a1`, so that version is spent on TestPyPI and
-cannot be re-uploaded — hence the bump to `0.1.0-alpha.2`. The rest of the phase —
+cannot be re-uploaded — hence the bump to `0.1.0-alpha.2`. A later rehearsal then
+uploaded all four wheels and the sdist at `0.1.0a2`, spending that version too; the
+publish step keeps no `skip-existing`, so the workspace is now `0.1.0-alpha.3` to give
+the next rehearsal a fresh version. The rest of the phase —
 crates.io, the generated API reference, the dependency-audit/SBOM gates, CHANGELOG and
 tagged releases — is unstarted.
 
