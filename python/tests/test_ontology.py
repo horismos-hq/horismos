@@ -280,3 +280,68 @@ def test_a_malformed_ontology_raises_an_ontology_error(tmp_path: Path) -> None:
     with pytest.raises(HorismosOntologyError) as e:
         Ontology.load(bad)
     assert isinstance(e.value, horismos.HorismosError)
+
+
+# -- Ontology loading is a trust boundary (docs/framework/15-security.md §6) --
+
+_HORIS = "@prefix horis: <https://w3id.org/horismos#> .\n"
+_A_CLASS = (
+    "@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .\n"
+    "<https://example.org/t#Shared> a rdfs:Class .\n"
+)
+
+
+def _project_with_escaping_import(tmp_path: Path) -> Path:
+    (tmp_path / "shared").mkdir()
+    (tmp_path / "shared" / "vocab.ttl").write_text(_A_CLASS)
+    (tmp_path / "project").mkdir()
+    root = tmp_path / "project" / "root.ttl"
+    root.write_text(f"{_HORIS}<> horis:imports <../shared/vocab.ttl> .\n")
+    return root
+
+
+def test_an_import_outside_the_root_directory_is_refused(tmp_path: Path) -> None:
+    root = _project_with_escaping_import(tmp_path)
+    with pytest.raises(HorismosOntologyError) as e:
+        Ontology.load(root, allow_incomplete=True)
+    assert "outside the permitted ontology roots" in str(e.value)
+
+
+def test_an_explicitly_permitted_root_lets_the_same_import_resolve(
+    tmp_path: Path,
+) -> None:
+    root = _project_with_escaping_import(tmp_path)
+    onto = Ontology.load(
+        root,
+        allow_incomplete=True,
+        permitted_import_roots=[tmp_path / "shared"],
+    )
+    assert onto.ref("https://example.org/t#Shared").iri == "https://example.org/t#Shared"
+
+
+def test_a_deeply_nested_condition_body_raises_instead_of_crashing(
+    tmp_path: Path,
+) -> None:
+    """B1 used to kill the interpreter with SIGSEGV — uncatchable, no cleanup."""
+    body = "[ horis:subject :Patient ; horis:property :heartRate ; horis:exceeds 100 ]"
+    for _ in range(2_500):
+        body = f"[ horis:all ( {body} ) ]"
+    deep = tmp_path / "deep.ttl"
+    deep.write_text(
+        "@prefix : <https://example.org/t#> .\n"
+        "@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .\n"
+        "@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .\n"
+        "@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .\n"
+        f"{_HORIS}"
+        ":Patient a rdfs:Class .\n"
+        ":AcuityLevel a rdfs:Class ; horis:oneOf ( :Urgent ) .\n"
+        ":heartRate a rdf:Property ; rdfs:domain :Patient ; rdfs:range xsd:decimal ;\n"
+        '  horis:cardinality "0..1" .\n'
+        ":acuity a rdf:Property ; rdfs:domain :Patient ; rdfs:range :AcuityLevel ;\n"
+        '  horis:cardinality "0..1" ; horis:assignedBy horis:RulesOnly .\n'
+        f":r a horis:Rule ; horis:priority 1 ; horis:when {body} ;\n"
+        "  horis:then [ horis:property :acuity ; horis:value :Urgent ] .\n"
+    )
+    with pytest.raises(HorismosOntologyError) as e:
+        Ontology.load(deep, allow_incomplete=True)
+    assert "horis:when" in str(e.value)

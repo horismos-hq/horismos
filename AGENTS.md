@@ -80,6 +80,16 @@ proof → NL). Delete the LLM and the kernel still runs.
   / the `*_allow_incomplete` helpers / `allow_incomplete=True` are the only escape; it is
   stamped into every agent trace. Tests that build deliberately partial ontologies must
   use it. Spec: `docs/framework/10-verification.md`.
+- **Ontology loading is a trust boundary**: a declared `horis:imports` target is
+  confined to the canonicalised parent directory of the root document. Widen it only
+  by declaring roots explicitly (`LoadOptions::permitted_import_roots` /
+  `permitted_import_roots=[...]`), never by loosening the check — containment is a
+  canonical-path comparison, so symlinks and name-prefix siblings do not slip through.
+  A `file:` IRI carrying a host other than `localhost` is not a local path and is refused
+  on every platform.
+  Condition nesting and import chains are depth-capped (`reason::rule::MAX_CONDITION_DEPTH`,
+  `ontology::imports::MAX_IMPORT_DEPTH`) because a stack overflow aborts the process
+  rather than raising. Spec: `docs/framework/15-security.md` § Ontology loading.
 - **Truth maintenance**: derived facts are recomputed, never left stale — every
   external transaction (`assert_`, replace, `retract`) resets all standing
   derivations and re-chains to the fixed point of the resulting base facts, even
@@ -100,7 +110,7 @@ Always use the Makefile (identical for humans, CI, and agent sessions):
 ```
 make build         # cargo build --workspace
 make develop       # uv sync + maturin develop (builds the extension into .venv)
-make test          # Rust tests + pytest
+make test          # Rust tests + pytest + release-guard tests (make test-workflows)
 make lint          # cargo fmt --check, clippy -D warnings, ruff, mypy --strict
 make fmt           # auto-format both languages
 make no-model-gate # horismos-core --no-default-features --features verify, build+test
@@ -139,10 +149,13 @@ make notices       # regenerate THIRD_PARTY_NOTICES.txt after any Cargo.lock cha
 - Releases go out through `.github/workflows/release.yml`, on Trusted Publishing — there
   is no PyPI token in this repo and none should ever be added. Three routes: a `v*` tag
   push publishes to PyPI, and a manual dispatch selects `testpypi` (the default), `pypi`,
-  or `none` (build and verify, contacting no index). Every route to the real index, the
-  manual one included, is guard-enforced: it must run from a tag ref whose version
-  matches the root `Cargo.toml`, or the run fails before publishing. Neither index takes
-  `skip-existing`, so each TestPyPI rehearsal needs a fresh version.
+  or `none` (build and verify, uploading nothing — not offline: the sdist test fetches its
+  build backend from PyPI). Every route to the real index, the manual one included, is
+  guard-enforced: it must run from a `v`-prefixed tag ref whose version matches the root
+  `Cargo.toml`, or the run fails before publishing (`make test-workflows` runs the guard
+  verbatim). Neither index takes `skip-existing`, so each TestPyPI rehearsal needs a
+  fresh version. Every workflow action is pinned to a full commit SHA with its version in
+  a trailing comment; an update resolves the new SHA from upstream, never a bare tag.
 - Process artifacts (ledgers, briefs, review diffs) are untracked scratch
   (`.superpowers/` is gitignored); the durable record is the owning PRP's
   `02-tasks-and-gaps.md` and the shipped-voice text where `[DECIDE]` markers were

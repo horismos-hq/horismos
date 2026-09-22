@@ -24,7 +24,7 @@ use std::sync::Arc;
 use regex::Regex;
 
 use crate::error::OntologyError;
-use crate::ontology::imports::OntologySet;
+use crate::ontology::imports::{ImportRoots, OntologySet};
 use crate::ontology::schema::Schema;
 use crate::ontology::term::{Interner, Iri};
 use crate::reason::rule::{Rule, parse_rules};
@@ -75,13 +75,26 @@ struct Inner {
     /// Preserved so `with_import` keeps the caller's explicit authoring
     /// posture and traces can later annotate incomplete execution.
     allow_incomplete: bool,
+    /// Preserved for the same reason: a later `with_import` resolves the
+    /// graphs *its* file declares against the containment policy this
+    /// ontology was loaded under, not a fresh permissive one.
+    import_roots: ImportRoots,
 }
 
 /// Explicit load policy. Ordinary loads use [`LoadOptions::default`] and
-/// therefore fail closed on any verification finding.
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+/// therefore fail closed on any verification finding, and confine every
+/// `horis:imports` target to the root document's own directory.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct LoadOptions {
     pub allow_incomplete: bool,
+    /// Directories a filesystem load may read imports from *in addition to*
+    /// the root document's own canonical directory — the explicit way for a
+    /// deployment that shares an ontology directory across several root
+    /// documents to declare that intent. Empty (the default) means
+    /// confinement to the root document's directory alone. Ignored by the
+    /// pure [`Ontology::load_from_str`] constructors, which touch no
+    /// filesystem at all. See [`crate::ontology::imports::ImportRoots`].
+    pub permitted_import_roots: Vec<std::path::PathBuf>,
 }
 
 impl Ontology {
@@ -95,9 +108,11 @@ impl Ontology {
         path: impl AsRef<Path>,
         options: LoadOptions,
     ) -> Result<Ontology, OntologyError> {
+        let path = path.as_ref();
         let mut interner = Interner::new();
-        let set = OntologySet::load(path, &mut interner)?;
-        Ontology::assemble(set, interner, options)
+        let roots = ImportRoots::for_root_document(path, &options.permitted_import_roots)?;
+        let set = OntologySet::load_with_roots(path, &mut interner, &roots)?;
+        Ontology::assemble(set, interner, options, roots)
     }
 
     /// Loads a root plus explicit undeclared imports as one verification
@@ -112,12 +127,14 @@ impl Ontology {
         I: IntoIterator<Item = P>,
         P: AsRef<Path>,
     {
+        let path = path.as_ref();
         let mut interner = Interner::new();
-        let mut set = OntologySet::load(path, &mut interner)?;
+        let roots = ImportRoots::for_root_document(path, &options.permitted_import_roots)?;
+        let mut set = OntologySet::load_with_roots(path, &mut interner, &roots)?;
         for import in imports {
-            set = set.with_import(import, &mut interner)?;
+            set = set.with_import(import, &mut interner, &roots)?;
         }
-        Ontology::assemble(set, interner, options)
+        Ontology::assemble(set, interner, options, roots)
     }
 
     /// Explicit authoring/debug escape for filesystem loads. Verification still
@@ -127,6 +144,7 @@ impl Ontology {
             path,
             LoadOptions {
                 allow_incomplete: true,
+                ..LoadOptions::default()
             },
         )
     }
@@ -149,7 +167,10 @@ impl Ontology {
     ) -> Result<Ontology, OntologyError> {
         let mut interner = Interner::new();
         let set = OntologySet::load_from_str(source, &mut interner, resolve)?;
-        Ontology::assemble(set, interner, options)
+        // The pure constructor touches no filesystem, so it carries no
+        // containment policy of its own; a later `with_import` supplies the
+        // one directory it is entitled to (its own).
+        Ontology::assemble(set, interner, options, ImportRoots::default())
     }
 
     /// Explicit authoring/debug escape that still runs verification and
@@ -163,6 +184,7 @@ impl Ontology {
             resolve,
             LoadOptions {
                 allow_incomplete: true,
+                ..LoadOptions::default()
             },
         )
     }
@@ -183,13 +205,16 @@ impl Ontology {
             workflows: shared.workflows.clone(),
             unreachable_workflow_steps: shared.unreachable_workflow_steps.clone(),
             allow_incomplete: shared.allow_incomplete,
+            import_roots: shared.import_roots.clone(),
         });
         let options = LoadOptions {
             allow_incomplete: inner.allow_incomplete,
+            permitted_import_roots: Vec::new(),
         };
+        let roots = inner.import_roots;
         let mut interner = inner.interner;
-        let set = inner.set.with_import(path, &mut interner)?;
-        Ontology::assemble(set, interner, options)
+        let set = inner.set.with_import(path, &mut interner, &roots)?;
+        Ontology::assemble(set, interner, options, roots)
     }
 
     /// Validates, builds, and derives — the one construction path every
@@ -198,6 +223,7 @@ impl Ontology {
         set: OntologySet,
         interner: Interner,
         options: LoadOptions,
+        import_roots: ImportRoots,
     ) -> Result<Ontology, OntologyError> {
         set.validate(&interner)?;
         let schema = Schema::build_all(set.documents(), &interner)?;
@@ -225,6 +251,7 @@ impl Ontology {
                 workflows,
                 unreachable_workflow_steps,
                 allow_incomplete: options.allow_incomplete,
+                import_roots,
             }),
         };
         #[cfg(feature = "verify")]

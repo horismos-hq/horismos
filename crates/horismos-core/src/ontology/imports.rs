@@ -10,6 +10,13 @@
 //! `wasm` build (`horismos-core::wasm`) can swap the fs touch-point out
 //! without touching the resolution logic.
 //!
+//! Ontology loading is a trust boundary (`docs/framework/15-security.md`
+//! §6): the ontology is the program, so a root document does not get to
+//! decide by its own text which files on the host join it. Every declared
+//! import is therefore confined to [`ImportRoots`] — by default the root
+//! document's own canonical directory — and a `file:` IRI that names a
+//! host is refused outright rather than mapped to a path.
+//!
 //! `owl:sameAs` anchoring itself — the equivalence relation that lets
 //! subsumption cross a graph boundary — lives in
 //! [`crate::ontology::schema`] (`Schema::build_all`); this module only
@@ -28,6 +35,20 @@ use crate::ontology::turtle::{self, Document, Node, Object};
 
 /// `horis:imports` — the only predicate this module reads directly.
 const HORIS_IMPORTS: &str = "https://w3id.org/horismos#imports";
+
+/// The deepest transitive `horis:imports` chain a filesystem load will
+/// follow. The same figure as [`crate::reason::rule::MAX_CONDITION_DEPTH`]
+/// and [`crate::reason::backward::MAX_DEPTH`]: the traversal is recursive,
+/// cycles alone do not bound it, and a stack overflow aborts the process
+/// rather than raising anything a caller could catch.
+///
+/// Headroom, not a crash threshold: no ontology in `examples/` declares a
+/// `horis:imports` chain at all (`examples/triage/` supplies its SNOMED CT
+/// subset as a caller-named `with_import` instead), and the deepest declared
+/// chain in the repository is the one level this module's own fixtures use.
+/// Reaching 50 means an import chain no reader can hold in their head, not a
+/// deployment this bound is squeezing.
+pub const MAX_IMPORT_DEPTH: usize = 50;
 
 /// The name [`OntologySet::validate`] attributes a root-document profile
 /// violation to. Not a real IRI — the root graph's *actual* identity (its
@@ -101,16 +122,33 @@ impl OntologySet {
     /// This is the one place the pure core ([`OntologySet::load_from_str`])
     /// doesn't reach: the fs touch-point is kept to the small
     /// [`read_to_string`]/[`file_uri`]/[`path_from_file_uri`] helpers below.
+    ///
+    /// Every import resolved here is confined to `path`'s own canonical
+    /// directory — see [`ImportRoots`], and
+    /// [`OntologySet::load_with_roots`] for widening that.
     pub fn load(
         path: impl AsRef<Path>,
         interner: &mut Interner,
+    ) -> Result<OntologySet, OntologyError> {
+        let path = path.as_ref();
+        let roots = ImportRoots::for_root_document(path, &[])?;
+        Self::load_with_roots(path, interner, &roots)
+    }
+
+    /// [`OntologySet::load`] against an explicit containment policy — the
+    /// shape a deployment that shares an ontology directory across several
+    /// root documents needs.
+    pub fn load_with_roots(
+        path: impl AsRef<Path>,
+        interner: &mut Interner,
+        roots: &ImportRoots,
     ) -> Result<OntologySet, OntologyError> {
         let path = path.as_ref();
         let root_name = file_uri(path)?;
         let source = read_to_string(path)?;
         let root = turtle::parse_with_base(&source, &root_name, interner)?;
 
-        let mut fetch = fs_fetch();
+        let mut fetch = fs_fetch(roots);
         let imports = resolve_transitive_imports(&root, interner, &mut fetch)?;
         let prefixes = merge_prefixes(&root, &imports)?;
         Ok(OntologySet {
@@ -130,10 +168,15 @@ impl OntologySet {
     /// ([`OntologyError::DuplicateGraphName`]); a *diamond* import reached
     /// transitively from two different declared imports is not an error
     /// (deduped, "each file loaded once" — brief requirement 1).
+    ///
+    /// `path` itself is a caller act, so it is read wherever it points; the
+    /// graphs *it* goes on to declare are confined to `roots` widened by
+    /// `path`'s own directory ([`ImportRoots::with_directory_of`]).
     pub fn with_import(
         mut self,
         path: impl AsRef<Path>,
         interner: &mut Interner,
+        roots: &ImportRoots,
     ) -> Result<OntologySet, OntologyError> {
         let path = path.as_ref();
         let name = file_uri(path)?;
@@ -151,7 +194,8 @@ impl OntologySet {
         loaded.insert(name.clone());
         let mut in_progress = Vec::new();
         let mut nested = Vec::new();
-        let mut fetch = fs_fetch();
+        let nested_roots = roots.with_directory_of(path)?;
+        let mut fetch = fs_fetch(&nested_roots);
         visit_imports(
             &doc,
             interner,
@@ -191,25 +235,186 @@ impl OntologySet {
     }
 }
 
+/// The directories a filesystem ontology load may read imports from.
+///
+/// Ontology loading is a trust boundary: the ontology *is* the program (doc
+/// 14), so a `horis:imports` target that escapes the document's own
+/// directory pulls decision logic in from somewhere nobody signed off on.
+/// By default a load is therefore confined to the canonical parent
+/// directory of its root document, and a deployment that legitimately
+/// shares an ontology directory declares that intent explicitly
+/// ([`crate::LoadOptions::permitted_import_roots`]) rather than getting it
+/// by accident.
+///
+/// Every root here is canonical (symlinks resolved), and so is every path
+/// tested against it, so containment is a component-wise path comparison
+/// and not a string prefix: `/srv/ontology-evil` is not under
+/// `/srv/ontology`, and a symlink inside a permitted root cannot walk out
+/// of it.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct ImportRoots {
+    roots: Vec<PathBuf>,
+}
+
+impl ImportRoots {
+    /// The default policy for a load of `root_document`: its own canonical
+    /// parent directory, plus each of `extra` (a deployment's explicitly
+    /// permitted shared ontology directories). An `extra` that does not
+    /// exist, or is not a directory, is a caller configuration error
+    /// ([`OntologyError::PermittedRootInvalid`]) rather than a silently
+    /// dropped permission.
+    pub fn for_root_document(
+        root_document: &Path,
+        extra: &[PathBuf],
+    ) -> Result<ImportRoots, OntologyError> {
+        let canonical =
+            std::fs::canonicalize(root_document).map_err(|e| OntologyError::ImportNotFound {
+                import: root_document.display().to_string(),
+                reason: e.to_string(),
+            })?;
+        // A canonicalized file always has a parent; a canonicalized root
+        // directory ("/") is its own containment root.
+        let mut roots = vec![canonical.parent().unwrap_or(&canonical).to_path_buf()];
+        for root in extra {
+            roots.push(Self::canonical_directory(root)?);
+        }
+        roots.sort();
+        roots.dedup();
+        Ok(ImportRoots { roots })
+    }
+
+    /// The same set widened by the directory of `path` — what an explicit,
+    /// caller-named [`OntologySet::with_import`] target contributes. The
+    /// caller naming a file in its own source is a deliberate act; the
+    /// graphs *that* file goes on to declare are not, so they stay confined.
+    pub fn with_directory_of(&self, path: &Path) -> Result<ImportRoots, OntologyError> {
+        let canonical = std::fs::canonicalize(path).map_err(|e| OntologyError::ImportNotFound {
+            import: path.display().to_string(),
+            reason: e.to_string(),
+        })?;
+        let mut roots = self.roots.clone();
+        roots.push(canonical.parent().unwrap_or(&canonical).to_path_buf());
+        roots.sort();
+        roots.dedup();
+        Ok(ImportRoots { roots })
+    }
+
+    /// Whether `path` — already canonical, or normalized as far as the
+    /// filesystem allowed — lies under one of the permitted roots.
+    fn permits(&self, path: &Path) -> bool {
+        self.roots.iter().any(|root| path.starts_with(root))
+    }
+
+    /// The roots as an error message names them, in sorted order.
+    fn describe(&self) -> String {
+        if self.roots.is_empty() {
+            return "none".to_owned();
+        }
+        self.roots
+            .iter()
+            .map(|r| r.display().to_string())
+            .collect::<Vec<_>>()
+            .join(", ")
+    }
+
+    fn canonical_directory(root: &Path) -> Result<PathBuf, OntologyError> {
+        let canonical =
+            std::fs::canonicalize(root).map_err(|e| OntologyError::PermittedRootInvalid {
+                root: root.display().to_string(),
+                reason: e.to_string(),
+            })?;
+        if !canonical.is_dir() {
+            return Err(OntologyError::PermittedRootInvalid {
+                root: root.display().to_string(),
+                reason: "not a directory".to_owned(),
+            });
+        }
+        Ok(canonical)
+    }
+}
+
 /// A `fetch` closure for the filesystem loaders ([`OntologySet::load`] /
 /// [`OntologySet::with_import`]): resolves an already-absolute `file://`
-/// import IRI back to a path, reads it if present, and parses it with
-/// *that file's own* location as base (so its own relative imports resolve
-/// against its directory, not the root's). `Ok(None)` — "not found" — for
-/// anything that isn't a local, existing `file://` path: remote imports
-/// (`http://…`) aren't supported by the v1 fs convenience (decision D5: no
-/// I/O beyond reading declared *local* imports).
-fn fs_fetch() -> impl FnMut(&str, &mut Interner) -> Result<Option<Document>, OntologyError> {
-    |target: &str, interner: &mut Interner| {
+/// import IRI back to a path, checks it against `roots`, reads it if
+/// present, and parses it with *that file's own* location as base (so its
+/// own relative imports resolve against its directory, not the root's).
+/// `Ok(None)` — "not found" — for anything that isn't a local, existing
+/// `file://` path: remote imports (`http://…`) aren't supported by the v1
+/// fs convenience (decision D5: no I/O beyond reading declared *local*
+/// imports).
+///
+/// Containment is decided before existence, and its refusal names only the
+/// import IRI the document already chose and the roots the deployment
+/// already configured. Neither depends on whether the target is there, so
+/// an out-of-root import cannot be used to probe the filesystem.
+fn fs_fetch(
+    roots: &ImportRoots,
+) -> impl FnMut(&str, &mut Interner) -> Result<Option<Document>, OntologyError> + '_ {
+    move |target: &str, interner: &mut Interner| {
         let Some(path) = path_from_file_uri(target) else {
             return Ok(None);
         };
-        if !path.is_file() {
+        let resolved = resolve_for_containment(&path);
+        if !roots.permits(&resolved) {
+            return Err(OntologyError::ImportOutsideRoots {
+                import: target.to_owned(),
+                roots: roots.describe(),
+            });
+        }
+        if !resolved.is_file() {
             return Ok(None);
         }
-        let source = read_to_string(&path)?;
+        let source = read_to_string(&resolved)?;
         turtle::parse_with_base(&source, target, interner).map(Some)
     }
+}
+
+/// `path` as the containment check judges it: `.` and `..` folded out
+/// lexically, then its deepest existing ancestor canonicalized (symlinks
+/// resolved) and the not-yet-existing remainder re-joined beneath it.
+///
+/// Resolving the deepest existing ancestor, rather than only the target or
+/// its immediate parent, is what makes the verdict independent of how much
+/// of the path exists: a symlink inside a permitted root that points
+/// outside it is judged by where it points whether or not anything exists
+/// beneath its target, so an out-of-root refusal reads identically either
+/// way. It also keeps the comparison in the spelling the roots are in —
+/// on Windows, canonicalization adds the extended-length prefix, and a
+/// lexical path would compare against it as an escape rather than as the
+/// missing file it is. Plain lexical normalization is the result only if
+/// no ancestor at all canonicalizes.
+fn resolve_for_containment(path: &Path) -> PathBuf {
+    let path = lexically_normalize(path);
+    for ancestor in path.ancestors() {
+        if let Ok(canonical) = std::fs::canonicalize(ancestor) {
+            return match path.strip_prefix(ancestor) {
+                Ok(rest) if !rest.as_os_str().is_empty() => canonical.join(rest),
+                _ => canonical,
+            };
+        }
+    }
+    path
+}
+
+/// `path` with `.` and `..` segments folded out textually — no filesystem
+/// access, so no symlink resolution. Only ever a fallback for a path
+/// [`resolve_for_containment`] to canonicalize: existing ancestors are
+/// judged canonically.
+fn lexically_normalize(path: &Path) -> PathBuf {
+    use std::path::Component;
+    let mut out = PathBuf::new();
+    for component in path.components() {
+        match component {
+            Component::CurDir => {}
+            Component::ParentDir => {
+                if !out.pop() {
+                    out.push(component.as_os_str());
+                }
+            }
+            other => out.push(other.as_os_str()),
+        }
+    }
+    out
 }
 
 /// Depth-first resolves every `horis:imports` triple reachable from `root`,
@@ -274,6 +479,15 @@ where
             cycle.push(target);
             return Err(OntologyError::ImportCycle {
                 cycle: cycle.join(" -> "),
+            });
+        }
+        // `in_progress` is pushed before each recursive call and popped
+        // after, so its length *is* the current depth. Checked before the
+        // fetch, so an over-deep chain is refused without reading the file.
+        if in_progress.len() >= MAX_IMPORT_DEPTH {
+            return Err(OntologyError::ImportChainTooDeep {
+                import: target.clone(),
+                max: MAX_IMPORT_DEPTH,
             });
         }
 
@@ -418,32 +632,86 @@ fn windows_file_iri(text: &str) -> String {
     }
 }
 
-/// The inverse of [`file_uri`]'s scheme: strips the `file://` prefix. `None`
-/// for anything else (a remote import IRI, or a malformed one) — the fs
+/// The local-path body of the part of a `file:` IRI after `file://`:
+/// everything past the authority component, and `None` unless that
+/// authority names *this* host.
+///
+/// A `file:` IRI that carries a host is not a local path. Mapping one to a
+/// path is how `file://attacker.example.com/share/evil.ttl` becomes the UNC
+/// path `\\attacker.example.com\share\evil.ttl`, which Windows resolves
+/// over the network — turning an ontology load into an outbound fetch, and
+/// an outbound NTLM authentication with it. That is exactly what this
+/// module's header and doc 02's decision D5 say never happens, so the
+/// authority form is refused here, once, for every platform.
+///
+/// The empty authority (`file:///path`, what [`file_uri`] itself emits) is
+/// the local form. `file://localhost/path` is accepted as equivalent to it,
+/// which is the one conventional exception (RFC 8089 §2 defines exactly
+/// that equivalence, and a `localhost` target resolves locally rather than
+/// over the network, so accepting it costs nothing). Every other authority
+/// is refused.
+///
+/// A body whose first segment is empty (`file://///server/share/x.ttl`,
+/// body `///server/share/x.ttl`) is refused too: it is the same host smuggled
+/// in as the path, and it survives IRI resolution because dot-segment
+/// removal never collapses empty segments.
+fn file_uri_local_body(rest: &str) -> Option<&str> {
+    let body = if rest.is_empty() || rest.starts_with('/') {
+        rest // empty authority: file:///path
+    } else {
+        let split = rest.find('/')?;
+        let (authority, body) = rest.split_at(split);
+        if !authority.eq_ignore_ascii_case("localhost") {
+            return None;
+        }
+        body
+    };
+    (!body.starts_with("//")).then_some(body)
+}
+
+/// The inverse of [`file_uri`]'s scheme: the local path a `file:` IRI
+/// names. `None` for anything else — a remote import IRI, a malformed one,
+/// or (see [`file_uri_local_body`]) a `file:` IRI naming a host. The fs
 /// convenience only ever reads local files.
 #[cfg(not(windows))]
 fn path_from_file_uri(iri: &str) -> Option<PathBuf> {
-    iri.strip_prefix("file://").map(PathBuf::from)
+    file_uri_local_body(iri.strip_prefix("file://")?).map(PathBuf::from)
 }
 
-/// `None` for anything that isn't a `file://` IRI, exactly as on Unix;
-/// otherwise the path [`windows_path_from_file_uri`] recovers.
+/// `None` for anything that isn't a local `file://` IRI, exactly as on
+/// Unix; otherwise the path [`windows_path_from_file_uri`] recovers.
 #[cfg(windows)]
 fn path_from_file_uri(iri: &str) -> Option<PathBuf> {
-    iri.strip_prefix("file://")
-        .map(|rest| PathBuf::from(windows_path_from_file_uri(rest)))
+    windows_path_from_file_uri(iri.strip_prefix("file://")?).map(PathBuf::from)
 }
 
 /// The inverse of [`windows_file_iri`], over the part of the IRI after
-/// `file://`: `/D:/a/x.ttl` → `D:\a\x.ttl`, and the authority form
-/// `server/share/x.ttl` → `\\server\share\x.ttl`. Compiled and tested on
-/// every platform; only called on Windows.
+/// `file://`: `/D:/a/x.ttl` → `D:\a\x.ttl`. `None` for the authority form
+/// (`server/share/x.ttl`), which would otherwise become the UNC path
+/// `\\server\share\x.ttl` — see [`file_uri_local_body`] for why that is
+/// refused rather than mapped. `None`, likewise, for any body that does not
+/// start with a drive (`/D:` or `/D:/…`): whatever else follows the leading
+/// `/` — another `/`, a `\`, a `\\?\` device prefix — is a spelling that
+/// Windows could open as something other than a local drive path.
+///
+/// [`windows_file_iri`] still *emits* `file://server/share/…` for a UNC
+/// path handed to it as the root document, because that is the honest IRI
+/// for such a path; the mapping is deliberately one-way. A root document
+/// opened from a UNC share therefore loads, and its relative imports do
+/// not. Reading files off a named network share is a deliberate act that
+/// belongs to whoever opens the root, not to whatever the root's text asks
+/// for next.
+///
+/// Compiled and tested on every platform; only called on Windows.
 #[cfg(any(windows, test))]
-fn windows_path_from_file_uri(rest: &str) -> String {
-    match rest.strip_prefix('/') {
-        Some(local) => local.replace('/', r"\"),
-        None => format!(r"\\{}", rest.replace('/', r"\")),
-    }
+fn windows_path_from_file_uri(rest: &str) -> Option<String> {
+    let local = file_uri_local_body(rest)?.strip_prefix('/')?;
+    let bytes = local.as_bytes();
+    let names_a_drive = bytes.len() >= 2
+        && bytes[0].is_ascii_alphabetic()
+        && bytes[1] == b':'
+        && matches!(bytes.get(2), None | Some(b'/'));
+    names_a_drive.then(|| local.replace('/', r"\"))
 }
 
 #[cfg(test)]
@@ -457,6 +725,12 @@ mod tests {
             concat!(env!("CARGO_MANIFEST_DIR"), "/tests/fixtures/imports/{}"),
             name
         )
+    }
+
+    /// The default containment policy for a fixture-rooted load.
+    fn fixture_roots(root: &str) -> ImportRoots {
+        ImportRoots::for_root_document(Path::new(root), &[])
+            .expect("the fixture root must canonicalize")
     }
 
     // -- pure API: load_from_str --------------------------------------------
@@ -703,9 +977,10 @@ mod tests {
     #[test]
     fn with_import_adds_an_undeclared_extra_graph() {
         let mut interner = Interner::new();
+        let roots = fixture_roots(&fixture_path("root.ttl"));
         let set = OntologySet::load(fixture_path("root.ttl"), &mut interner)
             .expect("root must load")
-            .with_import(fixture_path("extra.ttl"), &mut interner)
+            .with_import(fixture_path("extra.ttl"), &mut interner, &roots)
             .expect("the explicit extra import must load");
 
         assert_eq!(
@@ -722,13 +997,14 @@ mod tests {
     #[test]
     fn with_import_rejects_a_graph_that_is_already_loaded() {
         let mut interner = Interner::new();
+        let roots = fixture_roots(&fixture_path("root.ttl"));
         let set = OntologySet::load(fixture_path("root.ttl"), &mut interner)
             .expect("root must load")
-            .with_import(fixture_path("extra.ttl"), &mut interner)
+            .with_import(fixture_path("extra.ttl"), &mut interner, &roots)
             .expect("the first with_import must succeed");
 
         let err = set
-            .with_import(fixture_path("extra.ttl"), &mut interner)
+            .with_import(fixture_path("extra.ttl"), &mut interner, &roots)
             .expect_err("adding the same graph twice must be rejected");
         assert!(
             matches!(err, OntologyError::DuplicateGraphName { .. }),
@@ -816,25 +1092,28 @@ mod tests {
     }
 
     /// Constraint 2 for the Windows halves specifically, checked on every
-    /// platform: the IRI maps back to a path naming the same file. A drive
-    /// path loses only its extended-length prefix, which `\\?\D:\…` and
-    /// `D:\…` both open through.
+    /// platform: a *drive* IRI maps back to a path naming the same file. A
+    /// drive path loses only its extended-length prefix, which `\\?\D:\…`
+    /// and `D:\…` both open through.
+    ///
+    /// The UNC spellings are deliberately not here: see
+    /// [`unc_file_iris_do_not_map_back_to_a_unc_path`] for why the mapping
+    /// is one-way.
     #[test]
-    fn windows_file_iris_round_trip_back_to_paths() {
+    fn windows_drive_file_iris_round_trip_back_to_paths() {
         for (path, expected) in [
             (r"\\?\D:\a\triage.ttl", r"D:\a\triage.ttl"),
             (r"D:\a\triage.ttl", r"D:\a\triage.ttl"),
-            (
-                r"\\?\UNC\server\share\triage.ttl",
-                r"\\server\share\triage.ttl",
-            ),
-            (r"\\server\share\triage.ttl", r"\\server\share\triage.ttl"),
         ] {
             let iri = windows_file_iri(path);
             let rest = iri
                 .strip_prefix("file://")
                 .expect("windows_file_iri must emit a file:// IRI");
-            assert_eq!(windows_path_from_file_uri(rest), expected, "from {path}");
+            assert_eq!(
+                windows_path_from_file_uri(rest).as_deref(),
+                Some(expected),
+                "from {path}"
+            );
         }
     }
 
@@ -846,7 +1125,10 @@ mod tests {
         assert_eq!(base, "file:///D:/a/triage/triage.ttl");
         let sibling = "file:///D:/a/triage/rules.ttl";
         let rest = sibling.strip_prefix("file://").expect("file:// IRI");
-        assert_eq!(windows_path_from_file_uri(rest), r"D:\a\triage\rules.ttl");
+        assert_eq!(
+            windows_path_from_file_uri(rest).as_deref(),
+            Some(r"D:\a\triage\rules.ttl")
+        );
     }
 
     /// Unchanged on both platforms: a non-`file://` IRI has no local path.
@@ -854,5 +1136,429 @@ mod tests {
     fn path_from_file_uri_rejects_a_remote_iri() {
         assert!(path_from_file_uri("https://example.org/a.ttl").is_none());
         assert!(path_from_file_uri("urn:test:a").is_none());
+    }
+
+    // -- B4: a `file:` IRI naming a host is not a local path ----------------
+
+    /// The defect: `file://attacker.example.com/share/evil.ttl` mapped to
+    /// the UNC path `\\attacker.example.com\share\evil.ttl`, which Windows
+    /// resolves over the network — so a declared import became an outbound
+    /// SMB fetch (and an outbound NTLM authentication), which decision D5
+    /// and this module's own header say never happens.
+    ///
+    /// `windows_path_from_file_uri` is `#[cfg(any(windows, test))]`
+    /// precisely so this is checked wherever the suite runs, not only on
+    /// Windows.
+    #[test]
+    fn a_file_iri_naming_a_host_never_becomes_a_windows_unc_path() {
+        for iri in [
+            "file://attacker.example.com/share/evil.ttl",
+            "file://10.1.2.3/pwn/x.ttl",
+            "file://server/share/triage.ttl",
+            "file://LOCALHOST.attacker.example.com/share/x.ttl",
+            "file://///attacker.example.com/share/evil.ttl",
+            "file:////server/share/x.ttl",
+            "file://localhost//server/share/x.ttl",
+        ] {
+            let rest = iri.strip_prefix("file://").expect("file:// IRI");
+            assert_eq!(
+                windows_path_from_file_uri(rest),
+                None,
+                "{iri} must not map to any local path"
+            );
+            assert_eq!(
+                path_from_file_uri(iri),
+                None,
+                "{iri} must not map to any local path"
+            );
+        }
+    }
+
+    /// On Windows only a drive spelling maps to a path: a body whose first
+    /// segment is not `X:` could open as a device or network path however
+    /// it is spelled, so it is refused rather than guessed at.
+    #[test]
+    fn only_a_drive_body_maps_to_a_windows_path() {
+        for rest in [
+            r"/\\?\UNC\server\share\x.ttl",
+            r"/\\server\share\x.ttl",
+            "/server/share/x.ttl",
+            "/1:/a/x.ttl",
+            "/D:x.ttl",
+            "",
+        ] {
+            assert_eq!(windows_path_from_file_uri(rest), None, "{rest:?}");
+        }
+        assert_eq!(
+            windows_path_from_file_uri("/d:/a/x.ttl").as_deref(),
+            Some(r"d:\a\x.ttl")
+        );
+    }
+
+    /// The forward direction from commit `a40a496` is untouched: a UNC path
+    /// handed in as the *root document* still gets an honest IRI. Only the
+    /// inverse is refused, so the root a caller opens still loads while the
+    /// IRIs its text asks for next cannot name a host.
+    #[test]
+    fn unc_file_iris_do_not_map_back_to_a_unc_path() {
+        for path in [
+            r"\\?\UNC\server\share\triage.ttl",
+            r"\\server\share\triage.ttl",
+        ] {
+            let iri = windows_file_iri(path);
+            assert_eq!(iri, "file://server/share/triage.ttl", "from {path}");
+            let rest = iri.strip_prefix("file://").expect("file:// IRI");
+            assert_eq!(
+                windows_path_from_file_uri(rest),
+                None,
+                "the authority form must not map back to a UNC path"
+            );
+        }
+    }
+
+    // -- B2/B3: depth and containment on filesystem loads -------------------
+
+    /// A private scratch directory for one test, named after it so parallel
+    /// tests never collide. Removed on entry and on exit.
+    struct Scratch(PathBuf);
+
+    impl Scratch {
+        fn new(name: &str) -> Scratch {
+            let dir = std::env::temp_dir().join(format!("horismos-imports-test-{name}"));
+            let _ = std::fs::remove_dir_all(&dir);
+            std::fs::create_dir_all(&dir).expect("scratch directory must be creatable");
+            Scratch(dir)
+        }
+
+        fn write(&self, relative: &str, source: &str) -> PathBuf {
+            let path = self.0.join(relative);
+            if let Some(parent) = path.parent() {
+                std::fs::create_dir_all(parent).expect("scratch subdirectory must be creatable");
+            }
+            std::fs::write(&path, source).expect("scratch file must be writable");
+            path
+        }
+
+        fn dir(&self, relative: &str) -> PathBuf {
+            let path = self.0.join(relative);
+            std::fs::create_dir_all(&path).expect("scratch subdirectory must be creatable");
+            path
+        }
+    }
+
+    impl Drop for Scratch {
+        fn drop(&mut self) {
+            let _ = std::fs::remove_dir_all(&self.0);
+        }
+    }
+
+    const HORIS_PREFIX: &str = "@prefix horis: <https://w3id.org/horismos#> .\n";
+
+    /// A chain `f0 → f1 → … → fn`, each file importing the next; the last
+    /// one declares a class instead. Built programmatically — the depth that
+    /// actually overflows the stack is thousands of files, which is not a
+    /// fixture anyone should commit.
+    fn write_import_chain(scratch: &Scratch, links: usize) -> PathBuf {
+        for i in 0..links {
+            scratch.write(
+                &format!("f{i}.ttl"),
+                &format!("{HORIS_PREFIX}<> horis:imports <./f{}.ttl> .\n", i + 1),
+            );
+        }
+        scratch.write(
+            &format!("f{links}.ttl"),
+            "@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .\n\
+             <https://example.org/t#C> a rdfs:Class .\n",
+        );
+        scratch.0.join("f0.ttl")
+    }
+
+    /// B2: cycles were caught, depth was not — and an acyclic chain of a few
+    /// thousand files overflowed the stack, which aborts the process rather
+    /// than raising anything a caller could catch.
+    #[test]
+    fn a_transitive_import_chain_deeper_than_the_cap_is_refused() {
+        let scratch = Scratch::new("deep-import-chain");
+        let root = write_import_chain(&scratch, MAX_IMPORT_DEPTH + 1);
+        let mut interner = Interner::new();
+        let err = OntologySet::load(&root, &mut interner)
+            .expect_err("a chain deeper than the cap must be refused");
+        assert!(
+            matches!(
+                &err,
+                OntologyError::ImportChainTooDeep { max, .. } if *max == MAX_IMPORT_DEPTH
+            ),
+            "{err:?}"
+        );
+    }
+
+    /// The bound is a bound, not a ban: a chain right at the cap still
+    /// loads, so the refusal above is about depth and nothing else.
+    #[test]
+    fn a_transitive_import_chain_at_the_cap_still_loads() {
+        let scratch = Scratch::new("import-chain-at-cap");
+        let root = write_import_chain(&scratch, MAX_IMPORT_DEPTH);
+        let mut interner = Interner::new();
+        let set =
+            OntologySet::load(&root, &mut interner).expect("a chain at the cap must still load");
+        assert_eq!(set.imports.len(), MAX_IMPORT_DEPTH);
+    }
+
+    /// B3, consequence 1: `<> horis:imports <../secret.ttl>` walked out of
+    /// the root document's directory and merged whatever it found — up to
+    /// and including foreign `horis:Rule` declarations. The ontology is the
+    /// program, so that is decision logic arriving from off the record.
+    #[test]
+    fn an_import_that_escapes_the_root_directory_is_refused() {
+        let scratch = Scratch::new("escape-root-directory");
+        scratch.write(
+            "secret.ttl",
+            "@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .\n\
+             <https://example.org/t#Foreign> a rdfs:Class .\n",
+        );
+        let root = scratch.write(
+            "project/root.ttl",
+            &format!("{HORIS_PREFIX}<> horis:imports <../secret.ttl> .\n"),
+        );
+
+        let mut interner = Interner::new();
+        let err = OntologySet::load(&root, &mut interner)
+            .expect_err("an import outside the root document's directory must be refused");
+        assert!(
+            matches!(&err, OntologyError::ImportOutsideRoots { .. }),
+            "{err:?}"
+        );
+        assert!(
+            err.to_string()
+                .contains("outside the permitted ontology roots"),
+            "the refusal must name the escape: {err}"
+        );
+    }
+
+    /// B3, consequences 2 and 3: an absolute import read any file the
+    /// process could read, echoed a fragment of it back through the parse
+    /// error, and distinguished "exists but is not Turtle" from "does not
+    /// exist" — a filesystem oracle, one load at a time.
+    ///
+    /// Both spellings must now produce the *same* refusal, because a
+    /// refusal that varies with existence is still an oracle.
+    #[test]
+    fn an_absolute_import_outside_the_roots_is_refused_without_an_existence_oracle() {
+        let scratch = Scratch::new("absolute-import-oracle");
+        let existing = scratch.write("outside/passwd-like.txt", "root:x:0:0:root:/root:/bin/sh\n");
+        let missing = scratch.0.join("outside/definitely-not-here.txt");
+
+        let mut refusals = Vec::new();
+        for target in [&existing, &missing] {
+            let root = scratch.write(
+                "project/root.ttl",
+                &format!(
+                    "{HORIS_PREFIX}<> horis:imports <file://{}> .\n",
+                    target.display()
+                ),
+            );
+            let mut interner = Interner::new();
+            let err = OntologySet::load(&root, &mut interner)
+                .expect_err("an absolute import outside the roots must be refused");
+            let OntologyError::ImportOutsideRoots { import, roots } = err else {
+                panic!("expected an out-of-roots refusal, got {err:?}");
+            };
+            assert!(
+                !import.contains("root:x:0:0"),
+                "the refusal must not echo the file's contents: {import}"
+            );
+            refusals.push((import, roots));
+        }
+        // The two refusals differ only in the import IRI the *document*
+        // chose, which the author already knows; everything the loader adds
+        // is identical, so the refusal reveals nothing about what is on
+        // disk.
+        assert_eq!(
+            refusals[0].1, refusals[1].1,
+            "an existing and a missing out-of-root target must be refused identically"
+        );
+        for (import, _) in &refusals {
+            assert!(import.starts_with("file://"), "{import}");
+        }
+    }
+
+    /// The captain-mandated escape hatch: a deployment that legitimately
+    /// shares an ontology directory declares that intent, and the same
+    /// import then resolves.
+    #[test]
+    fn an_explicitly_permitted_root_lets_a_shared_ontology_directory_import() {
+        let scratch = Scratch::new("permitted-extra-root");
+        let shared = scratch.dir("shared");
+        scratch.write(
+            "shared/vocab.ttl",
+            "@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .\n\
+             <https://example.org/t#Shared> a rdfs:Class .\n",
+        );
+        let root = scratch.write(
+            "project/root.ttl",
+            &format!("{HORIS_PREFIX}<> horis:imports <../shared/vocab.ttl> .\n"),
+        );
+
+        let mut interner = Interner::new();
+        OntologySet::load(&root, &mut interner)
+            .expect_err("without the declaration the import stays refused");
+
+        let mut interner = Interner::new();
+        let roots = ImportRoots::for_root_document(&root, std::slice::from_ref(&shared))
+            .expect("the declared root must canonicalize");
+        let set = OntologySet::load_with_roots(&root, &mut interner, &roots)
+            .expect("a declared shared ontology directory must import");
+        assert_eq!(set.imports.len(), 1);
+    }
+
+    /// Containment is a canonical-path comparison, not a string prefix: a
+    /// symlink inside a permitted root that points outside it is an escape.
+    #[test]
+    #[cfg(unix)]
+    fn a_symlink_cannot_walk_out_of_a_permitted_root() {
+        let scratch = Scratch::new("symlink-escape");
+        scratch.write(
+            "secret.ttl",
+            "@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .\n\
+             <https://example.org/t#Foreign> a rdfs:Class .\n",
+        );
+        let project = scratch.dir("project");
+        std::os::unix::fs::symlink(scratch.0.join("secret.ttl"), project.join("link.ttl"))
+            .expect("the scratch symlink must be creatable");
+        let root = scratch.write(
+            "project/root.ttl",
+            &format!("{HORIS_PREFIX}<> horis:imports <./link.ttl> .\n"),
+        );
+
+        let mut interner = Interner::new();
+        let err = OntologySet::load(&root, &mut interner)
+            .expect_err("a symlink out of the permitted roots must be refused");
+        assert!(
+            matches!(&err, OntologyError::ImportOutsideRoots { .. }),
+            "{err:?}"
+        );
+    }
+
+    /// A sibling directory whose name merely *starts with* a permitted
+    /// root's name is not under it — the property raw prefix matching would
+    /// get wrong.
+    #[test]
+    fn a_sibling_directory_sharing_a_name_prefix_is_not_contained() {
+        let scratch = Scratch::new("name-prefix-sibling");
+        scratch.write(
+            "project-evil/evil.ttl",
+            "@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .\n\
+             <https://example.org/t#Foreign> a rdfs:Class .\n",
+        );
+        let root = scratch.write(
+            "project/root.ttl",
+            &format!("{HORIS_PREFIX}<> horis:imports <../project-evil/evil.ttl> .\n"),
+        );
+
+        let mut interner = Interner::new();
+        let err = OntologySet::load(&root, &mut interner)
+            .expect_err("a name-prefix sibling must not count as contained");
+        assert!(
+            matches!(&err, OntologyError::ImportOutsideRoots { .. }),
+            "{err:?}"
+        );
+    }
+
+    /// A symlink inside a permitted root that points outside it is judged
+    /// by where it points however much of the path beneath it exists.
+    /// Before, a missing target whose parent was also missing fell back to
+    /// its lexical spelling, which looked contained — so the refusal
+    /// differed with whether a directory *outside* the roots existed.
+    #[test]
+    #[cfg(unix)]
+    fn a_symlinked_directory_out_of_the_roots_is_refused_whether_or_not_the_target_exists() {
+        let scratch = Scratch::new("symlinked-dir-oracle");
+        let outside = scratch.dir("outside");
+        scratch.dir("outside/present");
+        let project = scratch.dir("project");
+        std::os::unix::fs::symlink(&outside, project.join("l"))
+            .expect("the scratch symlink must be creatable");
+
+        for probe in ["present", "absent"] {
+            let root = scratch.write(
+                "project/root.ttl",
+                &format!("{HORIS_PREFIX}<> horis:imports <./l/{probe}/x.ttl> .\n"),
+            );
+            let mut interner = Interner::new();
+            let err = OntologySet::load(&root, &mut interner)
+                .expect_err("an import through an out-of-root symlink must be refused");
+            assert!(
+                matches!(&err, OntologyError::ImportOutsideRoots { .. }),
+                "{probe}: {err:?}"
+            );
+        }
+    }
+
+    /// A missing file in a missing subdirectory is judged through its
+    /// deepest existing ancestor's canonical spelling, not its lexical one —
+    /// the spelling the canonicalized roots are in. Before, only the
+    /// immediate parent was tried, so this path stayed lexical; on Windows
+    /// that is a `D:\…` path compared against a `\\?\D:\…` root, and a
+    /// missing import read as an escape.
+    #[test]
+    #[cfg(unix)]
+    fn a_missing_path_is_judged_through_its_deepest_existing_ancestor() {
+        let scratch = Scratch::new("deepest-existing-ancestor");
+        let real = scratch.dir("real");
+        std::os::unix::fs::symlink(&real, scratch.0.join("link"))
+            .expect("the scratch symlink must be creatable");
+        let canonical_real = std::fs::canonicalize(&real).expect("real must canonicalize");
+        assert_eq!(
+            resolve_for_containment(&scratch.0.join("link/absent/deeper/x.ttl")),
+            canonical_real.join("absent/deeper/x.ttl")
+        );
+        assert_eq!(
+            resolve_for_containment(&scratch.0.join("link/absent/../x.ttl")),
+            canonical_real.join("x.ttl")
+        );
+    }
+
+    /// A missing import *inside* the permitted roots still reads as missing,
+    /// not as an escape — the two facts stay distinguishable where the
+    /// reader is entitled to both.
+    #[test]
+    fn a_missing_import_inside_the_roots_is_still_reported_as_missing() {
+        let scratch = Scratch::new("missing-inside-roots");
+        let root = scratch.write(
+            "root.ttl",
+            &format!("{HORIS_PREFIX}<> horis:imports <./absent.ttl> .\n"),
+        );
+        let mut interner = Interner::new();
+        let err = OntologySet::load(&root, &mut interner)
+            .expect_err("a missing import must still be refused");
+        assert!(
+            matches!(&err, OntologyError::ImportNotFound { .. }),
+            "{err:?}"
+        );
+    }
+
+    /// The local spellings still resolve, including the one conventional
+    /// exception: RFC 8089 §2 makes `file://localhost/p` equivalent to
+    /// `file:///p`, and a `localhost` target resolves locally.
+    #[test]
+    fn the_empty_and_localhost_authorities_are_the_local_forms() {
+        assert_eq!(
+            path_from_file_uri("file:///tmp/a.ttl"),
+            Some(PathBuf::from("/tmp/a.ttl"))
+        );
+        assert_eq!(file_uri_local_body("/tmp/a.ttl"), Some("/tmp/a.ttl"));
+        assert_eq!(
+            file_uri_local_body("localhost/tmp/a.ttl"),
+            Some("/tmp/a.ttl")
+        );
+        assert_eq!(
+            file_uri_local_body("LocalHost/tmp/a.ttl"),
+            Some("/tmp/a.ttl")
+        );
+        assert_eq!(file_uri_local_body("evil.example.com/tmp/a.ttl"), None);
+        assert_eq!(
+            windows_path_from_file_uri("localhost/D:/a/x.ttl").as_deref(),
+            Some(r"D:\a\x.ttl")
+        );
     }
 }

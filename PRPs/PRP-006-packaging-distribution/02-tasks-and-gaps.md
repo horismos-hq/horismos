@@ -21,18 +21,19 @@ The PyPI release path. Nothing else in the plan was touched.
   depends on it. This is a multi-crate workspace with path dependencies, so an archive
   missing a crate is the realistic failure and it is now caught before upload.
 - **The publish guard.** A PyPI filename can never be reused, so every route to the real
-  index — the `v*` tag push and the manual dispatch alike — must run from a tag ref whose
-  version matches the root `Cargo.toml`, compared in Cargo's SemVer spelling on both
-  sides. A mismatch or a non-tag ref fails with both values named. The manual dispatch
+  index — the `v*` tag push and the manual dispatch alike — must run from a `v`-prefixed
+  tag ref whose version matches the root `Cargo.toml`, compared in Cargo's SemVer
+  spelling on both sides. A mismatch or a non-tag ref fails with both values named. The manual dispatch
   route to `pypi` stays available. TestPyPI carries no tag requirement.
 - **Both indexes strict, no `skip-existing`.** A duplicate filename is answered with
   HTTP 400 on TestPyPI exactly as on PyPI. Each rehearsal therefore needs a fresh
   version — bump the alpha suffix (`a1`, `a2`, `a3`); TestPyPI version numbers are free.
   A rehearsal that silently uploaded nothing and reported success would destroy the
   evidence the manual checks below depend on.
-- **A build-and-verify route that touches no index.** The dispatch input takes a third
+- **A build-and-verify route that publishes nowhere.** The dispatch input takes a third
   value, `none`, which runs the same wheel matrix, sdist and quickstart gate and then
-  skips the publish job. The default stays `testpypi`.
+  skips the publish job. It is not offline: the sdist test's source build still fetches
+  its build backend from PyPI. The default stays `testpypi`.
 
 ## Decisions to resolve (before implementation)
 

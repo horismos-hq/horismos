@@ -1,7 +1,9 @@
 # Horismos dev entry points. Requires: rustup (stable), uv. Everything Python
 # runs through uv; maturin is a dev dependency, never a global install.
 
-.PHONY: build develop test test-rust test-py lint fmt notices no-model-gate check-boundary verify clean demo demo-live demo-jev demo-jev-live
+
+.PHONY: build develop test test-rust test-py test-workflows lint fmt no-model-gate check-boundary verify clean demo demo-live demo-jev demo-jev-live
+
 
 build:
 	cargo build --workspace
@@ -11,13 +13,17 @@ develop:
 	uv sync
 	uv run maturin develop --uv
 
-test: test-rust test-py
+test: test-rust test-py test-workflows
 
 test-rust:
 	cargo test --workspace
 
 test-py:
 	uv run pytest
+
+# The release workflow's tag guard, run verbatim from release.yml
+test-workflows:
+	uv run python .github/scripts/test_release_guard.py
 
 lint:
 	cargo fmt --all --check

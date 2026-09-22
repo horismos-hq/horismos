@@ -25,7 +25,7 @@ shipped state.
 ```sh
 make build     # cargo build --workspace
 make develop   # build + install the Python package into .venv (uv + maturin)
-make test      # Rust tests + pytest
+make test      # Rust tests + pytest + release-guard tests
 make lint      # fmt check, clippy, ruff, mypy
 make verify    # everything above + the anti-wrapper no-model-gate
 make notices   # regenerate THIRD_PARTY_NOTICES.txt after any Cargo.lock change

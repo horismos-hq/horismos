@@ -194,10 +194,21 @@ class Ontology:
         *,
         imports: list[str | PathLike[str]] | None = None,
         allow_incomplete: bool = False,
+        permitted_import_roots: list[str | PathLike[str]] | None = None,
     ) -> Ontology:
-        """Loads and verifies one ontology plus its explicit imports."""
+        """Loads and verifies one ontology plus its explicit imports.
+
+        A declared ``horis:imports`` target may only name a file under the
+        root document's own directory. ``permitted_import_roots`` names
+        further directories a deployment deliberately shares.
+        """
         try:
-            handle = _horismos.Ontology.load(path, list(imports or []), allow_incomplete)
+            handle = _horismos.Ontology.load(
+                path,
+                list(imports or []),
+                allow_incomplete,
+                list(permitted_import_roots or []),
+            )
         except _horismos.HorismosVerificationError as error:
             error.report = _report(error.report_json, error.exit_code)
             raise
