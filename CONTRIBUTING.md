@@ -48,4 +48,4 @@ by `python/tests/test_quickstart.py`); conventions live in `docs/README.md`.
 
 ## License
 
-MIT OR Apache-2.0 (final license decision tracked in PRP-000).
+MIT OR Apache-2.0.
