@@ -239,7 +239,7 @@ trajectory (4 steps) written to /var/folders/…/horismos_triage_demo_trajectory
 Note the proof leaf: `asserted by perception`. The same rule, the same proof shape, but the base fact now came through the model — and the trace file records that step with its model id, confidence, threshold and every fact it asserted. Open the trajectory JSON: it is `horismos.trace/2`, the schema described in [Traces](framework/09-traces.md), with `loss_mask` already set per step.
 
 !!! note "Python drives the kernel; the loop is Rust today"
-    The workflow interpreter lives in `horismos-core::workflow::Agent` and is exercised from Rust (`make demo`, `crates/horismos-bridges/tests/agent_loop_dod.rs`). A Python `Agent.run(...)` wrapper is a PRP-004 follow-up — see the [roadmap](roadmap.md). From Python you drive the symbolic kernel directly — which is also the primary path for structured, standards-hydrated input.
+    The workflow interpreter lives in `horismos-core::workflow::Agent` and is exercised from Rust (`make demo`, `crates/horismos-bridges/tests/agent_loop_dod.rs`). A Python `Agent.run(...)` wrapper is a PRP-004 follow-up. From Python you drive the symbolic kernel directly — which is also the primary path for structured, standards-hydrated input.
 
 ## 10. Go live with one environment variable
 

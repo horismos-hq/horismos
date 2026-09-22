@@ -213,5 +213,3 @@ What the boundary proves: the proposal was policy-legal and passed its declared 
 | A coding-harness adapter that materializes repository state (branch, dirty files, test status, path scopes) as a versioned projection with conditional commit | **Ships today** — `horismos-harness`, the second-domain proof that the host SPI is format-neutral, not FHIR-shaped |
 | Compiling a fragment from an existing `SKILL.md` / tool schema, with a coverage report | **Planned in PRP-007** (after PRP-008) |
 | Completeness / conflict / dead-rule verification of the eleven rules, with domain-term witnesses | **Yes** — `verify()` proves `:gateDecision` total and conflict-free; `Ontology.load` refuses the overlay otherwise |
-
-Track the live status on the [roadmap](roadmap.md), which is reconciled against the project board on every status change.

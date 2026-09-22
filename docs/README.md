@@ -65,9 +65,9 @@ together, or every page ships a canonical link to the wrong host.
   public**, so a reader cannot open `research/…`, `PRPs/…`, `decisions/…`, or any
   internal sweep-report name; a path like that renders as a dead pointer that also
   advertises what it cannot show. Instead: link a page on this site that covers the
-  same ground ([Verification](framework/10-verification.md), [Guarantees](guarantees.md),
-  [Roadmap](roadmap.md), …), cite the external primary source the wiki itself cites
-  (paper, standard, post-mortem) where there is one, or state what was measured in the
+  same ground ([Verification](framework/10-verification.md),
+  [Guarantees](guarantees.md), …), cite the external primary source the wiki itself
+  cites (paper, standard, post-mortem) where there is one, or state what was measured in the
   sentence. Never weaken a claim just to avoid citing a private source — say the
   finding in prose instead. Repository paths that describe the shape of the code a
   reader will get (`crates/…`, `examples/…`, `python/…`, `make` targets) are fine to
@@ -106,7 +106,7 @@ together, or every page ships a canonical link to the wrong host.
   `docs/index.md`'s flow diagram is the worked example; `docs/architecture.md`'s SVG
   needs none because it only uses `currentColor` and Material's own variables.
 - **Status is truthful.** The internal board is the authority on what is merged, in
-  build, or planned; the Roadmap page restates its current state in the page's own
+  build, or planned. Where a page states project status, it says so in the page's own
   words and defers to the board where the two drift, rather than pointing readers at a
   file they cannot open.
 
@@ -123,7 +123,6 @@ docs/
   use-cases/                   one page per domain, same template (examples/gallery/)
   guarantees.md                what is claimed, what is not
   architecture.md              the bounded projection kernel in one diagram
-  roadmap.md                   merged / in build / planned
   framework/                   the framework definition (unchanged, mounted)
   stylesheets/extra.css        the whole visual layer — see the convention above
   assets/screenshots/          PR-body screenshots (excluded from the build)

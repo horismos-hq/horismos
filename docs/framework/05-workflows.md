@@ -23,8 +23,13 @@ does — that remains a fully supported shape, just no longer the only one.
 | `horis:ReasoningStep` | Run/await inference until a goal pattern holds | No |
 | `horis:ActionStep` | Invoke a declared Tool when preconditions hold (doc 07) | No |
 | `horis:NarrationStep` | Proof tree → NL for humans (doc 06) | Yes (prose only) |
-| `horis:ProposalStep` | LLM ranks precondition-legal candidates; runtime executes | Constrained |
+| `horis:ProposalStep` | LLM ranks precondition-legal candidates | Constrained |
 | `horis:WaitStep` | Await external input (structured facts or human decision) | No |
+
+`horis:ChoiceStep`, `horis:ProposalStep`, `horis:WaitStep` and `horis:SubflowStep`
+parse and validate in this build but do not execute: reaching one returns a
+domain-term error naming the concrete step and its kind — never a panic, never a
+silent no-op.
 
 ## The triage workflow, complete
 
