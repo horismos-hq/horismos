@@ -138,10 +138,13 @@ make verify        # all of the above — run before claiming work done
 - Releases go out through `.github/workflows/release.yml`, on Trusted Publishing — there
   is no PyPI token in this repo and none should ever be added. Three routes: a `v*` tag
   push publishes to PyPI, and a manual dispatch selects `testpypi` (the default), `pypi`,
-  or `none` (build and verify, contacting no index). Every route to the real index, the
-  manual one included, is guard-enforced: it must run from a tag ref whose version
-  matches the root `Cargo.toml`, or the run fails before publishing. Neither index takes
-  `skip-existing`, so each TestPyPI rehearsal needs a fresh version.
+  or `none` (build and verify, uploading nothing — not offline: the sdist test fetches its
+  build backend from PyPI). Every route to the real index, the manual one included, is
+  guard-enforced: it must run from a `v`-prefixed tag ref whose version matches the root
+  `Cargo.toml`, or the run fails before publishing (`make test-workflows` runs the guard
+  verbatim). Neither index takes `skip-existing`, so each TestPyPI rehearsal needs a
+  fresh version. Every workflow action is pinned to a full commit SHA with its version in
+  a trailing comment; an update resolves the new SHA from upstream, never a bare tag.
 - Process artifacts (ledgers, briefs, review diffs) are untracked scratch
   (`.superpowers/` is gitignored); the durable record is the owning PRP's
   `02-tasks-and-gaps.md` and the shipped-voice text where `[DECIDE]` markers were
