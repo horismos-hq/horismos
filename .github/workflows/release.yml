@@ -62,6 +62,17 @@ jobs:
             echo "::error::Refusing to publish to PyPI from '${REF_NAME}': that ref is a ${REF_TYPE}, not a tag. Real releases run from a v* tag; use the testpypi index to rehearse from a branch."
             exit 1
           fi
+          # Require the `v` before stripping it: `${REF_NAME#v}` leaves an
+          # unprefixed name unchanged, so without this an unprefixed tag equal
+          # to the workspace version would pass. This check stands on its own
+          # rather than relying on any environment tag policy.
+          case "$REF_NAME" in
+            v*) ;;
+            *)
+              echo "::error::Refusing to publish to PyPI from tag '${REF_NAME}': release tags are v-prefixed (vX.Y.Z), and this one is not."
+              exit 1
+              ;;
+          esac
           # Both sides are compared in Cargo's SemVer spelling, so the
           # intended tag `vX.Y.Z-alpha.N` / distribution `X.Y.ZaN` difference
           # never trips this.
