@@ -6,7 +6,8 @@
 # no schedule, no pull_request) can reach an index:
 #   * pushing a `v*` tag  -> build, test, publish to PyPI
 #   * manual dispatch     -> build, test, then publish to TestPyPI (default) or
-#     PyPI, or stop at the gate with `index: none` and touch no index at all
+#     PyPI, or stop at the gate with `index: none` and publish nowhere
+#     (still not offline: see the `none` option below)
 #
 # Publication uses PyPI Trusted Publishing (OIDC). There is no API token in
 # this workflow or in repository secrets, by design: `id-token: write` is
@@ -28,7 +29,9 @@ on:
           - testpypi
           - pypi
           # Build the full matrix and run the quickstart gate, then stop:
-          # `none` skips the publish job, so no index is contacted.
+          # `none` skips the publish job, so nothing is uploaded. It is not
+          # offline: the jobs still download what they need, and test-sdist's
+          # source build fetches its build backend (maturin) from PyPI.
           - none
 
 permissions:
@@ -46,8 +49,8 @@ jobs:
     name: guard (${{ inputs.index || 'pypi' }})
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4.4.0
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5.6.0
         with:
           python-version: "3.11"
       - name: Require a matching v* tag before any upload to the real index
@@ -62,6 +65,17 @@ jobs:
             echo "::error::Refusing to publish to PyPI from '${REF_NAME}': that ref is a ${REF_TYPE}, not a tag. Real releases run from a v* tag; use the testpypi index to rehearse from a branch."
             exit 1
           fi
+          # Require the `v` before stripping it: `${REF_NAME#v}` leaves an
+          # unprefixed name unchanged, so without this an unprefixed tag equal
+          # to the workspace version would pass. This check stands on its own
+          # rather than relying on any environment tag policy.
+          case "$REF_NAME" in
+            v*) ;;
+            *)
+              echo "::error::Refusing to publish to PyPI from tag '${REF_NAME}': release tags are v-prefixed (vX.Y.Z), and this one is not."
+              exit 1
+              ;;
+          esac
           # Both sides are compared in Cargo's SemVer spelling, so the
           # intended tag `vX.Y.Z-alpha.N` / distribution `X.Y.ZaN` difference
           # never trips this.
@@ -95,16 +109,16 @@ jobs:
             target: x86_64-pc-windows-msvc
             artifact: windows-x86_64
     steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4.4.0
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87  # stable branch, 2026-09-03
       # One abi3 wheel per platform serves every CPython >= 3.11.
-      - uses: PyO3/maturin-action@v1
+      - uses: PyO3/maturin-action@e83996d129638aa358a18fbd1dfb82f0b0fb5d3b  # v1.51.0
         with:
           command: build
           target: ${{ matrix.target }}
           manylinux: auto
           args: --release --out dist
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
         with:
           name: wheel-${{ matrix.artifact }}
           path: dist/*.whl
@@ -114,12 +128,12 @@ jobs:
     needs: guard
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: PyO3/maturin-action@v1
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4.4.0
+      - uses: PyO3/maturin-action@e83996d129638aa358a18fbd1dfb82f0b0fb5d3b  # v1.51.0
         with:
           command: sdist
           args: --out dist
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
         with:
           name: sdist
           path: dist/*.tar.gz
@@ -151,11 +165,11 @@ jobs:
           - os: windows-latest
             artifact: windows-x86_64
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4.4.0
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5.6.0
         with:
           python-version: ${{ matrix.python }}
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093  # v4.3.0
         with:
           name: wheel-${{ matrix.artifact }}
           path: dist
@@ -177,14 +191,14 @@ jobs:
     needs: sdist
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4.4.0
       # Building from source compiles the Rust core, so this job needs a
       # toolchain the wheel jobs get from maturin-action.
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: actions/setup-python@v5
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87  # stable branch, 2026-09-03
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5.6.0
         with:
           python-version: "3.11"
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093  # v4.3.0
         with:
           name: sdist
           path: dist
@@ -213,17 +227,17 @@ jobs:
       contents: read
       id-token: write # Trusted Publishing (OIDC) — scoped to this job only.
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093  # v4.3.0
         with:
           pattern: wheel-*
           path: dist
           merge-multiple: true
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093  # v4.3.0
         with:
           name: sdist
           path: dist
       - run: ls -l dist
-      - uses: pypa/gh-action-pypi-publish@release/v1
+      - uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33  # v1.14.2 (release/v1)
         with:
           # Both indexes are strict: no `skip-existing`. A duplicate filename
           # is answered with HTTP 400, which is the true and useful answer —
