@@ -180,6 +180,15 @@ generated content is semantically correct.
   — a subset `.ttl` is an ordinary import; there is no lazy loading, and the core does
   no I/O beyond reading declared imports (decided, PRP-001). `horismos author` assists
   extraction (doc 13).
+- An import may only name a file under the root document's own directory. Ontology
+  loading is a trust boundary (doc 15): the ontology is the program, so a document
+  does not get to decide by its own text which files on the host join it. A deployment
+  that shares an ontology directory across root documents declares those directories
+  explicitly at load. A `file:` IRI naming a host is not a local path and is refused.
+- A transitive import chain is bounded, as is `horis:all`/`any`/`none` nesting inside
+  a `horis:when`. Both caps sit far above anything readable — no shipped example
+  declares an import chain at all, and the deepest condition body across them is four
+  levels — and a document past either is refused with the depth named.
 - `owl:sameAs` anchors local classes to external IRIs. Anchoring buys: shared meaning
   across deployments, imported hierarchy (subsumption you didn't write), and interop
   with existing RDF datasets and editors.

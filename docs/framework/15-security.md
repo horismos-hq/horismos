@@ -29,8 +29,9 @@ don't decide the answer.
 
 ## Trust boundaries
 
-Five places cross from something Horismos does not control into something it does (the
-fifth added 2026-08-24 with the bounded-projection pivot — see §5):
+Six places cross from something Horismos does not control into something it does (the
+fifth added 2026-08-24 with the bounded-projection pivot — see §5; the sixth added
+2026-09-22 — see §6):
 
 1. **Perception input** — arbitrary NL, doc 06.
 2. **Tool bindings** — `python:`, `rust:`, `http:`/`https:`, `mcp://`, doc 07.
@@ -38,6 +39,8 @@ fifth added 2026-08-24 with the bounded-projection pivot — see §5):
 4. **Provider APIs** — outbound Bridge calls carrying credentials, doc 08.
 5. **The external system of record / host harness** — the FHIR server, CIS, or repository
    an Adapter hydrates from and commits to, doc 03/07/14.
+6. **Ontology loading** — the `.ttl` a deployment loads and every `horis:imports`
+   target it names, doc 02.
 
 Everything symbolic — rule firing, workflow transitions, tool *selection*, query
 evaluation, verification, retraction — happens after these boundaries and is not
@@ -207,12 +210,9 @@ data.
 - **Trace retention/encryption/access (PRP-006 acceptance surface).** The trace store
   is already a pluggable interface (doc 09: append/query by run, outcome, time). v1
   ships the JSONL default store with **no built-in encryption-at-rest or access
-  control** — stated here explicitly, not left implicit. What v1 does own:
-  `horis:redactInput` (doc 09) is enforced at emission time — the raw NL never reaches
-  the serializer in the first place, not scrubbed after the fact — and PRP-006's DoD
-  proves a redacted run's trace contains no raw NL anywhere in the document, including
-  nested per-step perception input, not just the top-level `input.text` field a
-  shallow check would catch.
+  control**, and **no trace-level redaction of perception input** — stated here
+  explicitly, not left implicit. A trace carries the raw NL a PerceptionStep was
+  given, and the property values the facts it proposed carry.
   **[DECIDE: default redaction posture (opt-in vs. opt-out) per domain pack — carried
   forward from doc 09, owned by PRP-006]**
   **[DECIDE: encryption-at-rest and access-control hooks for the default store — build
@@ -281,6 +281,32 @@ record, and incident response for a compromised external system are infrastructu
 concerns Horismos's adapter narrows what it *itself* can be tricked into doing with, not
 concerns it takes over.
 
+## 6. Ontology loading
+
+The ontology is the program (doc 14) and is untrusted before SME sign-off (see the
+asset table above). A root document therefore does not get to decide, by its own text,
+which files on the host become part of that program.
+
+**Threats:** a `horis:imports` target that walks out of the root document's directory
+and merges foreign `horis:Rule` declarations into the running program; an absolute
+import used to read a file the process can read and echo a fragment of it back through
+a parse error; the difference between "unparseable" and "absent" used to enumerate the
+filesystem one load at a time; and, on Windows, a `file:` IRI carrying a host, which
+resolves as a UNC path over the network — turning a load into an outbound fetch and an
+outbound authentication.
+
+**Library-enforced mitigation:** an import is confined to the canonicalised parent
+directory of the root document. A deployment that legitimately shares an ontology
+directory declares those directories explicitly at load; nothing else resolves.
+Containment is decided on canonical paths, so a symbolic link cannot walk out of a
+permitted root, and an out-of-root refusal reads identically whether or not the target
+exists, so it cannot be used to probe the filesystem. A `file:` IRI that names a host
+is not a local path and is refused outright, on every platform.
+
+**Deployer-owned:** reviewing what an ontology says before signing it off (doc 13),
+and the filesystem permissions of the process doing the loading. Confinement bounds
+which files an ontology's *own text* can reach; it is not a substitute for either.
+
 ## What v1 does not defend against (stated, not silent)
 
 These are permanent v1 design positions, not oversights:
@@ -292,8 +318,9 @@ These are permanent v1 design positions, not oversights:
   architectural containment (§1), not making the underlying model immune to
   adversarial phrasing. This is a considered position: a wrapper that promised prompt-
   level injection immunity would be promising something no current model provides.
-- **Encryption-at-rest and access control for the default trace store.** Pluggable,
-  not built-in, in v1 (§4).
+- **Encryption-at-rest and access control for the default trace store** — pluggable,
+  not built-in, in v1 — **and redaction of perception input in traces**, which v1 does
+  not do at all (§4).
 - **General deployment/network security** (TLS termination, firewall rules, secret
   manager choice, physical access) — standard infrastructure hygiene, out of scope
   for a framework doc same as for any other library.

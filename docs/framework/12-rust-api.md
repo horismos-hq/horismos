@@ -83,9 +83,14 @@ isolation: PyO3-touching code is gated at module level; the symbolic core compil
 for `wasm32-unknown-unknown` with `--no-default-features --features verify`.
 
 Ordinary `Ontology::load` and `Ontology::load_from_str` verify and fail closed.
-`LoadOptions { allow_incomplete: true }` and the named `*_allow_incomplete` helpers are
+`LoadOptions { allow_incomplete: true, ..Default::default() }` and the named
+`*_allow_incomplete` helpers are
 the explicit authoring/debug escape; verification still runs, `verify()` remains
-available, and any agent trace records `ontology.allow_incomplete: true`. Re-verification
+available, and any agent trace records `ontology.allow_incomplete: true`.
+`LoadOptions::permitted_import_roots` is the other field: the directories a
+`horis:imports` target may resolve inside besides the root document's own. Empty —
+the default — confines a load to that one directory (doc 15 § Ontology loading).
+Re-verification
 is currently a complete deterministic pass. Numeric discretization compares exact
 authored values only within the same opaque unit; v1 performs no unit conversion.
 
