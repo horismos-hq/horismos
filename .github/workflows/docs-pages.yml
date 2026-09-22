@@ -21,10 +21,11 @@ on:
       - .github/workflows/docs-pages.yml
   workflow_dispatch:
 
+# Least authority per job: only `deploy` performs the authenticated Pages
+# deployment, so only it holds `pages: write` and `id-token: write`. A job-level
+# block replaces this one rather than adding to it.
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 concurrency:
   group: docs-pages
@@ -33,6 +34,9 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: read # configure-pages GETs the Pages site; a private repo needs this
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4.4.0
       - uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86  # v5.4.2
@@ -46,6 +50,10 @@ jobs:
   deploy:
     needs: build
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
