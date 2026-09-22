@@ -10,7 +10,10 @@ requires-python = ">=3.11"
 license = "MIT OR Apache-2.0"
 # Declared explicitly (PEP 639): maturin's sdist packer does not otherwise
 # reach files at the repository root, and PyPI rejects an sdist whose
-# `License-File:` metadata names a file the tarball does not contain.
+# `License-File:` metadata names a file the tarball does not contain. The
+# `maturin>=1.9.3` floor above is a requirement of this key, not incidental: do
+# not lower it without rebuilding the sdist and checking both licence files are
+# inside it.
 license-files = ["LICENSE-APACHE", "LICENSE-MIT"]
 authors = [{ name = "Ramkumar M" }]
 # Version is dynamic on purpose: maturin reads the workspace `version` in the

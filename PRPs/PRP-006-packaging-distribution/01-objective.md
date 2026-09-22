@@ -41,8 +41,7 @@ docs site + examples, with CI that enforces the anti-wrapper guarantee.
    `horismos-core`/`horismos-ai`/`horismosframe`) — feeds back into PRP-000 naming.
    PyPI half decided 2026-09-21: `horismos` it is. Checked the same day, PyPI and
    TestPyPI both returned 404 for the name — unclaimed, so no fallback is needed and
-   `pyproject.toml`/`release.yml` are written against it. Nothing has been uploaded to
-   either index yet, so the name is not held; the crates.io half stays open.
+   `pyproject.toml`/`release.yml` are written against it. The crates.io half stays open.
 4. **[DECIDE, doc 15 §4 / doc 09]** Default redaction posture (opt-in vs. opt-out)
    for `horis:redactInput`, per domain pack.
 5. **[DECIDE, doc 15 §4]** Encryption-at-rest and access-control hooks for the

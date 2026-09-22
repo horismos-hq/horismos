@@ -73,12 +73,15 @@ gap-noted in PRP-008's `02-tasks-and-gaps.md`, not a behaviour gap.
 **PRP-006 (packaging & distribution) is Active (2026-09-21)**, unlocked by that
 integration surface. Its first slice has landed: `pyproject.toml` carries the PyPI
 metadata, the workspace `version` in the root `Cargo.toml` is the single source
-maturin normalises into `0.1.0a1`, and `.github/workflows/release.yml` builds the four
-wheel platforms plus an sdist, gates both on the doc-11 quickstart, and uploads through
-Trusted Publishing with no token in the repo. Nothing has been published to PyPI or
-TestPyPI: the environments and publishers are the captain's to register. The rest of
-the phase — crates.io, the generated API reference, the dependency-audit/SBOM gates,
-CHANGELOG and tagged releases — is unstarted.
+maturin normalises into the PEP 440 distribution version, and
+`.github/workflows/release.yml` builds the four wheel platforms plus an sdist, gates
+both on the doc-11 quickstart, and uploads through Trusted Publishing with no token in
+the repo. PyPI still has nothing. The first TestPyPI rehearsal (run 35682837533)
+uploaded the four wheels and was then refused on the sdist, whose `License-File:`
+metadata named licence files the tarball did not contain; `pyproject.toml` now declares
+them under PEP 639 and the version is bumped so the next rehearsal has a free slot. The
+rest of the phase — crates.io, the generated API reference, the dependency-audit/SBOM
+gates, CHANGELOG and tagged releases — is unstarted.
 
 Human side quests: register `horismos.dev`; file the w3id.org/horismos PR;
 reserve crates.io/PyPI names early; merge PR #3 (PRP-002 folder record).

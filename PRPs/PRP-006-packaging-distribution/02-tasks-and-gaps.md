@@ -5,8 +5,8 @@
 The PyPI release path. Nothing else in the plan was touched.
 
 - **One version, authored once.** The workspace `version` in the root `Cargo.toml` is
-  the single source: Cargo SemVer `0.1.0-alpha.1`, which maturin normalises to the
-  PEP 440 distribution version `0.1.0a1`. `pyproject.toml` keeps `dynamic = ["version"]`
+  the single source: Cargo SemVer `X.Y.Z-alpha.N`, which maturin normalises to the
+  PEP 440 distribution version `X.Y.ZaN`. `pyproject.toml` keeps `dynamic = ["version"]`
   rather than repeating the number; `horismos.__version__` reads the installed
   distribution metadata, so it reports the PEP 440 spelling.
 - **`.github/workflows/release.yml`**, on Trusted Publishing (OIDC): `id-token: write`
@@ -65,12 +65,11 @@ is recorded here.
 
 ## Open, and not ours to close
 
-- The `pypi` and `testpypi` GitHub environments do not exist yet, and neither Trusted
-  Publisher is registered. Both need the captain's PyPI/TestPyPI login. Until they
-  exist, nothing can publish.
-- The distribution name `horismos` was checked on 2026-09-21: PyPI and TestPyPI both
-  returned 404 for it. It is unclaimed, not held — nothing has been uploaded to either
-  index.
+- Closed 2026-09-22: both GitHub environments and their Trusted Publishers are
+  registered, and the first TestPyPI rehearsal (run 35682837533) published under them.
+- The distribution name `horismos` is now held on TestPyPI by the four `0.1.0a1` wheels
+  that rehearsal uploaded before it was refused on the sdist. PyPI still returns 404 for
+  the name.
 
 ## Still open from the plan
 
