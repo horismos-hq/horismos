@@ -6,7 +6,8 @@
 # no schedule, no pull_request) can reach an index:
 #   * pushing a `v*` tag  -> build, test, publish to PyPI
 #   * manual dispatch     -> build, test, then publish to TestPyPI (default) or
-#     PyPI, or stop at the gate with `index: none` and touch no index at all
+#     PyPI, or stop at the gate with `index: none` and publish nowhere
+#     (still not offline: see the `none` option below)
 #
 # Publication uses PyPI Trusted Publishing (OIDC). There is no API token in
 # this workflow or in repository secrets, by design: `id-token: write` is
@@ -28,7 +29,9 @@ on:
           - testpypi
           - pypi
           # Build the full matrix and run the quickstart gate, then stop:
-          # `none` skips the publish job, so no index is contacted.
+          # `none` skips the publish job, so nothing is uploaded. It is not
+          # offline: the jobs still download what they need, and test-sdist's
+          # source build fetches its build backend (maturin) from PyPI.
           - none
 
 permissions:
