@@ -133,7 +133,7 @@ make verify        # all of the above — run before claiming work done
   four lines — that `version`, the `horismos-core` and `horismos-bridges` pins beside it
   in `[workspace.dependencies]`, and the asserted version in
   `python/tests/test_public_surface.py` — and then `cargo check` refreshes `Cargo.lock`.
-  Every other hit for either spelling is prose using the current version as an example.
+  Every other hit for either spelling is prose using a version as an example.
   Never add a second literal version to `pyproject.toml`.
 - Releases go out through `.github/workflows/release.yml`, on Trusted Publishing — there
   is no PyPI token in this repo and none should ever be added. Three routes: a `v*` tag

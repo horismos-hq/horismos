@@ -1,5 +1,5 @@
 [build-system]
-requires = ["maturin>=1.8,<2"]
+requires = ["maturin>=1.9.3,<2"]
 build-backend = "maturin"
 
 [project]
@@ -38,7 +38,7 @@ Documentation = "https://horismos-hq.github.io/horismos/"
 
 [dependency-groups]
 dev = [
-    "maturin>=1.8,<2",
+    "maturin>=1.9.3,<2",
     "pytest>=8",
     "mypy>=1.14",
     "ruff>=0.8",
