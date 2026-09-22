@@ -22,8 +22,8 @@ verification and the standards/host integration layer are built.
 pip install --pre horismos
 ```
 
-Every version so far is a pre-release (`0.1.0a1` today) and pip ignores those unless it
-is asked, so `--pre` is what resolves one; drop it once a stable version ships.
+Every version so far is a pre-release and pip ignores those unless it is asked, so
+`--pre` is what resolves one; drop it once a stable version ships.
 
 A release ships prebuilt wheels for Linux x86_64, Linux aarch64, macOS universal2 and
 Windows x86_64 — one abi3 wheel per platform, serving every CPython from 3.11 onward.
