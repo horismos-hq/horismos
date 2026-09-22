@@ -213,17 +213,17 @@ jobs:
       contents: read
       id-token: write # Trusted Publishing (OIDC) — scoped to this job only.
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093  # v4.3.0
         with:
           pattern: wheel-*
           path: dist
           merge-multiple: true
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093  # v4.3.0
         with:
           name: sdist
           path: dist
       - run: ls -l dist
-      - uses: pypa/gh-action-pypi-publish@release/v1
+      - uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33  # v1.14.2 (release/v1)
         with:
           # Both indexes are strict: no `skip-existing`. A duplicate filename
           # is answered with HTTP 400, which is the true and useful answer —
