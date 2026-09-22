@@ -12,7 +12,7 @@ license = "MIT OR Apache-2.0"
 # reach files at the repository root, and PyPI rejects an sdist whose
 # `License-File:` metadata names a file the tarball does not contain. The
 # `maturin>=1.9.3` floor above is a requirement of this key, not incidental: do
-# not lower it without rebuilding the sdist and checking both licence files are
+# not lower it without rebuilding the sdist and checking every file listed below is
 # inside it. THIRD_PARTY_NOTICES.txt carries the notices of the third-party crates
 # compiled into the native module; it is generated (`make notices`), and
 # python/tests/test_third_party_notices.py fails if it is stale or missing from
