@@ -101,7 +101,11 @@ proof → NL). Delete the LLM and the kernel still runs.
   (retraction re-derives it right back); use a higher-priority "spoiler" rule for
   the same property instead (see `reason/backward.rs`'s `spoiled_world` for the
   pattern). Spec: `docs/framework/03-world.md` § Truth maintenance; decision
-  record: `PRPs/PRP-002-reasoning-substrate/03-decisions.md`.
+  record: `PRPs/PRP-002-reasoning-substrate/03-decisions.md`. A consequence for
+  adapters: a standing world that gains one fresh subject per decision re-chains
+  every earlier one on each transaction and trips `reason::forward::ITERATION_CAP`
+  at about 100 standing derivations — use a fresh `World` per decision
+  (`examples/mujoco/README.md` § D7 has the measurements).
 
 ## Commands
 
@@ -117,6 +121,7 @@ make no-model-gate # horismos-core --no-default-features --features verify, buil
 make check-boundary
 make verify        # all of the above — run before claiming work done
 make notices       # regenerate THIRD_PARTY_NOTICES.txt after any Cargo.lock change (make test fails while stale)
+make demo-shield   # the MuJoCo shield demo's CI check (installs the `mujoco` extra into .venv; never part of verify)
 ```
 
 `make verify` must be green before any commit that claims a task complete.

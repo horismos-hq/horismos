@@ -1,0 +1,68 @@
+<!--
+  The shield demo scene (PRP-009 tier 3). Metres, seconds, kilograms.
+
+  A wheeled robot starts at the origin and drives +x toward the goal marker.
+  A person stands in the way, inside a shared cell. The straight-line path
+  from start to goal crosses the person, on purpose: the scripted policy never
+  slows down, so only the shield (examples/gallery/safety-envelope.ttl) keeps
+  the robot off the human. demo.py reads the ground truth this scene defines
+  (robot and human positions, the cell's extent) and writes only `ctrl`.
+
+  Physical things are geoms; markers are sites (a site never collides).
+-->
+<mujoco model="shield-demo">
+  <option timestep="0.005" gravity="0 0 -9.81"/>
+  <visual>
+    <global offwidth="640" offheight="360"/>
+  </visual>
+
+  <asset>
+    <texture name="floor_tex" type="2d" builtin="checker" rgb1="0.86 0.86 0.86" rgb2="0.78 0.78 0.80" width="64" height="64"/>
+    <material name="floor_mat" texture="floor_tex" texrepeat="8 8" reflectance="0.05"/>
+  </asset>
+
+  <worldbody>
+    <light pos="3 -2 4" dir="-0.3 0.4 -1" directional="true"/>
+    <geom name="floor" type="plane" size="6 3 0.05" material="floor_mat"/>
+
+    <!-- A fixed camera for --record: side-on, looking along the path. -->
+    <camera name="side" pos="3.3 -4.8 2.0" xyaxes="1 0 0 0 0.6 0.8"/>
+
+    <!-- The shared cell: a visual region on the floor. demo.py reads its pos
+         and size to decide the command's :zone (:SharedCell inside, :OpenFloor
+         outside). Amber, translucent, never collides. -->
+    <site name="shared_cell" type="box" pos="3.7 0 0.001" size="0.5 1.4 0.001" rgba="0.95 0.65 0.15 0.35"/>
+
+    <!-- The goal: on the far side of the human, so the direct path crosses them. -->
+    <site name="goal" type="cylinder" pos="6.5 0 0.002" size="0.2 0.002" rgba="0.15 0.6 0.35 0.9"/>
+
+    <!-- The robot: a cylinder chassis on two slide joints (x, y). Its planar
+         separation from the human is the centre distance minus both radii,
+         which is what demo.py reports as nearestHumanDistance. Blue; a clip
+         recolours it by verdict (amber attenuated, red blocked). -->
+    <body name="robot" pos="0 0 0.15">
+      <joint name="base_x" type="slide" axis="1 0 0" damping="1"/>
+      <joint name="base_y" type="slide" axis="0 1 0" damping="1"/>
+      <geom name="chassis" type="cylinder" size="0.3 0.15" mass="12" rgba="0.2 0.4 0.85 1"/>
+      <geom name="heading" type="box" pos="0.24 0 0.16" size="0.08 0.05 0.02" rgba="0.9 0.9 0.95 1" contype="0" conaffinity="0" mass="0"/>
+      <geom name="wheel_l" type="cylinder" pos="0 0.27 -0.05" zaxis="0 1 0" size="0.09 0.03" rgba="0.15 0.15 0.15 1" contype="0" conaffinity="0" mass="0"/>
+      <geom name="wheel_r" type="cylinder" pos="0 -0.27 -0.05" zaxis="0 1 0" size="0.09 0.03" rgba="0.15 0.15 0.15 1" contype="0" conaffinity="0" mass="0"/>
+    </body>
+
+    <!-- The human: a capsule on a mocap body, so demo.py can script a slow walk
+         out of the path late in the run (kinematic, deterministic). A mocap
+         body still collides, which is how contact is recorded. Neutral colour:
+         in a clip, red is the robot's :Blocked. -->
+    <body name="human" mocap="true" pos="4 0 0.7">
+      <geom name="torso" type="capsule" size="0.15 0.55" rgba="0.72 0.62 0.5 1"/>
+      <geom name="head" type="sphere" pos="0 0 0.72" size="0.12" rgba="0.72 0.62 0.5 1"/>
+    </body>
+  </worldbody>
+
+  <actuator>
+    <!-- Velocity servos: ctrl is the target joint velocity in m/s. Only the
+         value the shield released ever lands here. -->
+    <velocity name="drive_x" joint="base_x" kv="240" ctrlrange="-2 2" ctrllimited="true"/>
+    <velocity name="drive_y" joint="base_y" kv="240" ctrlrange="-2 2" ctrllimited="true"/>
+  </actuator>
+</mujoco>
