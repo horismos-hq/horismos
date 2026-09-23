@@ -5,9 +5,12 @@ At-a-glance project state. Updated in the same commit as any PRP status change
 [Horismos Board artifact](https://claude.ai/code/artifact/dc7ee691-4c9f-40a7-b235-0760de8ff17d)
 (source: `planning/board.html`, republished externally after status changes merge).
 
-_Last updated: 2026-09-21 (PRP-006 activated: the PyPI release path — packaging
-metadata, single-source version, `.github/workflows/release.yml` — landed; nothing
-published yet). Previously: 2026-09-05 (PRP-008 merged into `main`'s state: the branch's host SPI,
+_Last updated: 2026-09-23 (PRP-009 Physical AI drafted: the captain made Physical AI the
+lead story on docs.horismos.ai and in positioning; three independently shippable tiers
+plus a latency measurement and a safety-boundary statement that gate go-live; five
+captain **[DECIDE]** items open; nothing implemented). Previously: 2026-09-21 (PRP-006
+activated: the PyPI release path — packaging metadata, single-source version,
+`.github/workflows/release.yml` — landed; nothing published yet). Previously: 2026-09-05 (PRP-008 merged into `main`'s state: the branch's host SPI,
 candidate-artifact pipeline, FHIR/harness adapters and VTE slice now sit on top of the
 landed PRP-005 verifier and both documentation sites). Previously: 2026-09-03 (PRP-005
 Done; PRP-004 corrected to Done after PR #8 merged 2026-08-25; PRP-008 completed on its
@@ -87,6 +90,18 @@ the next rehearsal a fresh version. The rest of the phase —
 crates.io, the generated API reference, the dependency-audit/SBOM gates, CHANGELOG and
 tagged releases — is unstarted.
 
+**PRP-009 (Physical AI) is drafted (2026-09-23).** The captain has made Physical AI the
+lead story for Horismos, on docs.horismos.ai and in positioning; PRP-009 owns that lane in
+three independently shippable tiers — reposition the docs around the motion-command
+shield (`examples/gallery/safety-envelope.ttl`), make the quickstart physical (the clinical
+walkthrough moves intact to its own page), and a MuJoCo demo (optional extra, never in the
+wheel). Two preconditions gate the docs tiers going live: a measured, published
+per-decision latency for the shield, and a captain-worded safety-boundary statement (no
+claim against ISO 10218 / ISO/TS 15066 / IEC 61508, not assessed). It overlaps PRP-006,
+which owns the docs site and names the triage walkthrough as its tutorial; that overlap
+and its sequencing against PRP-006 and the PRP-007 Draft are captain decisions. Nothing is
+implemented.
+
 Human side quests: register `horismos.dev`; file the w3id.org/horismos PR;
 reserve crates.io/PyPI names early; merge PR #3 (PRP-002 folder record).
 
@@ -136,11 +151,14 @@ provenance semirings over the Datalog-shaped subset (Type 5), GNN guidance.
 | Integration | [PRP-008 standards & host integration](PRP-008-standards-host-integration/01-objective.md) | ✅ Done (2026-09-03, PR #15) | VTE slice; FHIR hydration/commit, terminology provenance, CDS-Hooks/PlanDefinition/CQL composition, candidate-artifact boundary, generic host SPI |
 | Ship & Author | [PRP-006 packaging](PRP-006-packaging-distribution/01-objective.md) | 🟦 Active (2026-09-21) | crates.io + PyPI + docs site + CI gates — PyPI release path landed first |
 | Ship & Author | [PRP-007 authoring agent](PRP-007-authoring-agent.md) | ⬜ Draft (amended 2026-08-24) | Import/align/overlay-first; SMEs converse; Claude drafts Turtle; verifier gatekeeps |
+| Ship & Author | [PRP-009 Physical AI](PRP-009-physical-ai.md) | ⬜ Draft (2026-09-23) | Physical AI as the lead story: shield-first home page and quickstart, MuJoCo demo; a published latency number and a safety-boundary statement gate go-live |
 
 Build order (dependency DAG, not strict number order — `PRPs/CONVENTIONS.md`):
 001 → 002 → 003 → 004 → 005 → **008** → 006 → 007, with 005 startable right
 after 002 (it deliberately doesn't need the agent loop), and 008 sequenced after 005
-and before 006/007 despite its higher number.
+and before 006/007 despite its higher number. 009 needs 003 + 005, plus a release that
+ships `horismos.examples` (on `main` since #34, not in `0.1.0a3`); tier 3 also needs
+PRP-006's landed release path. Where it slots against 006/007 is its captain decision 4.
 
 ## Quick recap — what exists today
 
