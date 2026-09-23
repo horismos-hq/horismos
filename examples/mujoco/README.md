@@ -43,7 +43,9 @@ shield on  seed 7  300 ticks: no human contact; goal reached at tick 267 (t = 13
             → :Blocked via :blockTooClose ×34 → :Attenuated via :attenuateOpenFloorNearHuman ×4
             → :Blocked via :blockTooClose ×2 → :Attenuated via :attenuateOpenFloorNearHuman ×8
             → :Attenuated via :attenuateInSharedCell ×80 → :Permitted via :permitOpenFloor ×75
-cost of the shield: 44 blocked + 128 attenuated ticks; reaches the goal 79 ticks (3.95 s) later
+  attenuated commands re-checked at 0.25 m/s: 128, of which 0 refused (released as zero)
+  decision time from Python (fresh World per tick, n=300): p50 103 µs · p99 219 µs · max 537 µs
+cost of the shield: 44 blocked + 128 attenuated ticks; reaches the goal 79 ticks (3.95 s) later; progress 100% vs 100% unshielded
 ```
 
 Read it as the robot's story. Open floor, permitted at 1 m/s. Ticks 20–27: the distance
