@@ -41,9 +41,10 @@ together, or every page ships a canonical link to the wrong host.
 
 - **Runnable code is tested.** Every fenced block written exactly as ```` ```python ````
   on the pages listed in `python/tests/test_devdocs_snippets.py` is extracted and
-  executed verbatim, in order, from the repo root (`make test-py`, or
-  `uv run pytest python/tests/test_devdocs_snippets.py`). A docs edit that breaks a
-  sample breaks the build.
+  executed verbatim, in order, from an empty temporary directory (`make test-py`, or
+  `uv run pytest python/tests/test_devdocs_snippets.py`), so a sample loads its
+  ontology through `horismos.examples.path(...)`, never a repo path. A docs edit that
+  breaks a sample breaks the build.
 - **Shown output is pinned.** A ```` ```text ```` fence that immediately follows a
   runnable ```` ```python ```` fence (same indent, only blank lines between) is the
   output the page shows for that sample, and the same test asserts it appears verbatim
