@@ -11,6 +11,7 @@ private native module behind it — never import it directly.
 from importlib.metadata import PackageNotFoundError as _PackageNotFoundError
 from importlib.metadata import version as _distribution_version
 
+from horismos._agent import Agent, RunResult
 from horismos._horismos import (
     PROFILE_VERSION,
     Diff,
@@ -51,6 +52,7 @@ except _PackageNotFoundError:  # pragma: no cover - uninstalled source tree
 
 __all__ = [
     "PROFILE_VERSION",
+    "Agent",
     "AssumptionManifest",
     "Bound",
     "Conflict",
@@ -69,6 +71,7 @@ __all__ = [
     "Region",
     "RegionPredicate",
     "Rule",
+    "RunResult",
     "Snapshot",
     "Subscription",
     "VerificationReport",

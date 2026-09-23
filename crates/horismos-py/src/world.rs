@@ -37,6 +37,11 @@ pub(crate) struct PyProof {
     /// subtree's rendering.
     #[pyo3(get)]
     children: Vec<PyProof>,
+    /// For a leaf resting on a stored fact: who asserted it (`"perception"`,
+    /// `"rule"`, `"tool"`, `"api"`) — the same machine token the trace and
+    /// `HorismosValidationError.provenance` carry. `None` elsewhere.
+    #[pyo3(get)]
+    provenance: Option<&'static str>,
 }
 
 #[pymethods]
@@ -120,13 +125,25 @@ impl PyWorld {
     /// so a blocking `lock()` here would deadlock two Python threads
     /// (lock-order inversion). Spin with a detached yield instead: while
     /// this thread yields, the GIL is free for the holder to re-attach,
-    /// finish, and release the mutex.
-    fn lock(&self, py: Python<'_>) -> PyResult<std::sync::MutexGuard<'_, horismos_core::World>> {
+    /// finish, and release the mutex. After a short spin the wait backs off
+    /// to a sleep: an agent run holds the lock across its bridge calls, and
+    /// re-taking the GIL on every yield for a network round trip starves the
+    /// interpreter's other threads.
+    pub(crate) fn lock(
+        &self,
+        py: Python<'_>,
+    ) -> PyResult<std::sync::MutexGuard<'_, horismos_core::World>> {
+        const SPINS: u32 = 64;
+        let mut spins = 0;
         loop {
             match self.inner.try_lock() {
                 Ok(guard) => return Ok(guard),
-                Err(std::sync::TryLockError::WouldBlock) => {
+                Err(std::sync::TryLockError::WouldBlock) if spins < SPINS => {
+                    spins += 1;
                     py.detach(std::thread::yield_now);
+                }
+                Err(std::sync::TryLockError::WouldBlock) => {
+                    py.detach(|| std::thread::sleep(std::time::Duration::from_millis(1)));
                 }
                 Err(std::sync::TryLockError::Poisoned(_)) => {
                     return Err(internal_err(
@@ -371,7 +388,11 @@ fn perform_assert(
 }
 
 /// Marshals a core [`Diff`] whole, as `assert_with_diff` and `diff` both do.
-fn marshal_diff(py: Python<'_>, world: &horismos_core::World, diff: &Diff) -> PyResult<PyDiff> {
+pub(crate) fn marshal_diff(
+    py: Python<'_>,
+    world: &horismos_core::World,
+    diff: &Diff,
+) -> PyResult<PyDiff> {
     let marshal = |facts: &[Fact]| -> PyResult<Py<PyAny>> {
         let out: PyResult<Vec<PyFact>> = facts.iter().map(|f| fact(py, world, f)).collect();
         Ok(out?.into_pyobject(py)?.into_any().unbind())
@@ -393,14 +414,17 @@ fn expand_intern(py: Python<'_>, world: &mut horismos_core::World, term: &str) -
     Ok(world.intern(&iri))
 }
 
-fn node(world: &horismos_core::World, subject: Ref) -> PyNodeRef {
+pub(crate) fn node(world: &horismos_core::World, subject: Ref) -> PyNodeRef {
     let iri = world.resolve(subject.iri()).to_owned();
     let compact = world.ontology().compact(&iri);
     PyNodeRef { iri, compact }
 }
 
-fn proof(world: &horismos_core::World, p: &horismos_core::reason::proof::ProofNode) -> PyProof {
-    use horismos_core::reason::proof::ProofKind;
+pub(crate) fn proof(
+    world: &horismos_core::World,
+    p: &horismos_core::reason::proof::ProofNode,
+) -> PyProof {
+    use horismos_core::reason::proof::{ConditionVia, ProofKind};
     let rule = match &p.kind {
         ProofKind::Conclusion { rule, .. } => {
             let iri = world.resolve(*rule).to_owned();
@@ -408,10 +432,19 @@ fn proof(world: &horismos_core::World, p: &horismos_core::reason::proof::ProofNo
         }
         _ => None,
     };
+    let provenance = match &p.kind {
+        ProofKind::Condition {
+            via:
+                ConditionVia::Asserted { provenance, .. } | ConditionVia::Subsumption { provenance, .. },
+            ..
+        } => provenance.map(crate::errors::provenance_token),
+        _ => None,
+    };
     PyProof {
         rendered: p.render(world),
         rule,
         children: p.children.iter().map(|c| proof(world, c)).collect(),
+        provenance,
     }
 }
 

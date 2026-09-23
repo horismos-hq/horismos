@@ -170,6 +170,25 @@ pub(crate) fn naming_err(py: Python<'_>, text: String) -> PyErr {
     plain(py, py.get_type::<HorismosOntologyError>(), text)
 }
 
+/// A bridge that cannot be constructed or marshaled (an unknown transport, a
+/// mock script that is not a whole `PerceiveResult`, an object that is not a
+/// bridge) — worded here because it never reaches core.
+pub(crate) fn bridge_err(py: Python<'_>, text: String) -> PyErr {
+    plain(py, py.get_type::<HorismosBridgeError>(), text)
+}
+
+/// The machine token for a provenance (matching the trace schema's serde
+/// form), not the domain-prose word `Provenance::as_str` renders into
+/// sentences.
+pub(crate) fn provenance_token(provenance: horismos_core::Provenance) -> &'static str {
+    match provenance {
+        horismos_core::Provenance::Perception => "perception",
+        horismos_core::Provenance::Rule => "rule",
+        horismos_core::Provenance::Tool => "tool",
+        horismos_core::Provenance::Api => "api",
+    }
+}
+
 /// An internal invariant failure (a poisoned lock) — the base class, not a
 /// domain family, and never a bare builtin exception.
 pub(crate) fn internal_err(py: Python<'_>, text: String) -> PyErr {
@@ -216,17 +235,7 @@ fn validation_err(py: Python<'_>, text: String, witness: &Witness) -> PyErr {
         inst.setattr("class_", witness.class.clone())?;
         inst.setattr("property", witness.property.clone())?;
         inst.setattr("value", witness.value.clone())?;
-        // The machine token (matching the trace schema's serde form), not
-        // the domain-prose word `Provenance::as_str` renders into sentences.
-        inst.setattr(
-            "provenance",
-            match witness.provenance {
-                horismos_core::Provenance::Perception => "perception",
-                horismos_core::Provenance::Rule => "rule",
-                horismos_core::Provenance::Tool => "tool",
-                horismos_core::Provenance::Api => "api",
-            },
-        )?;
+        inst.setattr("provenance", provenance_token(witness.provenance))?;
         inst.setattr(
             "operation",
             match witness.operation {

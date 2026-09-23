@@ -67,6 +67,9 @@ Tool arguments arrive resolved from the `horis:takes` declaration; the returned
 property→value map is validated against the declared `horis:effect` before
 assertion — implementors cannot bypass the gate.
 
+`Arc<B>` is a `Bridge` whenever `B` is, delegating every method, so a caller can
+register a bridge with an agent and keep its own handle (the Python bindings do).
+
 ## Feature flags
 
 | Feature | Default | Contents |

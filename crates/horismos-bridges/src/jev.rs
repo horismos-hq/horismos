@@ -138,11 +138,15 @@
 //!
 //! ## Feature gating
 //!
-//! `bridges-jev` is **default-OFF**, exactly like `bridges-openrouter`, and
-//! for the same measured reason: with both off, `cargo tree -p horismos-py`
-//! shows no `reqwest`, `rustls`, `aws-lc`, `ring` or `openssl` at all, which
-//! is why the published wheel cross-compiles cleanly to aarch64. Turning a
-//! TLS-carrying bridge on by default would silently undo that.
+//! `bridges-jev` is **default-OFF**, exactly like `bridges-openrouter`: with
+//! both off, `cargo tree -p horismos-py` shows no `reqwest`, `rustls`,
+//! `aws-lc`, `ring` or `openssl` at all, so nothing reaches a provider unless a
+//! build asks. The published wheel does ask — `[tool.maturin] features` in
+//! `pyproject.toml` compiles both HTTP bridges in — which is why its aarch64
+//! build runs in the manylinux_2_28 image: `ring` needs a C compiler that
+//! defines `__ARM_ARCH`, and the 2014 image's GCC 4.8.5 does not. Forcing the
+//! macro there compiles, but yields a `ring` that rejects valid RSA and P-384
+//! signatures (measured 2026-09-23), so never do that.
 //!
 //! Spec: `docs/framework/08-bridge.md`
 

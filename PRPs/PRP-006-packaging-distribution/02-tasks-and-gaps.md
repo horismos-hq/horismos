@@ -35,6 +35,32 @@ The PyPI release path. Nothing else in the plan was touched.
   skips the publish job. It is not offline: the sdist test's source build still fetches
   its build backend from PyPI. The default stays `testpypi`.
 
+## Landed (2026-09-23, branch `fm/horismos-pybridges-a1`)
+
+The model bridges in the wheel, and the aarch64 wheel gated. Captain's decisions of
+2026-09-23: one wheel with everything; the aarch64 build moves to a modern toolchain image;
+the aarch64 wheel gets its own test job.
+
+- **Bridges compiled in.** `[tool.maturin] features` adds `bridges-jev` and
+  `bridges-openrouter`, so `pip install horismos` reaches both through `horismos.bridges`
+  and `horismos.Agent`. Every crate's own default stays empty; that list is the only
+  opt-in, and `scripts/generate_third_party_notices.py` now reads it rather than
+  repeating it, so the notices closure (87 more crates, every one publishing its own
+  licence files) cannot drift from the wheel.
+- **aarch64 on manylinux_2_28.** With `ring` (via `reqwest`/`rustls`) in the tree, the
+  2014 cross image fails: its GCC 4.8.5 defines no `__ARM_ARCH`, which every `ring` from
+  0.17.8 to 0.17.14 requires. Forcing `-D__ARM_ARCH=8` builds a wheel that installs and
+  passes the quickstart on native arm64, and a `ring` that rejects valid RSA-2048 and
+  ECDSA P-384 signatures and fails real TLS with `BadSignature` — measured against the
+  same code built with GCC 12, which passes. Rejected. The `manylinux_2_28` cross image
+  (GCC 7.5, `__ARM_ARCH 8` predefined) builds a `ring` that passes the same checks and
+  real TLS natively at glibc 2.28 and 2.36. Cost, accepted: ARM Linux needs glibc 2.28
+  or newer for the prebuilt wheel. The other three targets are unchanged.
+- **`test-aarch64`.** The aarch64 wheel now gets the install-and-quickstart gate on
+  CPython 3.11–3.14, under QEMU on an x86_64 runner, inside the pinned
+  `manylinux_2_28_aarch64` image, i.e. at its glibc floor. The publish job was left
+  untouched, so the gate reaches it through `test`, which waits for `test-aarch64`.
+
 ## Decisions to resolve (before implementation)
 
 Carried over unresolved; none of them blocked the release path this branch landed, and
@@ -58,11 +84,13 @@ is recorded here.
 
 ## Deliberately not covered
 
-- **The linux-aarch64 wheel is built but never executed.** No aarch64 Linux runner is
-  available to this repository, so the smoke-test matrix covers the other three
-  platforms only — each on CPython 3.11 through 3.14. This is a deliberate gap, not an
-  oversight: it means the aarch64 artefact's first real exercise would be a user's
-  install unless it is checked by hand after a TestPyPI rehearsal.
+- **No release gate exercises the bridges' TLS stack.** Every platform's gate runs the
+  symbolic quickstart, which never calls a bridge, and the linker drops code nothing
+  references — so a `ring` that builds but computes wrong answers (the aarch64 failure
+  above) passes it. The fix for that failure was the toolchain, measured by hand; a gate
+  that performs a real handshake from the installed wheel needs a provider call with a
+  key, so it is not in the release path. (Closed 2026-09-23: the aarch64 wheel, built
+  but never executed before, now has `test-aarch64`.)
 
 ## Open, and not ours to close
 

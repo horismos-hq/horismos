@@ -13,8 +13,9 @@ verified before it runs. Delete the LLM and the kernel still runs.
 
 ## Status
 
-Pre-alpha. The symbolic core, the Python bindings, the Rust agent loop, formal
-verification and the standards/host integration layer are built.
+Pre-alpha. The symbolic core, the Python bindings, the agent loop (from Rust and from
+Python, with the Jev and OpenRouter bridges), formal verification and the standards/host
+integration layer are built.
 
 ## Install
 
@@ -27,10 +28,13 @@ the latest pre-release without being asked; once a stable version ships, a plain
 picks that instead, and `pip install --pre horismos` or
 `uv pip install --prerelease allow horismos` asks for a newer pre-release explicitly.
 
-A release ships prebuilt wheels for Linux x86_64, Linux aarch64, macOS universal2 and
-Windows x86_64 — one abi3 wheel per platform, serving every CPython from 3.11 onward.
-Anything else installs from the source archive, which compiles the Rust core locally, so
-it needs a Rust toolchain and a few minutes.
+A release ships prebuilt wheels for Linux x86_64 (glibc 2.17 or newer), Linux aarch64
+(glibc 2.28 or newer), macOS universal2 and Windows x86_64 — one abi3 wheel per platform,
+serving every CPython from 3.11 onward. The release pipeline installs each of the four and
+runs the symbolic quickstart against it on Python 3.11 through 3.14, the aarch64 wheel under
+emulation. Every wheel includes the Jev and OpenRouter model bridges. Anything else installs
+from the source archive, which compiles the Rust core locally, so it needs a Rust toolchain
+and a few minutes.
 
 ## A first rule set
 

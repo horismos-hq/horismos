@@ -96,7 +96,8 @@ Not every provider behind a Bridge speaks text. TypeSafe's Jev is a
 `text → decisions` model: it takes free text plus a set of typed *questions* and
 returns a typed *answer* per question — a probability (`noul`), an option key
 (`choice`), or an ordinal level (`score`). It has no text output channel at all.
-`JevBridge` (`bridges-jev`, default-off like every TLS-carrying bridge) translates
+`JevBridge` (`bridges-jev`: default-off in the crates like every TLS-carrying bridge, and
+compiled into the published wheel) translates
 the derived perception schema into those three primitives:
 
 | Derived schema shape | Jev primitive |
@@ -143,7 +144,8 @@ question wording, and neither is invented for this bridge. A deployment supplies
 both alongside the Bridge instance.
 
 Worked end to end in `crates/horismos-bridges/examples/jev_vte_demo.rs`
-(`make demo-jev`, `make demo-jev-live`): a clinical note becomes four typed
+(`make demo-jev`, `make demo-jev-live`) and, from Python through a declared workflow,
+`examples/vte/jev_perception.py` (`make demo-jev-py`): a clinical note becomes four typed
 booleans with a probability each, and `examples/vte/vte.ttl`'s rules derive
 `:recommendation` — which is `horis:assignedBy horis:RulesOnly`, so it never
 appears in the schema the model is shown.
@@ -208,14 +210,16 @@ cannot propose.
 
 #### Routing a step to it
 
-`vte.ttl` declares no workflow of its own; the demo calls `Bridge::perceive`
-directly with the schema above. A workflow that wanted the same perception
-routed to Jev declares the model the way any step declares one — the prefix
-before the colon is what selects the Bridge, and a `jev:` step extracts a
-single class. Routing is per step, so the mixed run described above is just
-two declarations in the one workflow:
+`vte.ttl` declares no workflow of its own, and the Rust demo calls `Bridge::perceive`
+directly with the schema above. `examples/vte/perception.ttl` imports it and declares
+the perception half as a workflow — a `jev:` `:ReadNote` step with `horis:confidence
+0.85` and a `horis:fallback` to clinician review, then a `ReasoningStep` for
+`:recommendation` — which is what the Python demo runs, confidence gate included. A step
+routed to Jev declares the model the way any step declares one — the prefix before the
+colon is what selects the Bridge, and a `jev:` step extracts a single class. Routing is
+per step, so the mixed run described above is just two declarations in the one workflow:
 
-```turtle title="Illustrative — examples/vte/ ships no workflow; two steps, two prefixes, one run"
+```turtle title="Illustrative — two steps, two prefixes, one run (examples/vte/perception.ttl ships a version of the first)"
 :ReadNote a horis:PerceptionStep ;          # → the jev: Bridge
     horis:extracts :VteCase ;
     horis:model "jev:jev-1.13" ;

@@ -8,12 +8,13 @@ does.
 
 The closure is the union, over every release target, of
 
-    cargo tree --locked -p horismos-py --features pyo3/extension-module \
+    cargo tree --locked -p horismos-py --features <[tool.maturin] features> \
         --edges normal,build --target <triple>
 
-which is what `[tool.maturin]` in pyproject.toml builds. It is a build closure:
-build scripts and procedural macros are included (and marked), so it over-states
-what is linked rather than under-stating it.
+which is what `[tool.maturin]` in pyproject.toml builds. The features are read from
+that table rather than repeated here, so the closure cannot drift from the wheel. It is
+a build closure: build scripts and procedural macros are included (and marked), so it
+over-states what is linked rather than under-stating it.
 
 Every licence, copyright and notice file a crate publishes is reproduced verbatim,
 not only the licence one would elect under an `OR` expression. A crate that
@@ -36,6 +37,7 @@ import json
 import re
 import subprocess
 import sys
+import tomllib
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -52,7 +54,13 @@ TARGETS = (
     "x86_64-pc-windows-msvc",
 )
 ROOT_PACKAGE = "horismos-py"
-FEATURES = "pyo3/extension-module"  # [tool.maturin] features in pyproject.toml
+# [tool.maturin] features in pyproject.toml: the features the published wheel is
+# built with, bridges included.
+FEATURES = ",".join(
+    tomllib.loads((REPO_ROOT / "pyproject.toml").read_text(encoding="utf-8"))["tool"]["maturin"][
+        "features"
+    ]
+)
 CRATES_IO = "registry+https://github.com/rust-lang/crates.io-index"
 
 NOTICE_FILE = re.compile(
@@ -311,7 +319,7 @@ The union, over the release targets
 
 {targets}
 
-of `cargo tree --locked -p horismos-py --features pyo3/extension-module
+of `cargo tree --locked -p horismos-py --features {features}
 --edges normal,build --target <target>`.
 
 This is the set of crates *built* to produce the module, not an exact
@@ -346,7 +354,7 @@ def render(components: list[Component]) -> str:
             index = texts.setdefault(n.text, len(texts) + 1)
             applies.setdefault(index, []).append(f"{c.name} {c.version}: {n.label}")
 
-    out = [HEADER.format(targets="\n".join(f"  {t}" for t in TARGETS))]
+    out = [HEADER.format(targets="\n".join(f"  {t}" for t in TARGETS), features=FEATURES)]
     build_only = sum(c.build_only for c in components)
     out.append(
         f"\nComponents ({len(components)}: {len(components) - build_only} on a normal "

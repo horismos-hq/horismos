@@ -14,7 +14,7 @@ pip install horismos          # or: uv pip install horismos
 
 Every version so far is a pre-release. While no stable version exists, pip and uv install the latest pre-release without being asked; once a stable version ships, a plain install picks that instead, and `pip install --pre horismos` or `uv pip install --prerelease allow horismos` is how to ask for a newer pre-release explicitly.
 
-Each release ships one abi3 wheel per platform, serving CPython 3.11 and newer: Linux x86_64, Linux aarch64, macOS universal2 (Apple Silicon and Intel), and Windows x86_64. The release pipeline tests the Linux x86_64, macOS and Windows wheels on Python 3.11 through 3.14. Anything else installs from the source archive, which compiles the Rust core locally, so it needs a Rust toolchain and a few minutes.
+Each release ships one abi3 wheel per platform, serving CPython 3.11 and newer: Linux x86_64 (glibc 2.17 or newer), Linux aarch64 (glibc 2.28 or newer), macOS universal2 (Apple Silicon and Intel), and Windows x86_64. The release pipeline installs each of the four wheels and runs the symbolic quickstart from the [Python API reference](framework/11-python-api.md) against it on Python 3.11 through 3.14; the aarch64 wheel runs under emulation. Every wheel includes the Jev and OpenRouter model bridges. Anything else installs from the source archive, which compiles the Rust core locally, so it needs a Rust toolchain and a few minutes.
 
 ### Build from a clone
 
@@ -250,8 +250,43 @@ trajectory (4 steps) written to /var/folders/…/horismos_triage_demo_trajectory
 
 Note the proof leaf: `asserted by perception`. The same rule, the same proof shape, but the base fact now came through the model — and the trace file records that step with its model id, confidence, threshold and every fact it asserted. Open the trajectory JSON: it is `horismos.trace/2`, the schema described in [Traces](framework/09-traces.md), with `loss_mask` already set per step.
 
-!!! note "Python drives the kernel; the loop is Rust today"
-    The workflow interpreter lives in `horismos-core::workflow::Agent` and is exercised from Rust (`make demo`, `crates/horismos-bridges/tests/agent_loop_dod.rs`). A Python `Agent.run(...)` wrapper is a PRP-004 follow-up. From Python you drive the symbolic kernel directly — which is also the primary path for structured, standards-hydrated input.
+### The same loop from Python
+
+`horismos.Agent` runs a declared workflow from Python: text in, typed facts asserted, rules to the fixed point, one whole run per call. The triage workflow above also fires tools, and tool bindings are Rust functions, so it runs from `make demo`. A workflow of perception and reasoning steps runs from Python as it stands. `examples/vte/perception.ttl` is one: it reads a clinical note into `vte.ttl`'s four booleans and lets the rules decide `:recommendation`, which is `horis:assignedBy horis:RulesOnly` and so is not in the schema the model is shown at all:
+
+```python
+from datetime import UTC, datetime
+
+from horismos import Agent
+from horismos.bridges import MockBridge
+
+vte = Ontology.load("examples/vte/perception.ttl")
+note = "78yo, post-op day 2, bed-bound, no bleeding"
+facts = {"class": ":VteCase", "reducedMobility": True, "activeCancer": False,
+         "priorVte": False, "bleedingRisk": False}
+
+for confidence in (0.93, 0.61):
+    bridge = MockBridge({note: {"instances": [facts], "confidence": confidence}})
+    agent = Agent(World(vte), workflow=":NoteToRecommendation", bridges={"jev": bridge})
+    result = agent.run(note, run_id="quickstart", now=datetime(2026, 9, 23, tzinfo=UTC))
+    print(f"confidence {confidence}: {result.terminal}  fallback taken: {result.fallback_taken}")
+    if result.proof is not None:
+        print(result.proof.render())
+```
+
+```text
+confidence 0.93: :Done  fallback taken: False
+:recommendation = :PharmacologicProphylaxis   via risk-without-contraindication — "VTE risk factor without bleeding contraindication"
+  ├─ any of:
+  │  ├─ reducedMobility true is true   (asserted by perception)
+  │  ├─ activeCancer is true   (not held)
+  │  └─ priorVte is true   (not held)
+  └─ bleedingRisk false is false   (asserted by perception)
+
+confidence 0.61: :ClinicianReview  fallback taken: True
+```
+
+The perception step declares `horis:confidence 0.85`. At 0.93 the facts pass the validation gate carrying perception provenance, and a rule decides. At 0.61 nothing is asserted and the run takes the step's mandatory fallback edge to a person. That gate is the runtime's, not the bridge's, and there is no way to call a bridge around it. `make demo-jev-py` runs the full version of this example, and swaps in the live `JevBridge` when `OPENROUTER_API_KEY` or `TYPESAFE_API_KEY` is set.
 
 ## 10. Go live with one environment variable
 

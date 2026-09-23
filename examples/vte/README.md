@@ -31,7 +31,11 @@ cargo run -p horismos-fhir --example vte_standalone
 The same `vte.ttl` also backs the `text → decisions` demo (`make demo-jev`,
 `make demo-jev-live`), which perceives the four booleans from a free-text clinical
 note instead of the recorded bundle and lets the same rules decide — see
-`docs/framework/08-bridge.md` § "A decision model: `jev:`".
+`docs/framework/08-bridge.md` § "A decision model: `jev:`". Its Python twin,
+`jev_perception.py` (`make demo-jev-py`), runs the same notes through
+`perception.ttl`, a declared perception workflow over `vte.ttl` kept in its own file
+because `manifest.json` pins `vte.ttl`'s digest. It uses the scripted mock unless
+`OPENROUTER_API_KEY` or `TYPESAFE_API_KEY` (or its `_FILE` variant) is set.
 
 The clinical values are synthetic and this is not a treatment recommendation or a
 conformance/certification claim.
