@@ -31,10 +31,16 @@ picks that instead, and `pip install --pre horismos` or
 A release ships prebuilt wheels for Linux x86_64 (glibc 2.17 or newer), Linux aarch64
 (glibc 2.28 or newer), macOS universal2 and Windows x86_64 — one abi3 wheel per platform,
 serving every CPython from 3.11 onward. The release pipeline installs each of the four and
-runs the symbolic quickstart against it on Python 3.11 through 3.14, the aarch64 wheel under
-emulation. Every wheel includes the Jev and OpenRouter model bridges. Anything else installs
-from the source archive, which compiles the Rust core locally, so it needs a Rust toolchain
-and a few minutes.
+runs the symbolic quickstart and `python -m horismos demo` against it on Python 3.11 through
+3.14, the aarch64 wheel under emulation. Every wheel includes the Jev and OpenRouter model
+bridges and the example ontologies the docs load. Anything else installs from the source
+archive, which compiles the Rust core locally, so it needs a Rust toolchain and a few minutes.
+
+The first run needs nothing else — no clone, no key, no network:
+
+```sh
+python -m horismos demo       # the VTE text → decisions demo on the scripted mock bridge
+```
 
 ## A first rule set
 

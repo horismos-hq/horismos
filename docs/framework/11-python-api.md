@@ -9,16 +9,18 @@ surfaces are not exported yet; FHIR/repository parsing and mapping logic stay ou
 
 ## Quickstart (the agent loop)
 
-Natural language in, typed facts asserted, the rules deciding. This runs verbatim against
-`examples/vte/` (the test suite holds it to that) on the scripted mock bridge:
+Natural language in, typed facts asserted, the rules deciding. This runs verbatim, in any
+directory, against the example ontologies the package ships (the test suite holds it to
+that), on the scripted mock bridge; its 0.93 is an authored confidence, not a model's:
 
 ```python
 from datetime import UTC, datetime
 
 from horismos import Agent, Ontology, World
 from horismos.bridges import MockBridge
+from horismos.examples import path
 
-onto = Ontology.load("examples/vte/perception.ttl")   # vte.ttl + a perception workflow
+onto = Ontology.load(path("vte/perception.ttl"))   # vte.ttl + a perception workflow
 note = "78yo, post-op day 2, on warfarin, bed-bound"
 bridge = MockBridge({note: {
     "instances": [{"class": ":VteCase", "reducedMobility": True, "activeCancer": False,
@@ -40,14 +42,16 @@ so its full run is the Rust demo (`make demo`); tools are not bindable from Pyth
 ## Quickstart (symbolic — structured input, no LLM)
 
 The engine beneath the agent, exercised directly (PRP-003's shipped
-surface; this snippet runs verbatim against `examples/triage/`, and the
-test suite holds it to that):
+surface; this snippet runs verbatim against the packaged triage example, the
+test suite holds it to that, and the release gate runs it against every
+built wheel):
 
 ```python
 from horismos import Ontology, World
+from horismos.examples import path
 
-onto = Ontology.load("examples/triage/triage.ttl",
-                     imports=["examples/triage/snomed-ct-subset.ttl"])
+onto = Ontology.load(path("triage/triage.ttl"),
+                     imports=[path("triage/snomed-ct-subset.ttl")])
 assert onto.verify().ok
 assert onto.namespaces[""] == "https://example.org/triage#"   # the : prefix
 
@@ -208,6 +212,15 @@ Every error carries `domain_text` (human), `data` (machine), and where applicabl
 
 ## Module utilities
 
+- `horismos.examples` — the example ontologies every sample in these docs loads, shipped
+  in the package: `path(name)` returns the installed file for one of them
+  (`"triage/triage.ttl"`, `"vte/perception.ttl"`), and `names()` lists them all. An
+  unknown name raises `FileNotFoundError` listing what ships.
+- `python -m horismos demo` — the VTE text → decisions demo on the scripted mock bridge,
+  offline and keyless; its probabilities are authored stand-ins and say so.
+  `HORISMOS_DEMO_LIVE=1` with `OPENROUTER_API_KEY` or `TYPESAFE_API_KEY` runs the live
+  `JevBridge`; a key alone does not. `python -m horismos verify <path>` is the CI verifier
+  above.
 - `horismos.replay(trace, …)` — doc 09.
 - `horismos.export.to_training_jsonl(...)` — doc 09.
 - `horismos.testing` — `MockBridge`, world fixtures, trace assertions

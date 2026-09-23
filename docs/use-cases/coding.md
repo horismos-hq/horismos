@@ -18,8 +18,9 @@ The agent's PR goes red. Left to a prompt, the agent reruns the job (sometimes t
 
 ```python
 from horismos import HorismosValidationError, Ontology, World
+from horismos.examples import path
 
-onto = Ontology.load("examples/gallery/ci-triage.ttl")
+onto = Ontology.load(path("gallery/ci-triage.ttl"))
 world = World(onto)
 
 def triage(subject: str, **observed: object) -> None:

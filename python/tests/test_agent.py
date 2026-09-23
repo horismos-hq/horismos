@@ -371,28 +371,46 @@ def _walk(node: horismos.ProofNode) -> list[horismos.ProofNode]:
     return [node, *(n for child in node.children for n in _walk(child))]
 
 
-def test_the_python_jev_example_runs_offline(
+def test_the_packaged_demo_runs_offline_even_with_a_key_set(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    # `make demo-jev-py` with no key configured: the mock path, end to end.
+    # `python -m horismos demo` without the explicit opt-in: the mock path end to
+    # end, whatever keys the environment happens to hold. A key is not consent.
+    monkeypatch.delenv("HORISMOS_DEMO_LIVE", raising=False)
+    monkeypatch.setenv("OPENROUTER_API_KEY", "sk-or-v1-not-a-real-key-0123456789")
+    from horismos.examples import jev_vte
+
+    assert jev_vte.main() == 0
+    out = capsys.readouterr().out
+    assert "mock bridge (offline)" in out
+    assert "An API key is set, but only HORISMOS_DEMO_LIVE=1 spends it" in out
+    assert "served by mock:jev-1.13" in out
+    assert "authored" in out  # the mock's numbers are labelled as stand-ins
+    assert "confidence 0.880 (authored) against the step's horis:confidence 0.85 → accepted" in out
+    assert ":recommendation = :PharmacologicProphylaxis" in out
+    assert "(asserted by perception)" in out
+    assert "confidence 0.610 (authored) against the step's horis:confidence 0.85 → REFUSED" in out
+    assert "→ :ClinicianReview: nothing was asserted" in out
+    assert "schema properties: activeCancer, bleedingRisk, priorVte, reducedMobility" in out
+    assert "sk-or-v1" not in out
+
+
+def test_the_live_demo_without_a_key_refuses_before_any_request(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setenv("HORISMOS_DEMO_LIVE", "1")
     for var in ("OPENROUTER_API_KEY", "TYPESAFE_API_KEY"):
         monkeypatch.delenv(var, raising=False)
         monkeypatch.delenv(f"{var}_FILE", raising=False)
-    import runpy
+    from horismos.examples import jev_vte
 
-    with pytest.raises(SystemExit) as exited:
-        runpy.run_path(str(REPO / "examples" / "vte" / "jev_perception.py"), run_name="__main__")
-    assert exited.value.code == 0
-    out = capsys.readouterr().out
-    assert "confidence 0.880 against the step's horis:confidence 0.85 → accepted" in out
-    assert ":recommendation = :PharmacologicProphylaxis" in out
-    assert "(asserted by perception)" in out
-    assert "confidence 0.610 against the step's horis:confidence 0.85 → REFUSED" in out
-    assert "→ :ClinicianReview: nothing was asserted" in out
-    assert "schema properties: activeCancer, bleedingRisk, priorVte, reducedMobility" in out
+    assert jev_vte.main() == 2
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert "HORISMOS_DEMO_LIVE=1 needs OPENROUTER_API_KEY or TYPESAFE_API_KEY" in captured.err
 
 
-def test_the_doc_11_agent_quickstart_runs_verbatim() -> None:
+def test_the_doc_11_agent_quickstart_runs_verbatim(tmp_path: Path) -> None:
     import contextlib
     import io
     import os
@@ -404,7 +422,7 @@ def test_the_doc_11_agent_quickstart_runs_verbatim() -> None:
     (block,) = re.findall(r"```python\n(.*?)```", section, flags=re.S)
     out = io.StringIO()
     cwd = os.getcwd()
-    os.chdir(REPO)
+    os.chdir(tmp_path)  # nothing from the repository: the package's own examples
     try:
         with contextlib.redirect_stdout(out):
             exec(compile(block, "<doc 11 agent quickstart>", "exec"), {})

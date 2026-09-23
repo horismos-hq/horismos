@@ -145,8 +145,8 @@ both alongside the Bridge instance.
 
 Worked end to end in `crates/horismos-bridges/examples/jev_vte_demo.rs`
 (`make demo-jev`, `make demo-jev-live`) and, from Python through a declared workflow,
-`examples/vte/jev_perception.py` (`make demo-jev-py`): a clinical note becomes four typed
-booleans with a probability each, and `examples/vte/vte.ttl`'s rules derive
+`python -m horismos demo`, which runs from the installed package alone: a clinical note
+becomes four typed booleans with a probability each, and `vte.ttl`'s rules derive
 `:recommendation` — which is `horis:assignedBy horis:RulesOnly`, so it never
 appears in the schema the model is shown.
 
@@ -211,7 +211,8 @@ cannot propose.
 #### Routing a step to it
 
 `vte.ttl` declares no workflow of its own, and the Rust demo calls `Bridge::perceive`
-directly with the schema above. `examples/vte/perception.ttl` imports it and declares
+directly with the schema above. `perception.ttl` (shipped in the package as
+`horismos.examples.path("vte/perception.ttl")`) imports it and declares
 the perception half as a workflow — a `jev:` `:ReadNote` step with `horis:confidence
 0.85` and a `horis:fallback` to clinician review, then a `ReasoningStep` for
 `:recommendation` — which is what the Python demo runs, confidence gate included. A step
@@ -219,7 +220,7 @@ routed to Jev declares the model the way any step declares one — the prefix be
 colon is what selects the Bridge, and a `jev:` step extracts a single class. Routing is
 per step, so the mixed run described above is just two declarations in the one workflow:
 
-```turtle title="Illustrative — two steps, two prefixes, one run (examples/vte/perception.ttl ships a version of the first)"
+```turtle title="Illustrative — two steps, two prefixes, one run (the packaged vte/perception.ttl ships a version of the first)"
 :ReadNote a horis:PerceptionStep ;          # → the jev: Bridge
     horis:extracts :VteCase ;
     horis:model "jev:jev-1.13" ;
@@ -376,7 +377,8 @@ exists if a step that asked about wards produced one.
 `make demo-jev` builds without `bridges-jev` and runs against `MockBridge`:
 no key, no network, same output every time. The mock replays probabilities in
 the shape a live `JevBridge` returns them, so the printing has one code path
-either way.
+either way. The probabilities themselves are authored stand-ins, chosen for the
+demo; no model produced them.
 
 ```text title="make demo-jev, no provider key in the environment — verbatim, less cargo's own lines and the latency and cost columns of the two accounting lines"
 Horismos VTE text→decisions demo — mock
@@ -446,7 +448,7 @@ Why this is the whole point
 ```
 
 Note 1 and note 2 differ in one fact — `bleedingRisk` — and that one fact
-sends the two runs down two different rules. Note 2's weakest answer is 0.610,
+sends the two runs down two different rules. Note 2's weakest scripted answer is 0.610,
 which is what the runtime would compare against the step's `horis:confidence`
 threshold: the weakest fact in the call, not the average of the four. The
 recommendation in both runs is a derivation with a proof, and in neither run

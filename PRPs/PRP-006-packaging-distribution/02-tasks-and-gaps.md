@@ -60,6 +60,18 @@ the aarch64 wheel gets its own test job.
   CPython 3.11–3.14, under QEMU on an x86_64 runner, inside the pinned
   `manylinux_2_28_aarch64` image, i.e. at its glibc floor. The publish job was left
   untouched, so the gate reaches it through `test`, which waits for `test-aarch64`.
+- **The wheel runs its own examples.** Captain's decision of 2026-09-23: an outside
+  developer must be able to run the examples after `pip install`. 0.1.0a3 shipped 14
+  entries and no ontology, while every docs sample loaded one by repository path and the
+  repository is private — no route existed. The ten ontologies the docs load now ship
+  as package data (`horismos.examples`, `path(name)`), byte-identical copies of
+  `examples/` held to it by `test_packaged_examples.py`; `python -m horismos demo` runs
+  the VTE perception demo on the mock (authored numbers, labelled), and goes live only on
+  `HORISMOS_DEMO_LIVE=1`. Every release test job — the four wheels, aarch64 emulated, and
+  the sdist — now also runs `.github/scripts/demo_smoke.py`, which refuses an import from
+  the checkout and runs the demo from an empty directory with every key removed. The docs
+  snippet runners execute from an empty directory too, so a sample that reaches for the
+  repository fails `make test`.
 
 ## Decisions to resolve (before implementation)
 

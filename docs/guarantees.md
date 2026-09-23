@@ -25,9 +25,10 @@ Determinism is cheap to check yourself. Two independently built worlds produce b
 
 ```python
 from horismos import Ontology, World
+from horismos.examples import path
 
-onto = Ontology.load("examples/triage/triage.ttl",
-                     imports=["examples/triage/snomed-ct-subset.ttl"])
+onto = Ontology.load(path("triage/triage.ttl"),
+                     imports=[path("triage/snomed-ct-subset.ttl")])
 
 def run() -> tuple[bytes, str]:
     world = World(onto)

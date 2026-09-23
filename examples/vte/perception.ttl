@@ -1,7 +1,7 @@
 ## A perception workflow over vte.ttl (doc 05, doc 06): read a free-text clinical
 ## note into :VteCase's four booleans, then let vte.ttl's rules decide
 ## :recommendation. It lives in its own file because manifest.json pins vte.ttl's
-## SHA-256. `examples/vte/jev_perception.py` runs it from Python (`make demo-jev-py`).
+## SHA-256. `python -m horismos demo` runs it from the installed package.
 
 @prefix :      <https://example.org/vte#> .
 @prefix horis: <https://w3id.org/horismos#> .

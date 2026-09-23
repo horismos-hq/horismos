@@ -1,0 +1,193 @@
+# The Horismos running example: clinical triage.
+# This file tracks docs/framework/02-ontology.md through 07-tools.md and is
+# built up progressively as the docs' snippets are consolidated. It is the
+# flagship fixture: every framework feature must be exercised here.
+
+@prefix :      <https://example.org/triage#> .
+@prefix horis: <https://w3id.org/horismos#> .
+@prefix sct:   <http://snomed.info/id/> .
+@prefix rdf:   <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs:  <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix owl:   <http://www.w3.org/2002/07/owl#> .
+@prefix xsd:   <http://www.w3.org/2001/XMLSchema#> .
+
+## Domain (doc 02)
+
+:Patient a rdfs:Class ;
+    rdfs:label "Patient" .
+
+:heartRate a rdf:Property ;
+    rdfs:domain :Patient ;
+    rdfs:range  xsd:decimal ;
+    horis:unit  "bpm" ;
+    horis:min   0 ;
+    horis:max   300 ;
+    horis:cardinality "0..1" .
+
+:Symptom a rdfs:Class .
+:ChestPain rdfs:subClassOf :Symptom ;
+    owl:sameAs sct:29857009 .          # SNOMED CT anchor
+:CrushingChestPain rdfs:subClassOf :ChestPain .
+
+:hasSymptom a rdf:Property ;
+    rdfs:domain :Patient ;
+    rdfs:range  :Symptom ;
+    horis:cardinality "0..*" .
+
+:AcuityLevel a rdfs:Class ;
+    horis:oneOf ( :Immediate :Urgent :Standard ) .
+:acuity a rdf:Property ;
+    rdfs:domain :Patient ; rdfs:range :AcuityLevel ;
+    horis:cardinality "0..1" ;
+    horis:assignedBy horis:RulesOnly .   # perception may NEVER set this field
+
+# Tool-effect properties (doc 07) — asserted only by :ehr.assign_queue and
+# :paging.notify_nurse below, never by perception or a rule.
+:queuedAt a rdf:Property ;
+    rdfs:domain :Patient ; rdfs:range xsd:dateTime ;
+    horis:cardinality "0..1" ;
+    horis:assignedBy horis:ToolsOnly .
+:queueRef a rdf:Property ;
+    rdfs:domain :Patient ; rdfs:range xsd:string ;
+    horis:cardinality "0..1" ;
+    horis:assignedBy horis:ToolsOnly .
+:notifiedAt a rdf:Property ;
+    rdfs:domain :Patient ; rdfs:range xsd:dateTime ;
+    horis:cardinality "0..1" ;
+    horis:assignedBy horis:ToolsOnly .
+:pagedTo a rdf:Property ;
+    rdfs:domain :Patient ; rdfs:range xsd:string ;
+    horis:cardinality "0..1" ;
+    horis:assignedBy horis:ToolsOnly .
+
+## Rules (doc 02 / 04)
+
+:r1 a horis:Rule ;
+    horis:priority 10 ;
+    horis:when [
+        horis:all (
+            [ horis:subject :Patient ; horis:property :heartRate ; horis:exceeds 120 ]
+            [ horis:subject :Patient ; horis:property :hasSymptom ; horis:is :ChestPain ]
+        )
+    ] ;
+    horis:then [ horis:property :acuity ; horis:value :Immediate ] ;
+    horis:explain "Tachycardia with chest pain — immediate track" .
+
+:r2 a horis:Rule ;
+    horis:priority 9 ;
+    horis:when [
+        horis:all (
+            [ horis:subject :Patient ; horis:property :heartRate ; horis:exceeds 100 ]
+            [ horis:subject :Patient ; horis:property :heartRate ; horis:atMost 120 ]
+            [ horis:subject :Patient ; horis:property :hasSymptom ; horis:is :Symptom ]
+        )
+    ] ;
+    horis:then [ horis:property :acuity ; horis:value :Urgent ] ;
+    horis:explain "Moderate tachycardia with a symptom — urgent track" .
+
+:r3 a horis:Rule ;
+    horis:priority 8 ;
+    horis:when [
+        horis:subject :Patient ; horis:property :heartRate ; horis:atMost 100
+    ] ;
+    horis:then [ horis:property :acuity ; horis:value :Standard ] ;
+    horis:explain "Heart rate at most 100 — standard track" .
+
+:r4 a horis:Rule ;
+    horis:priority 7 ;
+    horis:when [
+        horis:all (
+            [ horis:subject :Patient ; horis:property :heartRate ; horis:exceeds 120 ]
+            [ horis:subject :Patient ; horis:property :hasSymptom ; horis:isNot :ChestPain ]
+        )
+    ] ;
+    horis:then [ horis:property :acuity ; horis:value :Urgent ] ;
+    horis:explain "Tachycardia without chest pain — urgent track" .
+
+# PRP-005 completeness-cover:start
+:r6 a horis:Rule ;
+    horis:priority 6 ;
+    horis:when [
+        horis:all (
+            [ horis:subject :Patient ; horis:property :heartRate ; horis:exceeds 100 ]
+            [ horis:subject :Patient ; horis:property :heartRate ; horis:atMost 120 ]
+            [ horis:subject :Patient ; horis:property :hasSymptom ; horis:isEmpty true ]
+        )
+    ] ;
+    horis:then [ horis:property :acuity ; horis:value :Urgent ] ;
+    horis:explain "Moderate tachycardia without a symptom — urgent track" .
+# PRP-005 completeness-cover:end
+
+:r5 a horis:Rule ;
+    horis:priority 5 ;
+    horis:when [
+        horis:subject :Patient ; horis:property :heartRate ; horis:isEmpty true
+    ] ;
+    horis:then [ horis:property :acuity ; horis:value :Standard ] ;
+    horis:explain "No heart-rate reading — standard track" .
+
+## Workflow (doc 05)
+
+:Triage a horis:Workflow ;
+    horis:startsAt :Intake ;
+    horis:decides  :acuity ;
+    horis:version "1.2.0" .
+
+:Intake a horis:PerceptionStep ;
+    horis:extracts :Patient, :Symptom ;
+    horis:model "claude:claude-fable-5" ;
+    horis:confidence 0.85 ;
+    horis:fallback :EscalateToNurse ;
+    horis:next :Assess .
+
+:Assess a horis:ReasoningStep ;
+    horis:goal [ horis:property :acuity ; horis:isAssigned true ] ;
+    horis:onUnreachable :EscalateToNurse ;
+    horis:next :Route .
+
+:Route a horis:ActionStep ;
+    horis:tool :ehr.assign_queue ;
+    horis:requires [ horis:property :acuity ; horis:isAssigned true ] ;
+    horis:onError :EscalateToNurse ;
+    horis:next :Explain .
+
+:Explain a horis:NarrationStep ;
+    horis:narrates [ horis:property :acuity ] ;
+    horis:audience "charge-nurse" ;
+    horis:next :Done .
+
+:Done a horis:Step ; horis:terminal true .
+
+:EscalateToNurse a horis:ActionStep ;
+    horis:tool :paging.notify_nurse ;
+    horis:onError :PagingFailed ;
+    horis:terminal true .
+
+:PagingFailed a horis:Step ; horis:terminal true .
+
+## Tools (doc 07)
+
+:ehr.assign_queue a horis:Tool ;
+    horis:takes [
+        horis:arg [ horis:name "patient" ; horis:type :Patient ] ;
+        horis:arg [ horis:name "queue"   ; horis:type :AcuityLevel ]
+    ] ;
+    horis:effect [
+        horis:asserts [ horis:property :queuedAt ; horis:value horis:now ] ;
+        horis:asserts [ horis:property :queueRef ; horis:type xsd:string ]
+    ] ;
+    horis:binding "rust:assign_queue" ;
+    horis:timeout "5s" ;
+    horis:idempotent false .
+
+:paging.notify_nurse a horis:Tool ;
+    horis:takes [
+        horis:arg [ horis:name "patient" ; horis:type :Patient ]
+    ] ;
+    horis:effect [
+        horis:asserts [ horis:property :notifiedAt ; horis:value horis:now ] ;
+        horis:asserts [ horis:property :pagedTo    ; horis:type xsd:string ]
+    ] ;
+    horis:binding "rust:notify_nurse" ;
+    horis:timeout "5s" ;
+    horis:idempotent false .

@@ -18,8 +18,9 @@ Typed preconditions over the world state gate the command. The gate's range cons
 
 ```python
 from horismos import HorismosValidationError, Ontology, World
+from horismos.examples import path
 
-onto = Ontology.load("examples/gallery/safety-envelope.ttl")
+onto = Ontology.load(path("gallery/safety-envelope.ttl"))
 world = World(onto)
 
 def shield(subject: str, **state: object) -> None:

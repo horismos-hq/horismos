@@ -421,8 +421,9 @@ the same commit as this file.
       is D14/D15's), `budget=`, structured `input=`, `step()`/`resume()` — doc 11 lists
       each as deferred. A workflow with a `rust:` tool binding is refused at `Agent(...)`
       by name (a `python:`/`http:`/`mcp:` binding passes `build()` and takes `onError`
-      when reached, as in Rust), so `examples/triage/`'s full run stays the Rust demo; `examples/vte/perception.ttl` +
-      `jev_perception.py` (`make demo-jev-py`) is the Python entry point.
+      when reached, as in Rust), so `examples/triage/`'s full run stays the Rust demo;
+      `examples/vte/perception.ttl` run by `python -m horismos demo` (the packaged
+      `horismos.examples.jev_vte`, `make demo-jev-py`) is the Python entry point.
 
 ## Gaps discovered during implementation
 
