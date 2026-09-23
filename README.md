@@ -19,11 +19,13 @@ verification and the standards/host integration layer are built.
 ## Install
 
 ```sh
-pip install --pre horismos
+pip install horismos          # or: uv pip install horismos
 ```
 
-Every version so far is a pre-release and pip ignores those unless it is asked, so
-`--pre` is what resolves one; drop it once a stable version ships.
+Every version so far is a pre-release. While no stable version exists, pip and uv install
+the latest pre-release without being asked; once a stable version ships, a plain install
+picks that instead, and `pip install --pre horismos` or
+`uv pip install --prerelease allow horismos` asks for a newer pre-release explicitly.
 
 A release ships prebuilt wheels for Linux x86_64, Linux aarch64, macOS universal2 and
 Windows x86_64 — one abi3 wheel per platform, serving every CPython from 3.11 onward.

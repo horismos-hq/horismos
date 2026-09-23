@@ -4,9 +4,21 @@ By the end of this page you will have loaded an ontology, asserted typed facts, 
 
 Every Python block on this page is executed verbatim by the test suite (`python/tests/test_devdocs_snippets.py`). If it renders here, it ran.
 
-## 0. Build
+## 0. Install
 
-You need a stable Rust toolchain (`rustup`), [uv](https://docs.astral.sh/uv/), and Python 3.11 or newer.
+Horismos is on PyPI:
+
+```sh
+pip install horismos          # or: uv pip install horismos
+```
+
+Every version so far is a pre-release. While no stable version exists, pip and uv install the latest pre-release without being asked; once a stable version ships, a plain install picks that instead, and `pip install --pre horismos` or `uv pip install --prerelease allow horismos` is how to ask for a newer pre-release explicitly.
+
+Each release ships one abi3 wheel per platform, serving CPython 3.11 and newer: Linux x86_64, Linux aarch64, macOS universal2 (Apple Silicon and Intel), and Windows x86_64. The release pipeline tests the Linux x86_64, macOS and Windows wheels on Python 3.11 through 3.14. Anything else installs from the source archive, which compiles the Rust core locally, so it needs a Rust toolchain and a few minutes.
+
+### Build from a clone
+
+The snippets on this page load the triage example's ontology files by repository-relative path, and the installed package does not include them, so to follow along you build from a clone instead. You need a stable Rust toolchain (`rustup`), [uv](https://docs.astral.sh/uv/), and Python 3.11 or newer.
 
 ```sh
 git clone https://github.com/horismos-hq/horismos.git && cd horismos
