@@ -5,6 +5,7 @@ import horismos
 
 EXPECTED = {
     "PROFILE_VERSION",
+    "Agent",
     "AssumptionManifest",
     "Bound",
     "Conflict",
@@ -23,6 +24,7 @@ EXPECTED = {
     "Region",
     "RegionPredicate",
     "Rule",
+    "RunResult",
     "Snapshot",
     "Subscription",
     "VerificationReport",

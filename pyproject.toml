@@ -55,7 +55,12 @@ dev = [
 manifest-path = "crates/horismos-py/Cargo.toml"
 python-source = "python"
 module-name = "horismos._horismos"
-features = ["pyo3/extension-module"]
+# What the published wheel compiles in: every bridge that has an
+# implementation, so `pip install horismos` reaches them (captain's decision,
+# 2026-09-23: one wheel with everything). Each crate's own default stays empty
+# — this list, not a crate default, is the opt-in. It also defines the release
+# closure scripts/generate_third_party_notices.py reads.
+features = ["pyo3/extension-module", "bridges-jev", "bridges-openrouter"]
 
 [tool.ruff]
 target-version = "py311"

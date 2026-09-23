@@ -7,37 +7,51 @@ The PRP-008 host SPI and adapters are Rust-only in v1. Whole-bundle Python entry
 surfaces are not exported yet; FHIR/repository parsing and mapping logic stay outside
 `horismos-py` and this package (no logic in bindings). Everything below remains the current shipped Python API.
 
-## Quickstart (the canonical triage run)
+## Quickstart (the agent loop)
+
+Natural language in, typed facts asserted, the rules deciding. This runs verbatim, in any
+directory, against the example ontologies the package ships (the test suite holds it to
+that), on the scripted mock bridge; its 0.93 is an authored confidence, not a model's:
 
 ```python
-from horismos import Ontology, World, Agent
-from horismos.bridges import AnthropicBridge
+from datetime import UTC, datetime
 
-onto = Ontology.load("triage.ttl", imports=["snomed-ct-subset.ttl"])
-assert onto.verify().ok
+from horismos import Agent, Ontology, World
+from horismos.bridges import MockBridge
+from horismos.examples import path
 
-world = World(onto)
-agent = Agent(world,
-              workflow="triage:Triage",
-              bridges={"claude:claude-fable-5": AnthropicBridge.from_env()},
-              tools={"ehr.assign_queue": ehr_client.assign_queue})
+onto = Ontology.load(path("vte/perception.ttl"))   # vte.ttl + a perception workflow
+note = "78yo, post-op day 2, on warfarin, bed-bound"
+bridge = MockBridge({note: {
+    "instances": [{"class": ":VteCase", "reducedMobility": True, "activeCancer": False,
+                   "priorVte": False, "bleedingRisk": True}],
+    "confidence": 0.93}})
 
-result = agent.run("58M, crushing chest pain 20 min, HR 128, BP 92/60, diaphoretic")
-print(result.decision)          # triage:Immediate
-print(result.proof.render())
+agent = Agent(World(onto), workflow=":NoteToRecommendation", bridges={"jev": bridge})
+result = agent.run(note, run_id="doc-11", now=datetime(2026, 9, 23, tzinfo=UTC))
+print(result.decision)          # Ref(:HoldProphylaxis)
+print(result.proof.render())    # via bleeding-contraindication, a leaf asserted by perception
 ```
+
+`bridges={"jev": JevBridge.from_env()}` perceives with the live model instead. The model
+is shown `:VteCase`'s four booleans and never `:recommendation`, which is
+`horis:RulesOnly`; below the step's `horis:confidence` the run takes its fallback edge and
+asserts nothing. The triage workflow also fires tools, whose bindings are Rust functions,
+so its full run is the Rust demo (`make demo`); tools are not bindable from Python.
 
 ## Quickstart (symbolic — structured input, no LLM)
 
 The engine beneath the agent, exercised directly (PRP-003's shipped
-surface; this snippet runs verbatim against `examples/triage/`, and the
-test suite holds it to that):
+surface; this snippet runs verbatim against the packaged triage example, the
+test suite holds it to that, and the release gate runs it against every
+built wheel):
 
 ```python
 from horismos import Ontology, World
+from horismos.examples import path
 
-onto = Ontology.load("examples/triage/triage.ttl",
-                     imports=["examples/triage/snomed-ct-subset.ttl"])
+onto = Ontology.load(path("triage/triage.ttl"),
+                     imports=[path("triage/snomed-ct-subset.ttl")])
 assert onto.verify().ok
 assert onto.namespaces[""] == "https://example.org/triage#"   # the : prefix
 
@@ -132,25 +146,54 @@ when PRP-007's authoring tooling generates ontology artifacts anyway.
 | `snapshot` / `from_snapshot` / `diff` | | Persistent snapshots |
 | `subscribe` | `(property, callback, *, value=ANY) -> Subscription` | Post-commit dispatch over the committed diff; the runtime's transactional notification stage is PRP-004's |
 
+`ProofNode` exposes `render()`, `rule` (the concluding rule, on a conclusion), `children`,
+and `provenance` — on a leaf resting on a stored fact, who asserted it: `"perception"`,
+`"rule"`, `"tool"` or `"api"` (the same token the trace records).
+
 ## `Agent`
 
 | Member | Signature | Notes |
 |--------|-----------|-------|
-| `__init__` | `(world, *, workflow, bridges={}, tools={}, budget=None)` | Missing bridge/tool for a declared step → construction-time error, not runtime surprise |
-| `run` | `(text_or_none, *, input=None) -> RunResult` | `text` enters at the first PerceptionStep; `input=` asserts structured facts and may skip perception entirely |
-| `step` | `() -> StepResult` | Single-step execution for debugging/notebooks |
-| `resume` | `(run_id, with_input=…)` | Continue a run paused at a `WaitStep` |
+| `__init__` | `(world, *, workflow, bridges)` | `bridges` maps each `horis:model` prefix (`"jev"` for `"jev:jev-1.13"`) to a bridge; with exactly one bound, every step uses it. An undeclared workflow, a prefix no bridge serves, or a `rust:` tool binding → `HorismosWorkflowError` here, never mid-run. A binding scheme no build implements (`python:`, `http:`, `mcp:`) is not refused here: its step takes `horis:onError` when reached |
+| `__init__(…, tools=, budget=)` | | Deferred (2026-09-23): tool implementations are Rust functions, so a workflow with a `rust:` binding runs from Rust today (`make demo`); a Python-callable binding waits on doc 07's `python:` scheme |
+| `run` | `(text, *, run_id=None, now=None) -> RunResult` | One whole run per call, `horis:startsAt` to a terminal step, every step's transaction, gate and chaining in core, the World locked for the whole run (bridge calls included). `run_id` defaults to a fresh UUID and `now` (timezone-aware) to the current UTC instant, read once; pass both for a reproducible trace. Subscribers receive the run's committed facts once, after it finishes — also when a later step fails and the run raises |
+| `run(…, input=)` | | Deferred (2026-09-23): structured facts entering a run alongside, or instead of, perception |
+| `step` / `resume` | | Deferred (2026-09-23): single-step execution and resuming at a `WaitStep` need the core loop to pause, and `WaitStep` is itself deferred there |
+
+Perception runs only inside a run: a `PerceptionStep`'s bridge is shown the schema derived
+from `horis:extracts` (doc 06), and its proposal is accepted only at or above the step's
+`horis:confidence`, then asserted through the validation gate with perception provenance.
+Low confidence, any bridge error, or a gate rejection takes the step's `horis:fallback`
+edge. There is no call that hands a bridge's answer to the World any other way.
 
 ### `RunResult`
 
-`decision`, `terminal`, `goal_reached`, `proof`, `trace` (see docs 05, 09),
-`world` (the post-run world), `steps` (list of `StepResult`).
+`terminal` (CURIE), `decision` and `decides` (the workflow's `horis:decides` value and
+property, when the run set it), `fallback_taken`, `goal_reached`, `case` (the instance
+perception asserted), `proof` (the decision's derivation, read in the same crossing as
+`decision`), and `trace` — the `horismos.trace/2` trajectory as a dict (doc 09).
+`world` and `steps` are deferred (2026-09-23): the World the agent was given is the
+post-run world, and each step's record is in `trace["steps"]`.
 
 ## `horismos.bridges`
 
-`AnthropicBridge`, `OpenAIBridge`, `HFBridge`, `ONNXBridge`, `CallableBridge`,
-`MockBridge` — all implement the `Bridge` protocol (doc 08). `MockBridge(script=…)`
-is the CI workhorse.
+| Bridge | Construction | Notes |
+|--------|--------------|-------|
+| `MockBridge` | `(script=None, *, narrate=None, id="mock:default")` | Scripted by exact input text or `"*"`; unscripted input gets the low-confidence default. `invocations()` returns every request the runtime sent, schema included. The CI workhorse |
+| `JevBridge` | `(transport="openrouter", *, model=None, api_key=None, hints=None)`, `.from_env(hints=None)` | TypeSafe's text → decisions model (doc 08 § `jev:`). `hints` maps a property's local name to a `PropertyHint(instructions, when_true, when_false, ordinal)`. The key is never echoed into a repr or trace |
+| `OpenRouterBridge` | `(model)`, `.from_env()` | Any OpenRouter-routed chat model, forced into the derived schema |
+
+Every bridge the published wheel ships is compiled in; `compiled()` names them
+(`{"mock", "jev", "openrouter"}`). A source build made without a provider bridge's
+`bridges-*` feature refuses to construct it with a `HorismosBridgeError` naming the
+feature. A bridge's HTTP connections belong to the process that opened them: after
+`os.fork()`, construct the child's bridges in the child.
+
+`AnthropicBridge`, `OpenAIBridge`, `HFBridge` and `ONNXBridge` are deferred
+(2026-09-23): doc 08's routing table names those backends, and none has an
+implementation yet. `CallableBridge` (a Python callable as a bridge) is deferred too: a run
+executes with the interpreter released, so a bridge written in Python needs a designed
+re-entry point first.
 
 ## Errors
 
@@ -169,6 +212,15 @@ Every error carries `domain_text` (human), `data` (machine), and where applicabl
 
 ## Module utilities
 
+- `horismos.examples` — the example ontologies every sample in these docs loads, shipped
+  in the package: `path(name)` returns the installed file for one of them
+  (`"triage/triage.ttl"`, `"vte/perception.ttl"`), and `names()` lists them all. An
+  unknown name raises `FileNotFoundError` listing what ships.
+- `python -m horismos demo` — the VTE text → decisions demo on the scripted mock bridge,
+  offline and keyless; its probabilities are authored stand-ins and say so.
+  `HORISMOS_DEMO_LIVE=1` with `OPENROUTER_API_KEY` or `TYPESAFE_API_KEY` runs the live
+  `JevBridge`; a key alone does not. `python -m horismos verify <path>` is the CI verifier
+  above.
 - `horismos.replay(trace, …)` — doc 09.
 - `horismos.export.to_training_jsonl(...)` — doc 09.
 - `horismos.testing` — `MockBridge`, world fixtures, trace assertions

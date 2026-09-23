@@ -18,8 +18,9 @@ The model reads the message and proposes typed facts — fare class, hours since
 
 ```python
 from horismos import HorismosValidationError, Ontology, World
+from horismos.examples import path
 
-onto = Ontology.load("examples/gallery/rebooking.ttl")
+onto = Ontology.load(path("gallery/rebooking.ttl"))
 world = World(onto)
 
 def request(subject: str, **facts: object) -> None:

@@ -98,9 +98,16 @@ jobs:
           - os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
             artifact: linux-x86_64
+          # manylinux_2_28, not the 2014 default: the 2014 cross image's GCC
+          # 4.8.5 cannot build `ring` (the TLS stack the model bridges carry),
+          # and forcing it with -D__ARM_ARCH=8 builds a `ring` that rejects
+          # valid RSA and P-384 signatures. This image's GCC 7.5 does neither.
+          # The cost, accepted by the captain on 2026-09-23: ARM Linux needs
+          # glibc 2.28 or newer for the prebuilt wheel.
           - os: ubuntu-latest
             target: aarch64-unknown-linux-gnu
             artifact: linux-aarch64
+            manylinux: "2_28"
           # universal2 covers both Apple Silicon and Intel macOS in one wheel.
           - os: macos-latest
             target: universal2-apple-darwin
@@ -116,7 +123,7 @@ jobs:
         with:
           command: build
           target: ${{ matrix.target }}
-          manylinux: auto
+          manylinux: ${{ matrix.manylinux || 'auto' }}
           args: --release --out dist
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
         with:
@@ -142,13 +149,16 @@ jobs:
   # no index available and run the doc-11 symbolic quickstart verbatim on
   # every supported CPython. Publication depends on this passing.
   #
-  # The linux-aarch64 wheel is built but not smoke-tested: there is no
-  # aarch64 Linux runner available to this repository to execute it on. It
-  # is the one published artefact whose first real exercise is a user's
-  # install, so check it by hand after the TestPyPI rehearsal.
+  # Then run `python -m horismos demo` from an empty directory, as a developer
+  # holding only the installed package would: the demo loads the example
+  # ontologies the wheel ships, so a wheel that loses them fails here rather
+  # than on its first user (0.1.0a3 shipped none).
+  #
+  # The linux-aarch64 wheel gets the same gate from `test-aarch64`, under
+  # emulation; this job waits for it, which is how that gate reaches publish.
   test:
     name: test (${{ matrix.artifact }}, py${{ matrix.python }})
-    needs: build
+    needs: [build, test-aarch64]
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -173,19 +183,60 @@ jobs:
         with:
           name: wheel-${{ matrix.artifact }}
           path: dist
-      - name: Install the wheel and run the symbolic quickstart verbatim
+      - name: Install the wheel, run the symbolic quickstart verbatim and the packaged demo
         shell: bash
         run: |
           # `--pre` is explicit: the only artefact in `dist` is a pre-release,
           # and the gate should say so rather than lean on pip's fallback.
           python -m pip install --pre --no-index --find-links dist horismos
           python .github/scripts/quickstart_smoke.py
+          python .github/scripts/demo_smoke.py
+
+  # The same gate for the linux-aarch64 wheel. No aarch64 runner is available
+  # to this repository, so it runs under QEMU user-mode emulation on an x86_64
+  # runner, inside the manylinux_2_28 aarch64 image: the wheel is installed at
+  # the oldest glibc it claims (2.28), on each CPython that image carries.
+  test-aarch64:
+    name: test (linux-aarch64, py${{ matrix.python }}, emulated)
+    needs: build
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.11", "3.12", "3.13", "3.14"]
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4.4.0
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093  # v4.3.0
+        with:
+          name: wheel-linux-aarch64
+          path: dist
+      - uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1  # v4.4.0
+        with:
+          platforms: arm64
+          # The action's default is the floating `tonistiigi/binfmt:latest`,
+          # which it runs privileged; pinned by digest instead.
+          image: docker.io/tonistiigi/binfmt:qemu-v10.2.3@sha256:400a4873b838d1b89194d982c45e5fb3cda4593fbfd7e08a02e76b03b21166f0
+      - name: Install the wheel, run the symbolic quickstart verbatim and the packaged demo (aarch64, emulated)
+        shell: bash
+        env:
+          PYTHON_VERSION: ${{ matrix.python }}
+          IMAGE: quay.io/pypa/manylinux_2_28_aarch64:2026.09.14-1@sha256:bbb43f784ce78a454a9e3351b862a12e7ad5c30972e8aeba092da678918bbba9
+        run: |
+          set -euo pipefail
+          python="/opt/python/cp${PYTHON_VERSION/./}-cp${PYTHON_VERSION/./}/bin/python"
+          docker run --rm --platform linux/arm64 -v "$PWD:/io" -w /io "$IMAGE" bash -euo pipefail -c "
+            uname -m
+            ldd --version | sed -n 1p
+            $python -m pip install --pre --no-index --find-links dist horismos
+            $python .github/scripts/quickstart_smoke.py
+            $python .github/scripts/demo_smoke.py
+          "
 
   # The same gate for the source archive. It is the only install path for any
   # platform outside the wheel matrix, and the README now promises that path
   # works; this is a multi-crate workspace with path dependencies, precisely
   # the shape whose sdist can come out missing a crate. So build one from the
-  # artefact that would be published and run the identical quickstart.
+  # artefact that would be published and run the identical quickstart and demo.
   test-sdist:
     name: test (sdist)
     needs: sdist
@@ -202,7 +253,7 @@ jobs:
         with:
           name: sdist
           path: dist
-      - name: Build the sdist from source and run the symbolic quickstart verbatim
+      - name: Build the sdist from source, run the symbolic quickstart verbatim and the packaged demo
         shell: bash
         run: |
           set -euo pipefail
@@ -214,6 +265,7 @@ jobs:
           archive="$(ls dist/*.tar.gz)"
           python -m pip install "$archive"
           python .github/scripts/quickstart_smoke.py
+          python .github/scripts/demo_smoke.py
 
   publish:
     name: publish (${{ inputs.index || 'pypi' }})

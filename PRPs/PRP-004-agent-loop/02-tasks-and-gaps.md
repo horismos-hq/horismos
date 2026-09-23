@@ -407,10 +407,23 @@ the same commit as this file.
       last open target — an internal `run()` helper builds a fresh `Agent`/`World`
       and runs the same fixed input twice under the same `run_id`, asserting
       `to_json()`/`to_json_pretty()` equality plus round-trip parse for both forms.
-- [ ] U-Python. **Python `agent.run(...)` wiring** — deferred: PRP-003 is
-      unmerged on a sibling branch (see `01-objective.md` § Coordination with
-      PRP-003). Dated 2026-08-18: pick this up once PRP-003 merges; until then the
-      Rust demo binary (U14) is the entry point of record.
+- [x] U-Python. **Python `agent.run(...)` wiring** — deferred 2026-08-18 while PRP-003
+      was unmerged; **done 2026-09-23** (branch `fm/horismos-pybridges-a1`).
+      `horismos.Agent(world, *, workflow, bridges).run(text, *, run_id, now)` drives
+      `Agent::run` whole — one native crossing, interpreter detached for the run — so
+      schema derivation (rules-only properties absent), the `horis:confidence` gate, the
+      `horis:fallback` edge and the perception-provenance assertion are core's, and no
+      binding calls a bridge's `perceive` directly. `horismos.bridges` exposes
+      `MockBridge`, `JevBridge` and `OpenRouterBridge` (compiled into the published
+      wheel); `ProofNode.provenance` surfaces who asserted each leaf. Core gained one
+      item: `impl Bridge for Arc<B>`, so a binding can register a bridge it still holds.
+      Scoped out, not silently claimed: tool bindings from Python (the `python:` scheme
+      is D14/D15's), `budget=`, structured `input=`, `step()`/`resume()` — doc 11 lists
+      each as deferred. A workflow with a `rust:` tool binding is refused at `Agent(...)`
+      by name (a `python:`/`http:`/`mcp:` binding passes `build()` and takes `onError`
+      when reached, as in Rust), so `examples/triage/`'s full run stays the Rust demo;
+      `examples/vte/perception.ttl` run by `python -m horismos demo` (the packaged
+      `horismos.examples.jev_vte`, `make demo-jev-py`) is the Python entry point.
 
 ## Gaps discovered during implementation
 

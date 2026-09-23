@@ -27,8 +27,9 @@ Two lines carry most of the weight. `horis:assignedBy horis:RulesOnly` on `:gate
 
 ```python
 from horismos import HorismosValidationError, Ontology, World
+from horismos.examples import path
 
-onto = Ontology.load("examples/change-gate/change-gate.ttl")
+onto = Ontology.load(path("change-gate/change-gate.ttl"))
 world = World(onto)
 
 def gate(subject: str, **observed: object) -> None:

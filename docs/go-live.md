@@ -200,7 +200,7 @@ Everything else — the Turtle file, the workflow, the tool bindings, the gate, 
 - **A live model is not deterministic.** Your narration will differ from the one above. The decision and the proof will not, as long as the perception step asserts the same facts — and if the model misses the symptom, the proof cannot be built and the run escalates rather than guesses.
 - **This is the first live run of the demo to reach `:Done`.** Until 2026-09-03 the runtime dropped array-valued perception answers: the derived schema asks for an array for the multi-valued `:hasSymptom`, the model answered with one, and the value was lost, so every live run found `:Assess` unreachable and paged the nurse with `fallback taken: true`. The fail-closed edge did exactly what the workflow declared; the defect is fixed in `crates/horismos-core/src/workflow/agent.rs` with regression tests that failed before the fix.
 - **`make demo` stays on the mock bridge even with the key set.** It is built without the OpenRouter client, and says so on stderr. Only `make demo-live` switches bridges.
-- **The loop is driven from Rust today.** A Python `Agent.run(...)` is a PRP-004 follow-up.
+- **This demo runs from Rust.** Its workflow fires tools, and tool bindings are Rust functions. `horismos.Agent` runs workflows of perception and reasoning steps from Python — see [the same loop from Python](quickstart.md#the-same-loop-from-python).
 
 ## The full trajectory
 

@@ -755,6 +755,8 @@ dependencies = [
  "horismos-core",
  "pyo3",
  "rust_decimal",
+ "serde_json",
+ "tokio",
 ]
 
 [[package]]

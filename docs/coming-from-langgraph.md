@@ -64,9 +64,10 @@ The decision: *a patient with a heart rate over 120 and any kind of chest pain i
 
     ```python
     from horismos import Ontology, World
+    from horismos.examples import path
 
-    onto = Ontology.load("examples/triage/triage.ttl",
-                         imports=["examples/triage/snomed-ct-subset.ttl"])
+    onto = Ontology.load(path("triage/triage.ttl"),
+                         imports=[path("triage/snomed-ct-subset.ttl")])
 
     def decide_acuity(*, heart_rate: int, symptoms: list[str]) -> tuple[str | None, str | None]:
         """One decision per call: a fresh World, one gated transaction, a proof or None."""

@@ -25,9 +25,9 @@ def _python_blocks(markdown: Path, heading: str) -> list[str]:
     return blocks
 
 
-def _run_verbatim(blocks: list[str]) -> None:
+def _run_verbatim(blocks: list[str], where: Path = REPO) -> None:
     cwd = os.getcwd()
-    os.chdir(REPO)  # the quickstarts use repo-relative fixture paths
+    os.chdir(where)
     try:
         namespace: dict[str, Any] = {}
         out = io.StringIO()
@@ -40,12 +40,15 @@ def _run_verbatim(blocks: list[str]) -> None:
         os.chdir(cwd)
 
 
-def test_the_doc_11_symbolic_quickstart_runs_verbatim() -> None:
+def test_the_doc_11_symbolic_quickstart_runs_verbatim(tmp_path: Path) -> None:
     blocks = _python_blocks(
         REPO / "docs" / "framework" / "11-python-api.md",
         "Quickstart (symbolic",
     )
-    _run_verbatim(blocks)
+    # From an empty directory: the published quickstart loads the package's own
+    # examples, never a repository path (the release gate runs it the same way
+    # against every built wheel).
+    _run_verbatim(blocks, where=tmp_path)
 
 
 def test_the_prp_003_example_1_runs_verbatim() -> None:
@@ -53,7 +56,7 @@ def test_the_prp_003_example_1_runs_verbatim() -> None:
         REPO / "PRPs" / "PRP-003-python-bindings" / "01-objective.md",
         "Example 1",
     )
-    _run_verbatim(blocks)
+    _run_verbatim(blocks)  # an internal design doc: repo-relative fixture paths
 
 
 def test_example_2_runs_verbatim_where_it_raises() -> None:

@@ -18,8 +18,9 @@ Two design choices are the whole point. A missing prior authorization **pends** 
 
 ```python
 from horismos import HorismosValidationError, Ontology, World
+from horismos.examples import path
 
-onto = Ontology.load("examples/gallery/claims-adjudication.ttl")
+onto = Ontology.load(path("gallery/claims-adjudication.ttl"))
 world = World(onto)
 
 def adjudicate(subject: str, **facts: object) -> None:

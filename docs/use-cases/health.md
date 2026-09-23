@@ -22,8 +22,9 @@ The Padua score arithmetic is not in the rules. Summing risk factors is the job 
 
 ```python
 from horismos import HorismosValidationError, Ontology, World
+from horismos.examples import path
 
-onto = Ontology.load("examples/gallery/vte-prophylaxis.ttl")
+onto = Ontology.load(path("gallery/vte-prophylaxis.ttl"))
 world = World(onto)
 
 def admit(subject: str, **facts: object) -> None:

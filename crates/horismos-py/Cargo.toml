@@ -11,12 +11,31 @@ repository.workspace = true
 name = "_horismos"
 crate-type = ["cdylib"]
 
+# Pass-throughs to `horismos-bridges`, each compiling one provider client into
+# the extension module. Empty by default here exactly as there: a `cargo build`
+# of this crate reaches no provider. The published wheel opts in through
+# `[tool.maturin] features` in pyproject.toml, which is the one list of what
+# `pip install horismos` ships. `bridges-anthropic`/`-openai`/`-onnx` forward to
+# features whose bridge has no implementation yet, so they compile nothing.
+[features]
+default = []
+bridges-anthropic = ["horismos-bridges/bridges-anthropic"]
+bridges-jev = ["horismos-bridges/bridges-jev"]
+bridges-onnx = ["horismos-bridges/bridges-onnx"]
+bridges-openai = ["horismos-bridges/bridges-openai"]
+bridges-openrouter = ["horismos-bridges/bridges-openrouter"]
+
 [dependencies]
 horismos-core = { workspace = true, features = ["verify", "sparql", "mock"] }
 horismos-bridges = { workspace = true }
 pyo3 = { version = "0.29", features = ["abi3-py311", "rust_decimal", "chrono"] }
 chrono.workspace = true
 rust_decimal.workspace = true
+serde_json.workspace = true
+# The executor `Agent::run` is driven on. `rt` alone: the HTTP bridges'
+# `reqwest` enables the I/O and timer drivers it needs itself, and
+# `enable_all()` switches on whatever is compiled in.
+tokio = { workspace = true, features = ["rt"] }
 
 [lints]
 workspace = true

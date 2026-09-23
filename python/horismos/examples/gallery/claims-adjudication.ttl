@@ -1,0 +1,152 @@
+# Gallery overlay: first-pass adjudication of a health-insurance claim.
+# Illustrative business rules — every denial carries a proof tree that names
+# the exact clause, which is what makes it appealable.
+
+@prefix :      <https://example.org/claims#> .
+@prefix horis: <https://w3id.org/horismos#> .
+@prefix rdf:   <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs:  <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd:   <http://www.w3.org/2001/XMLSchema#> .
+
+## Domain (doc 02)
+
+:Claim a rdfs:Class ;
+    rdfs:label "Claim" .
+
+:policyActiveOnServiceDate a rdf:Property ;
+    rdfs:domain :Claim ; rdfs:range xsd:boolean ;
+    horis:cardinality "1" .
+
+:serviceCovered a rdf:Property ;
+    rdfs:domain :Claim ; rdfs:range xsd:boolean ;
+    horis:cardinality "1" .
+
+:priorAuthRequired a rdf:Property ;
+    rdfs:domain :Claim ; rdfs:range xsd:boolean ;
+    horis:cardinality "0..1" .
+
+:priorAuthOnFile a rdf:Property ;
+    rdfs:domain :Claim ; rdfs:range xsd:boolean ;
+    horis:cardinality "0..1" .
+
+:billedAmount a rdf:Property ;
+    rdfs:domain :Claim ; rdfs:range xsd:decimal ;
+    horis:unit "USD" ;
+    horis:min 0 ;
+    horis:cardinality "0..1" .
+
+:Network a rdfs:Class ;
+    horis:oneOf ( :InNetwork :OutOfNetwork ) .
+
+:network a rdf:Property ;
+    rdfs:domain :Claim ; rdfs:range :Network ;
+    horis:cardinality "0..1" .
+
+:Adjudication a rdfs:Class ;
+    horis:oneOf ( :Approved :Pended :Denied ) .
+
+:adjudication a rdf:Property ;
+    rdfs:domain :Claim ; rdfs:range :Adjudication ;
+    horis:cardinality "0..1" ;
+    horis:assignedBy horis:RulesOnly .   # no model, adjuster script, or API caller sets this
+
+## Rules (doc 04)
+
+:denyInactivePolicy a horis:Rule ;
+    horis:priority 100 ;
+    horis:when [
+        horis:subject :Claim ; horis:property :policyActiveOnServiceDate ; horis:is false
+    ] ;
+    horis:then [ horis:property :adjudication ; horis:value :Denied ] ;
+    horis:explain "Policy was not active on the date of service" .
+
+:denyNonCoveredService a horis:Rule ;
+    horis:priority 90 ;
+    horis:when [
+        horis:subject :Claim ; horis:property :serviceCovered ; horis:is false
+    ] ;
+    horis:then [ horis:property :adjudication ; horis:value :Denied ] ;
+    horis:explain "Service is excluded from the plan's covered benefits" .
+
+:pendMissingPriorAuth a horis:Rule ;
+    horis:priority 80 ;
+    horis:when [
+        horis:all (
+            [ horis:subject :Claim ; horis:property :policyActiveOnServiceDate ; horis:is true ]
+            [ horis:subject :Claim ; horis:property :serviceCovered ; horis:is true ]
+            [ horis:subject :Claim ; horis:property :priorAuthRequired ; horis:is true ]
+            [ horis:subject :Claim ; horis:property :priorAuthOnFile ; horis:is false ]
+        )
+    ] ;
+    horis:then [ horis:property :adjudication ; horis:value :Pended ] ;
+    horis:explain "Prior authorization is required and none is on file — pend for documentation, do not deny" .
+
+:pendHighDollar a horis:Rule ;
+    horis:priority 70 ;
+    horis:when [ horis:all (
+            [ horis:subject :Claim ; horis:property :policyActiveOnServiceDate ; horis:is true ]
+            [ horis:subject :Claim ; horis:property :serviceCovered ; horis:is true ]
+            [ horis:subject :Claim ; horis:property :billedAmount ; horis:exceeds 10000 ]
+    ) ] ;
+    horis:then [ horis:property :adjudication ; horis:value :Pended ] ;
+    horis:explain "Billed amount exceeds the auto-adjudication ceiling — human review" .
+
+:approveClean a horis:Rule ;
+    horis:priority 10 ;
+    horis:when [
+        horis:all (
+            [ horis:subject :Claim ; horis:property :policyActiveOnServiceDate ; horis:is true ]
+            [ horis:subject :Claim ; horis:property :serviceCovered ; horis:is true ]
+            [ horis:subject :Claim ; horis:property :billedAmount ; horis:atMost 10000 ]
+            [ horis:any (
+                [ horis:subject :Claim ; horis:property :priorAuthRequired ; horis:is false ]
+                [ horis:subject :Claim ; horis:property :priorAuthOnFile ; horis:is true ]
+            ) ]
+        )
+    ] ;
+    horis:then [ horis:property :adjudication ; horis:value :Approved ] ;
+    horis:explain "Active policy, covered service, within ceiling, authorization satisfied" .
+
+# PRP-005 completeness-cover:start
+# Two regions had no adjudication until PRP-005's completeness check named them.
+# Both are missing data rather than a settled outcome, and this rule set already
+# says what to do with missing data — :pendMissingPriorAuth pends for documentation
+# rather than denying. Auto-denying a claim because a field was never populated is
+# exactly the failure this overlay exists to argue against.
+#
+# A claim with no amount *and* a missing required authorization stays with
+# :pendMissingPriorAuth, which already pends it; the guard below keeps this rule off
+# that region so the proof names the authorization, not the amount.
+:amountNotRecordedPends a horis:Rule ;
+    horis:priority 60 ;
+    horis:when [ horis:all (
+        [ horis:subject :Claim ; horis:property :policyActiveOnServiceDate ; horis:is true ]
+        [ horis:subject :Claim ; horis:property :serviceCovered ; horis:is true ]
+        [ horis:subject :Claim ; horis:property :billedAmount ; horis:isEmpty true ]
+        [ horis:any (
+            [ horis:subject :Claim ; horis:property :priorAuthRequired ; horis:isNot true ]
+            [ horis:subject :Claim ; horis:property :priorAuthOnFile ; horis:isNot false ]
+        ) ]
+    ) ] ;
+    horis:then [ horis:property :adjudication ; horis:value :Pended ] ;
+    horis:explain "No billed amount on the claim — it cannot be tested against the auto-adjudication ceiling, so it pends" .
+
+# :approveClean needs `priorAuthRequired is false` or `priorAuthOnFile is true`, and
+# :pendMissingPriorAuth needs both recorded; a condition over an unassigned property
+# is false (doc 02), so a claim that never recorded the requirement matched neither.
+:priorAuthStatusUnknownPends a horis:Rule ;
+    horis:priority 60 ;
+    horis:when [ horis:all (
+        [ horis:subject :Claim ; horis:property :policyActiveOnServiceDate ; horis:is true ]
+        [ horis:subject :Claim ; horis:property :serviceCovered ; horis:is true ]
+        [ horis:subject :Claim ; horis:property :billedAmount ; horis:atMost 10000 ]
+        [ horis:subject :Claim ; horis:property :priorAuthRequired ; horis:isNot false ]
+        [ horis:subject :Claim ; horis:property :priorAuthOnFile ; horis:isNot true ]
+        [ horis:any (
+            [ horis:subject :Claim ; horis:property :priorAuthRequired ; horis:isEmpty true ]
+            [ horis:subject :Claim ; horis:property :priorAuthOnFile ; horis:isEmpty true ]
+        ) ]
+    ) ] ;
+    horis:then [ horis:property :adjudication ; horis:value :Pended ] ;
+    horis:explain "Whether prior authorization is required, or whether it is on file, was never recorded — pend for documentation, do not deny" .
+# PRP-005 completeness-cover:end

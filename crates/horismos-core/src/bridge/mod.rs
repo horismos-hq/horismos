@@ -40,6 +40,30 @@ pub trait Bridge: Send + Sync {
     fn id(&self) -> &str;
 }
 
+/// A shared handle to a bridge is a bridge. `AgentBuilder::bridge` takes
+/// ownership of what it is given, so a deployment that must keep its own
+/// reference — a binding layer reading a mock's recorded invocations after a
+/// run, or one configured client serving two prefixes — registers an `Arc`.
+/// Pure delegation: the runtime still owns every threshold and fallback.
+#[async_trait]
+impl<B: Bridge + ?Sized> Bridge for std::sync::Arc<B> {
+    async fn perceive(&self, req: PerceiveRequest) -> Result<PerceiveResult, BridgeError> {
+        (**self).perceive(req).await
+    }
+
+    async fn narrate(&self, req: NarrateRequest) -> Result<NarrateResult, BridgeError> {
+        (**self).narrate(req).await
+    }
+
+    async fn rank(&self, req: RankRequest) -> Result<RankResult, BridgeError> {
+        (**self).rank(req).await
+    }
+
+    fn id(&self) -> &str {
+        (**self).id()
+    }
+}
+
 /// One `PerceptionStep` call: the input text plus the JSON Schema derived
 /// from `horis:extracts` (doc 06's mapping table). The schema is the
 /// provider's typed-output channel, used backwards (doc 08) — not to let
@@ -278,6 +302,31 @@ mod tests {
                 reason: "no candidates".to_string(),
             }
         );
+    }
+
+    #[test]
+    fn a_shared_handle_delegates_to_the_bridge_it_shares() {
+        let shared: std::sync::Arc<dyn Bridge> = std::sync::Arc::new(TestDouble);
+        let registered: Box<dyn Bridge> = Box::new(std::sync::Arc::clone(&shared));
+        let result = block_on(registered.perceive(PerceiveRequest {
+            text: "58M".to_string(),
+            schema: serde_json::json!({"type": "object"}),
+        }))
+        .expect("perceive should succeed");
+        assert_eq!(result.instances, vec![serde_json::json!({"echo": "58M"})]);
+        let narrated = block_on(registered.narrate(NarrateRequest {
+            proof_text: "r1 fired".to_string(),
+            audience: "charge-nurse".to_string(),
+        }))
+        .expect("narrate should succeed");
+        assert_eq!(narrated.text, "narrated: r1 fired");
+        let ranked = block_on(registered.rank(RankRequest {
+            context: "acuity".to_string(),
+            candidates: vec![serde_json::json!({"queue": "resus"})],
+        }))
+        .expect("rank should succeed");
+        assert_eq!(ranked.chosen, 0);
+        assert_eq!(registered.id(), shared.id());
     }
 
     #[test]

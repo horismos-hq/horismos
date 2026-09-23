@@ -14,12 +14,14 @@ bridges-openai = []
 bridges-onnx = []
 bridges-openrouter = ["dep:litellm-rust", "dep:reqwest"]
 # TypeSafe's Jev (text->decisions) over OpenRouter's Decisions endpoint or
-# TypeSafe's own. Default-OFF, like every TLS-carrying bridge: with all of
-# them off, `cargo tree -p horismos-py` shows no reqwest/rustls/aws-lc/ring/
-# openssl at all, which is what lets the published wheel cross-compile
-# cleanly to aarch64. Reuses the workspace `reqwest` (no second HTTP client);
-# it needs no `litellm-rust`, since the Decisions protocol is not
-# OpenAI-compatible.
+# TypeSafe's own. Default-OFF, like every TLS-carrying bridge, so a plain
+# `cargo build` of this crate or of `horismos-py` reaches no provider and no
+# TLS stack. The published wheel opts in to both HTTP bridges through
+# `[tool.maturin] features` in pyproject.toml; with them in, its aarch64 build
+# needs the manylinux_2_28 image (`ring` needs a C compiler that defines
+# `__ARM_ARCH`), see .github/workflows/release.yml. Reuses the workspace
+# `reqwest` (no second HTTP client); it needs no `litellm-rust`, since the
+# Decisions protocol is not OpenAI-compatible.
 bridges-jev = ["dep:reqwest"]
 
 [dependencies]

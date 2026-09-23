@@ -1,7 +1,7 @@
 # Horismos dev entry points. Requires: rustup (stable), uv. Everything Python
 # runs through uv; maturin is a dev dependency, never a global install.
 
-.PHONY: build develop test test-rust test-py test-workflows lint fmt notices no-model-gate check-boundary verify clean demo demo-live demo-jev demo-jev-live
+.PHONY: build develop test test-rust test-py test-workflows lint fmt notices no-model-gate check-boundary verify clean demo demo-live demo-jev demo-jev-live demo-jev-py demo-jev-py-live
 
 build:
 	cargo build --workspace
@@ -26,6 +26,9 @@ test-workflows:
 lint:
 	cargo fmt --all --check
 	cargo clippy --workspace --all-targets -- -D warnings
+	# The provider bridges are feature-gated, so the workspace pass above never
+	# compiles them; lint them as the published wheel builds them.
+	cargo clippy -p horismos-py --all-targets --features bridges-jev,bridges-openrouter -- -D warnings
 	uv run ruff check python scripts
 	uv run ruff format --check python scripts
 	uv run mypy
@@ -77,6 +80,18 @@ demo-jev:
 # output line ("... - mock" vs "... - live (Jev)") says which bridge ran.
 demo-jev-live:
 	cargo run -p horismos-bridges --example jev_vte_demo --features bridges-jev
+
+# The same demo from Python, exactly as an installed package runs it
+# (`python -m horismos demo`, the packaged vte/perception.ttl), so the step's
+# horis:confidence gate is in the loop. Always MockBridge: a key in the
+# environment is not consent to spend it.
+demo-jev-py: develop
+	uv run python -m horismos demo
+
+# The live model, asked for explicitly; needs OPENROUTER_API_KEY or
+# TYPESAFE_API_KEY (or a _FILE variant).
+demo-jev-py-live: develop
+	HORISMOS_DEMO_LIVE=1 uv run python -m horismos demo
 
 clean:
 	cargo clean

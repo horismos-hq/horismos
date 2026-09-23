@@ -1,5 +1,6 @@
 """Type stubs for the native module (kept in the same change as the surface)."""
 
+from datetime import datetime
 from os import PathLike
 from typing import TYPE_CHECKING, Any, final
 
@@ -8,6 +9,7 @@ if TYPE_CHECKING:
 
 __version__: str
 PROFILE_VERSION: str
+BRIDGES: list[str]
 
 class HorismosError(Exception):
     domain_text: str
@@ -78,6 +80,8 @@ class ProofNode:
     def rule(self) -> str | None: ...
     @property
     def children(self) -> list[ProofNode]: ...
+    @property
+    def provenance(self) -> str | None: ...
     def render(self) -> str: ...
 
 @final
@@ -126,3 +130,73 @@ class World:
     @staticmethod
     def from_snapshot(onto: Ontology, snapshot: Snapshot) -> World: ...
     def diff(self, snapshot: Snapshot) -> Diff: ...
+
+@final
+class MockBridge:
+    def __init__(
+        self,
+        id: str,
+        perceive: list[tuple[str, str]],
+        narrate: list[tuple[str, str]],
+    ) -> None: ...
+    @property
+    def id(self) -> str: ...
+    def invocations(self) -> list[tuple[str, str]]: ...
+
+# Present only in a build with the `bridges-jev` feature (the published wheel).
+@final
+class JevBridge:
+    def __init__(
+        self,
+        transport: str,
+        model: str | None,
+        api_key: str | None,
+        hints: list[tuple[str, str | None, str | None, str | None, bool]],
+    ) -> None: ...
+    @staticmethod
+    def from_env(
+        hints: list[tuple[str, str | None, str | None, str | None, bool]],
+    ) -> JevBridge: ...
+    @property
+    def id(self) -> str: ...
+
+# Present only in a build with the `bridges-openrouter` feature (the published wheel).
+@final
+class OpenRouterBridge:
+    def __init__(self, model: str) -> None: ...
+    @staticmethod
+    def from_env() -> OpenRouterBridge: ...
+    @property
+    def id(self) -> str: ...
+
+@final
+class RunOutcome:
+    @property
+    def terminal(self) -> str: ...
+    @property
+    def decision(self) -> tuple[str, Any] | None: ...
+    @property
+    def fallback_taken(self) -> bool: ...
+    @property
+    def case(self) -> Ref | None: ...
+    @property
+    def proof(self) -> ProofNode | None: ...
+    @property
+    def trace_json(self) -> str: ...
+    @property
+    def diff(self) -> Diff | None: ...
+
+def check_agent(
+    onto: Ontology,
+    workflow: str,
+    bridges: list[tuple[str, Any]],
+) -> None: ...
+def run_agent(
+    world: World,
+    workflow: str,
+    bridges: list[tuple[str, Any]],
+    text: str,
+    run_id: str,
+    now: datetime,
+    with_diff: bool,
+) -> RunOutcome: ...

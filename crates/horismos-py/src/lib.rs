@@ -9,6 +9,7 @@
 
 use pyo3::prelude::*;
 
+mod agent;
 mod errors;
 mod ontology;
 mod values;
@@ -23,5 +24,6 @@ fn _horismos(m: &Bound<'_, PyModule>) -> PyResult<()> {
     errors::register(m)?;
     ontology::register(m)?;
     world::register(m)?;
+    agent::register(m)?;
     Ok(())
 }

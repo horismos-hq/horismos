@@ -1,8 +1,10 @@
 """The developer docs site's runnable snippets execute verbatim.
 
 Every fenced block written exactly as ```python on the pages below is
-extracted and executed in order, in one namespace per page, from the repo
-root — the same discipline ``test_quickstart.py`` applies to doc 11.
+extracted and executed in order, in one namespace per page, from an empty
+temporary directory — the site is public and the repository is not, so a
+sample may load only what the installed package ships (``horismos.examples``).
+The same discipline ``test_quickstart.py`` applies to doc 11.
 Illustrative blocks carry a title (```python title="…") and are deliberately
 not matched. A docs edit that breaks a sample breaks this test.
 
@@ -18,6 +20,7 @@ import functools
 import io
 import os
 import re
+import tempfile
 from pathlib import Path
 from typing import Any
 
@@ -84,16 +87,17 @@ def _run_page(page: str) -> str:
     blocks = _runnable_blocks(DOCS / page)
     assert blocks, f"{page} has no runnable ```python blocks"
     cwd = os.getcwd()
-    os.chdir(REPO)  # the samples use repo-relative example paths
-    try:
-        namespace: dict[str, Any] = {}
-        out = io.StringIO()
-        for index, block in enumerate(blocks):
-            with contextlib.redirect_stdout(out):
-                exec(compile(block, f"<{page} block {index}>", "exec"), namespace)
-        return out.getvalue()
-    finally:
-        os.chdir(cwd)
+    with tempfile.TemporaryDirectory() as empty:
+        os.chdir(empty)  # no repository path resolves from here
+        try:
+            namespace: dict[str, Any] = {}
+            out = io.StringIO()
+            for index, block in enumerate(blocks):
+                with contextlib.redirect_stdout(out):
+                    exec(compile(block, f"<{page} block {index}>", "exec"), namespace)
+            return out.getvalue()
+        finally:
+            os.chdir(cwd)
 
 
 def _pages_with_runnable_blocks() -> set[str]:

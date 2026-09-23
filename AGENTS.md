@@ -156,6 +156,17 @@ make notices       # regenerate THIRD_PARTY_NOTICES.txt after any Cargo.lock cha
   verbatim). Neither index takes `skip-existing`, so each TestPyPI rehearsal needs a
   fresh version. Every workflow action is pinned to a full commit SHA with its version in
   a trailing comment; an update resolves the new SHA from upstream, never a bare tag.
+- The published wheel compiles in the Jev and OpenRouter bridges through
+  `[tool.maturin] features` in `pyproject.toml` — the only opt-in; every crate default
+  stays empty. That puts `ring` (TLS) in the wheel, so the aarch64 wheel builds in the
+  `manylinux_2_28` image (glibc floor 2.28). Never make `ring` build on an older
+  toolchain with `-D__ARM_ARCH=…`: that compiles and passes the smoke test, yet rejects
+  valid RSA/P-384 signatures (record: PRP-006 `02-tasks-and-gaps.md`).
+- The wheel ships every ontology the docs load as package data: `python/horismos/examples/`
+  holds byte-identical copies of `examples/` files (`make test` fails on drift, so edit
+  both), docs samples load them through `horismos.examples.path(...)` — never a repo
+  path, since the site is public and the repo is not — and the release gate runs
+  `python -m horismos demo` from every built artefact.
 - Process artifacts (ledgers, briefs, review diffs) are untracked scratch
   (`.superpowers/` is gitignored); the durable record is the owning PRP's
   `02-tasks-and-gaps.md` and the shipped-voice text where `[DECIDE]` markers were

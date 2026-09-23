@@ -1,0 +1,37 @@
+## A perception workflow over vte.ttl (doc 05, doc 06): read a free-text clinical
+## note into :VteCase's four booleans, then let vte.ttl's rules decide
+## :recommendation. It lives in its own file because manifest.json pins vte.ttl's
+## SHA-256. `python -m horismos demo` runs it from the installed package.
+
+@prefix :      <https://example.org/vte#> .
+@prefix horis: <https://w3id.org/horismos#> .
+
+<> horis:imports <./vte.ttl> .
+
+## Workflow (doc 05)
+
+:NoteToRecommendation a horis:Workflow ;
+    horis:startsAt :ReadNote ;
+    horis:decides  :recommendation ;
+    horis:version  "1.0.0" .
+
+# One class per step: a `jev:` step extracts exactly one (doc 08). The model is
+# shown :VteCase's four booleans and never :recommendation, which is
+# horis:RulesOnly — the schema has no field for it.
+:ReadNote a horis:PerceptionStep ;
+    horis:extracts   :VteCase ;
+    horis:model      "jev:jev-1.13" ;
+    horis:confidence 0.85 ;
+    horis:fallback   :ClinicianReview ;
+    horis:next       :Decide .
+
+:Decide a horis:ReasoningStep ;
+    horis:goal          [ horis:property :recommendation ; horis:isAssigned true ] ;
+    horis:onUnreachable :ClinicianReview ;
+    horis:next          :Done .
+
+:Done a horis:Step ; horis:terminal true .
+
+# Low confidence, a bridge error or refusal, or a proposal the gate rejects: the
+# note goes to a person rather than into the record.
+:ClinicianReview a horis:Step ; horis:terminal true .
