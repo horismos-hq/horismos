@@ -45,7 +45,12 @@ The machine was not otherwise idle: a `cargo test --workspace` and later a `rust
 another worktree ran on other cores for parts of the session. Every timed program here
 is single-threaded on a 10-core machine; the Rust percentile table was run twice, an
 hour apart, and the second run's p50s were within 0.1 µs of the first on every row
-(the max column moved, as a max does). The first run is the one recorded.
+(the max column moved, as a max does). The first run is the one recorded, except the
+`fresh_subject` rows (both tables): a review found the first harness paying the cloned
+world's interner copy-on-write inside the timed section (see the shape's description
+below), so those rows were re-run on the same machine, same day, with the harness
+fixed; the other rows of that re-run were within noise of the first, and the max
+column again moved (`world_size/99` reached 1.586 ms).
 
 ### What one decision is
 
@@ -57,9 +62,14 @@ inside a decision. Three shapes:
 - `replace_standing`: the steady state. One standing command `:cmd` is re-asserted with
   the tick's state. The world's size is constant; each tick pays truth maintenance
   (doc 03 § Truth maintenance) for its own verdict.
-- `fresh_subject`: a new anonymous command each tick into a world cloned outside the
-  timed section (the world grows by one). `cold_world` (criterion, Python) is the first
-  transaction of a brand-new `World`, the shape PRP-002's `triage_transaction` measures.
+- `fresh_subject`: a new anonymous command each tick into a cloned world (the world
+  grows by one). The clone is set-up, outside the timed section, and so is the
+  interner copy it would otherwise pay on its first intern: `World::clone` shares the
+  `Arc<Interner>` and `Arc::make_mut` deep-copies every ontology IRI on the first
+  write, a cost a real loop (which never clones) never sees, so the harness forces it
+  in set-up (`shield_common::detached_clone`) and drops the clone after the clock is
+  read. `cold_world` (criterion, Python) is the first transaction of a brand-new
+  `World`, the shape PRP-002's `triage_transaction` measures.
 - `world_size/N`: `replace_standing` with N further standing commands, each carrying a
   derived verdict that truth maintenance resets and re-derives on every transaction.
 
@@ -76,9 +86,9 @@ Warm-up 1 000 untimed decisions, then each decision timed on its own with `Insta
 | `replace_standing/permitted_open_floor` | 20000 | 4.67 µs | 9.12 µs | 58.33 µs |
 | `replace_standing/attenuated_shared_cell` | 20000 | 4.50 µs | 5.71 µs | 18.46 µs |
 | `replace_standing/blocked_no_reading` | 20000 | 3.92 µs | 4.92 µs | 15.00 µs |
-| `fresh_subject/permitted_open_floor` | 20000 | 11.83 µs | 14.83 µs | 40.12 µs |
-| `fresh_subject/attenuated_shared_cell` | 20000 | 11.79 µs | 14.79 µs | 34.21 µs |
-| `fresh_subject/blocked_no_reading` | 20000 | 10.92 µs | 13.88 µs | 41.88 µs |
+| `fresh_subject/permitted_open_floor` | 20000 | 6.29 µs | 6.67 µs | 19.21 µs |
+| `fresh_subject/attenuated_shared_cell` | 20000 | 6.58 µs | 6.79 µs | 23.17 µs |
+| `fresh_subject/blocked_no_reading` | 20000 | 5.75 µs | 5.96 µs | 42.08 µs |
 | `explain/attenuated_shared_cell` | 20000 | below timer resolution (≈ 41 ns tick); criterion: 11.8 ns | | |
 | `world_size/1` | 2000 | 6.75 µs | 8.79 µs | 22.08 µs |
 | `world_size/10` | 2000 | 32.38 µs | 41.83 µs | 54.04 µs |
@@ -96,9 +106,9 @@ Point estimate with criterion's 95 % interval, 100 samples per bench.
 | `shield_decision/replace_standing/permitted_open_floor` | 4.73 µs [4.65, 4.83] |
 | `shield_decision/replace_standing/attenuated_shared_cell` | 4.44 µs [4.43, 4.46] |
 | `shield_decision/replace_standing/blocked_no_reading` | 3.88 µs [3.85, 3.93] |
-| `shield_decision/fresh_subject/permitted_open_floor` | 13.02 µs [12.60, 13.60] |
-| `shield_decision/fresh_subject/attenuated_shared_cell` | 12.31 µs [12.24, 12.39] |
-| `shield_decision/fresh_subject/blocked_no_reading` | 11.03 µs [10.95, 11.13] |
+| `shield_decision/fresh_subject/permitted_open_floor` | 7.77 µs [7.72, 7.82] |
+| `shield_decision/fresh_subject/attenuated_shared_cell` | 7.77 µs [7.72, 7.81] |
+| `shield_decision/fresh_subject/blocked_no_reading` | 6.76 µs [6.71, 6.80] |
 | `shield_decision/cold_world/permitted_open_floor` | 8.13 µs [7.70, 8.67] |
 | `shield_decision/cold_world/attenuated_shared_cell` | 7.59 µs [7.46, 7.74] |
 | `shield_decision/cold_world/blocked_no_reading` | 6.92 µs [6.82, 7.04] |
@@ -140,12 +150,16 @@ outliers) that the Rust rows do not.
 
 - **Steady state, one standing command:** 4–5 µs p50 in Rust, ≈ 8 µs in Python, with
   p99 under 10 µs on both and a max in the tens of µs (Rust) or, rarely, above 1 ms
-  (Python, interpreter pauses).
+  (Python, interpreter pauses). A fresh anonymous subject per tick costs ≈ 2 µs more
+  than the standing-command shape in Rust (6–7 µs p50): the world grows by one
+  instance, and the transaction re-derives the one extra standing verdict.
 - **The world-size axis is linear and it has a ceiling.** Cost grows ≈ 3.6 µs per
   standing verdict, because every transaction re-derives every standing derivation
-  (doc 03 § Truth maintenance). At **100 or more standing derived verdicts the kernel
-  refuses every transaction**: `reason::forward::ITERATION_CAP` is 100 and counts rule
-  *firings* per transaction, and re-chaining 100 standing verdicts is 100 firings.
+  (doc 03 § Truth maintenance). At **more than 100 standing derived verdicts the
+  kernel refuses every transaction**: `reason::forward::ITERATION_CAP` is 100 and
+  counts rule *firings* per transaction, admitting exactly 100 and refusing the
+  101st; re-chaining 100 standing verdicts is 100 firings (the `world_size/99` row,
+  99 padding verdicts plus `:cmd`), and one more verdict is one firing too many.
   The error is the gate's own, verbatim:
 
   ```text
@@ -153,7 +167,7 @@ outliers) that the Rust rows do not.
   ```
 
   For a control loop this decides PRP-009 decision 7: a fresh subject per tick reaches
-  the ceiling on the 100th tick; the standing-command shape never does. Neither the
+  the ceiling on the 101st tick; the standing-command shape never does. Neither the
   cap nor truth maintenance is changed here (doc 04 owns the cap as a tripwire).
 - **`replace_standing` cannot express a sensor dropout on its own.** Re-asserting a
   named instance *merges* properties (single-valued ones are replaced), so a tick that
@@ -161,9 +175,12 @@ outliers) that the Rust rows do not.
   row uses a standing command that never had one. A live loop needs a `retract` (or a
   fresh subject) for the dropout tick; its cost is not measured here.
 - The two docs-14 target rows this touches — gate + chain transaction < 1 ms, and
-  `prove` / `explain` < 1 ms — are met by every measured row that the cap admits,
-  Rust and Python, at up to 99 standing verdicts. Whether that becomes a published
-  number is decision 2.
+  `prove` / `explain` < 1 ms — are met at p50 and p99 by every measured row that the
+  cap admits, Rust and Python, at up to 99 standing verdicts. They are **not** met at
+  the max: the `world_size/99` max is 1.163 ms in Rust and 1.294 ms in Python, both
+  over the gate + chain target, and Python's `cold_world` max is over it as well
+  (1.292 ms, an interpreter pause). Whether any of this becomes a published number,
+  and at which percentile, is decision 2.
 
 ## The "21 s at 55 rules" figure, attributed
 

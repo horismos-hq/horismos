@@ -139,6 +139,19 @@ pub fn decide_standing(world: &mut World, t: &Terms, case: Case) -> Option<Value
     world.value(subject, t.verdict).cloned()
 }
 
+/// A clone of `world` whose interner is already its own. `World::clone` is
+/// a refcount bump that leaves the two worlds sharing one `Arc<Interner>`,
+/// and the first `intern` on the clone (which `assert_instance` performs
+/// for its skolem) would deep-copy every ontology IRI through
+/// `Arc::make_mut`. A real loop never clones per tick, so the harnesses
+/// force that copy here, in set-up, by interning a throwaway IRI — the
+/// timed decision then pays only for the decision.
+pub fn detached_clone(world: &World) -> World {
+    let mut clone = world.clone();
+    clone.intern(&format!("{NS}detached"));
+    clone
+}
+
 /// One decision on a fresh, anonymous command (the alternative per-tick
 /// shape PRP-009 decision 7 weighs): the world grows by one subject.
 pub fn decide_fresh(world: &mut World, t: &Terms, case: Case) -> Option<Value> {
@@ -151,9 +164,10 @@ pub fn decide_fresh(world: &mut World, t: &Terms, case: Case) -> Option<Value> {
 /// The world-size axis: `padding` further standing commands beside `:cmd`.
 /// Every transaction resets and re-derives *all* standing derivations, and
 /// `reason::forward::ITERATION_CAP` (100) counts rule firings per
-/// transaction, so a world holding more than 99 padding verdicts refuses
-/// every transaction with `IterationCapExceeded` — the sweep records that
-/// ceiling as a result rather than avoiding it.
+/// transaction and admits exactly 100, so a world holding more than 100
+/// standing verdicts in all (more than 99 padding verdicts beside `:cmd`)
+/// refuses every transaction with `IterationCapExceeded` — the sweep records
+/// that ceiling as a result rather than avoiding it.
 pub const WORLD_SIZES: [usize; 6] = [1, 10, 50, 99, 100, 1000];
 
 /// A world at its fixed point with the standing command `:cmd` already

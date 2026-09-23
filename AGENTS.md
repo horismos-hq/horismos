@@ -107,9 +107,10 @@ proof → NL). Delete the LLM and the kernel still runs.
   at about 100 standing derivations — use a fresh `World` per decision
   (`examples/mujoco/README.md` § D7 has the measurements).
   Consequence: `reason::forward::ITERATION_CAP` (100) counts rule *firings* per
-  transaction, and the re-chain replays every standing derivation, so a world holding
-  100+ derived facts refuses every further transaction (`IterationCapExceeded`). Keep a
-  loop's world small (update a standing subject, don't accrue one per tick).
+  transaction and admits exactly 100, and the re-chain replays every standing
+  derivation, so a world holding more than 100 derived facts refuses every further
+  transaction (`IterationCapExceeded`). Keep a loop's world small (update a standing
+  subject, don't accrue one per tick).
   Per-decision numbers: `crates/horismos-core/benches/README.md`.
 
 ## Commands

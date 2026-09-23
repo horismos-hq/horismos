@@ -8,7 +8,8 @@
 //!   `replace_standing` updates the one standing `:cmd` (the world size is
 //!   constant; every tick pays truth maintenance for its own verdict).
 //!   `fresh_subject` asserts a new anonymous command into a cloned world
-//!   (the clone is set-up, outside the timed section). `cold_world` is the
+//!   (the clone, with its interner copy-on-write already paid, is set-up
+//!   outside the timed section, and it is dropped there too). `cold_world` is the
 //!   very first transaction of a brand-new `World`, the shape PRP-002's
 //!   `triage_transaction` measures — for comparison, not the steady state.
 //! - `shield_explain`: reading the recorded derivation (`explain`) and the
@@ -17,8 +18,9 @@
 //! - `shield_world_size/<N>`: the next `replace_standing` decision with N
 //!   further standing commands in the world, each with its own derived
 //!   verdict that truth maintenance resets and re-derives every tick. Sizes
-//!   the iteration cap refuses (100 firings per transaction, so 100 or more
-//!   standing verdicts) are reported on stderr and skipped, not hidden.
+//!   the iteration cap refuses (100 firings per transaction are admitted,
+//!   so more than 100 standing verdicts) are reported on stderr and skipped,
+//!   not hidden.
 //!
 //! Numbers, hardware and commands: `crates/horismos-core/benches/README.md`.
 //! These are measurements; the published latency claim is PRP-009 decision 2.
@@ -27,7 +29,8 @@ mod shield_common;
 
 use criterion::{BatchSize, BenchmarkId, Criterion, criterion_group, criterion_main};
 use shield_common::{
-    Case, WORLD_SIZES, decide_fresh, decide_standing, ontology, standing_world, try_standing_world,
+    Case, WORLD_SIZES, decide_fresh, decide_standing, detached_clone, ontology, standing_world,
+    try_standing_world,
 };
 
 fn shield_decision(c: &mut Criterion) {
@@ -48,8 +51,8 @@ fn shield_decision(c: &mut Criterion) {
             |b, &case| {
                 let (world, t, _) = standing_world(&onto, case, 0);
                 b.iter_batched(
-                    || world.clone(),
-                    |mut world| decide_fresh(&mut world, &t, case),
+                    || detached_clone(&world),
+                    |mut world| (decide_fresh(&mut world, &t, case), world),
                     BatchSize::SmallInput,
                 );
             },

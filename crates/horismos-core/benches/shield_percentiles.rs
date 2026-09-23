@@ -16,13 +16,14 @@
 //! - `replace_standing/<case>`: one steady-state decision on the standing
 //!   `:cmd` — assert → fixed point → read `:verdict` — per verdict path.
 //! - `fresh_subject/<case>`: the same decision as a new anonymous command
-//!   into a world cloned outside the timed section.
+//!   into a world cloned — interner copy-on-write already paid — outside
+//!   the timed section, and dropped after it.
 //! - `explain`: the recorded derivation of the standing verdict, apart.
 //! - `world_size/<N>`: the next `replace_standing` decision with N further
 //!   standing commands, each carrying a derivation truth maintenance resets
 //!   and re-derives on every transaction. A size the iteration cap refuses
-//!   (100 firings per transaction) is printed as a refused row with the
-//!   gate's own error text.
+//!   (more than 100 firings per transaction) is printed as a refused row
+//!   with the gate's own error text.
 //!
 //! Output is a markdown table on stdout; `README.md` beside this file holds
 //! the recorded runs. Measurement only — the published claim is PRP-009
@@ -33,7 +34,8 @@ mod shield_common;
 use std::time::{Duration, Instant};
 
 use shield_common::{
-    Case, WORLD_SIZES, decide_fresh, decide_standing, ontology, standing_world, try_standing_world,
+    Case, WORLD_SIZES, decide_fresh, decide_standing, detached_clone, ontology, standing_world,
+    try_standing_world,
 };
 
 struct Config {
@@ -80,13 +82,14 @@ struct Row {
 }
 
 /// Times `f` once per sample after `warmup` untimed calls. `prepare` runs
-/// before each call, outside the timed section (a clone, or nothing).
+/// before each call, outside the timed section (a clone, or nothing), and
+/// `f` hands its input back so that its drop lands after the clock is read.
 fn measure<S>(
     name: &str,
     warmup: usize,
     samples: usize,
     mut prepare: impl FnMut() -> S,
-    mut f: impl FnMut(S),
+    mut f: impl FnMut(S) -> S,
 ) -> Row {
     for _ in 0..warmup {
         f(prepare());
@@ -95,8 +98,9 @@ fn measure<S>(
     for _ in 0..samples {
         let input = prepare();
         let start = Instant::now();
-        f(input);
+        let output = f(input);
         times.push(start.elapsed());
+        drop(output);
     }
     times.sort_unstable();
     let at = |q: f64| times[((times.len() - 1) as f64 * q).round() as usize];
@@ -143,10 +147,11 @@ fn main() {
             &format!("fresh_subject/{}", case.name()),
             config.warmup,
             config.samples,
-            || world.clone(),
+            || detached_clone(&world),
             |mut world| {
                 let verdict = decide_fresh(&mut world, &t, case);
                 assert_eq!(verdict.as_ref(), Some(&case.expected(&t)));
+                world
             },
         ));
     }
