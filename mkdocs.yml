@@ -94,7 +94,6 @@ nav:
       - Health: use-cases/health.md
       - Coding: use-cases/coding.md
       - Insurance: use-cases/insurance.md
-      - Physical AI: use-cases/physical-ai.md
       - Customer operations: use-cases/customer-ops.md
   - Guarantees: guarantees.md
   - Architecture: architecture.md
