@@ -93,9 +93,9 @@ impl Case {
         }
     }
 
-    /// The command's state for this case. A tenth of a metre / metre per
-    /// second is exact in `Decimal`, so the values are the same lexical
-    /// forms the docs page asserts.
+    /// The command's state for this case. The values are the fixture's own
+    /// (the page's commands use other numbers; the rules they reach are the
+    /// same), chosen in tenths so each is exact in `Decimal`.
     pub fn state(self, t: &Terms) -> Vec<(Iri, Value)> {
         let mut props = vec![(t.e_stop_engaged, Value::Boolean(false))];
         match self {

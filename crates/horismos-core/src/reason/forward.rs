@@ -40,7 +40,9 @@ use crate::reason::proof::{self, ProofNode};
 use crate::reason::rule::Term;
 use crate::world::gate::Witness;
 
-/// Doc 04's default iteration cap.
+/// Doc 04's default iteration cap. Each pass fires one candidate, so this
+/// is the number of rule firings one transaction admits; the tripwire
+/// trips only when a candidate still remains after the last pass.
 pub const ITERATION_CAP: usize = 100;
 
 /// One rule firing, as recorded (doc 09's `fired` entries are built from

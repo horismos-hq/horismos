@@ -41,8 +41,8 @@ import horismos
 from horismos import HorismosError, Ontology, Ref, World
 from horismos.examples import path
 
-# The three verdict paths as the Physical AI page exercises them; the same
-# lexical values as the Rust fixture (`benches/shield_common/mod.rs`).
+# The three verdict rules the Physical AI page exercises, driven with the same
+# values as the Rust fixture (`benches/shield_common/mod.rs`), not the page's.
 CASES: dict[str, tuple[dict[str, object], str]] = {
     "permitted_open_floor": (
         {

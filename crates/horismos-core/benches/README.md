@@ -73,9 +73,11 @@ inside a decision. Three shapes:
 - `world_size/N`: `replace_standing` with N further standing commands, each carrying a
   derived verdict that truth maintenance resets and re-derives on every transaction.
 
-The three verdict paths are the Physical AI page's: open floor 2.4 m at 1.8 m/s →
-`:Permitted`; shared cell 0.8 m at 1.2 m/s → `:Attenuated`; no proximity reading →
-`:Blocked` via `noProximityReadingBlocks`. Each harness asserts the verdict it read.
+The three verdict paths are the rules the Physical AI page walks (`permitOpenFloor`,
+`attenuateInSharedCell`, `noProximityReadingBlocks`), driven with the fixture's own
+values, not the page's commands: open floor 2.4 m at 1.8 m/s → `:Permitted`; shared
+cell 0.8 m at 1.2 m/s → `:Attenuated`; no proximity reading → `:Blocked`. Each harness
+asserts the verdict it read.
 
 ### Rust, per decision (`shield_percentiles`)
 
