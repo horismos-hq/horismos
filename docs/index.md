@@ -9,13 +9,14 @@ hide:
 
 # Neural proposes. Symbolic decides.
 
-<p class="horis-tagline">Horismos is an ontology-first decision kernel that sits <em>around</em> the agent you already run. Your rules make the call. The model translates language into typed facts. Every conclusion ships with a proof — and the kernel still runs with the model deleted.</p>
+<p class="horis-tagline">Horismos is an ontology-first decision kernel that sits <em>between</em> a policy and what it acts on — a planner and an actuator, an agent and its tools. Your rules make the call. A model can only propose typed facts. Every decision ships with a proof — and the kernel still runs with the model deleted.</p>
 
 [Quickstart — 10 minutes, zero API keys](quickstart.md){ .md-button .md-button--primary }
+[Physical AI — the shield, with proofs](use-cases/physical-ai.md){ .md-button }
 [Coming from LangGraph](coming-from-langgraph.md){ .md-button }
-[Governing a coding agent](governing-a-coding-agent.md){ .md-button }
 
 <div class="horis-chips" markdown="span">
+<span>No model required — the shield below runs on structured input alone</span>
 <span>Day one: an opt-in bridge for [TypeSafe AI's Jev](#when-the-model-is-the-boundary) — typed answers, never prose</span>
 <span>Rust core · Python bindings</span>
 <span>Standard Turtle, RDFS-plus</span>
@@ -85,11 +86,11 @@ hide:
     </marker>
   </defs>
 </svg>
-<svg class="horis-flow-wide" viewBox="0 0 900 200" role="img" aria-label="Flow diagram: language, documents and system state enter perception, the one neural boundary, which proposes typed facts; the five-check gate admits or refuses them in domain terms; rules decide to a fixed point; the kernel emits a decision, a proof and a replayable trace.">
+<svg class="horis-flow-wide" viewBox="0 0 900 200" role="img" aria-label="Flow diagram: planner proposals, sensor readings, language and records enter; perception, the one neural boundary, proposes typed facts from language; the five-check gate admits or refuses every fact in domain terms; rules decide to a fixed point; the kernel emits a decision, a proof and a replayable trace.">
 
   <rect class="hf-in" x="8" y="46" width="132" height="52" rx="8"/>
-  <text class="hf-lead" x="74" y="69" text-anchor="middle">Language, docs,</text>
-  <text class="hf-lead" x="74" y="85" text-anchor="middle">system state</text>
+  <text class="hf-lead" x="74" y="69" text-anchor="middle">Planner, sensors,</text>
+  <text class="hf-lead" x="74" y="85" text-anchor="middle">language, records</text>
 
   <rect class="hf-neu" x="172" y="34" width="150" height="76" rx="9"/>
   <text class="hf-k hf-k-neu" x="247" y="57" text-anchor="middle" fill="var(--horis-neural, #96590a)">NEURAL · BOUNDARY 1</text>
@@ -118,12 +119,12 @@ hide:
 
   <path class="hf-r" d="M429 112 L429 150 L247 150 L247 114"/>
   <text class="hf-rt" x="444" y="154">refused atomically, in domain terms —</text>
-  <text class="hf-rt" x="444" y="172">“heartRate 1280 exceeds horis:max 300 (bpm) on :Patient”</text>
+  <text class="hf-rt" x="444" y="172">“requestedSpeed 3.5 exceeds horis:max 2.0 (m/s) on :MotionCommand”</text>
 </svg>
-<svg class="horis-flow-narrow" viewBox="0 0 320 480" role="img" aria-label="Flow diagram: language, documents and system state enter perception, the one neural boundary, which proposes typed facts; the five-check gate admits or refuses them in domain terms; rules decide to a fixed point; the kernel emits a decision, a proof and a replayable trace.">
+<svg class="horis-flow-narrow" viewBox="0 0 320 480" role="img" aria-label="Flow diagram: planner proposals, sensor readings, language and records enter; perception, the one neural boundary, proposes typed facts from language; the five-check gate admits or refuses every fact in domain terms; rules decide to a fixed point; the kernel emits a decision, a proof and a replayable trace.">
   <rect class="hf-in" x="30" y="6" width="200" height="46" rx="8"/>
-  <text class="hf-lead" x="130" y="26" text-anchor="middle">Language, docs,</text>
-  <text class="hf-lead" x="130" y="42" text-anchor="middle">system state</text>
+  <text class="hf-lead" x="130" y="26" text-anchor="middle">Planner, sensors,</text>
+  <text class="hf-lead" x="130" y="42" text-anchor="middle">language, records</text>
 
   <rect class="hf-neu" x="20" y="80" width="220" height="72" rx="9"/>
   <text class="hf-k hf-k-neu" x="130" y="102" text-anchor="middle" fill="var(--horis-neural, #96590a)">NEURAL · BOUNDARY 1</text>
@@ -156,15 +157,80 @@ hide:
 
 </div>
 
-## The whole idea in ten lines
+## The whole idea in a dozen lines
 
-You have shipped an agent. Somewhere in a prompt it says *"patients with a heart rate over 120 and chest pain are immediate acuity"*, and somewhere in production the model skipped that line. In Horismos the sentence is a rule in a small ontology file, the model can only propose typed facts, and the rule — not the model — assigns the decision:
+You have shipped a policy — a VLA model, an RL controller, an LLM planner — and it proposes each motion of an arm that works near people. Somewhere in a prompt or a reward it says *"keep half a metre from a person, and slow down in a shared cell"*, and somewhere in production the model skipped that line. In Horismos the sentence is a rule in a small ontology file, the policy can only propose a typed command, and the rule — not the policy — decides whether it reaches the actuator:
+
+<div class="horis-proof" markdown>
+<p class="horis-panel-label">Three commands, three proofs</p>
+
+```python
+from horismos import Ontology, World, HorismosValidationError
+from horismos.examples import path
+
+world = World(Ontology.load(path("gallery/safety-envelope.ttl")))
+
+def shield(subject: str, **state: object) -> None:
+    cmd = world.assert_(":MotionCommand", subject=subject, **state)
+    print(world.explain(cmd, ":verdict").render())
+
+shield(":cmd-1", zone=":OpenFloor", nearest_human_distance=2.4,
+       requested_speed=1.8, e_stop_engaged=False)
+shield(":cmd-2", zone=":SharedCell", nearest_human_distance=0.8,
+       requested_speed=1.2, e_stop_engaged=False)
+shield(":cmd-3", zone=":SharedCell", requested_speed=0.4, e_stop_engaged=False)
+```
+
+```text
+:verdict = :Permitted   via permitOpenFloor — "Open floor with clear separation — command permitted as proposed"
+  ├─ eStopEngaged false is false   (asserted by the api)
+  ├─ zone :OpenFloor is :OpenFloor   (asserted by the api)
+  └─ nearestHumanDistance 2.4 atLeast 1.0   (asserted by the api)
+
+:verdict = :Attenuated   via attenuateInSharedCell — "Shared cell with a person present — speed is capped, command is attenuated"
+  ├─ eStopEngaged false is false   (asserted by the api)
+  ├─ zone :SharedCell is :SharedCell   (asserted by the api)
+  ├─ requestedSpeed 1.2 exceeds 0.25   (asserted by the api)
+  └─ nearestHumanDistance 0.8 atLeast 0.5   (asserted by the api)
+
+:verdict = :Blocked   via noProximityReadingBlocks — "No proximity reading — the minimum separation distance cannot be established, so motion is refused"
+  ├─ eStopEngaged false is false   (asserted by the api)
+  ├─ zone isNot :Restricted   (closed world)
+  └─ nearestHumanDistance isEmpty   (closed world)
+```
+
+</div>
+
+The third command is the one to look at. No distance reading arrived, and the shield did not read silence as safety: it refused, with a proof whose leaf names the reading that never came. Now try to set the verdict directly — the way a policy network, a tool, or a careless caller would:
+
+<div class="horis-refusal" markdown>
+<p class="horis-panel-label">Refused — every path into the world, no back door</p>
+
+```python
+try:
+    world.assert_(":MotionCommand", subject=":cmd-4", zone=":OpenFloor",
+                  requested_speed=0.1, e_stop_engaged=False, verdict=":Permitted")
+except HorismosValidationError as e:
+    print(e)
+```
+
+```text
+verdict may only be assigned by rules (horis:assignedBy horis:RulesOnly); assertion came from the api
+```
+
+</div>
+
+That refusal is the product. It applies to every path into the world — perception, rule, tool, API — with no back door, and nothing above needed a model or a key. The snippets run verbatim against the installed package. [Physical AI](use-cases/physical-ai.md) takes the same overlay through the mechanical limit, the emergency stop and the two coverage gaps `verify()` found; the [quickstart](quickstart.md) walks through the kernel with nothing to configure.
+
+### The same kernel, a clinical overlay
+
+The flagship example is clinical triage, and it shows a step the shield never needs. No rule here mentions *crushing* chest pain; the imported SNOMED subset says it is a kind of chest pain, and the proof shows that step:
 
 <div class="horis-proof" markdown>
 <p class="horis-panel-label">The proof, not a transcript</p>
 
 ```python
-from horismos import Ontology, World, HorismosValidationError
+from horismos import Ontology, World
 from horismos.examples import path
 
 onto = Ontology.load(path("triage/triage.ttl"),
@@ -174,12 +240,10 @@ world = World(onto)
 p = world.assert_(":Patient", subject=":p7",
                   heart_rate=128, has_symptom=[":CrushingChestPain"])
 
-print(world.value(p, ":acuity"))              # derived by rule r1 inside the same transaction
-print(world.explain(p, ":acuity").render())   # the proof, not a transcript
+print(world.explain(p, ":acuity").render())   # derived by rule r1 inside the same transaction
 ```
 
 ```text
-Ref(:Immediate)
 :acuity = :Immediate   via r1 — "Tachycardia with chest pain — immediate track"
   ├─ heartRate 128 exceeds 120   (asserted by the api)
   └─ hasSymptom :CrushingChestPain ⊑ :ChestPain   (subsumption)
@@ -187,29 +251,11 @@ Ref(:Immediate)
 
 </div>
 
-No rule mentions *crushing* chest pain. The imported SNOMED subset says it is a kind of chest pain, and the proof shows that step. Now try to set the decision directly — the way a model, a tool, or a careless caller would:
-
-<div class="horis-refusal" markdown>
-<p class="horis-panel-label">Refused — every path into the world, no back door</p>
-
-```python
-try:
-    world.assert_(":Patient", subject=":p8", acuity=":Immediate")
-except HorismosValidationError as e:
-    print(e)
-```
-
-```text
-acuity may only be assigned by rules (horis:assignedBy horis:RulesOnly); assertion came from the api
-```
-
-</div>
-
-That refusal is the product. It applies to every path into the world — perception, rule, tool, API — with no back door. The snippets above run verbatim against this repository; the [quickstart](quickstart.md) walks through them with nothing to configure.
+Rules written against concepts grow their coverage with the vocabulary rather than with the prompt. The [Health](use-cases/health.md) page and the [quickstart](quickstart.md) carry the full clinical walkthrough, including the same `RulesOnly` refusal for `acuity`.
 
 ## What breaks in prompt-governed agents
 
-These are the failure classes working agent teams keep meeting. Every number below is measured in the primary source cited beside it, not by us.
+These are the failure classes working agent teams keep meeting, and a robot makes every one of them physical: a silent wrong state is a wrong motion, and an approval that was correct at check time can be stale by actuation. Every number below is measured in the primary source cited beside it, not by us.
 
 <div class="horis-cmp" markdown>
 
@@ -249,10 +295,10 @@ These are the failure classes working agent teams keep meeting. Every number bel
 
 ## What you get
 
-- **A typed world, not a scratchpad.** Facts are instances of ontology classes; ranges, units, cardinality, closed enumerations and provenance policy are enforced at the gate. Rejections are sentences an auditor can read: `heartRate 1280 exceeds horis:max 300 (bpm) on :Patient`.
+- **A typed world, not a scratchpad.** Facts are instances of ontology classes; ranges, units, cardinality, closed enumerations and provenance policy are enforced at the gate. Rejections are sentences an auditor can read: `requestedSpeed 3.5 exceeds horis:max 2.0 (m/s) on :MotionCommand`.
 - **Rules that decide, with proofs.** Deterministic forward and backward chaining, subsumption over your class hierarchy and imported vocabularies, a proof tree per conclusion, and truth maintenance that re-derives when base facts change.
-- **LLMs at two declared boundaries only.** Perception (text → typed instances, schema-forced, confidence-gated, with a mandatory fallback edge) and narration (proof → prose, never written back). Structured input skips the model entirely.
-- **Tools the runtime fires.** Declared contracts: typed arguments read from the graph, preconditions checked, effects validated through the same gate. The model never picks a tool or builds its arguments.
+- **LLMs at two declared boundaries only — and optional.** Perception (text → typed instances, schema-forced, confidence-gated, with a mandatory fallback edge) and narration (proof → prose, never written back). Structured input — a sensor reading, a planner's command, a record — skips the model entirely, which is why the shield above needs none.
+- **Tools the runtime fires.** Declared contracts: typed arguments read from the graph, preconditions checked, effects validated through the same gate. The model never picks a tool or builds its arguments, and a policy never marks its own command safe.
 - **Traces as the product.** Every run emits a typed, replayable trajectory — the audit log and the training corpus are the same object, with loss masks precomputed.
 - **Verification before deployment.** Completeness, conflict-freedom, dead rules, termination and workflow totality, with counterexamples rendered in domain terms. `Ontology.load` refuses an ontology that fails them (see [Guarantees](guarantees.md) for exactly what is claimed).
 
@@ -294,7 +340,7 @@ The rules decided. The model had no vote:
 
 ## It surrounds your stack
 
-Horismos does not replace LangGraph, your agent SDK, your coding harness, or your system of record. It gates one decision inside them.
+Horismos does not replace your planner or your controller, LangGraph, your agent SDK, your coding harness, or your system of record — and it does not replace the safety-rated stops a cell already has. It gates one decision inside them.
 
 See [Architecture](architecture.md) for the bounded projection kernel in one diagram, and [Coming from LangGraph](coming-from-langgraph.md) for the honest split of who does what.
 
@@ -306,13 +352,15 @@ Stating the edges plainly is part of the offer.
 - **It does not prove generated code is correct.** For coding agents, the planned candidate-artifact boundary proves a proposal was policy-legal and passed its declared checks. Semantic correctness stays a review and test claim.
 - **Its guarantees are snapshot-scoped.** Inside one evaluated projection the gate has no back door and determinism holds. Freshness and completeness are only as good as the last hydration and the declared input closure.
 - **It is not a system of record, an orchestrator, or OWL-DL.** It overlays your records, runs one bounded decision, and takes RDFS plus a small executable vocabulary — full description-logic inference is out of scope forever.
+- **It is not a safety-rated component.** Horismos is a supervisory decision layer between a planner and an actuator interface, not a safety PLC or a control loop; it makes no claim against ISO 10218, ISO/TS 15066 or IEC 61508 and has not been assessed under them.
 - **It is pre-alpha.** Every published release so far is a pre-release (`pip install horismos` installs the latest; see the [Quickstart](quickstart.md#0-install)), and the surface can still change between them.
 
 ## Where next
 
 <div class="grid cards" markdown>
 
-- **[Quickstart](quickstart.md)** — `make develop`, load the triage ontology, watch the gate reject bad data, print a proof, run the full agent loop on the mock bridge, then go live with one environment variable.
+- **[Physical AI](use-cases/physical-ai.md)** — the shield end to end: the mechanical-limit refusal, the emergency stop recomputed in the transaction that recorded it, and the two coverage gaps `verify()` found and what closing them took.
+- **[Quickstart](quickstart.md)** — `make develop`, load an ontology, watch the gate reject bad data, print a proof, run the full agent loop on the mock bridge, then go live with one environment variable.
 - **[Go live in 2 minutes](go-live.md)** — the same demo against a real model through OpenRouter: one environment variable, a real captured trace, and a decision and proof identical to the mock run.
 - **[Coming from LangGraph](coming-from-langgraph.md)** — the same decision written both ways, and the ten lines that let a graph node call the kernel.
 - **[Governing a coding agent](governing-a-coding-agent.md)** — a 28-term change gate where the bot cannot grant itself merge permission.
