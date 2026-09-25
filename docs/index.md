@@ -251,7 +251,7 @@ print(world.explain(p, ":acuity").render())   # derived by rule r1 inside the sa
 
 </div>
 
-Rules written against concepts grow their coverage with the vocabulary rather than with the prompt. The [Health](use-cases/health.md) page and the [quickstart](quickstart.md) carry the full clinical walkthrough, including the same `RulesOnly` refusal for `acuity`.
+Rules written against concepts grow their coverage with the vocabulary rather than with the prompt. The [Health](use-cases/health.md) page and the [clinical quickstart](quickstart-clinical.md) carry the full clinical walkthrough, including the same `RulesOnly` refusal for `acuity`.
 
 ## What breaks in prompt-governed agents
 
@@ -360,7 +360,8 @@ Stating the edges plainly is part of the offer.
 <div class="grid cards" markdown>
 
 - **[Physical AI](use-cases/physical-ai.md)** — the shield end to end: the mechanical-limit refusal, the emergency stop recomputed in the transaction that recorded it, and the two coverage gaps `verify()` found and what closing them took.
-- **[Quickstart](quickstart.md)** — `make develop`, load an ontology, watch the gate reject bad data, print a proof, run the full agent loop on the mock bridge, then go live with one environment variable.
+- **[Quickstart](quickstart.md)** — no model, no keys: load the shield, watch the gate refuse a command above the mechanical limit, read verdicts with their proofs, engage the e-stop and watch the verdict recompute, then run `verify()` on the coverage.
+- **[Clinical quickstart](quickstart-clinical.md)** — the triage ontology end to end: a proof through SNOMED CT subsumption, the full agent loop on the mock bridge, then go live with one environment variable.
 - **[Go live in 2 minutes](go-live.md)** — the same demo against a real model through OpenRouter: one environment variable, a real captured trace, and a decision and proof identical to the mock run.
 - **[Coming from LangGraph](coming-from-langgraph.md)** — the same decision written both ways, and the ten lines that let a graph node call the kernel.
 - **[Governing a coding agent](governing-a-coding-agent.md)** — a 28-term change gate where the bot cannot grant itself merge permission.
