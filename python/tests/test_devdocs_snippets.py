@@ -33,7 +33,8 @@ DOCS = REPO / "docs"
 # did what the page says, not merely that it ran without raising.
 PAGES: dict[str, str] = {
     "index.md": "via noProximityReadingBlocks",
-    "quickstart.md": "hasSymptom sct:4557003 ⊑ :ChestPain",
+    "quickstart.md": "via blockOnEStop",
+    "quickstart-clinical.md": "hasSymptom sct:4557003 ⊑ :ChestPain",
     "coming-from-langgraph.md": 'via r3 — "Heart rate at most 100',
     "governing-a-coding-agent.md": "via approveRoutineChange",
     "guarantees.md": "two independent worlds, identical bytes",

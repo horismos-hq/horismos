@@ -118,6 +118,7 @@ mkdocs.yml                     site config (repo root)
 docs/
   index.md                     landing page — the pitch
   quickstart.md                10 minutes, zero API keys
+  quickstart-clinical.md       the original triage walkthrough — subsumption, the agent loop, go-live
   go-live.md                   the same demo on a real model — one env var, a real captured trace
   coming-from-langgraph.md     honest side-by-side
   governing-a-coding-agent.md  the change-gate story (examples/change-gate/)

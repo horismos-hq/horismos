@@ -85,6 +85,7 @@ extra_css:
 nav:
   - Home: index.md
   - Quickstart: quickstart.md
+  - Clinical quickstart: quickstart-clinical.md
   - Physical AI: use-cases/physical-ai.md
   - Go live: go-live.md
   - From LangGraph: coming-from-langgraph.md
