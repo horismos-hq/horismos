@@ -19,6 +19,7 @@ shipped state.
 | `python/horismos` | The `horismos` Python package: pure-Python surface over the native module |
 | `examples/triage` | The running example: clinical triage (`triage.ttl`) |
 | `examples/vte` | The standards-anchored vertical slice: VTE prophylaxis over a recorded FHIR bundle (PRP-008) |
+| `examples/mujoco` | The MuJoCo shield demo (PRP-009 tier 3): a repository example behind the `mujoco` extra, run by `make demo-shield`, never by `make verify` — see its README |
 
 ## Development
 

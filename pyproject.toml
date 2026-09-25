@@ -42,6 +42,15 @@ classifiers = [
 Homepage = "https://horismos-hq.github.io/horismos/"
 Documentation = "https://horismos-hq.github.io/horismos/"
 
+# The MuJoCo shield demo (examples/mujoco, PRP-009 tier 3) is an extra, never a
+# core dependency: the wheel's metadata names mujoco only under
+# `extra == "mujoco"`, `pip install horismos` installs none of it, and nothing the
+# package imports or tests needs it. Pinned exactly because the demo's pinned
+# verdict sequence repeats only on one physics build (pinned on mujoco 3.14.0,
+# macOS 26 arm64, Python 3.13); `make demo-shield` installs it into .venv.
+[project.optional-dependencies]
+mujoco = ["mujoco==3.14.0"]
+
 [dependency-groups]
 dev = [
     "maturin>=1.9.3,<2",

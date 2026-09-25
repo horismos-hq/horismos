@@ -1,7 +1,7 @@
 # Horismos dev entry points. Requires: rustup (stable), uv. Everything Python
 # runs through uv; maturin is a dev dependency, never a global install.
 
-.PHONY: build develop test test-rust test-py test-workflows lint fmt notices no-model-gate check-boundary verify clean demo demo-live demo-jev demo-jev-live demo-jev-py demo-jev-py-live
+.PHONY: build develop test test-rust test-py test-workflows lint fmt notices no-model-gate check-boundary verify clean demo demo-live demo-jev demo-jev-live demo-jev-py demo-jev-py-live demo-shield
 
 build:
 	cargo build --workspace
@@ -29,14 +29,14 @@ lint:
 	# The provider bridges are feature-gated, so the workspace pass above never
 	# compiles them; lint them as the published wheel builds them.
 	cargo clippy -p horismos-py --all-targets --features bridges-jev,bridges-openrouter -- -D warnings
-	uv run ruff check python scripts
-	uv run ruff format --check python scripts
+	uv run ruff check python scripts examples/mujoco
+	uv run ruff format --check python scripts examples/mujoco
 	uv run mypy
 
 fmt:
 	cargo fmt --all
-	uv run ruff format python scripts
-	uv run ruff check --fix python scripts
+	uv run ruff format python scripts examples/mujoco
+	uv run ruff check --fix python scripts examples/mujoco
 
 # Regenerate THIRD_PARTY_NOTICES.txt (shipped in the wheel and sdist) from the
 # release closure. Run after any change to Cargo.lock; `make test` fails while
@@ -92,6 +92,17 @@ demo-jev-py: develop
 # TYPESAFE_API_KEY (or a _FILE variant).
 demo-jev-py-live: develop
 	HORISMOS_DEMO_LIVE=1 uv run python -m horismos demo
+
+# PRP-009 tier 3: the MuJoCo shield demo, headless, fixed seed. MuJoCo is the
+# `mujoco` extra, never a core dependency — this target installs it into .venv
+# (the next `make develop` removes it again) and asserts the outcome, never
+# pixels: the shield-off run touches the human, the shield-on run does not, its
+# verdict sequence equals examples/mujoco/expected-verdicts.json, and a second
+# run repeats it. Exit code is the assertion; nothing here skips.
+demo-shield:
+	uv sync --extra mujoco
+	uv run maturin develop --uv
+	uv run python examples/mujoco/demo.py --check
 
 clean:
 	cargo clean
