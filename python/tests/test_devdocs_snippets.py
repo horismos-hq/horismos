@@ -10,8 +10,14 @@ not matched. A docs edit that breaks a sample breaks this test.
 
 Every ```text fence that immediately follows a runnable fence is the output the
 page shows for it, and is pinned to the page's real stdout — the site's promise
-is that a shown proof is verbatim. Both guards run only where ``make test`` runs;
-the repository has no pull-request-triggered check yet (PRP-006).
+is that a shown proof is verbatim.
+
+Every ```turtle fence whose title names a file under ``examples/`` is an owned
+excerpt of that file: each blank-line-separated chunk of its body must be a
+verbatim contiguous slice of the file, so an edit to the overlay fails here
+loudly instead of the public page silently showing the wrong lines. An untitled
+Turtle fence is illustrative and is not matched. All three guards run only where
+``make test`` runs; the repository has no pull-request-triggered check yet (PRP-006).
 """
 
 import contextlib
@@ -59,6 +65,13 @@ _SHOWN_OUTPUT = re.compile(
     re.M | re.S,
 )
 
+# A Turtle fence titled with an examples/ path is an excerpt contract with that file.
+_EXCERPT = re.compile(
+    r"^(?P<indent>[ \t]*)```turtle title=\"(?P<file>examples/[^\"\s]+)[^\"]*\"\n"
+    r"(?P<body>.*?)^(?P=indent)```",
+    re.M | re.S,
+)
+
 
 def _dedent(indent: str, body: str) -> str:
     lines = [line.removeprefix(indent) if line.strip() else "" for line in body.splitlines()]
@@ -80,6 +93,26 @@ def _shown_output_blocks(page: Path) -> list[tuple[int, str]]:
             _dedent(m.group("indent"), m.group("body")).strip("\n"),
         )
         for m in _SHOWN_OUTPUT.finditer(text)
+    ]
+
+
+def _excerpt_blocks(page: Path) -> list[tuple[int, str, list[str]]]:
+    """(line number, source file, blank-line-separated chunks) of every Turtle
+    fence the page presents as an excerpt of a file under examples/."""
+    text = page.read_text()
+    return [
+        (
+            text.count("\n", 0, m.start()) + 1,
+            m.group("file"),
+            [
+                chunk
+                for chunk in re.split(
+                    r"\n(?:[ \t]*\n)+", _dedent(m.group("indent"), m.group("body")).strip("\n")
+                )
+                if chunk.strip()
+            ],
+        )
+        for m in _EXCERPT.finditer(text)
     ]
 
 
@@ -157,6 +190,21 @@ def test_every_shown_output_block_is_the_real_stdout(page: str) -> None:
     assert not stale, (
         f"{len(stale)} shown output block(s) on {page} no longer match what the samples print — "
         "regenerate the block from the sample's real stdout:\n\n" + "\n\n".join(stale)
+    )
+
+
+@pytest.mark.parametrize("page", sorted(PAGES))
+def test_every_titled_turtle_excerpt_is_a_verbatim_slice_of_its_file(page: str) -> None:
+    drifted = []
+    for line, file, chunks in _excerpt_blocks(DOCS / page):
+        source = (REPO / file).read_text()
+        assert chunks, f"{page}:{line} is an empty excerpt of {file}"
+        for chunk in chunks:
+            if chunk not in source:
+                drifted.append(f"{page}:{line} ({file}):\n{chunk}")
+    assert not drifted, (
+        f"{len(drifted)} excerpt chunk(s) on {page} are no longer a verbatim contiguous slice "
+        "of the file they are titled with — re-copy them from the file:\n\n" + "\n\n".join(drifted)
     )
 
 

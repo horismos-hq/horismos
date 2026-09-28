@@ -34,14 +34,38 @@ The running example is a shield for a mobile manipulator: a learned policy propo
 
 The whole overlay is one Turtle file of nine rules ([Physical AI](use-cases/physical-ai.md) shows all of it). The parts that matter for the next five minutes are a range-constrained speed, a decision property that only rules may assign, and two of the rules that assign it:
 
-```turtle
---8<-- "examples/gallery/safety-envelope.ttl:17:21"
+```turtle title="examples/gallery/safety-envelope.ttl (excerpt)"
+:requestedSpeed a rdf:Property ;
+    rdfs:domain :MotionCommand ; rdfs:range xsd:decimal ;
+    horis:unit "m/s" ;
+    horis:min 0 ; horis:max 2.0 ;          # the gate refuses anything above the mechanical limit
+    horis:cardinality "1" .
 
---8<-- "examples/gallery/safety-envelope.ttl:43:46"
+:verdict a rdf:Property ;
+    rdfs:domain :MotionCommand ; rdfs:range :Verdict ;
+    horis:cardinality "0..1" ;
+    horis:assignedBy horis:RulesOnly .   # the policy network cannot mark its own command safe
 
---8<-- "examples/gallery/safety-envelope.ttl:50:56"
+:blockOnEStop a horis:Rule ;
+    horis:priority 100 ;
+    horis:when [
+        horis:subject :MotionCommand ; horis:property :eStopEngaged ; horis:is true
+    ] ;
+    horis:then [ horis:property :verdict ; horis:value :Blocked ] ;
+    horis:explain "Emergency stop is engaged — no motion" .
 
---8<-- "examples/gallery/safety-envelope.ttl:74:85"
+:attenuateInSharedCell a horis:Rule ;
+    horis:priority 50 ;
+    horis:when [
+        horis:all (
+            [ horis:subject :MotionCommand ; horis:property :eStopEngaged ; horis:is false ]
+            [ horis:subject :MotionCommand ; horis:property :zone ; horis:is :SharedCell ]
+            [ horis:subject :MotionCommand ; horis:property :requestedSpeed ; horis:exceeds 0.25 ]
+            [ horis:subject :MotionCommand ; horis:property :nearestHumanDistance ; horis:atLeast 0.5 ]
+        )
+    ] ;
+    horis:then [ horis:property :verdict ; horis:value :Attenuated ] ;
+    horis:explain "Shared cell with a person present — speed is capped, command is attenuated" .
 ```
 
 Loading parses the Turtle, validates the RDFS-plus profile, builds the schema and rules, and runs the verifier — one native call, GIL released. An overlay with a coverage gap does not load at all; section 7 shows that. `path` finds the file inside the installed package, and the rules come back highest priority first:
