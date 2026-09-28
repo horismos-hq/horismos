@@ -31,9 +31,11 @@ as the layer between a policy and what it acts on — a planner and an actuator 
 an agent and its tools second — and the first example a reader meets on the home page is the
 motion-command shield (`examples/gallery/safety-envelope.ttl`): a learned policy proposes a
 command, the rules decide with a proof whether it may pass, a missing sensor reading is
-refused rather than read as safe, and no model is involved at all. The quickstart still
-opens with triage; the Tier 2 PR extends the shield to it when it lands. The rest of the
-pitch above is unchanged; the
+refused rather than read as safe, and no model is involved at all. The quickstart's
+primary worked example is the same shield, with no model and no keys (Tier 2, 2026-09-28);
+the clinical walkthrough moved intact to its own page, `docs/quickstart-clinical.md`, which
+keeps the sections the shield has no analogue for (the `python -m horismos demo` smoke run,
+SNOMED subsumption, the agent loop, go-live). The rest of the pitch above is unchanged; the
 shield exercises the same gate, chaining, truth maintenance and verification with none of the
 LLM boundaries. What it does not claim is fixed by PRP-009's safety-boundary statement (the
 wording is the captain's, decision 1): Horismos is a supervisory decision layer, not a
@@ -133,8 +135,8 @@ training-corpus-grade from day one (PRP-002).
   number (direct Apollo-1 comparison, existing scoreboard); clinical triage stays the
   docs narrative and SNOMED interop showcase.
   *Amended 2026-09-25* (PRP-009 Tier 1, captain's decision 3 "Front Door", 2026-09-23):
-  the docs home page and the nav now lead with the motion-command shield; the Tier 2 PR
-  extends that to the quickstart when it lands. Clinical triage stays the running example
+  the docs home page, the nav and the quickstart (Tier 2, 2026-09-28) now lead with the
+  motion-command shield. Clinical triage stays the running example
   of the framework reference (docs 01–13), the flagship fixture and the SNOMED interop
   showcase, and
   `PRPs/CONVENTIONS.md`'s rule that every PRP's DoD is expressed against triage is
