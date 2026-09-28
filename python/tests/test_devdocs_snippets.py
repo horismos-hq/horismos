@@ -51,6 +51,12 @@ PAGES: dict[str, str] = {
     "use-cases/customer-ops.md": "via alreadyFlown",
 }
 
+# page → the examples/ file it must present a titled Turtle excerpt of: without this
+# sentinel, a retitled fence would drop out of the excerpt guard and it would pass empty.
+EXCERPTS: dict[str, str] = {
+    "quickstart.md": "examples/gallery/safety-envelope.ttl",
+}
+
 # A fence may sit inside a tabbed/admonition block, indented by a fixed prefix;
 # the closing fence carries the same prefix, and every line in between is
 # dedented by exactly that prefix before it runs.
@@ -152,6 +158,14 @@ def test_every_page_with_runnable_blocks_is_listed() -> None:
     )
 
 
+def test_every_titled_turtle_excerpt_is_listed() -> None:
+    found = {(page, file) for page in PAGES for _, file, _ in _excerpt_blocks(DOCS / page)}
+    assert found == set(EXCERPTS.items()), (
+        "a listed page gained or lost a ```turtle fence titled with an examples/ file; "
+        "update EXCERPTS so every excerpt on the site is guarded against drift"
+    )
+
+
 @pytest.mark.parametrize(("page", "expected"), sorted(PAGES.items()))
 def test_the_page_runs_verbatim(page: str, expected: str) -> None:
     assert expected in _run_page(page)
@@ -193,14 +207,21 @@ def test_every_shown_output_block_is_the_real_stdout(page: str) -> None:
     )
 
 
-@pytest.mark.parametrize("page", sorted(PAGES))
-def test_every_titled_turtle_excerpt_is_a_verbatim_slice_of_its_file(page: str) -> None:
+@pytest.mark.parametrize(("page", "expected_file"), sorted(EXCERPTS.items()))
+def test_every_titled_turtle_excerpt_is_a_verbatim_slice_of_its_file(
+    page: str, expected_file: str
+) -> None:
+    excerpts = _excerpt_blocks(DOCS / page)
+    assert any(file == expected_file for _, file, _ in excerpts), (
+        f"{page} lost its excerpt of {expected_file}, or its fence title no longer names "
+        "that file — the excerpt guard would otherwise pass without checking anything"
+    )
     drifted = []
-    for line, file, chunks in _excerpt_blocks(DOCS / page):
-        source = (REPO / file).read_text()
+    for line, file, chunks in excerpts:
+        source = "\n" + (REPO / file).read_text().rstrip("\n") + "\n"
         assert chunks, f"{page}:{line} is an empty excerpt of {file}"
         for chunk in chunks:
-            if chunk not in source:
+            if f"\n{chunk}\n" not in source:
                 drifted.append(f"{page}:{line} ({file}):\n{chunk}")
     assert not drifted, (
         f"{len(drifted)} excerpt chunk(s) on {page} are no longer a verbatim contiguous slice "
