@@ -93,6 +93,29 @@ A shield is only as good as its coverage, and coverage is what `verify()` proves
 
 What it does not claim: anything about the sensor that produced `nearestHumanDistance`, the controller that executes an attenuated command, or the physical world between check and actuation. Those are the adapter's and the deployer's, and the assumption manifest lists the unverified external effects explicitly.
 
+## See it move
+
+The repository carries a runnable MuJoCo demo of this shield at `examples/mujoco/` — a scene, the demo script and the pinned verdict sequence. A scripted policy drives a wheeled robot at a goal on the far side of a person and never slows down on its own; every control tick the proposal is asserted as a `:MotionCommand` under the overlay above, and only the value the shield released reaches the actuator. The same seed runs twice. With the shield off the robot touches the person at 3.60 s. With the shield on it never does, and it reaches the goal 3.95 s later — that delay is the shield's cost in this scene, stated plainly.
+
+The demo needs the optional `horismos[mujoco]` extra; `pip install horismos` installs no MuJoCo, and nothing the package imports or tests depends on it. From a checkout:
+
+```sh
+make demo-shield                                        # installs the extra into .venv, runs the CI check
+uv run python examples/mujoco/demo.py --trace           # one line per tick: proposal, reading, verdict, actuated speed
+uv run python examples/mujoco/demo.py --record clips/   # two MP4s (needs a GL context)
+```
+
+What one run reports:
+
+```text
+shield off seed 7  300 ticks: HUMAN CONTACT at tick 72 (t = 3.60 s); goal reached at tick 188 (t = 9.40 s)
+shield on  seed 7  300 ticks: no human contact; goal reached at tick 267 (t = 13.35 s)
+  verdicts: :Attenuated 128 · :Blocked 44 · :Permitted 128  (no-reading :Blocked 8, no verdict 0)
+cost of the shield: 44 blocked + 128 attenuated ticks; reaches the goal 79 ticks (3.95 s) later; progress 100% vs 100% unshielded
+```
+
+Eight of the blocked ticks are the no-reading `:Blocked` from the section above, put in motion: a sensor-dropout window withholds the distance reading, and the robot brakes to a stop on an empty floor because the shield cannot establish separation. The demo's README walks through the rest of the sequence tick by tick.
+
 ## Status and honest edges
 
 - Runs today with structured input at the decision level. Nothing in Horismos runs at control-loop rates or replaces a certified safety PLC; this is the supervisory decision layer between a planner and an actuator interface, and the framework's own posture is that OS- and hardware-level isolation stays the deployer's.
