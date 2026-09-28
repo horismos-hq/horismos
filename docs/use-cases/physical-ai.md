@@ -102,15 +102,16 @@ The demo needs the optional `horismos[mujoco]` extra; `pip install horismos` ins
 ```sh
 make demo-shield                                        # installs the extra into .venv, runs the CI check
 uv run python examples/mujoco/demo.py --trace           # one line per tick: proposal, reading, verdict, actuated speed
-uv run python examples/mujoco/demo.py --record clips/   # two MP4s (needs a GL context)
+uv run python examples/mujoco/demo.py --record clips/   # two MP4s (needs a GL context and ffmpeg)
 ```
 
-What one run reports:
+What one run reports, abridged from the full transcript in the demo's README; the exact tick counts and times hold for one physics build (mujoco 3.14.0, macOS arm64):
 
 ```text
 shield off seed 7  300 ticks: HUMAN CONTACT at tick 72 (t = 3.60 s); goal reached at tick 188 (t = 9.40 s)
 shield on  seed 7  300 ticks: no human contact; goal reached at tick 267 (t = 13.35 s)
   verdicts: :Attenuated 128 · :Blocked 44 · :Permitted 128  (no-reading :Blocked 8, no verdict 0)
+  …
 cost of the shield: 44 blocked + 128 attenuated ticks; reaches the goal 79 ticks (3.95 s) later; progress 100% vs 100% unshielded
 ```
 
