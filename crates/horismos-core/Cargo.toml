@@ -50,5 +50,16 @@ harness = false
 name = "verification"
 harness = false
 
+# PRP-009 P1: the motion-command shield's per-decision latency (docs use case
+# physical-ai). `shield` is criterion; `shield_percentiles` owns its main and
+# prints per-decision p50/p99/max. Results: benches/README.md.
+[[bench]]
+name = "shield"
+harness = false
+
+[[bench]]
+name = "shield_percentiles"
+harness = false
+
 [lints]
 workspace = true

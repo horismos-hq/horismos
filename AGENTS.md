@@ -106,6 +106,12 @@ proof → NL). Delete the LLM and the kernel still runs.
   every earlier one on each transaction and trips `reason::forward::ITERATION_CAP`
   at about 100 standing derivations — use a fresh `World` per decision
   (`examples/mujoco/README.md` § D7 has the measurements).
+  Consequence: `reason::forward::ITERATION_CAP` (100) counts rule *firings* per
+  transaction and admits exactly 100, and the re-chain replays every standing
+  derivation, so a world holding more than 100 derived facts refuses every further
+  transaction (`IterationCapExceeded`). Keep a loop's world small (update a standing
+  subject, don't accrue one per tick).
+  Per-decision numbers: `crates/horismos-core/benches/README.md`.
 
 ## Commands
 
@@ -124,7 +130,10 @@ make notices       # regenerate THIRD_PARTY_NOTICES.txt after any Cargo.lock cha
 make demo-shield   # the MuJoCo shield demo's CI check (installs the `mujoco` extra into .venv; never part of verify)
 ```
 
-`make verify` must be green before any commit that claims a task complete.
+`make verify` must be green before any commit that claims a task complete. Budget
+~5 min each for `make test` and `make no-model-gate` on an M4: the 55-rule
+depth-cap test in `reason::backward` spends that long in debug-build verification
+(attributed in `crates/horismos-core/benches/README.md`), not in inference.
 
 ## Conventions
 
