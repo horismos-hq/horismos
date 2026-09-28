@@ -1,5 +1,7 @@
 # Physical AI
 
+**Where this sits.** Horismos is a supervisory decision layer: it sits between a planner and an actuator interface and decides, with a proof, whether a proposed command may pass. It is not a safety-rated component, a safety PLC or a control loop, and it does not replace the safety-rated stops and interlocks a cell already has. Horismos makes no claim against ISO 10218, ISO/TS 15066 or IEC 61508 and has not been assessed under them. The thresholds in this overlay are teaching values; a real cell takes its own from its risk assessment. What the shield adds is a refusal with a proof above that layer, not a substitute for it.
+
 ## The scene
 
 A learned policy — a VLA model, an RL controller, an LLM planner — proposes a motion command for a mobile manipulator. The proposal is probably fine. "Probably" is not the standard for a robot arm moving near a person. The established pattern is a **shield**: a deterministic layer between the policy and the actuator that checks each proposed action against a specification of safe states and blocks or attenuates the ones that violate it (Alshiekh et al., "Safe Reinforcement Learning via Shielding", AAAI 2018). The policy stays free to be clever inside the envelope; the envelope is not negotiable.
@@ -94,5 +96,6 @@ What it does not claim: anything about the sensor that produced `nearestHumanDis
 ## Status and honest edges
 
 - Runs today with structured input at the decision level. Nothing in Horismos runs at control-loop rates or replaces a certified safety PLC; this is the supervisory decision layer between a planner and an actuator interface, and the framework's own posture is that OS- and hardware-level isolation stays the deployer's.
+- Measured, not promised. One shield decision takes about 5 µs in Rust and about 8 µs from Python (p99 under 10 µs) for a single standing command on an Apple M4, release build; cost grows about 3.6 µs per additional standing verdict, and the kernel refuses a transaction that would fire more than 100 rules. That is the cost of one supervisory decision on structured input, `explain` apart; the benchmark, the machine and every recorded run live in the core crate's benches.
 - The freshness concern is the physical version of the snapshot-scoped guarantee: a verdict is exact for the world state it was given, and the runtime recomputes on every change it is told about. What it is not told about, it cannot gate ([Guarantees](../guarantees.md)).
 - Thresholds are teaching values. A real cell derives them from its risk assessment and the applicable standards; the overlay shape is what stays the same.

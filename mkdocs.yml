@@ -11,8 +11,9 @@
 site_name: Horismos
 site_url: https://docs.horismos.ai/
 site_description: >-
-  Ontology-first decision kernel for LLM agents. Your rules decide; the model translates.
-  Rust core, Python bindings, a proof for every conclusion.
+  Ontology-first decision kernel between a policy and what it acts on — a planner and an
+  actuator, an agent and its tools. Your rules decide, with a proof; a model can only propose.
+  Rust core, Python bindings.
 repo_url: https://github.com/horismos-hq/horismos
 repo_name: horismos-hq/horismos
 edit_uri: edit/main/docs/
@@ -84,6 +85,7 @@ extra_css:
 nav:
   - Home: index.md
   - Quickstart: quickstart.md
+  - Physical AI: use-cases/physical-ai.md
   - Go live: go-live.md
   - From LangGraph: coming-from-langgraph.md
   - Coding agents: governing-a-coding-agent.md
@@ -92,7 +94,6 @@ nav:
       - Health: use-cases/health.md
       - Coding: use-cases/coding.md
       - Insurance: use-cases/insurance.md
-      - Physical AI: use-cases/physical-ai.md
       - Customer operations: use-cases/customer-ops.md
   - Guarantees: guarantees.md
   - Architecture: architecture.md
