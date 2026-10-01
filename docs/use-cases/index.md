@@ -27,4 +27,4 @@ All thresholds in the gallery overlays are illustrative teaching values, not cli
 - A refusal, shown, when something tries.
 - Proof trees whose leaves name the provenance of every fact they rest on.
 - A fail-closed default: when the facts a rule needs are missing, a rule decides that case explicitly and the proof names the missing observation — never a silent default, and `verify()` refuses to load an overlay that leaves any region undecided.
-- Rules written against concepts, so coverage grows with the vocabulary (see the quickstart's SNOMED step) rather than with the prompt.
+- Rules written against concepts, so coverage grows with the vocabulary (see [the clinical quickstart's SNOMED step](../quickstart-clinical.md#6-reach-through-the-imported-vocabulary)) rather than with the prompt.

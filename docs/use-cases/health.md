@@ -1,6 +1,6 @@
 # Health
 
-Three scenes: VTE prophylaxis (the standards-anchored vertical slice that was built for PRP-008), the triage flagship you met in the quickstart, and prior authorization — which is precisely the kind of decision that needs an appealable proof, and precisely why it is not the first build.
+Three scenes: VTE prophylaxis (the standards-anchored vertical slice that was built for PRP-008), the triage flagship you met in the [clinical quickstart](../quickstart-clinical.md), and prior authorization — which is precisely the kind of decision that needs an appealable proof, and precisely why it is not the first build.
 
 ## VTE prophylaxis
 
@@ -115,7 +115,7 @@ What it would not do: say anything about whether the Padua thresholds are clinic
 
 ## Triage (the flagship)
 
-The quickstart runs it end to end. The point it makes for health specifically: a rule written against `:ChestPain` fires for a SNOMED-coded unstable angina it never mentioned, and the proof shows the subsumption step. See `examples/triage/triage.ttl` and the [Quickstart](../quickstart.md).
+The clinical quickstart runs it end to end. The point it makes for health specifically: a rule written against `:ChestPain` fires for a SNOMED-coded unstable angina it never mentioned, and the proof shows the subsumption step. See `examples/triage/triage.ttl` and [section 6 of the clinical quickstart](../quickstart-clinical.md#6-reach-through-the-imported-vocabulary).
 
 ## Prior authorization — later, on purpose
 

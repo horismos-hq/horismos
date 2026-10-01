@@ -56,9 +56,14 @@ together, or every page ships a canonical link to the wrong host.
   package today — a LangGraph sketch, an API that lands with a later PRP — is fenced
   with a title, e.g. ```` ```python title="Illustrative — lands with PRP-008" ````, which
   the test deliberately does not match and which the reader sees as a header.
-- **Turtle is pulled from the real files.** Ontology listings use
+- **Turtle is pulled from the real files.** Whole-file ontology listings use
   `--8<-- "examples/…"` snippets so the page and the file cannot drift
-  (`check_paths: true` fails the build if a file moves).
+  (`check_paths: true` fails the build if a file moves). An excerpt is written
+  inline under a title naming the file, e.g.
+  ```` ```turtle title="examples/gallery/safety-envelope.ttl (excerpt)" ````, and
+  `python/tests/test_devdocs_snippets.py` checks that every blank-line-separated
+  chunk of such a fence is a verbatim contiguous slice of that file — never a
+  line-range include, which nothing guards.
 - **Claims are sourced, but the citation must be public.** Numbers on the landing page
   and use-case pages are researched against the internal wiki (each claim tagged
   `[measured]` there) or against `docs/framework/`. Do not invent claims — and do not
@@ -118,6 +123,7 @@ mkdocs.yml                     site config (repo root)
 docs/
   index.md                     landing page — the pitch
   quickstart.md                10 minutes, zero API keys
+  quickstart-clinical.md       the original triage walkthrough — subsumption, the agent loop, go-live
   go-live.md                   the same demo on a real model — one env var, a real captured trace
   coming-from-langgraph.md     honest side-by-side
   governing-a-coding-agent.md  the change-gate story (examples/change-gate/)

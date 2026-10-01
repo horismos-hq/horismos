@@ -98,6 +98,6 @@ Fare rules are the textbook case for conflict-freedom: `freeWithin24h` and `basi
 
 ## Status and honest edges
 
-- Runs today with structured input. The perception step that turns the customer's message into these facts is the Rust agent loop's `PerceptionStep` (see the quickstart's mock-bridge run); the `ProposalStep` that ranks legal options is parsed and traced today but its execution is deferred in the current PRP-004 build.
+- Runs today with structured input. The perception step that turns the customer's message into these facts is the Rust agent loop's `PerceptionStep` (see [the clinical quickstart's mock-bridge run](../quickstart-clinical.md#9-run-the-whole-agent-loop-mock-bridge-no-network-no-key)); the `ProposalStep` that ranks legal options is parsed and traced today but its execution is deferred in the current PRP-004 build.
 - τ-bench airline is the framework's chosen public benchmark (PRP-000). No Horismos number exists yet; the harness scaffold is a PRP-006 deliverable. The +12.4 pp figure above is the cited paper's, for its own deterministic gates — evidence for the mechanism class, not a Horismos result.
 - Fare rules here are illustrative and much simpler than any carrier's.

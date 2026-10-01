@@ -152,6 +152,6 @@ A third, constrained slot exists for genuine preferences among *legal* options: 
 
 ## Where next
 
-- [Quickstart](quickstart.md) for the full symbolic walk-through and the mock-bridge agent run.
+- [Quickstart](quickstart.md) for the full symbolic walk-through on the shield, and the [clinical quickstart](quickstart-clinical.md) for the mock-bridge agent run.
 - [Governing a coding agent](governing-a-coding-agent.md) if your agent writes code.
 - [Concepts](framework/01-concepts.md) for the comparison table in the framework's own words.
