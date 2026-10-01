@@ -22,7 +22,7 @@ make demo-shield                              # installs the extra into .venv, r
 uv run python examples/mujoco/demo.py         # both runs, text report
 uv run python examples/mujoco/demo.py --trace # one line per tick: what the captain reads
 uv run python examples/mujoco/demo.py --json out.json
-uv run python examples/mujoco/demo.py --record clips/   # two MP4s (needs a GL context)
+uv run python examples/mujoco/demo.py --record clips/   # two MP4s (needs a GL context and ffmpeg; PPM frames without ffmpeg)
 ```
 
 Outside this checkout: `pip install "horismos[mujoco]"`, then run `demo.py` from a copy
