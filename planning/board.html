@@ -117,7 +117,7 @@
     fragment; the runtime evaluates it as a verified, versioned projection over an
     existing system of record. LLMs live only at declared perception/narration
     boundaries.</p>
-    <p class="stamp">Updated 2026-09-05 · PRP-004 Done via PR #8 · PRP-005 Done · PRP-008 Done via PR #15 · mirrors <code>PRPs/BOARD.md</code></p>
+    <p class="stamp">Board table and build order updated 2026-09-23 (PRP-009 Physical AI drafted; PRP-006 Active since 2026-09-21) · Now/Next panels last refreshed 2026-09-05 · mirrors <code>PRPs/BOARD.md</code></p>
   </header>
 
   <section aria-label="Pivot note" style="margin-top:1.5rem;padding:1rem 1.25rem;background:var(--panel);border:1px solid var(--symbolic);border-radius:10px;">
@@ -218,11 +218,14 @@
             <td>PRP-008 · Standards &amp; host integration<span class="why">FHIR hydration/commit, terminology provenance, CDS-Hooks/PlanDefinition/CQL composition, candidate-artifact boundary, generic host SPI — sequenced after 005, before 006/007</span></td>
             <td><span class="chip chip-done">Done · 2026-09-03</span></td></tr>
         <tr><td class="track-cell">Ship &amp; Author</td>
-            <td>PRP-006 · Packaging &amp; docs<span class="why">crates.io + PyPI + docs site + zero-key CI gates — activates after PRP-008</span></td>
-            <td><span class="chip chip-draft">Draft</span></td></tr>
+            <td>PRP-006 · Packaging &amp; docs<span class="why">crates.io + PyPI + docs site + zero-key CI gates — PyPI release path landed first</span></td>
+            <td><span class="chip chip-next">Active · 2026-09-21</span></td></tr>
         <tr><td class="track-cell">Ship &amp; Author</td>
             <td>PRP-007 · Authoring agent<span class="why">Import/align/overlay-first; SMEs converse; Claude drafts Turtle; the verifier gatekeeps</span></td>
             <td><span class="chip chip-draft">Draft · amended 2026-08-24</span></td></tr>
+        <tr><td class="track-cell">Ship &amp; Author</td>
+            <td>PRP-009 · Physical AI<span class="why">Physical AI as the lead story: shield-first home page and quickstart, a MuJoCo demo; a published latency number and a safety-boundary statement gate go-live</span></td>
+            <td><span class="chip chip-draft">Draft · 2026-09-23</span></td></tr>
       </tbody>
     </table>
   </div>
@@ -235,6 +238,9 @@ flowchart LR
     P0["000<br/>vision"] --> P1["001<br/>ontology core"] --> P2["002<br/>reasoning"] --> P3["003<br/>python api"] --> P4["004<br/>agent loop"] --> P8["008<br/>standards &amp; host<br/>integration"] --> P6["006<br/>ship"] --> P7["007<br/>authoring agent"]
     P2 --> P5["005<br/>verification"] --> P8
     P5 -. "witnesses feed the<br/>authoring loop" .-> P7
+    P3 --> P9["009<br/>physical AI"]
+    P5 --> P9
+    P6 -. "a release with horismos.examples<br/>+ release path for the tier 3 extra" .-> P9
     classDef engine fill:#DCE4FB,stroke:#3B5BDB,color:#1B2130;
     classDef surface fill:#CFE8E4,stroke:#17877B,color:#1B2130;
     classDef runtime fill:#F5E3C4,stroke:#C87B1B,color:#1B2130;
@@ -244,7 +250,7 @@ flowchart LR
     class P3 surface;
     class P4 runtime;
     class P8 integration;
-    class P0,P6,P7 ship;
+    class P0,P6,P7,P9 ship;
     </pre>
     <p style="font-size:.82rem;color:var(--muted);margin:.6rem 0 0;">Dependency DAG, not
     strict number order (<code>PRPs/CONVENTIONS.md</code>): PRP-008 activates after

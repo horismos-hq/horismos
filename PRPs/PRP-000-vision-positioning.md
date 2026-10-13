@@ -134,11 +134,11 @@ training-corpus-grade from day one (PRP-002).
 - **Proving ground — both-track**: τ-Bench airline supplies the public benchmark
   number (direct Apollo-1 comparison, existing scoreboard); clinical triage stays the
   docs narrative and SNOMED interop showcase.
-  *Amended 2026-09-25* (PRP-009 Tier 1, captain's decision 3 "Front Door", 2026-09-23):
-  the docs home page, the nav and the quickstart (Tier 2, 2026-09-28) now lead with the
-  motion-command shield. Clinical triage stays the running example
-  of the framework reference (docs 01–13), the flagship fixture and the SNOMED interop
-  showcase, and
+  *Amended 2026-09-25* (PRP-009 Tier 1, captain's decision 3 "Front Door", 2026-09-23;
+  PRP-009 owns the Physical AI lane and this amendment): the docs home page, the nav
+  and the quickstart (Tier 2, 2026-09-28) now lead with the motion-command shield.
+  Clinical triage stays the running example of the framework reference (docs 01–13),
+  the flagship fixture and the SNOMED interop showcase, and
   `PRPs/CONVENTIONS.md`'s rule that every PRP's DoD is expressed against triage is
   unchanged; PRP-009's DoD is the recorded exception.
 - **Naming — Horismos** (rebrand from "Sigil"): Aristotle's ὁρισμός, *definition* —

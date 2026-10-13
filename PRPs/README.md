@@ -22,6 +22,7 @@ the bounded-projection-kernel positioning (pivot adopted 2026-08-24), and
 | [PRP-008](PRP-008-standards-host-integration/01-objective.md) | Standards & host integration | FHIR hydration/commit, terminology provenance, CDS-Hooks/PlanDefinition/CQL composition, the candidate-artifact boundary, the generic host SPI |
 | [PRP-006](PRP-006-packaging-distribution/01-objective.md) | Packaging & distribution | crates.io, PyPI, CI, docs site — activated 2026-09-21 on PRP-008's integration surface; the PyPI release path first |
 | [PRP-007](PRP-007-authoring-agent.md) | Ontology authoring agent | Import/align/overlay-first; SMEs converse; Claude drafts Turtle; the verifier gatekeeps |
+| [PRP-009](PRP-009-physical-ai.md) | Physical AI | Physical AI as the lead story: shield-first docs and quickstart, a MuJoCo demo, a published latency number — sequencing against 006/007 is a captain decision |
 
 ## Conventions
 

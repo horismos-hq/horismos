@@ -90,7 +90,7 @@ narrative on BOARD.md:
 | **Surface** | 003 | The Python front door |
 | **Runtime** | 004 | Workflows, boundaries, tools, bridges |
 | **Integration** | 008 | Standards & host integration (bounded projection kernel); activates after 005, before 006/007 |
-| **Ship & Author** | 006, 007 | Distribution, docs site, the SME authoring agent |
+| **Ship & Author** | 006, 007, 009 | Distribution, docs site, the SME authoring agent, the Physical AI lead story |
 
 ## Other rules (carried over from README, now normative)
 
@@ -108,4 +108,7 @@ narrative on BOARD.md:
   changes a PRP's status updates BOARD.md in the same commit.
 - The running example is clinical triage; every PRP's DoD is expressed against it.
   PRP-008 added a second, standards-anchored vertical slice (VTE prophylaxis,
-  `examples/vte/`) — triage stays the primary example for docs 01–13.
+  `examples/vte/`) — triage stays the primary example for docs 01–13. PRP-009 (Physical
+  AI, the captain's lead story) expresses its DoD against the motion-command shield
+  (`examples/gallery/safety-envelope.ttl`), with triage kept as its regression surface;
+  whether the running example changes beyond the docs front door is its decision 3.
