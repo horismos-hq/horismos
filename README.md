@@ -109,8 +109,8 @@ print(world.explain(patient, ":acuity").render())
 ```
 
 Loads fail closed: drop `:r3` and the load refuses, naming the case it cannot settle
-("no acuity assigned when heartRate < 0") rather than leaving a decision undefined at
-runtime.
+("no acuity assigned when no heartRate assigned") rather than leaving a decision
+undefined at runtime.
 
 ## The two boundaries
 

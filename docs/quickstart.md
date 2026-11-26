@@ -269,9 +269,9 @@ for w in report.witnesses:
 ```
 
 ```text
-refused: no verdict assigned when requestedSpeed ∈ [0, 0.25) and nearestHumanDistance < 0 and eStopEngaged is false and zone is :SharedCell
+refused: no verdict assigned when requestedSpeed ∈ [0, 0.25) and no nearestHumanDistance assigned and eStopEngaged is false and zone is :SharedCell
 False {':verdict': False}
-[error] completeness: no verdict assigned when requestedSpeed ∈ [0, 0.25) and nearestHumanDistance < 0 and eStopEngaged is false and zone is :SharedCell — add a rule assigning verdict for this region
+[error] completeness: no verdict assigned when requestedSpeed ∈ [0, 0.25) and no nearestHumanDistance assigned and eStopEngaged is false and zone is :SharedCell — add a rule assigning verdict for this region
 ```
 
 The load fails closed: an overlay with an error-severity witness does not load, and `allow_incomplete=True` is the only way past it — an authoring escape that is stamped into every trace the resulting ontology produces. The witness names the region a command with no proximity reading falls into: `:blockTooClose` needs `below 0.5`, the shared-cell rules need `atLeast 0.5`, and a condition over an unassigned property is false, so nothing matched. `:noProximityReadingBlocks` is what closes it, in every zone but `:Restricted`, which `:blockRestrictedZone` already covers. Every worked example on this site passes the check; [Guarantees](guarantees.md) says what it proves and what it never will.
