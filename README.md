@@ -13,9 +13,11 @@ verified before it runs. Delete the LLM and the kernel still runs.
 
 ## Status
 
-Pre-alpha. The symbolic core, the Python bindings, the agent loop (from Rust and from
-Python, with the Jev and OpenRouter bridges), formal verification and the standards/host
-integration layer are built.
+0.1, the first stable release. The symbolic core, the Python bindings, the agent loop
+(from Rust and from Python, with the Jev and OpenRouter bridges), formal verification and
+the standards/host integration layer are built.
+What 0.1.x promises not to break is stated under
+[What Horismos does not claim](https://docs.horismos.ai/#what-horismos-does-not-claim).
 
 ## Install
 
@@ -23,10 +25,8 @@ integration layer are built.
 pip install horismos          # or: uv pip install horismos
 ```
 
-Every version so far is a pre-release. While no stable version exists, pip and uv install
-the latest pre-release without being asked; once a stable version ships, a plain install
-picks that instead, and `pip install --pre horismos` or
-`uv pip install --prerelease allow horismos` asks for a newer pre-release explicitly.
+`pip install horismos` installs the latest stable release; pre-releases install only on
+request (`pip install --pre horismos`, `uv pip install --prerelease allow horismos`).
 
 A release ships prebuilt wheels for Linux x86_64 (glibc 2.17 or newer), Linux aarch64
 (glibc 2.28 or newer), macOS universal2 and Windows x86_64 — one abi3 wheel per platform,

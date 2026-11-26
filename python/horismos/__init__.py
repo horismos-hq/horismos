@@ -40,8 +40,8 @@ from horismos._ontology import (
 )
 from horismos._world import Snapshot, Subscription, World
 
-# The distribution version, in PEP 440 form (``X.Y.ZaN``). The native module
-# carries the same version in Cargo's SemVer spelling (``X.Y.Z-alpha.N``);
+# The distribution version, in PEP 440 form (``X.Y.Z[aN]``). The native module
+# carries the same version in Cargo's SemVer spelling (``X.Y.Z[-alpha.N]``);
 # ``horismos.__version__`` is the Python-facing one, so it is read from the
 # installed distribution metadata that maturin normalised. The native value is
 # the fallback for a source tree that was never installed.

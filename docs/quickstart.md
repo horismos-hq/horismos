@@ -12,7 +12,7 @@ Horismos is on PyPI:
 pip install horismos          # or: uv pip install horismos
 ```
 
-Every version so far is a pre-release. While no stable version exists, pip and uv install the latest pre-release without being asked; once a stable version ships, a plain install picks that instead, and `pip install --pre horismos` or `uv pip install --prerelease allow horismos` is how to ask for a newer pre-release explicitly.
+`pip install horismos` installs the latest stable release; pre-releases install only on request (`pip install --pre horismos`, `uv pip install --prerelease allow horismos`).
 
 Each release ships one abi3 wheel per platform, serving CPython 3.11 and newer: Linux x86_64 (glibc 2.17 or newer), Linux aarch64 (glibc 2.28 or newer), macOS universal2 (Apple Silicon and Intel), and Windows x86_64. The release pipeline installs each of the four wheels and runs the symbolic quickstart from the [Python API reference](framework/11-python-api.md) and `python -m horismos demo` against it on Python 3.11 through 3.14; the aarch64 wheel runs under emulation. Every wheel includes the Jev and OpenRouter model bridges. Anything else installs from the source archive, which compiles the Rust core locally, so it needs a Rust toolchain and a few minutes.
 

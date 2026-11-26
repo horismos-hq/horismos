@@ -36,6 +36,6 @@ pub use world::{Diff, Fact, Provenance, Snapshot, World};
 pub const PROFILE_VERSION: &str = "0.1";
 
 /// Engine version, in Cargo's SemVer spelling. The Python package reports the
-/// PEP 440 normalisation of the same version (`X.Y.Z-alpha.N` -> `X.Y.ZaN`),
+/// PEP 440 normalisation of the same version (`X.Y.Z[-alpha.N]` -> `X.Y.Z[aN]`),
 /// read from its distribution metadata.
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");

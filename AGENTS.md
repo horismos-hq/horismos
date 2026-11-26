@@ -153,8 +153,8 @@ depth-cap test in `reason::backward` spends that long in debug-build verificatio
   snapshot binary form (`world/snapshot.rs` header consts; `Provenance` variant
   order is part of it).
 - One version, authored once: the workspace `version` in the root `Cargo.toml`. It is
-  Cargo SemVer (`X.Y.Z-alpha.N`); maturin normalises it to the PEP 440 distribution
-  version (`X.Y.ZaN`), which is what `horismos.__version__` reports. A bump edits exactly
+  Cargo SemVer (`X.Y.Z[-alpha.N]`); maturin normalises it to the PEP 440 distribution
+  version (`X.Y.Z[aN]`), which is what `horismos.__version__` reports. A bump edits exactly
   four lines — that `version`, the `horismos-core` and `horismos-bridges` pins beside it
   in `[workspace.dependencies]`, and the asserted version in
   `python/tests/test_public_surface.py` — and then `cargo check` refreshes `Cargo.lock`.

@@ -21,7 +21,7 @@ hide:
 <span>Rust core · Python bindings</span>
 <span>Standard Turtle, RDFS-plus</span>
 <span>MIT OR Apache-2.0</span>
-<span>Pre-alpha</span>
+<span>0.1 · Beta</span>
 </div>
 
 <div class="horis-flowcard">
@@ -353,7 +353,7 @@ Stating the edges plainly is part of the offer.
 - **Its guarantees are snapshot-scoped.** Inside one evaluated projection the gate has no back door and determinism holds. Freshness and completeness are only as good as the last hydration and the declared input closure.
 - **It is not a system of record, an orchestrator, or OWL-DL.** It overlays your records, runs one bounded decision, and takes RDFS plus a small executable vocabulary — full description-logic inference is out of scope forever.
 - **It is not a safety-rated component.** Horismos is a supervisory decision layer between a planner and an actuator interface, not a safety PLC or a control loop; it makes no claim against ISO 10218, ISO/TS 15066 or IEC 61508 and has not been assessed under them.
-- **It is pre-alpha.** Every published release so far is a pre-release (`pip install horismos` installs the latest; see the [Quickstart](quickstart.md#0-install)), and the surface can still change between them.
+- **It is 0.x.** Horismos follows Semantic Versioning in its 0.x form: within 0.1.x a release does not break the documented Python surface (`horismos.__all__`) or the public Rust API; a breaking change moves to 0.2.0 and is listed in the release notes. The trace schema and the snapshot binary form are versioned separately and never change meaning: evolution adds a new version with a converter.
 
 ## Where next
 
