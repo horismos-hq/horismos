@@ -615,6 +615,63 @@ mod rule_verification_tests {
         )));
     }
 
+    /// Two rules cover every heart-rate value (`exceeds 120`, `atMost 120`)
+    /// and none covers a patient with no reading, so the only gap is the
+    /// absent value. The encoding forces every boundary bit false for an
+    /// unassigned property; the witness must say "no heartRate assigned",
+    /// never read those bits as "below the lowest threshold" — with
+    /// `horis:min 0` that lowest threshold is 0, without it 120, and both
+    /// intervals are covered by the `atMost 120` rule.
+    #[test]
+    fn an_unassigned_numeric_input_is_reported_as_absent_not_as_an_interval() {
+        const RULES: &str = r#"
+            :AcuityLevel a rdfs:Class ; horis:oneOf ( :Immediate :Standard ) .
+            :acuity a rdf:Property ; rdfs:domain :Patient ; rdfs:range :AcuityLevel ;
+                horis:cardinality "0..1" ; horis:assignedBy horis:RulesOnly .
+            :r1 a horis:Rule ; horis:priority 10 ;
+                horis:when [ horis:subject :Patient ; horis:property :heartRate ; horis:exceeds 120 ] ;
+                horis:then [ horis:property :acuity ; horis:value :Immediate ] ;
+                horis:explain "tachycardia" .
+            :r2 a horis:Rule ; horis:priority 9 ;
+                horis:when [ horis:subject :Patient ; horis:property :heartRate ; horis:atMost 120 ] ;
+                horis:then [ horis:property :acuity ; horis:value :Standard ] ;
+                horis:explain "at most 120" .
+        "#;
+        for bounds in [r#"horis:min 0 ; horis:max 300 ;"#, ""] {
+            let result = report(&format!(
+                ":Patient a rdfs:Class .\n\
+                 :heartRate a rdf:Property ; rdfs:domain :Patient ; rdfs:range xsd:decimal ;\n\
+                     horis:unit \"bpm\" ; {bounds} horis:cardinality \"0..1\" .\n\
+                 {RULES}"
+            ));
+            let gaps: Vec<_> = result
+                .witnesses()
+                .iter()
+                .filter(|w| w.kind == FindingKind::Completeness)
+                .collect();
+            assert_eq!(
+                gaps.len(),
+                1,
+                "bounds {bounds:?}: one gap, the absent reading"
+            );
+            let witness = gaps[0];
+            assert_eq!(witness.severity, Severity::Error);
+            assert_eq!(
+                witness.domain_text, "no acuity assigned when no heartRate assigned",
+                "bounds {bounds:?}"
+            );
+            assert_eq!(witness.region.subject_class.as_deref(), Some(":Patient"));
+            assert_eq!(
+                witness.region.predicates,
+                vec![RegionPredicate::Assigned {
+                    property: "heartRate".into(),
+                    assigned: false,
+                }],
+                "bounds {bounds:?}: absence, with no numeric interval"
+            );
+        }
+    }
+
     #[test]
     fn conflicts_dead_rules_and_cycles_are_reported() {
         let conflict = report(&format!(

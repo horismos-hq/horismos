@@ -842,6 +842,16 @@ impl<'a> SymbolicSpace<'a> {
             let Some(vars) = self.property_vars.get(&property.iri) else {
                 continue;
             };
+            // An unassigned property forces every ordered boundary bit false
+            // (`boundary.imp(assigned)` in the encoding), which would otherwise
+            // read as "below the lowest threshold". Report absence instead.
+            if !vars.ordered.is_empty() && forced(&formula, &self.variables, vars.assigned, false) {
+                predicates.push(RegionPredicate::Assigned {
+                    property: local(self.ontology, property.iri),
+                    assigned: false,
+                });
+                continue;
+            }
             if !vars.ordered.is_empty() {
                 let mut lower: Option<(Threshold, bool)> = None;
                 let mut upper: Option<(Threshold, bool)> = None;
