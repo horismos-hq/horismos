@@ -218,10 +218,10 @@ data.
   **[DECIDE: encryption-at-rest and access-control hooks for the default store — build
   in a minimal hook (e.g. a `TraceStore` wrapping interface for encrypt/decrypt and an
   auth callback) vs. document as fully deployer-owned infra — PRP-006]**
-- **Dependency/supply-chain policy (PRP-006 acceptance surface).** `cargo audit`/
-  `cargo deny` and an equivalent Python check (e.g. `pip-audit`) run in CI as a gate,
-  not advisory output — a known-vulnerable dependency fails the build. An SBOM is
-  generated per release. Provider SDK dependencies stay isolated in
+- **Dependency/supply-chain policy (PRP-006 acceptance surface).** Planned, not yet in
+  CI: `cargo audit`/`cargo deny` and an equivalent Python check (e.g. `pip-audit`) are
+  to run as a gate, not advisory output, so that a known-vulnerable dependency fails the
+  build; and an SBOM is to be generated per release. Provider SDK dependencies stay isolated in
   `horismos-bridges` behind feature flags — the existing anti-wrapper boundary (doc
   14) doubles as a supply-chain control: a compromised provider SDK cannot reach
   `horismos-core` because `horismos-core` never depends on it.

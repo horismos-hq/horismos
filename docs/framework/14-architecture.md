@@ -100,7 +100,8 @@ or process-execution dependency.
 | Perception step | Bridge latency + < 5 ms overhead | The model call dominates by orders of magnitude |
 | Adapter hydration/commit | External I/O latency, not core-budgeted | A live FHIR read/write is bounded by the external system, not the kernel — measured and reported separately, never blended into the deterministic-kernel numbers above |
 
-Benchmarks (criterion) are CI-tracked from PRP-002 onward; regressions fail builds.
+Benchmarks (criterion) are run and recorded from PRP-002 onward; they are not yet a CI
+gate, so a regression does not fail a build.
 Scaling beyond (10³+ rules, 10⁵+ facts) is measured, not promised — the Rete-lite →
 full-Rete decision point is data-driven (PRP-002). **Split, going forward**: the table's
 existing rows measure *deterministic kernel time* only; any future adapter benchmark is a
