@@ -1,7 +1,7 @@
 # Build the developer docs site and deploy it to GitHub Pages on merge to main.
 #
-# This is a deploy-on-merge workflow, not a pull-request check: PRP-006 owns
-# PR-triggered CI for this repository. The Pages site must be configured with
+# This is a deploy-on-merge workflow, not a pull-request check: `ci.yml` runs
+# the same strict build on every pull request. The Pages site must be configured with
 # build type "GitHub Actions" in the repository settings for the deploy job to
 # succeed. The build mirrors the local command exactly:
 #

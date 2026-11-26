@@ -1,0 +1,59 @@
+# The pull-request check: every PR, and every push to main, runs the same
+# `make verify` a contributor runs before claiming work done, plus the strict
+# docs build. Nothing here publishes or deploys — `release.yml` owns the index
+# and `docs-pages.yml` owns the Pages deploy.
+#
+# The steps mirror the local commands exactly:
+#
+#   make develop && make verify
+#   uvx --with mkdocs-material mkdocs build --strict
+#
+# so a tree that verifies locally verifies here, and vice versa. Benchmarks
+# (`make` has no bench target) and the MuJoCo demo (`make demo-shield`) are
+# deliberately outside this gate.
+
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+# A new push to a PR branch supersedes the run in flight for it. Pushes to
+# main group by commit SHA, so no main run is ever cancelled.
+concurrency:
+  group: ci-${{ github.event_name == 'pull_request' && github.head_ref || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  verify:
+    name: make verify
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4.4.0
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87  # stable branch, 2026-09-03
+      # rust-toolchain.toml is the source of truth for the channel, components
+      # and targets; with no arguments rustup installs exactly what it names.
+      - name: Install the toolchain rust-toolchain.toml names
+        run: rustup toolchain install
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0  # v2.9.3
+      - uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86  # v5.4.2
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+      - name: Build the extension into .venv
+        run: make develop
+      - name: Verify (boundary, lint, test, no-model gate)
+        run: make verify
+
+  docs:
+    name: docs build (strict)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4.4.0
+      - uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86  # v5.4.2
+      - name: Build the site (strict)
+        run: uvx --with mkdocs-material mkdocs build --strict
