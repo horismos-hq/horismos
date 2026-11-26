@@ -186,8 +186,8 @@ jobs:
       - name: Install the wheel, run the symbolic quickstart verbatim and the packaged demo
         shell: bash
         run: |
-          # `--pre` is explicit: the only artefact in `dist` is a pre-release,
-          # and the gate should say so rather than lean on pip's fallback.
+          # `--pre` is explicit: a pre-release version must install from `dist`
+          # too, and pip takes one unasked only when no stable version is present.
           python -m pip install --pre --no-index --find-links dist horismos
           python .github/scripts/quickstart_smoke.py
           python .github/scripts/demo_smoke.py

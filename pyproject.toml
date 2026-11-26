@@ -22,11 +22,11 @@ authors = [{ name = "Ramkumar M" }]
 # Version is dynamic on purpose: maturin reads the workspace `version` in the
 # root Cargo.toml, so the Rust and Python versions can never drift apart.
 # Cargo takes SemVer (`X.Y.Z-alpha.N`); maturin normalises it to the PEP 440
-# `X.Y.ZaN`.
+# `X.Y.ZaN`. A stable `X.Y.Z` passes through unchanged.
 dynamic = ["version"]
 keywords = ["ontology", "neuro-symbolic", "agents", "rdf", "reasoning"]
 classifiers = [
-    "Development Status :: 2 - Pre-Alpha",
+    "Development Status :: 4 - Beta",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
@@ -35,12 +35,11 @@ classifiers = [
     "Typing :: Typed",
 ]
 
-# `Source` and `Issues` are deliberately absent while the repository is
-# private — they would 404 for every PyPI visitor. Add both pointing at
-# https://github.com/horismos-hq/horismos when the repository goes public.
 [project.urls]
-Homepage = "https://horismos-hq.github.io/horismos/"
-Documentation = "https://horismos-hq.github.io/horismos/"
+Homepage = "https://docs.horismos.ai/"
+Documentation = "https://docs.horismos.ai/"
+Source = "https://github.com/horismos-hq/horismos"
+Issues = "https://github.com/horismos-hq/horismos/issues"
 
 # The MuJoCo shield demo (examples/mujoco, PRP-009 tier 3) is an extra, never a
 # core dependency: the wheel's metadata names mujoco only under
@@ -58,6 +57,18 @@ dev = [
     "mypy>=1.14",
     "ruff>=0.8",
     "hypothesis>=6",
+]
+
+# uv caches the editable build of this package and, by default, rebuilds it only
+# when pyproject.toml changes. The version and the native module both come from
+# the Rust workspace, so a Cargo version bump or a Rust edit must invalidate that
+# cache too, or `uv run` keeps serving the old extension and its old version.
+[tool.uv]
+cache-keys = [
+    { file = "pyproject.toml" },
+    { file = "Cargo.toml" },
+    { file = "Cargo.lock" },
+    { file = "crates/**/*.rs" },
 ]
 
 [tool.maturin]
